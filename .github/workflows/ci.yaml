@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: CI
 
 on:
   workflow_dispatch:
@@ -9,52 +9,85 @@ on:
     branches:
     - main
 
-env:
-  PYTHON_VERSION: "3.13"
-
 jobs:
-  linting:
-    name: Linting
+  backend:
     runs-on: ubuntu-latest
+    name: "Backend: Lint & Type Check"
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v5
       with:
         enable-cache: true
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Install dependencies
+      run: uv sync --dev
 
-    - name: Install CI dependencies
-      run: uv sync --only-group ci
+    - name: Run all pre-commit hooks
+      run: uv run pre-commit run --all-files --verbose
 
-    - name: Run pre-commit
-      run: uv run pre-commit run --all-files --show-diff-on-failure
-
-  testing:
-    name: Testing
+  frontend:
     runs-on: ubuntu-latest
+    name: "Frontend: Lint, Format & Build"
+    defaults:
+      run:
+        working-directory: frontend
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        enable-cache: true
+        node-version: "24"
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
+        version: latest
+        run_install: false
 
-    - name: Install Dev dependencies
-      run: uv sync --only-group dev
+    - name: Get pnpm store directory
+      id: pnpm-cache
+      shell: bash
+      run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
-    - name: Run tests
-      run: uv run pytest
+    - name: Cache pnpm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+        restore-keys: ${{ runner.os }}-pnpm-
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Lint
+      run: pnpm lint
+
+    - name: Check formatting
+      run: pnpm check
+
+    - name: Build
+      run: pnpm build
+
+  docker:
+    runs-on: ubuntu-latest
+    name: "Docker: Build Images"
+    needs: [backend, frontend]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Build backend image
+      run: docker build -t video-bokeh-backend ./backend
+
+    - name: Build frontend image
+      run: docker build -t video-bokeh-frontend ./frontend
