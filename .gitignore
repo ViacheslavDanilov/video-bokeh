@@ -41,6 +41,8 @@ out/
 # Data & Models
 backend/models/*.joblib
 backend/models/*.pkl
+backend/data/magick*/images
+
 
 # Editors
 .vscode/

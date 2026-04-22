@@ -77,7 +77,7 @@ def main() -> int:
     parser.add_argument("--metadata", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--count", type=int, default=20)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=11)
     parser.add_argument(
         "--picked",
         default="hand",
