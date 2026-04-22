@@ -20,6 +20,12 @@ Usage:
         --output   backend/data/magick_dev \
         --count    20 \
         --seed     0
+
+    # Include auto-picked rows too
+    uv run python -m data.download_magick_samples ... --picked any
+
+    # Only auto-picked rows
+    uv run python -m data.download_magick_samples ... --picked auto
 """
 
 from __future__ import annotations
@@ -72,12 +78,32 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--count", type=int, default=20)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--picked",
+        default="hand",
+        help="Keep only rows where the `picked` column equals this value. "
+        'Pass "any" to disable filtering. Default: "hand".',
+    )
     args = parser.parse_args()
 
     fieldnames, rows = read_metadata(args.metadata)
     if not rows:
         print(f"No rows in {args.metadata}", file=sys.stderr)
         return 1
+
+    if args.picked != "any":
+        if "picked" not in fieldnames:
+            print(
+                f"  WARN {args.metadata} has no `picked` column; --picked ignored",
+                file=sys.stderr,
+            )
+        else:
+            before = len(rows)
+            rows = [r for r in rows if r.get("picked", "").strip() == args.picked]
+            print(f"  Filter: picked == {args.picked!r} → {len(rows)}/{before} rows")
+            if not rows:
+                print(f"No rows match --picked {args.picked!r}", file=sys.stderr)
+                return 1
 
     rng = random.Random(args.seed)
     sample = rng.sample(rows, min(args.count, len(rows)))
