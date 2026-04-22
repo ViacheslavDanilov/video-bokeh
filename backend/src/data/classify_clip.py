@@ -9,11 +9,12 @@ without touching the authoritative metadata.
 
 Taxonomy (edit `TAXONOMY` to tweak):
     person   — humans, portraits, body parts
-    animal   — mammals, birds, fish, insects
-    object   — physical things (food, tools, furniture, vehicles, cards, ...)
-    text     — letters, logos, stamps, typography
-    effect   — water splashes, smoke, fire, particle FX
-    scene    — landscapes, rooms, abstract backgrounds
+    animal   — any living creature (mammal, bird, insect, reptile, fish)
+    plant    — flowers, leaves, trees, bark, botanical subjects
+    food     — cooked or raw edibles (fruit, meat, baked goods, drinks)
+    object   — inanimate man-made items (containers, tools, furniture, clothing, electronics)
+    text     — letters, logos, stamps, banners, typography
+    effect   — water splashes, smoke, fire, bubbles, particle FX
 
 Usage:
     uv run python -m data.classify_clip \
@@ -41,10 +42,11 @@ from torch.utils.data import DataLoader, Dataset
 TAXONOMY: dict[str, str] = {
     "person": "a photograph of a person",
     "animal": "a photograph of an animal",
-    "object": "a photograph of a physical object",
+    "plant": "a photograph of a plant, flower, or tree",
+    "food": "a photograph of food or a drink",
+    "object": "a photograph of a man-made physical object",
     "text": "a photograph of text, letters, or a logo",
-    "effect": "a photograph of a water splash, smoke, or fire",
-    "scene": "a photograph of a landscape or empty scene",
+    "effect": "a photograph of a water splash, smoke, fire, or bubbles",
 }
 
 
