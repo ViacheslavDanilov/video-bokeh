@@ -25,8 +25,8 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ViacheslavDanilov/video-sr-bokeh.git
-   cd video-sr-bokeh
+   git clone https://github.com/ViacheslavDanilov/video-bokeh.git
+   cd video-bokeh
    ```
 
 2. **Install dependencies**
@@ -48,7 +48,7 @@ python -m src.app.main --input video.mp4 --upscale 4x --bokeh-strength 0.5
 ## 📂 Project Structure
 
 ```text
-video-sr-bokeh/
+video-bokeh/
 ├── .github/            # CI/CD workflows
 ├── src/
 │   ├── app/            # Application logic and entry points

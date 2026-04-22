@@ -1,5 +1,5 @@
 [project]
-name = "video-sr-bokeh"
+name = "video-bokeh"
 version = "0.1.0"
 description = "A research and engineering project exploring high-quality video super-resolution combined with depth-aware synthetic bokeh. The pipeline enhances low-resolution video, estimates depth, and applies controllable blur to emulate DSLR-style shallow-focus footage. Includes modular components for SR models, depth prediction, temporal consistency, and real-time inference experiments."
 readme = "README.md"
