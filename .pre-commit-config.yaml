@@ -35,11 +35,15 @@ repos:
   - id: ruff-format
     args: [--config, backend/pyproject.toml]
 
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.19.1
+- repo: local
   hooks:
-  - id: mypy
-    args: [--config-file, backend/pyproject.toml]
+  - id: ty
+    name: ty (astral)
+    entry: uv run ty check
+    language: system
+    types: [python]
+    pass_filenames: false
+    args: [backend/src]
 
 exclude: |
   (?x)(

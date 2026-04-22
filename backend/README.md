@@ -62,7 +62,7 @@ uv remove <package> --package video-bokeh
 uv run pytest
 
 # Type checking
-uv run mypy src/
+uv run ty check src/
 
 # Linting & formatting
 uv run ruff check src/
