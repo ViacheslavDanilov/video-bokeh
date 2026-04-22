@@ -25,7 +25,8 @@ Usage:
         --data-root backend/data/magick_dev \
         --batch-size 16
 
-    # For the full dataset on a GPU:
+    # Full mirror (populate via `huggingface-cli download OneOverZero/MAGICK
+    # --repo-type dataset --local-dir backend/data/magick`), on a GPU:
     uv run python -m data.classify_clip \
         --data-root backend/data/magick \
         --batch-size 64 --device cuda

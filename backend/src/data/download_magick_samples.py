@@ -16,7 +16,7 @@ Source URL pattern:
 
 Usage:
     uv run python -m data.download_magick_samples \
-        --metadata backend/data/magick/metadata.csv \
+        --metadata backend/data/magick_metadata.csv \
         --output   backend/data/magick_dev \
         --count    20 \
         --seed     0
