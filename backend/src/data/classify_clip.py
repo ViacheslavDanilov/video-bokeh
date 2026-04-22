@@ -7,7 +7,7 @@ and scores it against a fixed taxonomy of prompts. Writes a sibling
 `predictions.csv` (page_id, top_label, top_score, per-class scores, subject)
 without touching the authoritative metadata.
 
-Taxonomy (edit `TAXONOMY` to tweak):
+Taxonomy (edit `TAXONOMY` / `TEMPLATES` to tweak):
     person   — humans, portraits, body parts
     animal   — any living creature (mammal, bird, insect, reptile, fish)
     plant    — flowers, leaves, trees, bark, botanical subjects
@@ -15,6 +15,10 @@ Taxonomy (edit `TAXONOMY` to tweak):
     object   — inanimate man-made items (containers, tools, furniture, clothing, electronics)
     text     — letters, logos, stamps, banners, typography
     effect   — water splashes, smoke, fire, bubbles, particle FX
+
+Each class has multiple noun phrasings × multiple photo templates; the text
+embeddings are averaged per class (prompt ensembling), which typically yields
++3–5 pp over a single prompt string.
 
 Usage:
     uv run python -m data.classify_clip \
@@ -39,15 +43,53 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
-TAXONOMY: dict[str, str] = {
-    "person": "a photograph of a person",
-    "animal": "a photograph of an animal",
-    "plant": "a photograph of a plant, flower, or tree",
-    "food": "a photograph of food or a drink",
-    "object": "a photograph of a man-made physical object",
-    "text": "a photograph of text, letters, or a logo",
-    "effect": "a photograph of a water splash, smoke, fire, or bubbles",
+TAXONOMY: dict[str, list[str]] = {
+    "person": ["a person", "a human", "a portrait of a person", "people"],
+    "animal": [
+        "an animal",
+        "a mammal",
+        "a bird",
+        "a fish",
+        "an insect",
+        "a reptile",
+    ],
+    "plant": ["a plant", "a flower", "a tree", "a leaf", "tree bark"],
+    "food": [
+        "food",
+        "a meal on a plate",
+        "a piece of fruit",
+        "a baked good",
+        "a drink in a glass",
+    ],
+    "object": [
+        "an inanimate object",
+        "a household item",
+        "a tool",
+    ],
+    "text": [
+        "text",
+        "letters of the alphabet",
+        "a logo",
+        "a sign with writing",
+        "typography",
+    ],
+    "effect": [
+        "a water splash",
+        "smoke rising in the air",
+        "fire and flames",
+        "soap bubbles",
+    ],
 }
+
+TEMPLATES: list[str] = [
+    "a photo of {}",
+    "a picture of {}",
+    "an image of {}",
+    "a photograph of {}",
+    "a close-up photo of {}",
+    "a cropped photo of {}",
+    "a studio photo of {}",
+]
 
 
 def image_path(root: Path, page_id: str) -> Path:
@@ -106,17 +148,32 @@ def read_metadata(
     return fieldnames, present
 
 
-def encode_prompts(
+def encode_class_prompts(
     model,
     tokenizer,
-    prompts: list[str],
+    taxonomy: dict[str, list[str]],
+    templates: list[str],
     device: str,
 ) -> torch.Tensor:
+    """Build one averaged, L2-normalised embedding per class.
+
+    For each class we expand `nouns × templates` into a flat prompt list,
+    encode them, L2-normalise each, mean-pool over the prompts, then
+    L2-normalise the mean. Averaging on the unit sphere (normalise → mean →
+    re-normalise) is the standard CLIP ensemble recipe — smooths out the
+    single-prompt jitter.
+    """
+    class_embeddings: list[torch.Tensor] = []
     with torch.no_grad():
-        tokens = tokenizer(prompts).to(device)
-        features = model.encode_text(tokens)
-        features = features / features.norm(dim=-1, keepdim=True)
-    return features
+        for nouns in taxonomy.values():
+            prompts = [t.format(n) for n in nouns for t in templates]
+            tokens = tokenizer(prompts).to(device)
+            features = model.encode_text(tokens)
+            features = features / features.norm(dim=-1, keepdim=True)
+            mean = features.mean(dim=0)
+            mean = mean / mean.norm()
+            class_embeddings.append(mean)
+    return torch.stack(class_embeddings)
 
 
 def main() -> int:
@@ -128,6 +185,11 @@ def main() -> int:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument(
+        "--single-prompt",
+        action="store_true",
+        help="Disable prompt ensembling (use first noun × 'a photograph of {}').",
+    )
     args = parser.parse_args()
 
     metadata_csv = args.data_root / "metadata.csv"
@@ -152,8 +214,22 @@ def main() -> int:
     tokenizer = open_clip.get_tokenizer(args.model)
 
     labels = list(TAXONOMY.keys())
-    prompts = list(TAXONOMY.values())
-    text_features = encode_prompts(model, tokenizer, prompts, device)
+    if args.single_prompt:
+        effective_taxonomy = {k: [v[0]] for k, v in TAXONOMY.items()}
+        effective_templates = ["a photograph of {}"]
+        print("  Prompt mode: single (no ensembling)")
+    else:
+        effective_taxonomy = TAXONOMY
+        effective_templates = TEMPLATES
+        avg = sum(len(n) for n in TAXONOMY.values()) * len(TEMPLATES) // len(labels)
+        print(f"  Prompt mode: ensemble ({len(labels)} classes × {avg} avg prompts)")
+    text_features = encode_class_prompts(
+        model,
+        tokenizer,
+        effective_taxonomy,
+        effective_templates,
+        device,
+    )
 
     dataset = MagickImageDataset(rows, args.data_root, preprocess)
     loader: DataLoader = DataLoader(
