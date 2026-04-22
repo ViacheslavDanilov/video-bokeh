@@ -7,12 +7,17 @@ FastAPI backend for the depth-aware synthetic bokeh video pipeline.
 ```
 backend/
 ├── Dockerfile                  # Container configuration
-├── src/video_bokeh/            # Python package (API code)
-│   ├── __init__.py
-│   └── main.py                 # FastAPI application
-├── scripts/                    # Research/CLI scripts (depth conversion, visualization)
+├── src/
+│   ├── video_bokeh/            # FastAPI app package (runtime)
+│   │   ├── __init__.py
+│   │   └── main.py
+│   └── data/                   # Data scripts: download, depth conversion, visualization
+│       ├── __init__.py
+│       ├── download_magick_samples.py
+│       ├── convert_depth.py
+│       └── visualize_depth.py
 ├── models/                     # Trained model artifacts
-├── data/                       # Datasets
+├── data/                       # Datasets (e.g. magick/, magick_dev/)
 └── pyproject.toml              # Package dependencies
 ```
 
