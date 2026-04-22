@@ -15,5 +15,8 @@ wheels/
 .AppleDouble
 .LSOverride
 
+# Data
+/data*
+
 # temporary files
 /temp
