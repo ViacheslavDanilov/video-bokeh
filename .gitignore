@@ -41,8 +41,8 @@ out/
 # Data & Models
 backend/models/*.joblib
 backend/models/*.pkl
-backend/data/magick*/images
-!backend/data/magick_dev/images
+backend/data/*/
+!backend/data/*_dev/
 
 
 # Editors
