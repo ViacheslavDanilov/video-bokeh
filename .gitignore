@@ -43,7 +43,7 @@ backend/models/*.joblib
 backend/models/*.pkl
 backend/data/*/
 !backend/data/*_dev/
-
+backend/data/synth*/
 
 # Editors
 .vscode/
