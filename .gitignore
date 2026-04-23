@@ -42,6 +42,7 @@ out/
 backend/models/*.joblib
 backend/models/*.pkl
 backend/data/magick*/images
+!backend/data/magick_dev/images
 
 
 # Editors
