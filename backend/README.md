@@ -34,6 +34,41 @@ uv run uvicorn video_bokeh.main:app --reload --port 8000
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs
 
+## 📚 Datasets
+
+All dataset scripts live under `src/data/`. Run from `backend/`.
+
+### MAGICK (HuggingFace)
+
+Sampled dev-set mirror of [OneOverZero/MAGICK](https://huggingface.co/datasets/OneOverZero/MAGICK):
+
+```bash
+uv run python -m data.download_magick_samples \
+  --metadata data/magick_metadata.csv \
+  --output   data/magick_dev \
+  --count    20 --seed 0
+```
+
+For the full mirror, use the HF CLI instead:
+
+```bash
+huggingface-cli download OneOverZero/MAGICK \
+  --repo-type dataset --local-dir data/magick
+```
+
+### BG-20k (Kaggle)
+
+Full archive (~25–30 GB) via `kagglehub`. Requires `~/.kaggle/kaggle.json`:
+
+```bash
+uv add kagglehub
+uv run python -m data.download_bg20k_samples --output data/bg20k
+```
+
+Files land under `<output>/datasets/nguyenquocdungk16hl/bg-20o/versions/<N>/`
+(folders `1/`…`7/` are Kaggle upload shards — concatenate them for the full
+`train/` + `testval/` split).
+
 ## 🐳 Docker
 
 ```bash
