@@ -13,7 +13,7 @@ backend/
 │   │   └── main.py
 │   └── data/                   # Data scripts: download, depth conversion, visualization
 │       ├── __init__.py
-│       ├── download_magick_samples.py
+│       ├── download_magick.py
 │       ├── convert_depth.py
 │       └── visualize_depth.py
 ├── models/                     # Trained model artifacts
@@ -43,7 +43,7 @@ All dataset scripts live under `src/data/`. Run from `backend/`.
 Sampled dev-set mirror of [OneOverZero/MAGICK](https://huggingface.co/datasets/OneOverZero/MAGICK):
 
 ```bash
-uv run python -m data.download_magick_samples \
+uv run python -m data.download_magick \
   --metadata data/magick_metadata.csv \
   --output   data/magick_dev \
   --count    20 --seed 0
@@ -62,7 +62,7 @@ Full archive (~25–30 GB) via `kagglehub`. Requires `~/.kaggle/kaggle.json`:
 
 ```bash
 uv add kagglehub
-uv run python -m data.download_bg20k_samples --output data/bg20k
+uv run python -m data.download_bg20k --output data/bg20k
 ```
 
 Files land under `<output>/datasets/nguyenquocdungk16hl/bg-20o/versions/<N>/`

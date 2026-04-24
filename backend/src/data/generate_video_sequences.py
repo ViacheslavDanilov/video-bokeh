@@ -22,7 +22,7 @@ Usage:
     uv run python -m data.generate_video_sequences \
         --fg-root backend/data/magick_dev \
         --bg-root backend/data/bg20k_dev \
-        --out     backend/data/synth_dev \
+        --output  backend/data/synth_dev \
         --count   10 \
         --seed    0
 """
@@ -508,35 +508,35 @@ def render_sequence(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--fg-root", type=Path, default=Path("data/magick_dev"))
-    p.add_argument("--bg-root", type=Path, default=Path("data/bg20k_dev"))
-    p.add_argument("--out", type=Path, required=True)
-    p.add_argument("--count", type=int, default=10)
-    p.add_argument("--frames", type=int, default=80)
-    p.add_argument("--size", type=int, default=1024)
-    p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--n-objects-min", type=int, default=1)
-    p.add_argument("--n-objects-max", type=int, default=3)
-    p.add_argument("--scale-min", type=float, default=0.20)
-    p.add_argument("--scale-max", type=float, default=0.80)
-    p.add_argument("--max-exit", type=float, default=0.20)
-    p.add_argument("--max-rot", type=float, default=25.0)
-    p.add_argument("--max-tilt", type=float, default=15.0)
-    p.add_argument("--bg-pan", type=float, default=0.10)
-    p.add_argument("--bg-zoom", type=float, default=0.10)
-    p.add_argument(
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--fg-root", type=Path, default=Path("data/magick_dev"))
+    parser.add_argument("--bg-root", type=Path, default=Path("data/bg20k_dev"))
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--count", type=int, default=10)
+    parser.add_argument("--frames", type=int, default=80)
+    parser.add_argument("--size", type=int, default=1024)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--n-objects-min", type=int, default=1)
+    parser.add_argument("--n-objects-max", type=int, default=3)
+    parser.add_argument("--scale-min", type=float, default=0.20)
+    parser.add_argument("--scale-max", type=float, default=0.80)
+    parser.add_argument("--max-exit", type=float, default=0.20)
+    parser.add_argument("--max-rot", type=float, default=25.0)
+    parser.add_argument("--max-tilt", type=float, default=15.0)
+    parser.add_argument("--bg-pan", type=float, default=0.10)
+    parser.add_argument("--bg-zoom", type=float, default=0.10)
+    parser.add_argument(
         "--manifest-only",
         action="store_true",
         help="Write the manifest and exit; skip rendering.",
     )
-    p.add_argument(
+    parser.add_argument(
         "--from-manifest",
         type=Path,
         default=None,
         help="Render a (possibly hand-edited) manifest.csv instead of building one.",
     )
-    return p
+    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -552,8 +552,8 @@ def main(argv: list[str] | None = None) -> int:
         bg_zoom=args.bg_zoom,
     )
 
-    args.out.mkdir(parents=True, exist_ok=True)
-    manifest_path = args.out / "manifest.csv"
+    args.output.mkdir(parents=True, exist_ok=True)
+    manifest_path = args.output / "manifest.csv"
 
     if args.from_manifest is not None:
         specs = read_manifest(args.from_manifest)
@@ -566,7 +566,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
     for spec in specs:
-        out_dir = args.out / "sequences" / f"seq_{spec.seq_id:04d}"
+        out_dir = args.output / "sequences" / f"seq_{spec.seq_id:04d}"
         print(
             f"  seq_{spec.seq_id:04d}  seed={spec.seed}  "
             f"bg={_bg_split(spec.bg_ref)}  n_obj={len(spec.object_refs)}  "
@@ -574,7 +574,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         render_sequence(spec, args.fg_root, args.bg_root, out_dir, cfg)
 
-    print(f"\nDone. Sequences in {args.out / 'sequences'}")
+    print(f"\nDone. Sequences in {args.output / 'sequences'}")
     return 0
 
 
