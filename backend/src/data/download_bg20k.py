@@ -4,7 +4,7 @@
 Source: https://www.kaggle.com/datasets/nguyenquocdungk16hl/bg-20o
 
 Usage:
-    uv run python -m data.download_bg20k_samples --output backend/data/bg20k
+    uv run python -m data.download_bg20k --output backend/data/bg20k
 """
 
 import argparse
