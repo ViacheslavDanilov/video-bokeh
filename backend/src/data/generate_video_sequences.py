@@ -25,6 +25,11 @@ Usage:
         --output  backend/data/synth_dev \
         --count   10 \
         --seed    0
+
+    # Restrict to specific MAGICK classes (requires predictions.csv from
+    # data.classify_clip in <fg-root>):
+    uv run python -m data.generate_video_sequences ... \
+        --classes person,animal,plant
 """
 
 from __future__ import annotations
@@ -240,12 +245,36 @@ def resize_shortest_side_and_center_crop(img: Image.Image, size: int) -> Image.I
     return img.crop((left, top, left + size, top + size))
 
 
-def list_foreground_refs(fg_root: Path) -> list[str]:
-    """Return list of relative paths like '0L/0LZCNUeBHK.png' under images/."""
+def _load_page_id_labels(fg_root: Path) -> dict[str, str]:
+    """Return {page_id: top_label} from <fg_root>/predictions.csv."""
+    path = fg_root / "predictions.csv"
+    if not path.exists():
+        raise SystemExit(
+            f"--classes requires {path}; run `data.classify_clip` on {fg_root} first.",
+        )
+    with path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        return {row["page_id"]: row["top_label"] for row in reader}
+
+
+def list_foreground_refs(
+    fg_root: Path,
+    classes: list[str] | None = None,
+) -> list[str]:
+    """Return list of relative paths like '0L/0LZCNUeBHK.png' under images/.
+
+    If `classes` is given, keep only foregrounds whose top_label (from
+    predictions.csv) is in that set.
+    """
     root = fg_root / "images"
     if not root.exists():
         raise FileNotFoundError(f"foreground images dir missing: {root}")
-    return sorted(str(p.relative_to(root)) for p in root.rglob("*.png") if p.is_file())
+    refs = sorted(str(p.relative_to(root)) for p in root.rglob("*.png") if p.is_file())
+    if not classes:
+        return refs
+    allowed = set(classes)
+    labels = _load_page_id_labels(fg_root)
+    return [r for r in refs if labels.get(Path(r).stem) in allowed]
 
 
 def list_background_refs(bg_root: Path) -> list[str]:
@@ -330,9 +359,13 @@ def _bg_split(bg_ref: str) -> str:
 
 
 def build_manifest(args: argparse.Namespace) -> list[SequenceSpec]:
-    fg_refs = list_foreground_refs(args.fg_root)
+    fg_refs = list_foreground_refs(args.fg_root, args.classes)
     bg_refs = list_background_refs(args.bg_root)
     if not fg_refs:
+        if args.classes:
+            raise SystemExit(
+                f"no foregrounds under {args.fg_root}/images match classes {args.classes}",
+            )
         raise SystemExit(f"no foregrounds found under {args.fg_root}/images")
     if not bg_refs:
         raise SystemExit(f"no backgrounds found under {args.bg_root}/images")
@@ -525,6 +558,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-tilt", type=float, default=15.0)
     parser.add_argument("--bg-pan", type=float, default=0.10)
     parser.add_argument("--bg-zoom", type=float, default=0.10)
+    parser.add_argument(
+        "--classes",
+        type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
+        default="text,effect",
+        help="Comma-separated class labels to keep (e.g. 'person,animal'). "
+        "Requires <fg-root>/predictions.csv from `data.classify_clip`.",
+    )
     parser.add_argument(
         "--manifest-only",
         action="store_true",
