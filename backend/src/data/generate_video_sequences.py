@@ -561,7 +561,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--classes",
         type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
-        default="text,effect",
+        default=None,
         help="Comma-separated class labels to keep (e.g. 'person,animal'). "
         "Requires <fg-root>/predictions.csv from `data.classify_clip`.",
     )
