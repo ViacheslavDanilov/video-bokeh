@@ -17,6 +17,7 @@ dev = [
     "httpx>=0.28.0",
     "imagecodecs>=2026.1.1",
     "kaggle>=2.0.1",
+    "kagglehub>=1.0.0",
     "matplotlib>=3.10.8",
     "numpy>=2.4.0",
     "open-clip-torch>=2.30.0",
