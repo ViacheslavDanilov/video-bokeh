@@ -19,7 +19,7 @@ Rendering is deterministic: same row in the manifest → byte-identical output.
 Re-run with `--from-manifest` to re-render a (possibly edited) manifest.
 
 Usage:
-    uv run python -m data.generate_video_sequences \
+    uv run python -m data.generate_sequences \
         --fg-root backend/data/magick_dev \
         --bg-root backend/data/bg20k_dev \
         --output  backend/data/synth_dev \
@@ -28,7 +28,7 @@ Usage:
 
     # Restrict to specific MAGICK classes (requires predictions.csv from
     # data.classify_clip in <fg-root>):
-    uv run python -m data.generate_video_sequences ... \
+    uv run python -m data.generate_sequences ... \
         --classes person,animal,plant
 """
 
