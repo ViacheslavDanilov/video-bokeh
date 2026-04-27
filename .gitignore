@@ -58,3 +58,6 @@ Thumbs.db
 
 # Claude Code
 .claude
+
+# Obsidian (per-user UI state, recovery cache)
+vault/
