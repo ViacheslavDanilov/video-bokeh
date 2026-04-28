@@ -16,6 +16,7 @@ dependencies = [
 dev = [
     "httpx>=0.28.0",
     "imagecodecs>=2026.1.1",
+    "imageio[ffmpeg]>=2.34.0",
     "kaggle>=2.0.1",
     "kagglehub>=1.0.0",
     "matplotlib>=3.10.8",
