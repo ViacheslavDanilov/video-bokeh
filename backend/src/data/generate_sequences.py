@@ -3,7 +3,8 @@
 
 Each sequence composites 1–3 MAGICK foregrounds (RGBA) over one BG-20k
 background, with smooth keyframed perspective motion per layer. Two
-pixel-aligned streams are written: RGB (what the net sees) and alpha (the
+pixel-aligned streams are written: all-in-focus RGB (input to Depth Anything
+for depth-map estimation, and what the matting net sees) and alpha (the
 matting ground truth — union of foreground alphas).
 
 Layout:
@@ -11,8 +12,8 @@ Layout:
     <out>/
     ├── manifest.csv                  # one row per sequence (seed-driven)
     └── sequences/
-        └── seq_0001/
-            ├── rgb/01.png … 80.png
+        └── 0001/
+            ├── all_in_focus/01.png … 80.png   # input to Depth Anything
             └── alpha/01.png … 80.png
 
 Rendering is deterministic: same row in the manifest → byte-identical output.
@@ -493,9 +494,9 @@ def render_sequence(
     bg_start = sample_bg_pose(rng, cfg)
     bg_end = sample_bg_pose(rng, cfg)
 
-    rgb_dir = out_dir / "rgb"
+    aif_dir = out_dir / "all_in_focus"
     alpha_dir = out_dir / "alpha"
-    rgb_dir.mkdir(parents=True, exist_ok=True)
+    aif_dir.mkdir(parents=True, exist_ok=True)
     alpha_dir.mkdir(parents=True, exist_ok=True)
 
     digits = max(2, len(str(spec.n_frames)))
@@ -526,7 +527,7 @@ def render_sequence(
         frame_idx = i + 1
         name = f"{frame_idx:0{digits}d}.png"
         Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), mode="RGB").save(
-            rgb_dir / name,
+            aif_dir / name,
             compress_level=6,
         )
         Image.fromarray(np.clip(alpha * 255.0, 0, 255).astype(np.uint8), mode="L").save(
@@ -606,9 +607,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
     for spec in specs:
-        out_dir = args.output / "sequences" / f"seq_{spec.seq_id:04d}"
+        seq_name = f"{spec.seq_id:04d}"
+        out_dir = args.output / "sequences" / seq_name
         print(
-            f"  seq_{spec.seq_id:04d}  seed={spec.seed}  "
+            f"  {seq_name}  seed={spec.seed}  "
             f"bg={_bg_split(spec.bg_ref)}  n_obj={len(spec.object_refs)}  "
             f"frames={spec.n_frames}",
         )
