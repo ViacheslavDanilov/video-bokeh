@@ -21,23 +21,36 @@ Layout:
             └── disparity/01.tif    … 80.tif   # written here
 
 Uses `transformers.AutoModelForDepthEstimation` with the official Depth
-Anything V2 checkpoints on Hugging Face. Default is the smallest variant
-(`Depth-Anything-V2-Small-hf`, ~25M params) so this runs on a laptop CPU/MPS.
+Anything V2 checkpoints on Hugging Face. Three variants are wired up via
+`--variant`:
+
+    small  ~25M params  Apache-2.0    laptop CPU/MPS friendly  (default)
+    base   ~98M params  CC-BY-NC-4.0  better edges, GPU recommended
+    large  ~335M params CC-BY-NC-4.0  highest quality, GPU required
+
+For anything outside this set (metric-depth checkpoints, community
+fine-tunes), pass an explicit HF id with `--model` — it overrides `--variant`.
 
 Usage:
+    # Default: small variant on auto-selected device
     uv run python -m data.estimate_disparity \
         --root backend/data/synth_dev
+
+    # Highest quality on a GPU box
+    uv run python -m data.estimate_disparity \
+        --root backend/data/synth_dev \
+        --variant large \
+        --device cuda
+
+    # Explicit HF id (e.g. metric-depth fine-tune)
+    uv run python -m data.estimate_disparity \
+        --root backend/data/synth_dev \
+        --model depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf
 
     # Only specific sequences:
     uv run python -m data.estimate_disparity \
         --root backend/data/synth_dev \
         --seqs 0001,0003
-
-    # Heavier checkpoint on a GPU box:
-    uv run python -m data.estimate_disparity \
-        --root  backend/data/synth_dev \
-        --model depth-anything/Depth-Anything-V2-Large-hf \
-        --device cuda
 """
 
 from __future__ import annotations
@@ -51,6 +64,20 @@ import tifffile
 import torch
 from PIL import Image
 from transformers import AutoImageProcessor, AutoModelForDepthEstimation
+
+# Depth Anything V2 published checkpoints on Hugging Face. Pick a variant
+# with `--variant` (small|base|large) for a one-word switch, or override the
+# full HF id with `--model` (e.g. for a metric-depth or fine-tuned variant).
+#
+#   small  ~25M  Apache-2.0    laptop CPU/MPS friendly, default
+#   base   ~98M  CC-BY-NC-4.0  better edges, GPU recommended
+#   large  ~335M CC-BY-NC-4.0  highest quality, GPU required for reasonable speed
+_DA2_VARIANTS: dict[str, str] = {
+    "small": "depth-anything/Depth-Anything-V2-Small-hf",
+    "base": "depth-anything/Depth-Anything-V2-Base-hf",
+    "large": "depth-anything/Depth-Anything-V2-Large-hf",
+}
+
 
 # --------------------------------------------------------------------------- #
 # I/O                                                                         #
@@ -141,9 +168,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="dataset root containing sequences/ (e.g. backend/data/synth_dev)",
     )
     parser.add_argument(
+        "--variant",
+        choices=("small", "base", "large"),
+        default="small",
+        help="DA-V2 variant shortcut. small (~25M, Apache-2.0) is laptop-"
+        "friendly default; base (~98M) and large (~335M) are CC-BY-NC and "
+        "want a GPU. Ignored if --model is set.",
+    )
+    parser.add_argument(
         "--model",
-        default="depth-anything/Depth-Anything-V2-Small-hf",
-        help="HF model id; default is the smallest variant (~25M params).",
+        default=None,
+        help="Override --variant with an explicit HF model id "
+        "(e.g. a metric-depth or community fine-tune).",
     )
     parser.add_argument(
         "--device",
@@ -169,9 +205,10 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
     device = select_device(args.device)
-    print(f"Loading {args.model} on {device}")
-    processor = AutoImageProcessor.from_pretrained(args.model)
-    model = AutoModelForDepthEstimation.from_pretrained(args.model).to(device)
+    model_id = args.model or _DA2_VARIANTS[args.variant]
+    print(f"Loading {model_id} on {device}")
+    processor = AutoImageProcessor.from_pretrained(model_id)
+    model = AutoModelForDepthEstimation.from_pretrained(model_id).to(device)
     model.eval()
 
     seqs = list_sequences(args.root, args.seqs)
