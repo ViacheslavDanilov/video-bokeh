@@ -24,27 +24,25 @@ Layout:
             ├── alpha/01.png        … 80.png
             └── disparity/01.tif    … 80.tif   # written here
 
-Setup (on the CUDA box):
+Setup (on the CUDA box, once):
 
-    git clone https://github.com/DepthAnything/Video-Depth-Anything.git \\
-        /opt/video-depth-anything
-    cd /opt/video-depth-anything
-    pip install -r requirements.txt
-    mkdir -p checkpoints
-    # Small (Apache-2.0, ~28M params); use Large (CC-BY-NC, ~382M) via --encoder vitl.
-    wget https://huggingface.co/depth-anything/Video-Depth-Anything-Small/resolve/main/video_depth_anything_vits.pth \\
-        -O checkpoints/video_depth_anything_vits.pth
+    backend/scripts/setup_third_party.sh
+
+That script initializes the VDA + any-to-bokeh submodules under
+backend/third_party/, creates a shared venv at backend/third_party/.venv,
+installs both tools' requirements, and downloads the VDA-Small checkpoint
+into backend/models/video_depth_anything/.
 
 Usage:
 
-    PYTHONPATH=/opt/video-depth-anything \\
-    uv run python -m data.estimate_video_disparity \\
-        --root backend/data/synth_dev \\
-        --checkpoint /opt/video-depth-anything/checkpoints/video_depth_anything_vits.pth
+    source backend/third_party/.venv/bin/activate
+    PYTHONPATH=backend/third_party/Video-Depth-Anything \\
+        python -m data.estimate_video_disparity \\
+        --root backend/data/synth_dev
 
 VDA is not added to pyproject.toml — its pinned numpy<2 / torch 2.1.1 /
-xformers==0.0.23 deps would break the project's lockfile. Install it in the
-server-side venv only.
+xformers==0.0.23 deps would break the project's main lockfile. The shared
+third-party venv keeps it isolated from the main project.
 """
 
 from __future__ import annotations
@@ -152,8 +150,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        required=True,
-        help="Path to video_depth_anything_<vits|vitl>.pth",
+        default=Path(
+            "backend/models/video_depth_anything/video_depth_anything_vits.pth",
+        ),
+        help="Path to video_depth_anything_<vits|vitl>.pth "
+        "(default: backend/models/video_depth_anything/video_depth_anything_vits.pth)",
     )
     parser.add_argument(
         "--encoder",

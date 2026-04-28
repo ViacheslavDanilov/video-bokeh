@@ -1,0 +1,6 @@
+[submodule "backend/third_party/Video-Depth-Anything"]
+	path = backend/third_party/Video-Depth-Anything
+	url = https://github.com/DepthAnything/Video-Depth-Anything.git
+[submodule "backend/third_party/any-to-bokeh"]
+	path = backend/third_party/any-to-bokeh
+	url = https://github.com/vivoCameraResearch/any-to-bokeh.git
