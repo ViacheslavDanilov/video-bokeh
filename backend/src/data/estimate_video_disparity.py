@@ -30,8 +30,8 @@ Setup (on the CUDA box, once):
 
 That script initializes the VDA + any-to-bokeh submodules under
 backend/third_party/, creates a shared venv at backend/third_party/.venv,
-installs both tools' requirements, and downloads the VDA-Small checkpoint
-into backend/models/video_depth_anything/.
+installs both tools' requirements, and downloads the VDA-Large checkpoint
+into backend/third_party/Video-Depth-Anything/checkpoints/.
 
 Usage:
 
@@ -39,6 +39,10 @@ Usage:
     PYTHONPATH=backend/third_party/Video-Depth-Anything \\
         python -m data.estimate_video_disparity \\
         --root backend/data/synth_dev
+
+Defaults are tuned for "highest quality": vitl encoder (CC-BY-NC, 382M params)
+and fp32 inference. Pass `--encoder vits` for the Apache-2.0 small model and
+`--fp16` for faster, slightly lower-precision inference.
 
 VDA is not added to pyproject.toml — its pinned numpy<2 / torch 2.1.1 /
 xformers==0.0.23 deps would break the project's main lockfile. The shared
@@ -56,16 +60,24 @@ import tifffile
 import torch
 from PIL import Image
 
-# Mirrors `model_configs` in the upstream VDA `run.py`. ViT-B is published
-# but not exposed here to keep the surface narrow; add if needed.
+# Mirrors `model_configs` in the upstream VDA `run.py`.
 _MODEL_CONFIGS: dict[str, dict[str, Any]] = {
     "vits": {"encoder": "vits", "features": 64, "out_channels": [48, 96, 192, 384]},
+    "vitb": {
+        "encoder": "vitb",
+        "features": 128,
+        "out_channels": [96, 192, 384, 768],
+    },
     "vitl": {
         "encoder": "vitl",
         "features": 256,
         "out_channels": [256, 512, 1024, 1024],
     },
 }
+
+_DEFAULT_CHECKPOINT_DIR = Path(
+    "backend/third_party/Video-Depth-Anything/checkpoints",
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -150,23 +162,22 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path(
-            "backend/models/video_depth_anything/video_depth_anything_vits.pth",
-        ),
-        help="Path to video_depth_anything_<vits|vitl>.pth "
-        "(default: backend/models/video_depth_anything/video_depth_anything_vits.pth)",
+        default=None,
+        help="Path to video_depth_anything_<vits|vitb|vitl>.pth. "
+        f"Default: {_DEFAULT_CHECKPOINT_DIR}/video_depth_anything_<encoder>.pth",
     )
     parser.add_argument(
         "--encoder",
-        choices=("vits", "vitl"),
-        default="vits",
-        help="Model size; default 'vits' (Apache-2.0). 'vitl' is CC-BY-NC.",
+        choices=("vits", "vitb", "vitl"),
+        default="vitl",
+        help="Model size; default 'vitl' (highest quality, CC-BY-NC). "
+        "'vits' is Apache-2.0 and lighter; 'vitb' is CC-BY-NC mid-tier.",
     )
     parser.add_argument(
         "--input-size",
         type=int,
         default=518,
-        help="Network internal resolution (VDA default).",
+        help="Network internal resolution (VDA training default; do not raise unless you know what you're doing).",
     )
     parser.add_argument(
         "--fps",
@@ -175,9 +186,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Nominal fps for the input frame stack; VDA does not resample at this fps.",
     )
     parser.add_argument(
-        "--fp32",
+        "--fp16",
         action="store_true",
-        help="Run in fp32 (default fp16).",
+        help="Run inference in fp16 instead of fp32 (faster, slightly lower precision).",
     )
     parser.add_argument(
         "--overwrite",
@@ -203,8 +214,15 @@ def main(argv: list[str] | None = None) -> int:
         )
     device = torch.device("cuda")
 
-    print(f"Loading VDA-{args.encoder} on {device}")
-    model = load_model(args.checkpoint, args.encoder, device)
+    checkpoint = args.checkpoint or (
+        _DEFAULT_CHECKPOINT_DIR / f"video_depth_anything_{args.encoder}.pth"
+    )
+    if not checkpoint.exists():
+        raise SystemExit(f"checkpoint not found: {checkpoint}")
+
+    precision = "fp16" if args.fp16 else "fp32"
+    print(f"Loading VDA-{args.encoder} ({precision}) on {device} from {checkpoint}")
+    model = load_model(checkpoint, args.encoder, device)
 
     seqs = list_sequences(args.root, args.seqs)
     if not seqs:
@@ -229,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
             stack,
             fps=args.fps,
             input_size=args.input_size,
-            fp32=args.fp32,
+            fp32=not args.fp16,
             device=device,
         )
         if disparity.shape[0] != len(frames):

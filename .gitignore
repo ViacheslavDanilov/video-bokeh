@@ -41,7 +41,6 @@ out/
 # Data & Models
 backend/models/*.joblib
 backend/models/*.pkl
-backend/models/video_depth_anything/
 backend/models/any_to_bokeh/
 backend/data/*/
 !backend/data/*_dev/

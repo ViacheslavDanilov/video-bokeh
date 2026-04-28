@@ -9,8 +9,10 @@
 #      versions; we install VDA's requirements first, then any-to-bokeh's
 #      (whose newer numpy pin wins). Pip will warn about the conflict —
 #      ignore unless something breaks at import time.
-#   3. Downloads the VDA-Small checkpoint (Apache-2.0) into
-#      backend/models/video_depth_anything/.
+#   3. Downloads the VDA-Large checkpoint (CC-BY-NC, ~382M params, highest
+#      quality) into backend/third_party/Video-Depth-Anything/checkpoints/.
+#      Override with VDA_ENCODER=vits|vitb to fetch a smaller variant
+#      (vits is Apache-2.0; vitb/vitl are CC-BY-NC).
 #   4. Prints the remaining manual step (any-to-bokeh's UNet + VAE weights
 #      live on Google Drive and require a browser download).
 #
@@ -23,8 +25,19 @@ TP_DIR="$REPO_ROOT/backend/third_party"
 VENV="$TP_DIR/.venv"
 VDA_DIR="$TP_DIR/Video-Depth-Anything"
 A2B_DIR="$TP_DIR/any-to-bokeh"
-VDA_MODELS="$REPO_ROOT/backend/models/video_depth_anything"
-VDA_SMALL_URL="https://huggingface.co/depth-anything/Video-Depth-Anything-Small/resolve/main/video_depth_anything_vits.pth"
+VDA_CHECKPOINTS="$VDA_DIR/checkpoints"
+
+# Encoder variant: vits (Apache-2.0, 28M), vitb (CC-BY-NC, 113M),
+# vitl (CC-BY-NC, 382M, highest quality, default).
+VDA_ENCODER="${VDA_ENCODER:-vitl}"
+case "$VDA_ENCODER" in
+    vits) VDA_HF_REPO="Video-Depth-Anything-Small" ;;
+    vitb) VDA_HF_REPO="Video-Depth-Anything-Base" ;;
+    vitl) VDA_HF_REPO="Video-Depth-Anything-Large" ;;
+    *) echo "error: VDA_ENCODER must be vits|vitb|vitl, got '$VDA_ENCODER'" >&2; exit 1 ;;
+esac
+VDA_CKPT_NAME="video_depth_anything_${VDA_ENCODER}.pth"
+VDA_CKPT_URL="https://huggingface.co/depth-anything/${VDA_HF_REPO}/resolve/main/${VDA_CKPT_NAME}"
 
 # 1. Submodules
 echo "[1/4] git submodule update --init --recursive"
@@ -55,18 +68,18 @@ pip install -r "$VDA_DIR/requirements.txt"
 echo "      Installing any-to-bokeh requirements"
 pip install -r "$A2B_DIR/requirements.txt"
 
-# 3. VDA-Small checkpoint
-echo "[3/4] VDA-Small checkpoint"
-mkdir -p "$VDA_MODELS"
-if [ ! -f "$VDA_MODELS/video_depth_anything_vits.pth" ]; then
-    echo "      Downloading $VDA_SMALL_URL"
+# 3. VDA checkpoint (encoder selected via VDA_ENCODER env var)
+echo "[3/4] VDA-${VDA_ENCODER} checkpoint"
+mkdir -p "$VDA_CHECKPOINTS"
+if [ ! -f "$VDA_CHECKPOINTS/$VDA_CKPT_NAME" ]; then
+    echo "      Downloading $VDA_CKPT_URL"
     if command -v wget >/dev/null 2>&1; then
-        wget -q --show-progress -O "$VDA_MODELS/video_depth_anything_vits.pth" "$VDA_SMALL_URL"
+        wget -q --show-progress -O "$VDA_CHECKPOINTS/$VDA_CKPT_NAME" "$VDA_CKPT_URL"
     else
-        curl -L -o "$VDA_MODELS/video_depth_anything_vits.pth" "$VDA_SMALL_URL"
+        curl -L -o "$VDA_CHECKPOINTS/$VDA_CKPT_NAME" "$VDA_CKPT_URL"
     fi
 else
-    echo "      Already present: $VDA_MODELS/video_depth_anything_vits.pth"
+    echo "      Already present: $VDA_CHECKPOINTS/$VDA_CKPT_NAME"
 fi
 
 # 4. Manual step
