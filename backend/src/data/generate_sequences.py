@@ -2,19 +2,27 @@
 """Generate synthetic video sequences for matting-network training.
 
 Each sequence composites 1–3 MAGICK foregrounds (RGBA) over one BG-20k
-background, with smooth keyframed perspective motion per layer. Two
-pixel-aligned streams are written: all-in-focus RGB (input to Depth Anything
-for depth-map estimation, and what the matting net sees) and alpha (the
-matting ground truth — union of foreground alphas).
+background, with smooth keyframed perspective motion per layer. Three
+pixel-aligned streams are written per frame: all-in-focus RGB (input to
+Depth Anything and what the matting net sees), union alpha (matting GT),
+and per-object alpha layers packed into a single RGB PNG.
 
 Layout:
 
     <out>/
-    ├── manifest.csv                  # one row per sequence (seed-driven)
+    ├── manifest.csv                  # one row per sequence (seed-driven + post-render channel map)
     └── sequences/
         └── 0001/
-            ├── all_in_focus/01.png … 80.png   # input to Depth Anything
-            └── alpha/01.png … 80.png
+            ├── all_in_focus/01.png … 80.png    # RGB composite (input to Depth Anything)
+            ├── alpha/01.png … 80.png           # union alpha (matting GT)
+            └── alpha_layers/01.png … 80.png    # per-object alpha; R=ch0 (bottommost), G=ch1, B=ch2
+
+The channel index in `alpha_layers` encodes paint order (0 = drawn first
+over the background, N-1 = drawn last on top). It is NOT depth order —
+non-occluding objects have arbitrary channel ordering. The post-render
+column `channel_refs` in `manifest.csv` is the source of truth for the
+channel ↔ source-image mapping (pipe-separated, in channel order). Slots
+beyond `len(channel_refs)` in the alpha_layers PNG are zero-filled.
 
 Rendering is deterministic: same row in the manifest → byte-identical output.
 Re-run with `--from-manifest` to re-render a (possibly edited) manifest.
@@ -39,11 +47,17 @@ import argparse
 import csv
 import math
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+
+# Max per-object alpha layers packed into the RGB channels of a single
+# `alpha_layers/<frame>.png`. Hard-capped at 3 to match the meeting decision
+# (≤3 foregrounds per scene → fits in one PNG; would otherwise need a TIFF
+# or a second sidecar PNG).
+LAYER_CHANNELS = 3
 
 # --------------------------------------------------------------------------- #
 # Pose and homography                                                         #
@@ -348,10 +362,21 @@ class SequenceSpec:
     n_frames: int
     size: int
     bg_ref: str  # e.g. 'train/h_abc.jpg'
-    object_refs: list[str]  # e.g. ['0L/0LZCNUeBHK.png', ...]
+    object_refs: list[str]  # input order; e.g. ['0L/0LZCNUeBHK.png', ...]
+    # Post-render: source ref per alpha_layers channel, in paint order.
+    # Empty until render_sequence has run.
+    channel_refs: list[str] = field(default_factory=list)
 
 
-MANIFEST_FIELDS = ("seq_id", "seed", "n_frames", "size", "bg_ref", "object_refs")
+MANIFEST_FIELDS = (
+    "seq_id",
+    "seed",
+    "n_frames",
+    "size",
+    "bg_ref",
+    "object_refs",
+    "channel_refs",
+)
 
 
 def _bg_split(bg_ref: str) -> str:
@@ -406,6 +431,7 @@ def write_manifest(path: Path, specs: list[SequenceSpec]) -> None:
                     s.size,
                     s.bg_ref,
                     "|".join(s.object_refs),
+                    "|".join(s.channel_refs),
                 ],
             )
 
@@ -423,6 +449,9 @@ def read_manifest(path: Path) -> list[SequenceSpec]:
                     size=int(row["size"]),
                     bg_ref=row["bg_ref"],
                     object_refs=[r for r in row["object_refs"].split("|") if r],
+                    channel_refs=[
+                        r for r in (row.get("channel_refs") or "").split("|") if r
+                    ],
                 ),
             )
     return specs
@@ -435,6 +464,7 @@ def read_manifest(path: Path) -> list[SequenceSpec]:
 
 @dataclass
 class ObjectTrack:
+    ref: str  # source ref relative to <fg-root>/images, e.g. '0L/0LZCNUeBHK.png'
     img: Image.Image  # RGBA, square source_size × source_size
     source_size: int
     depth: float  # z-order key; larger ⇒ farther (rendered first)
@@ -459,7 +489,8 @@ def render_sequence(
     bg_root: Path,
     out_dir: Path,
     cfg: SampleConfig,
-) -> None:
+) -> list[str]:
+    """Render one sequence; return source refs in alpha_layers channel order."""
     # Pose RNG is derived from the seed but on a separate stream from the
     # asset-selection RNG used in build_manifest, so re-rendering a
     # hand-edited manifest (different assets, same seed) is deterministic.
@@ -481,6 +512,7 @@ def render_sequence(
         depth = rng.random()  # deeper = larger value, drawn first
         objs.append(
             ObjectTrack(
+                ref=ref,
                 img=fg_img,
                 source_size=frame_size,
                 depth=depth,
@@ -490,14 +522,21 @@ def render_sequence(
         )
     # Back-to-front painter order: farthest first (largest depth first).
     objs.sort(key=lambda o: -o.depth)
+    if len(objs) > LAYER_CHANNELS:
+        raise ValueError(
+            f"sequence {spec.seq_id}: {len(objs)} objects > LAYER_CHANNELS="
+            f"{LAYER_CHANNELS}; alpha_layers PNG can pack at most 3 layers.",
+        )
 
     bg_start = sample_bg_pose(rng, cfg)
     bg_end = sample_bg_pose(rng, cfg)
 
     aif_dir = out_dir / "all_in_focus"
     alpha_dir = out_dir / "alpha"
+    layers_dir = out_dir / "alpha_layers"
     aif_dir.mkdir(parents=True, exist_ok=True)
     alpha_dir.mkdir(parents=True, exist_ok=True)
+    layers_dir.mkdir(parents=True, exist_ok=True)
 
     digits = max(2, len(str(spec.n_frames)))
 
@@ -511,9 +550,15 @@ def render_sequence(
         bg_warp = warp_pillow(bg_img, H_bg, frame_size)
         rgb = np.asarray(bg_warp, dtype=np.float32)  # (F, F, 3), 0..255
         alpha = np.zeros((frame_size, frame_size), dtype=np.float32)  # 0..1
+        # Per-object alpha: channel index = paint order (0 = bottommost).
+        # Slots beyond `len(objs)` stay zero.
+        layers = np.zeros(
+            (LAYER_CHANNELS, frame_size, frame_size),
+            dtype=np.float32,
+        )
 
         # Foregrounds, back-to-front.
-        for obj in objs:
+        for ch, obj in enumerate(objs):
             pose = obj.pose_start.lerp(obj.pose_end, te)
             H_fg = build_fg_homography(pose, obj.source_size, frame_size)
             fg_warp = warp_pillow(obj.img, H_fg, frame_size)
@@ -523,6 +568,7 @@ def render_sequence(
             a = fg_a[..., None]
             rgb = a * fg_rgb + (1.0 - a) * rgb
             alpha = np.maximum(alpha, fg_a)
+            layers[ch] = fg_a
 
         frame_idx = i + 1
         name = f"{frame_idx:0{digits}d}.png"
@@ -534,6 +580,17 @@ def render_sequence(
             alpha_dir / name,
             compress_level=6,
         )
+        # (F, F, 3) RGB PNG: R=ch0 alpha, G=ch1, B=ch2. Empty channels = 0.
+        layers_rgb = np.transpose(
+            np.clip(layers * 255.0, 0, 255).astype(np.uint8),
+            (1, 2, 0),
+        )
+        Image.fromarray(layers_rgb, mode="RGB").save(
+            layers_dir / name,
+            compress_level=6,
+        )
+
+    return [obj.ref for obj in objs]
 
 
 # --------------------------------------------------------------------------- #
@@ -614,7 +671,16 @@ def main(argv: list[str] | None = None) -> int:
             f"bg={_bg_split(spec.bg_ref)}  n_obj={len(spec.object_refs)}  "
             f"frames={spec.n_frames}",
         )
-        render_sequence(spec, args.fg_root, args.bg_root, out_dir, cfg)
+        spec.channel_refs = render_sequence(
+            spec,
+            args.fg_root,
+            args.bg_root,
+            out_dir,
+            cfg,
+        )
+        # Rewrite manifest after each sequence so channel_refs are durable
+        # against Ctrl-C mid-batch.
+        write_manifest(manifest_path, specs)
 
     print(f"\nDone. Sequences in {args.output / 'sequences'}")
     return 0
