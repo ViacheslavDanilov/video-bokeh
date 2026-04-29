@@ -249,11 +249,6 @@ def main() -> int:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-workers", type=int, default=4)
-    parser.add_argument(
-        "--single-prompt",
-        action="store_true",
-        help="Disable prompt ensembling (use first noun × 'a photograph of {}').",
-    )
     args = parser.parse_args()
 
     metadata_csv = args.data_root / "metadata.csv"
@@ -279,46 +274,30 @@ def main() -> int:
 
     subject_labels = list(TAXONOMY.keys())
     style_labels = list(STYLE_TAXONOMY.keys())
-    if args.single_prompt:
-        subject_taxonomy = {k: [v[0]] for k, v in TAXONOMY.items()}
-        subject_templates = ["a photograph of {}"]
-        style_taxonomy = {k: [v[0]] for k, v in STYLE_TAXONOMY.items()}
-        style_templates = ["{}"]
-        print("  Prompt mode: single (no ensembling)")
-    else:
-        subject_taxonomy = TAXONOMY
-        subject_templates = TEMPLATES
-        style_taxonomy = STYLE_TAXONOMY
-        style_templates = STYLE_TEMPLATES
-        subj_avg = (
-            sum(len(n) for n in TAXONOMY.values())
-            * len(TEMPLATES)
-            // len(subject_labels)
-        )
-        style_avg = (
-            sum(len(n) for n in STYLE_TAXONOMY.values())
-            * len(STYLE_TEMPLATES)
-            // len(style_labels)
-        )
-        print("  Prompt mode: ensemble")
-        print(
-            f"    subject: {len(subject_labels)} classes × {subj_avg} avg prompts",
-        )
-        print(
-            f"    style:   {len(style_labels)} classes × {style_avg} avg prompts",
-        )
+    subj_avg = (
+        sum(len(n) for n in TAXONOMY.values()) * len(TEMPLATES) // len(subject_labels)
+    )
+    style_avg = (
+        sum(len(n) for n in STYLE_TAXONOMY.values())
+        * len(STYLE_TEMPLATES)
+        // len(style_labels)
+    )
+    print(
+        f"  Prompts: subject {len(subject_labels)} classes × {subj_avg} avg, "
+        f"style {len(style_labels)} × {style_avg}",
+    )
     subject_features = encode_class_prompts(
         model,
         tokenizer,
-        subject_taxonomy,
-        subject_templates,
+        TAXONOMY,
+        TEMPLATES,
         device,
     )
     style_features = encode_class_prompts(
         model,
         tokenizer,
-        style_taxonomy,
-        style_templates,
+        STYLE_TAXONOMY,
+        STYLE_TEMPLATES,
         device,
     )
 
