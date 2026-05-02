@@ -29,14 +29,14 @@ Re-run with `--from-manifest` to re-render a (possibly edited) manifest.
 
 Usage:
     uv run python -m data.generate_sequences \
-        --fg-root backend/data/magick_dev \
-        --bg-root backend/data/bg20k_dev \
+        --fg-data-root backend/data/magick_dev \
+        --bg-data-root backend/data/bg20k_dev \
         --output  backend/data/synth_dev \
         --count   10 \
         --seed    0
 
     # Restrict to specific MAGICK classes (requires predictions.csv from
-    # data.classify_clip in <fg-root>):
+    # data.classify_clip in <fg-data-root>):
     uv run python -m data.generate_sequences ... \
         --classes person,animal,plant
 """
@@ -395,16 +395,16 @@ def _bg_split(bg_ref: str) -> str:
 
 
 def build_manifest(args: argparse.Namespace) -> list[SequenceSpec]:
-    fg_refs = list_foreground_refs(args.fg_root, args.classes)
-    bg_refs = list_background_refs(args.bg_root)
+    fg_refs = list_foreground_refs(args.fg_data_root, args.classes)
+    bg_refs = list_background_refs(args.bg_data_root)
     if not fg_refs:
         if args.classes:
             raise SystemExit(
-                f"no foregrounds under {args.fg_root}/images match classes {args.classes}",
+                f"no foregrounds under {args.fg_data_root}/images match classes {args.classes}",
             )
-        raise SystemExit(f"no foregrounds found under {args.fg_root}/images")
+        raise SystemExit(f"no foregrounds found under {args.fg_data_root}/images")
     if not bg_refs:
-        raise SystemExit(f"no backgrounds found under {args.bg_root}/images")
+        raise SystemExit(f"no backgrounds found under {args.bg_data_root}/images")
 
     specs: list[SequenceSpec] = []
     for i in range(args.count):
@@ -488,7 +488,7 @@ def read_manifest(path: Path) -> list[SequenceSpec]:
 
 @dataclass
 class ObjectTrack:
-    ref: str  # source ref relative to <fg-root>/images, e.g. '0L/0LZCNUeBHK.png'
+    ref: str  # source ref relative to <fg-data-root>/images, e.g. '0L/0LZCNUeBHK.png'
     img: Image.Image  # RGBA, square source_size × source_size
     source_size: int
     depth: float  # z-order key; larger ⇒ farther (rendered first)
@@ -694,8 +694,8 @@ def render_sequence(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--fg-root", type=Path, default=Path("data/magick_dev"))
-    parser.add_argument("--bg-root", type=Path, default=Path("data/bg20k_dev"))
+    parser.add_argument("--fg-data-root", type=Path, default=Path("data/magick_dev"))
+    parser.add_argument("--bg-data-root", type=Path, default=Path("data/bg20k_dev"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--count", type=int, default=10)
     parser.add_argument("--frames", type=int, default=80)
@@ -726,7 +726,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
         default=None,
         help="Comma-separated class labels to keep (e.g. 'person,animal'). "
-        "Requires <fg-root>/predictions.csv from `data.classify_clip`.",
+        "Requires <fg-data-root>/predictions.csv from `data.classify_clip`.",
     )
     parser.add_argument(
         "--manifest-only",
@@ -790,8 +790,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         render_sequence(
             spec,
-            args.fg_root,
-            args.bg_root,
+            args.fg_data_root,
+            args.bg_data_root,
             out_dir,
             cfg,
         )

@@ -17,7 +17,7 @@ DA-V2 output for the same sequence (use `--seqs` to limit scope).
 
 Layout:
 
-    <root>/
+    <data-root>/
     └── sequences/
         └── 0001/
             ├── all_in_focus/01.png … 80.png   # input
@@ -38,7 +38,7 @@ Usage:
     source backend/third_party/.venv/bin/activate
     PYTHONPATH=backend/third_party/Video-Depth-Anything \\
         python -m data.estimate_video_disparity \\
-        --root backend/data/synth_dev
+        --data-root backend/data/synth_dev
 
 Defaults are tuned for "highest quality": vitl encoder (CC-BY-NC, 382M params)
 and fp32 inference. Pass `--encoder vits` for the Apache-2.0 small model and
@@ -154,7 +154,7 @@ def estimate_disparity(
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--root",
+        "--data-root",
         type=Path,
         required=True,
         help="dataset root containing sequences/ (e.g. backend/data/synth_dev)",
@@ -191,11 +191,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Run inference in fp16 instead of fp32 (faster, slightly lower precision).",
     )
     parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Re-estimate disparity even if all .tif files already exist.",
-    )
-    parser.add_argument(
         "--seqs",
         type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
         default=None,
@@ -224,9 +219,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Loading VDA-{args.encoder} ({precision}) on {device} from {checkpoint}")
     model = load_model(checkpoint, args.encoder, device)
 
-    seqs = list_sequences(args.root, args.seqs)
+    seqs = list_sequences(args.data_root, args.seqs)
     if not seqs:
-        raise SystemExit(f"no sequences to process under {args.root / 'sequences'}")
+        raise SystemExit(
+            f"no sequences to process under {args.data_root / 'sequences'}",
+        )
 
     for seq_dir in seqs:
         frames = list_frames(seq_dir)
@@ -234,12 +231,6 @@ def main(argv: list[str] | None = None) -> int:
         disparity_dir.mkdir(parents=True, exist_ok=True)
 
         out_paths = [disparity_dir / f"{f.stem}.tif" for f in frames]
-        # VDA must see the full stack for temporal stitching, so skipping is
-        # all-or-nothing per sequence.
-        if not args.overwrite and all(p.exists() for p in out_paths):
-            print(f"  {seq_dir.name}: up to date ({len(frames)} frames)")
-            continue
-
         print(f"  {seq_dir.name}: {len(frames)} frames")
         stack = load_frames(frames)
         disparity = estimate_disparity(
@@ -257,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
         for out_path, d in zip(out_paths, disparity, strict=True):
             tifffile.imwrite(out_path, d.astype(np.float32))
 
-    print(f"\nDone. Disparity in {args.root / 'sequences' / '<id>' / 'disparity'}")
+    print(f"\nDone. Disparity in {args.data_root / 'sequences' / '<id>' / 'disparity'}")
     return 0
 
 

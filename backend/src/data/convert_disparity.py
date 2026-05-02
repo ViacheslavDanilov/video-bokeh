@@ -2,8 +2,8 @@
 """Convert disparity .tif files to uint8 PNG visualizations.
 
 For each requested stream (e.g. `disparity_image`, `disparity_video`),
-reads `<root>/sequences/<id>/<stream>/*.tif` and writes a sibling
-`<root>/sequences/<id>/<stream>_png/*.png` of the same H×W, single-channel
+reads `<data-root>/sequences/<id>/<stream>/*.tif` and writes a sibling
+`<data-root>/sequences/<id>/<stream>_png/*.png` of the same H×W, single-channel
 uint8 (mode 'L'). Normalization is per-sequence — global min/max across
 every .tif in that stream — so frame-to-frame brightness stays consistent.
 This matches the disparity input format any-to-bokeh expects (PNG converted
@@ -11,7 +11,7 @@ via `Image.open(...).convert('L')`, value range 0-255).
 
 Layout:
 
-    <root>/
+    <data-root>/
     └── sequences/
         └── 0001/
             ├── disparity_image/01.tif      … 80.tif   # DA-V2 output
@@ -22,22 +22,17 @@ Layout:
 Usage:
     # All sequences, both streams (default)
     uv run python -m data.convert_disparity \\
-        --root backend/data/synth_dev
+        --data-root backend/data/synth_dev
 
     # Just one stream
     uv run python -m data.convert_disparity \\
-        --root backend/data/synth_dev \\
+        --data-root backend/data/synth_dev \\
         --streams disparity_video
 
     # Specific sequences only
     uv run python -m data.convert_disparity \\
-        --root backend/data/synth_dev \\
+        --data-root backend/data/synth_dev \\
         --seqs 0001,0003
-
-    # Re-render even if PNGs already exist
-    uv run python -m data.convert_disparity \\
-        --root backend/data/synth_dev \\
-        --overwrite
 """
 
 from __future__ import annotations
@@ -77,8 +72,7 @@ def list_sequences(root: Path, seqs: list[str] | None) -> list[Path]:
 def convert_sequence(disparity_dir: Path, png_dir: Path) -> int:
     """Render every .tif in `disparity_dir` to a uint8 PNG in `png_dir`,
     using global per-sequence min/max normalization. Returns the number of
-    PNGs written. Caller is responsible for ensuring `png_dir` should be
-    (re)written — this function always overwrites whatever's there."""
+    PNGs written. Always overwrites whatever's already in `png_dir`."""
     tifs = sorted(disparity_dir.glob("*.tif"))
     if not tifs:
         return 0
@@ -105,7 +99,7 @@ def convert_sequence(disparity_dir: Path, png_dir: Path) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--root",
+        "--data-root",
         type=Path,
         required=True,
         help="dataset root containing sequences/ (e.g. backend/data/synth_dev)",
@@ -116,11 +110,6 @@ def _build_parser() -> argparse.ArgumentParser:
         default=["disparity_image", "disparity_video"],
         help="Comma-separated source stream subdirs to convert. "
         "Default: 'disparity_image,disparity_video'.",
-    )
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Re-render PNGs even if <stream>_png/ already has the full set.",
     )
     parser.add_argument(
         "--seqs",
@@ -134,35 +123,24 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
-    seqs = list_sequences(args.root, args.seqs)
+    seqs = list_sequences(args.data_root, args.seqs)
     if not seqs:
-        raise SystemExit(f"no sequences to process under {args.root / 'sequences'}")
+        raise SystemExit(
+            f"no sequences to process under {args.data_root / 'sequences'}",
+        )
 
     for seq_dir in seqs:
         for stream in args.streams:
             disparity_dir = seq_dir / stream
             png_dir = seq_dir / f"{stream}_png"
-
-            tifs = sorted(disparity_dir.glob("*.tif"))
-            if not tifs:
-                print(f"  {seq_dir.name}/{stream}: no .tif files, skip")
-                continue
-
-            existing = sorted(png_dir.glob("*.png")) if png_dir.exists() else []
-            up_to_date = (
-                not args.overwrite
-                and len(existing) == len(tifs)
-                and {p.stem for p in existing} == {p.stem for p in tifs}
-            )
-            if up_to_date:
-                print(f"  {seq_dir.name}/{stream}: up to date ({len(tifs)} frames)")
-                continue
-
             n = convert_sequence(disparity_dir, png_dir)
-            print(f"  {seq_dir.name}/{stream}: wrote {n} PNG(s)")
+            if n == 0:
+                print(f"  {seq_dir.name}/{stream}: no .tif files, skip")
+            else:
+                print(f"  {seq_dir.name}/{stream}: wrote {n} PNG(s)")
 
     print(
-        f"\nDone. PNGs in {args.root / 'sequences' / '<id>' / '<stream>_png'}",
+        f"\nDone. PNGs in {args.data_root / 'sequences' / '<id>' / '<stream>_png'}",
     )
     return 0
 

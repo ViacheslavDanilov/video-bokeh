@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Estimate per-frame disparity maps with Depth Anything V2.
 
-Reads `<root>/sequences/<id>/all_in_focus/*.png` and writes a sibling
-`<root>/sequences/<id>/disparity/*.tif` of float32 relative inverse depth
+Reads `<data-root>/sequences/<id>/all_in_focus/*.png` and writes a sibling
+`<data-root>/sequences/<id>/disparity/*.tif` of float32 relative inverse depth
 (disparity), one channel, same H×W as the input frame. Larger value = closer
 to camera; smaller = farther. Values are unitless and only meaningful in
 relative ordering — there is no metric scale.
@@ -13,7 +13,7 @@ This script names the output accordingly.
 
 Layout:
 
-    <root>/
+    <data-root>/
     └── sequences/
         └── 0001/
             ├── all_in_focus/01.png … 80.png   # input
@@ -34,22 +34,22 @@ fine-tunes), pass an explicit HF id with `--model` — it overrides `--variant`.
 Usage:
     # Default: small variant on auto-selected device
     uv run python -m data.estimate_disparity \
-        --root backend/data/synth_dev
+        --data-root backend/data/synth_dev
 
     # Highest quality on a GPU box
     uv run python -m data.estimate_disparity \
-        --root backend/data/synth_dev \
+        --data-root backend/data/synth_dev \
         --variant large \
         --device cuda
 
     # Explicit HF id (e.g. metric-depth fine-tune)
     uv run python -m data.estimate_disparity \
-        --root backend/data/synth_dev \
+        --data-root backend/data/synth_dev \
         --model depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf
 
     # Only specific sequences:
     uv run python -m data.estimate_disparity \
-        --root backend/data/synth_dev \
+        --data-root backend/data/synth_dev \
         --seqs 0001,0003
 """
 
@@ -162,7 +162,7 @@ def estimate_disparity(
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--root",
+        "--data-root",
         type=Path,
         required=True,
         help="dataset root containing sequences/ (e.g. backend/data/synth_dev)",
@@ -188,11 +188,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Re-estimate disparity even if the .tif already exists.",
-    )
-    parser.add_argument(
         "--seqs",
         type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
         default=None,
@@ -211,40 +206,31 @@ def main(argv: list[str] | None = None) -> int:
     model = AutoModelForDepthEstimation.from_pretrained(model_id).to(device)
     model.eval()
 
-    seqs = list_sequences(args.root, args.seqs)
+    seqs = list_sequences(args.data_root, args.seqs)
     if not seqs:
-        raise SystemExit(f"no sequences to process under {args.root / 'sequences'}")
+        raise SystemExit(
+            f"no sequences to process under {args.data_root / 'sequences'}",
+        )
 
     for seq_dir in seqs:
         frames = list_frames(seq_dir)
+        if not frames:
+            continue
         disparity_dir = seq_dir / "disparity"
         disparity_dir.mkdir(parents=True, exist_ok=True)
 
-        todo: list[tuple[Path, Path]] = []
-        for f in frames:
-            out_path = disparity_dir / f"{f.stem}.tif"
-            if out_path.exists() and not args.overwrite:
-                continue
-            todo.append((f, out_path))
-
-        if not todo:
-            print(f"  {seq_dir.name}: up to date ({len(frames)} frames)")
-            continue
-
-        print(f"  {seq_dir.name}: {len(todo)}/{len(frames)} frames")
-        in_paths = [t[0] for t in todo]
-        out_paths = [t[1] for t in todo]
+        print(f"  {seq_dir.name}: {len(frames)} frames")
         disparities = estimate_disparity(
             model,
             processor,
             device,
-            in_paths,
+            frames,
             args.batch_size,
         )
-        for out_path, d in zip(out_paths, disparities, strict=True):
-            tifffile.imwrite(out_path, d.astype(np.float32))
+        for f, d in zip(frames, disparities, strict=True):
+            tifffile.imwrite(disparity_dir / f"{f.stem}.tif", d.astype(np.float32))
 
-    print(f"\nDone. Disparity in {args.root / 'sequences' / '<id>' / 'disparity'}")
+    print(f"\nDone. Disparity in {args.data_root / 'sequences' / '<id>' / 'disparity'}")
     return 0
 
 
