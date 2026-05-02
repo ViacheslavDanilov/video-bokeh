@@ -47,6 +47,7 @@ import argparse
 import csv
 import math
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -98,9 +99,36 @@ def _lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * t
 
 
+def _ease_in_out_cubic(t: float) -> float:
+    return 4.0 * t**3 if t < 0.5 else 1.0 - ((-2.0 * t + 2.0) ** 3) / 2.0
+
+
+def _ease_in_out_quint(t: float) -> float:
+    return 16.0 * t**5 if t < 0.5 else 1.0 - ((-2.0 * t + 2.0) ** 5) / 2.0
+
+
+# Pool of easing curves used to interpolate per-layer pose between start and
+# end. All map [0, 1] -> [0, 1] with f(0) = 0 and f(1) = 1, monotonic, no
+# overshoot. Insertion order = display order from easings.net (in / out /
+# in-out within each intensity tier) and is what manifests record.
+EASING_FNS: dict[str, Callable[[float], float]] = {
+    "easeInSine": lambda t: 1.0 - math.cos(t * math.pi / 2.0),
+    "easeOutSine": lambda t: math.sin(t * math.pi / 2.0),
+    "easeInOutSine": lambda t: 0.5 * (1.0 - math.cos(math.pi * t)),
+    "easeInCubic": lambda t: t**3,
+    "easeOutCubic": lambda t: 1.0 - (1.0 - t) ** 3,
+    "easeInOutCubic": _ease_in_out_cubic,
+    "easeInQuint": lambda t: t**5,
+    "easeOutQuint": lambda t: 1.0 - (1.0 - t) ** 5,
+    "easeInOutQuint": _ease_in_out_quint,
+}
+
+EASING_NAMES_DEFAULT: tuple[str, ...] = tuple(EASING_FNS)
+
+
 def ease_in_out(t: float) -> float:
-    """Cosine ease-in-out on t ∈ [0, 1]."""
-    return 0.5 * (1.0 - math.cos(math.pi * t))
+    # Deprecated wrapper kept for one minor version; prefer EASING_FNS lookup.
+    return EASING_FNS["easeInOutSine"](t)
 
 
 # --------------------------------------------------------------------------- #
@@ -318,6 +346,7 @@ class SampleConfig:
     bg_pan: float = 0.10
     bg_zoom: float = 0.10
     bg_margin: float = 0.15  # pre-resize BG to frame * (1 + 2 * margin)
+    easings: tuple[str, ...] = EASING_NAMES_DEFAULT
 
 
 def _tx_bound(scale: float, max_exit: float) -> float:
@@ -366,6 +395,11 @@ class SequenceSpec:
     # Post-render: source ref per alpha_layers channel, in paint order.
     # Empty until render_sequence has run.
     channel_refs: list[str] = field(default_factory=list)
+    # Per-layer easing names; paint-order aligned with channel_refs.
+    # When loaded from manifest these guard render_sequence's sampling so
+    # `--from-manifest` reproduces the recorded scene.
+    bg_easing: str = ""
+    object_easings: list[str] = field(default_factory=list)
 
 
 MANIFEST_FIELDS = (
@@ -376,6 +410,8 @@ MANIFEST_FIELDS = (
     "bg_ref",
     "object_refs",
     "channel_refs",
+    "bg_easing",
+    "object_easings",
 )
 
 
@@ -432,6 +468,8 @@ def write_manifest(path: Path, specs: list[SequenceSpec]) -> None:
                     s.bg_ref,
                     "|".join(s.object_refs),
                     "|".join(s.channel_refs),
+                    s.bg_easing,
+                    "|".join(s.object_easings),
                 ],
             )
 
@@ -441,6 +479,16 @@ def read_manifest(path: Path) -> list[SequenceSpec]:
         reader = csv.DictReader(f)
         specs: list[SequenceSpec] = []
         for row in reader:
+            object_refs = [r for r in row["object_refs"].split("|") if r]
+            object_easings = [
+                e for e in (row.get("object_easings") or "").split("|") if e
+            ]
+            # Legacy fallback: an old manifest with no easing columns must
+            # re-render bit-identically. Fill with the cosine ease-in-out
+            # under its new name so render_sequence's sampling guard skips.
+            bg_easing = row.get("bg_easing") or "easeInOutSine"
+            if not object_easings:
+                object_easings = ["easeInOutSine"] * len(object_refs)
             specs.append(
                 SequenceSpec(
                     seq_id=int(row["seq_id"]),
@@ -448,10 +496,12 @@ def read_manifest(path: Path) -> list[SequenceSpec]:
                     n_frames=int(row["n_frames"]),
                     size=int(row["size"]),
                     bg_ref=row["bg_ref"],
-                    object_refs=[r for r in row["object_refs"].split("|") if r],
+                    object_refs=object_refs,
                     channel_refs=[
                         r for r in (row.get("channel_refs") or "").split("|") if r
                     ],
+                    bg_easing=bg_easing,
+                    object_easings=object_easings,
                 ),
             )
     return specs
@@ -470,6 +520,7 @@ class ObjectTrack:
     depth: float  # z-order key; larger ⇒ farther (rendered first)
     pose_start: Pose
     pose_end: Pose
+    easing: str = "easeInOutSine"
 
 
 def prepare_background(path: Path, frame_size: int, margin: float) -> Image.Image:
@@ -489,8 +540,9 @@ def render_sequence(
     bg_root: Path,
     out_dir: Path,
     cfg: SampleConfig,
-) -> list[str]:
-    """Render one sequence; return source refs in alpha_layers channel order."""
+) -> None:
+    """Render one sequence and populate spec.channel_refs / spec.bg_easing /
+    spec.object_easings (all paint-order aligned)."""
     # Pose RNG is derived from the seed but on a separate stream from the
     # asset-selection RNG used in build_manifest, so re-rendering a
     # hand-edited manifest (different assets, same seed) is deterministic.
@@ -531,6 +583,19 @@ def render_sequence(
     bg_start = sample_bg_pose(rng, cfg)
     bg_end = sample_bg_pose(rng, cfg)
 
+    # Per-layer easing. Sample only when the spec doesn't already carry
+    # values (loaded from a non-legacy manifest, or pre-populated by tests).
+    # Sampling happens after all pose-determining draws so old seeds stay
+    # bit-identical when --easings easeInOutSine is used.
+    if not spec.bg_easing:
+        spec.bg_easing = rng.choice(cfg.easings)
+    if not spec.object_easings:
+        # objs is in paint order (sorted by -depth); align easings to it.
+        spec.object_easings = [rng.choice(cfg.easings) for _ in objs]
+    for obj, name in zip(objs, spec.object_easings, strict=True):
+        obj.easing = name
+    bg_easing_fn = EASING_FNS[spec.bg_easing]
+
     aif_dir = out_dir / "all_in_focus"
     alpha_dir = out_dir / "alpha"
     layers_dir = out_dir / "alpha_layers"
@@ -542,10 +607,10 @@ def render_sequence(
 
     for i in range(spec.n_frames):
         t = 0.0 if spec.n_frames == 1 else i / (spec.n_frames - 1)
-        te = ease_in_out(t)
+        te_bg = bg_easing_fn(t)
 
         # Background.
-        bg_pose = bg_start.lerp(bg_end, te)
+        bg_pose = bg_start.lerp(bg_end, te_bg)
         H_bg = build_bg_homography(bg_pose, bg_src_size, frame_size)
         bg_warp = warp_pillow(bg_img, H_bg, frame_size)
         rgb = np.asarray(bg_warp, dtype=np.float32)  # (F, F, 3), 0..255
@@ -559,7 +624,8 @@ def render_sequence(
 
         # Foregrounds, back-to-front.
         for ch, obj in enumerate(objs):
-            pose = obj.pose_start.lerp(obj.pose_end, te)
+            te_obj = EASING_FNS[obj.easing](t)
+            pose = obj.pose_start.lerp(obj.pose_end, te_obj)
             H_fg = build_fg_homography(pose, obj.source_size, frame_size)
             fg_warp = warp_pillow(obj.img, H_fg, frame_size)
             fg_arr = np.asarray(fg_warp, dtype=np.float32)  # (F, F, 4)
@@ -590,7 +656,7 @@ def render_sequence(
             compress_level=6,
         )
 
-    return [obj.ref for obj in objs]
+    spec.channel_refs = [obj.ref for obj in objs]
 
 
 # --------------------------------------------------------------------------- #
@@ -617,6 +683,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bg-pan", type=float, default=0.10)
     parser.add_argument("--bg-zoom", type=float, default=0.10)
     parser.add_argument(
+        "--easings",
+        type=lambda s: tuple(c.strip() for c in s.split(",") if c.strip()),
+        default=EASING_NAMES_DEFAULT,
+        help=(
+            "Comma-separated subset of easing names to sample from per layer "
+            "(background and each foreground). Default: all 9. Pass a single "
+            "name to disable per-object variety (e.g. "
+            "'--easings easeInOutSine' reproduces pre-change behavior)."
+        ),
+    )
+    parser.add_argument(
         "--classes",
         type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
         default=None,
@@ -637,8 +714,19 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _validate_easings(names: tuple[str, ...]) -> None:
+    if not names:
+        raise SystemExit("--easings cannot be empty")
+    unknown = [n for n in names if n not in EASING_FNS]
+    if unknown:
+        raise SystemExit(
+            f"unknown easing(s): {unknown}; valid: {sorted(EASING_FNS)}",
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    _validate_easings(tuple(args.easings))
 
     cfg = SampleConfig(
         scale_min=args.scale_min,
@@ -648,6 +736,7 @@ def main(argv: list[str] | None = None) -> int:
         max_tilt=args.max_tilt,
         bg_pan=args.bg_pan,
         bg_zoom=args.bg_zoom,
+        easings=tuple(args.easings),
     )
 
     args.output.mkdir(parents=True, exist_ok=True)
@@ -671,7 +760,7 @@ def main(argv: list[str] | None = None) -> int:
             f"bg={_bg_split(spec.bg_ref)}  n_obj={len(spec.object_refs)}  "
             f"frames={spec.n_frames}",
         )
-        spec.channel_refs = render_sequence(
+        render_sequence(
             spec,
             args.fg_root,
             args.bg_root,
