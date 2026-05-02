@@ -8,7 +8,7 @@ image) and *style* (how it is rendered). Writes a sibling `predictions.csv`
 (page_id, top_label, top_score, top_style, top_style_score, per-class
 scores for both axes, subject) without touching the authoritative metadata.
 
-Subject taxonomy (edit `TAXONOMY` / `TEMPLATES` to tweak):
+Subject taxonomy (edit `SUBJECT_TAXONOMY` / `SUBJECT_TEMPLATES` to tweak):
     person   — humans, portraits, body parts
     animal   — any living creature (mammal, bird, insect, reptile, fish)
     plant    — flowers, leaves, trees, bark, botanical subjects
@@ -55,8 +55,14 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
-TAXONOMY: dict[str, list[str]] = {
-    "person": ["a person", "a human", "a portrait of a person", "people"],
+# fmt: off
+SUBJECT_TAXONOMY: dict[str, list[str]] = {
+    "person": [
+        "a person",
+        "a human",
+        "a portrait of a person",
+        "people",
+    ],
     "animal": [
         "an animal",
         "a mammal",
@@ -65,7 +71,13 @@ TAXONOMY: dict[str, list[str]] = {
         "an insect",
         "a reptile",
     ],
-    "plant": ["a plant", "a flower", "a tree", "a leaf", "tree bark"],
+    "plant": [
+        "a plant",
+        "a flower",
+        "a tree",
+        "a leaf",
+        "tree bark",
+    ],
     "food": [
         "food",
         "a meal on a plate",
@@ -92,8 +104,9 @@ TAXONOMY: dict[str, list[str]] = {
         "soap bubbles",
     ],
 }
+# fmt: on
 
-TEMPLATES: list[str] = [
+SUBJECT_TEMPLATES: list[str] = [
     "a photo of {}",
     "a picture of {}",
     "an image of {}",
@@ -145,7 +158,7 @@ STYLE_TAXONOMY: dict[str, list[str]] = {
 }
 
 # Style nouns already carry their own article, so templates here are
-# article-free wrappers — using the subject `TEMPLATES` ("a photo of {}")
+# article-free wrappers — using the subject `SUBJECT_TEMPLATES` ("a photo of {}")
 # would bias every class toward `photo`.
 STYLE_TEMPLATES: list[str] = [
     "{}",
@@ -272,10 +285,12 @@ def main() -> int:
     model.eval()
     tokenizer = open_clip.get_tokenizer(args.model)
 
-    subject_labels = list(TAXONOMY.keys())
+    subject_labels = list(SUBJECT_TAXONOMY.keys())
     style_labels = list(STYLE_TAXONOMY.keys())
     subj_avg = (
-        sum(len(n) for n in TAXONOMY.values()) * len(TEMPLATES) // len(subject_labels)
+        sum(len(n) for n in SUBJECT_TAXONOMY.values())
+        * len(SUBJECT_TEMPLATES)
+        // len(subject_labels)
     )
     style_avg = (
         sum(len(n) for n in STYLE_TAXONOMY.values())
@@ -289,8 +304,8 @@ def main() -> int:
     subject_features = encode_class_prompts(
         model,
         tokenizer,
-        TAXONOMY,
-        TEMPLATES,
+        SUBJECT_TAXONOMY,
+        SUBJECT_TEMPLATES,
         device,
     )
     style_features = encode_class_prompts(
