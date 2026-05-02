@@ -120,14 +120,48 @@ EASING_FNS: dict[str, Callable[[float], float]] = {
 EASING_NAMES_DEFAULT: tuple[str, ...] = tuple(EASING_FNS)
 
 
-def ease_in_out(t: float) -> float:
-    # Deprecated wrapper kept for one minor version; prefer EASING_FNS lookup.
-    return EASING_FNS["easeInOutSine"](t)
-
-
 # --------------------------------------------------------------------------- #
 # Homography building                                                         #
 # --------------------------------------------------------------------------- #
+
+# Unit-square corners centered on origin; reused by every homography build.
+_UNIT_SQUARE = np.array(
+    [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]],
+    dtype=np.float64,
+)
+
+
+def _project_perspective(
+    corners: np.ndarray,
+    focal: float,
+    tilt_x_deg: float,
+    tilt_y_deg: float,
+) -> np.ndarray:
+    """Lift 2D corners to z = focal, tilt around X then Y, project back to 2D.
+
+    `focal` is in the same units as the input corners; larger ⇒ milder
+    perspective. Returns a fresh (N, 2) array.
+    """
+    pts3d = np.column_stack([corners, np.full(len(corners), focal)])
+    a = math.radians(tilt_x_deg)
+    b = math.radians(tilt_y_deg)
+    rx = np.array(
+        [[1, 0, 0], [0, math.cos(a), -math.sin(a)], [0, math.sin(a), math.cos(a)]],
+    )
+    ry = np.array(
+        [[math.cos(b), 0, math.sin(b)], [0, 1, 0], [-math.sin(b), 0, math.cos(b)]],
+    )
+    pts3d = pts3d @ rx.T @ ry.T
+    return pts3d[:, :2] * (focal / pts3d[:, 2:3])
+
+
+def _rotate_2d(pts: np.ndarray, rot_deg: float) -> np.ndarray:
+    """In-plane rotation around the origin."""
+    theta = math.radians(rot_deg)
+    rot = np.array(
+        [[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]],
+    )
+    return pts @ rot.T
 
 
 def _solve_homography(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
@@ -149,46 +183,16 @@ def _solve_homography(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
 def _fg_target_corners(pose: Pose, frame_size: int) -> np.ndarray:
     """Where the object's 4 corners land on the output frame.
 
-    Builds corners by: center on origin → perspective tilt → in-plane rot →
-    scale → translate to (tx, ty) around frame center.
+    Builds corners by: perspective tilt → scale → in-plane rotation →
+    translate to (tx, ty) around frame center.
     """
     F = frame_size
-    # Unit square corners centered on origin.
-    corners = np.array(
-        [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]],
-        dtype=np.float64,
-    )
-    # 3D perspective tilt: lift corners to z = focal, rotate around X and Y,
-    # project back. focal in units of half-edge — larger ⇒ milder perspective.
-    focal = 1.8
-    pts3d = np.column_stack([corners, np.full(4, focal)])
-    a = math.radians(pose.tilt_x)
-    b = math.radians(pose.tilt_y)
-    rx = np.array(
-        [[1, 0, 0], [0, math.cos(a), -math.sin(a)], [0, math.sin(a), math.cos(a)]],
-    )
-    ry = np.array(
-        [[math.cos(b), 0, math.sin(b)], [0, 1, 0], [-math.sin(b), 0, math.cos(b)]],
-    )
-    pts3d = pts3d @ rx.T @ ry.T
-    # Perspective project.
-    pts2d = pts3d[:, :2] * (focal / pts3d[:, 2:3])
-
-    # Scale to target object size in frame pixels.
-    pts2d *= pose.scale * F
-
-    # In-plane rotation around origin.
-    theta = math.radians(pose.rot_deg)
-    rot = np.array(
-        [[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]],
-    )
-    pts2d = pts2d @ rot.T
-
-    # Translate: (tx, ty) is center offset in fractions of frame; shift to
-    # frame coordinates (top-left origin).
+    pts = _project_perspective(_UNIT_SQUARE, 1.8, pose.tilt_x, pose.tilt_y)
+    pts = pts * (pose.scale * F)
+    pts = _rotate_2d(pts, pose.rot_deg)
     cx = pose.tx * F + F / 2.0
     cy = pose.ty * F + F / 2.0
-    return pts2d + np.array([cx, cy])
+    return pts + np.array([cx, cy])
 
 
 def build_fg_homography(pose: Pose, src_size: int, frame_size: int) -> np.ndarray:
@@ -209,39 +213,15 @@ def build_bg_homography(pose: Pose, src_size: int, frame_size: int) -> np.ndarra
     tilt are bounded so the warped image covers the frame.
     """
     F = frame_size
-    # Unit frame corners centered on origin (output side).
-    base = np.array(
-        [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]],
-        dtype=np.float64,
-    )
-    focal = 2.5  # milder perspective for BG
-    pts3d = np.column_stack([base, np.full(4, focal)])
-    a = math.radians(pose.tilt_x)
-    b = math.radians(pose.tilt_y)
-    rx = np.array(
-        [[1, 0, 0], [0, math.cos(a), -math.sin(a)], [0, math.sin(a), math.cos(a)]],
-    )
-    ry = np.array(
-        [[math.cos(b), 0, math.sin(b)], [0, 1, 0], [-math.sin(b), 0, math.cos(b)]],
-    )
-    pts3d = pts3d @ rx.T @ ry.T
-    pts2d = pts3d[:, :2] * (focal / pts3d[:, 2:3])
-
-    # Divide by scale: scale > 1 zooms in (samples a smaller area of the BG).
-    pts2d *= F / pose.scale
-
-    theta = math.radians(pose.rot_deg)
-    rot = np.array(
-        [[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]],
-    )
-    pts2d = pts2d @ rot.T
-
+    # focal=2.5 ⇒ milder perspective for BG. Divide by scale: scale > 1 zooms
+    # in (samples a smaller area of the BG).
+    pts = _project_perspective(_UNIT_SQUARE, 2.5, pose.tilt_x, pose.tilt_y)
+    pts = pts * (F / pose.scale)
+    pts = _rotate_2d(pts, pose.rot_deg)
     # Translate by (tx, ty) fractions of frame, plus recenter onto bg source.
     cx = pose.tx * F + src_size / 2.0
     cy = pose.ty * F + src_size / 2.0
-    src_region = pts2d + np.array([cx, cy])
-
-    # Map that source region → output frame corners (0..F).
+    src_region = pts + np.array([cx, cy])
     dst_corners = np.array([[0, 0], [F, 0], [F, F], [0, F]], dtype=np.float64)
     return _solve_homography(src_region, dst_corners)
 
@@ -528,6 +508,107 @@ def prepare_foreground(path: Path, src_size: int) -> Image.Image:
     return resize_shortest_side_and_center_crop(img, src_size)
 
 
+def _build_object_tracks(
+    spec: SequenceSpec,
+    fg_root: Path,
+    frame_size: int,
+    rng: random.Random,
+    cfg: SampleConfig,
+) -> list[ObjectTrack]:
+    """Load foregrounds and sample per-object poses + depths.
+
+    The RNG draw order (pose_start, pose_end, depth) per object is part of the
+    deterministic contract — old seeds must keep producing the same scenes.
+    Returned tracks are sorted back-to-front (largest depth first) for paint
+    order.
+    """
+    objs: list[ObjectTrack] = []
+    for ref in spec.object_refs:
+        fg_img = prepare_foreground(fg_root / "images" / ref, frame_size)
+        pose_start = sample_fg_pose(rng, cfg)
+        pose_end = sample_fg_pose(rng, cfg)
+        depth = rng.random()  # deeper = larger value, drawn first
+        objs.append(
+            ObjectTrack(
+                ref=ref,
+                img=fg_img,
+                source_size=frame_size,
+                depth=depth,
+                pose_start=pose_start,
+                pose_end=pose_end,
+            ),
+        )
+    objs.sort(key=lambda o: -o.depth)
+    return objs
+
+
+def _composite_frame(
+    t: float,
+    frame_size: int,
+    bg_img: Image.Image,
+    bg_src_size: int,
+    bg_start: Pose,
+    bg_end: Pose,
+    bg_easing_fn: Callable[[float], float],
+    objs: list[ObjectTrack],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Render one frame at parameter t∈[0,1]; returns (rgb, alpha, layers).
+
+    `layers` is (LAYER_CHANNELS, F, F) with channel index = paint order
+    (0 = bottommost). Slots beyond `len(objs)` stay zero.
+    """
+    bg_pose = bg_start.lerp(bg_end, bg_easing_fn(t))
+    bg_warp = warp_pillow(
+        bg_img,
+        build_bg_homography(bg_pose, bg_src_size, frame_size),
+        frame_size,
+    )
+    rgb = np.asarray(bg_warp, dtype=np.float32)  # (F, F, 3), 0..255
+    alpha = np.zeros((frame_size, frame_size), dtype=np.float32)  # 0..1
+    layers = np.zeros((LAYER_CHANNELS, frame_size, frame_size), dtype=np.float32)
+
+    for ch, obj in enumerate(objs):
+        pose = obj.pose_start.lerp(obj.pose_end, EASING_FNS[obj.easing](t))
+        fg_warp = warp_pillow(
+            obj.img,
+            build_fg_homography(pose, obj.source_size, frame_size),
+            frame_size,
+        )
+        fg_arr = np.asarray(fg_warp, dtype=np.float32)  # (F, F, 4)
+        fg_a = fg_arr[..., 3] / 255.0  # (F, F), 0..1
+        a = fg_a[..., None]
+        rgb = a * fg_arr[..., :3] + (1.0 - a) * rgb
+        alpha = np.maximum(alpha, fg_a)
+        layers[ch] = fg_a
+
+    return rgb, alpha, layers
+
+
+def _save_frame(
+    rgb: np.ndarray,
+    alpha: np.ndarray,
+    layers: np.ndarray,
+    aif_path: Path,
+    alpha_path: Path,
+    layers_path: Path,
+) -> None:
+    """Persist the three pixel-aligned streams for one frame."""
+    Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), mode="RGB").save(
+        aif_path,
+        compress_level=6,
+    )
+    Image.fromarray(np.clip(alpha * 255.0, 0, 255).astype(np.uint8), mode="L").save(
+        alpha_path,
+        compress_level=6,
+    )
+    # (F, F, 3) RGB PNG: R=ch0 alpha, G=ch1, B=ch2. Empty channels = 0.
+    layers_rgb = np.transpose(
+        np.clip(layers * 255.0, 0, 255).astype(np.uint8),
+        (1, 2, 0),
+    )
+    Image.fromarray(layers_rgb, mode="RGB").save(layers_path, compress_level=6)
+
+
 def render_sequence(
     spec: SequenceSpec,
     fg_root: Path,
@@ -550,24 +631,7 @@ def render_sequence(
     )
     bg_src_size = bg_img.size[0]
 
-    objs: list[ObjectTrack] = []
-    for ref in spec.object_refs:
-        fg_img = prepare_foreground(fg_root / "images" / ref, frame_size)
-        pose_start = sample_fg_pose(rng, cfg)
-        pose_end = sample_fg_pose(rng, cfg)
-        depth = rng.random()  # deeper = larger value, drawn first
-        objs.append(
-            ObjectTrack(
-                ref=ref,
-                img=fg_img,
-                source_size=frame_size,
-                depth=depth,
-                pose_start=pose_start,
-                pose_end=pose_end,
-            ),
-        )
-    # Back-to-front painter order: farthest first (largest depth first).
-    objs.sort(key=lambda o: -o.depth)
+    objs = _build_object_tracks(spec, fg_root, frame_size, rng, cfg)
     if len(objs) > LAYER_CHANNELS:
         raise ValueError(
             f"sequence {spec.seq_id}: {len(objs)} objects > LAYER_CHANNELS="
@@ -577,10 +641,10 @@ def render_sequence(
     bg_start = sample_bg_pose(rng, cfg)
     bg_end = sample_bg_pose(rng, cfg)
 
-    # Per-layer easing. Sample only when the spec doesn't already carry
-    # values (loaded from a non-legacy manifest, or pre-populated by tests).
-    # Sampling happens after all pose-determining draws so old seeds stay
-    # bit-identical when --easings easeInOutSine is used.
+    # Per-layer easing. Sample only when the spec doesn't already carry values
+    # (loaded from a non-legacy manifest, or pre-populated by tests). Sampling
+    # happens after all pose-determining draws so old seeds stay bit-identical
+    # when --easings easeInOutSine is used.
     if not spec.bg_easing:
         spec.bg_easing = rng.choice(cfg.easings)
     if not spec.object_easings:
@@ -593,61 +657,31 @@ def render_sequence(
     aif_dir = out_dir / "all_in_focus"
     alpha_dir = out_dir / "alpha"
     layers_dir = out_dir / "alpha_layers"
-    aif_dir.mkdir(parents=True, exist_ok=True)
-    alpha_dir.mkdir(parents=True, exist_ok=True)
-    layers_dir.mkdir(parents=True, exist_ok=True)
+    for d in (aif_dir, alpha_dir, layers_dir):
+        d.mkdir(parents=True, exist_ok=True)
 
     digits = max(2, len(str(spec.n_frames)))
 
     for i in range(spec.n_frames):
         t = 0.0 if spec.n_frames == 1 else i / (spec.n_frames - 1)
-        te_bg = bg_easing_fn(t)
-
-        # Background.
-        bg_pose = bg_start.lerp(bg_end, te_bg)
-        H_bg = build_bg_homography(bg_pose, bg_src_size, frame_size)
-        bg_warp = warp_pillow(bg_img, H_bg, frame_size)
-        rgb = np.asarray(bg_warp, dtype=np.float32)  # (F, F, 3), 0..255
-        alpha = np.zeros((frame_size, frame_size), dtype=np.float32)  # 0..1
-        # Per-object alpha: channel index = paint order (0 = bottommost).
-        # Slots beyond `len(objs)` stay zero.
-        layers = np.zeros(
-            (LAYER_CHANNELS, frame_size, frame_size),
-            dtype=np.float32,
+        rgb, alpha, layers = _composite_frame(
+            t,
+            frame_size,
+            bg_img,
+            bg_src_size,
+            bg_start,
+            bg_end,
+            bg_easing_fn,
+            objs,
         )
-
-        # Foregrounds, back-to-front.
-        for ch, obj in enumerate(objs):
-            te_obj = EASING_FNS[obj.easing](t)
-            pose = obj.pose_start.lerp(obj.pose_end, te_obj)
-            H_fg = build_fg_homography(pose, obj.source_size, frame_size)
-            fg_warp = warp_pillow(obj.img, H_fg, frame_size)
-            fg_arr = np.asarray(fg_warp, dtype=np.float32)  # (F, F, 4)
-            fg_rgb = fg_arr[..., :3]
-            fg_a = fg_arr[..., 3] / 255.0  # (F, F), 0..1
-            a = fg_a[..., None]
-            rgb = a * fg_rgb + (1.0 - a) * rgb
-            alpha = np.maximum(alpha, fg_a)
-            layers[ch] = fg_a
-
-        frame_idx = i + 1
-        name = f"{frame_idx:0{digits}d}.png"
-        Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), mode="RGB").save(
+        name = f"{i + 1:0{digits}d}.png"
+        _save_frame(
+            rgb,
+            alpha,
+            layers,
             aif_dir / name,
-            compress_level=6,
-        )
-        Image.fromarray(np.clip(alpha * 255.0, 0, 255).astype(np.uint8), mode="L").save(
             alpha_dir / name,
-            compress_level=6,
-        )
-        # (F, F, 3) RGB PNG: R=ch0 alpha, G=ch1, B=ch2. Empty channels = 0.
-        layers_rgb = np.transpose(
-            np.clip(layers * 255.0, 0, 255).astype(np.uint8),
-            (1, 2, 0),
-        )
-        Image.fromarray(layers_rgb, mode="RGB").save(
             layers_dir / name,
-            compress_level=6,
         )
 
     spec.channel_refs = [obj.ref for obj in objs]
