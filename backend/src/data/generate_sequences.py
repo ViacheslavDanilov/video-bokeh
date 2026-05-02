@@ -30,7 +30,7 @@ Re-run with `--from-manifest` to re-render a (possibly edited) manifest.
 Usage:
     uv run python -m data.generate_sequences \
         --fg-data-root backend/data/magick_dev \
-        --bg-data-root backend/data/bg20k_dev \
+        --bg-data-root backend/data/bg-20k_dev \
         --output  backend/data/synth_dev \
         --count   10 \
         --seed    0
@@ -695,7 +695,7 @@ def render_sequence(
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fg-data-root", type=Path, default=Path("data/magick_dev"))
-    parser.add_argument("--bg-data-root", type=Path, default=Path("data/bg20k_dev"))
+    parser.add_argument("--bg-data-root", type=Path, default=Path("data/bg-20k_dev"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--count", type=int, default=10)
     parser.add_argument("--frames", type=int, default=80)
