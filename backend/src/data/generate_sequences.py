@@ -99,29 +99,23 @@ def _lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * t
 
 
-def _ease_in_out_cubic(t: float) -> float:
-    return 4.0 * t**3 if t < 0.5 else 1.0 - ((-2.0 * t + 2.0) ** 3) / 2.0
-
-
-def _ease_in_out_quint(t: float) -> float:
-    return 16.0 * t**5 if t < 0.5 else 1.0 - ((-2.0 * t + 2.0) ** 5) / 2.0
-
-
 # Pool of easing curves used to interpolate per-layer pose between start and
 # end. All map [0, 1] -> [0, 1] with f(0) = 0 and f(1) = 1, monotonic, no
 # overshoot. Insertion order = display order from easings.net (in / out /
 # in-out within each intensity tier) and is what manifests record.
+# fmt: off
 EASING_FNS: dict[str, Callable[[float], float]] = {
     "easeInSine": lambda t: 1.0 - math.cos(t * math.pi / 2.0),
     "easeOutSine": lambda t: math.sin(t * math.pi / 2.0),
     "easeInOutSine": lambda t: 0.5 * (1.0 - math.cos(math.pi * t)),
     "easeInCubic": lambda t: t**3,
     "easeOutCubic": lambda t: 1.0 - (1.0 - t) ** 3,
-    "easeInOutCubic": _ease_in_out_cubic,
+    "easeInOutCubic": lambda t: 4.0 * t**3 if t < 0.5 else 1.0 - 4.0 * (1.0 - t) ** 3,
     "easeInQuint": lambda t: t**5,
     "easeOutQuint": lambda t: 1.0 - (1.0 - t) ** 5,
-    "easeInOutQuint": _ease_in_out_quint,
+    "easeInOutQuint": lambda t: 16.0 * t**5 if t < 0.5 else 1.0 - 16.0 * (1.0 - t) ** 5,
 }
+# fmt: on
 
 EASING_NAMES_DEFAULT: tuple[str, ...] = tuple(EASING_FNS)
 
