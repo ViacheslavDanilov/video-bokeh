@@ -157,9 +157,6 @@ STYLE_TAXONOMY: dict[str, list[str]] = {
     ],
 }
 
-# Style nouns already carry their own article, so templates here are
-# article-free wrappers — using the subject `SUBJECT_TEMPLATES` ("a photo of {}")
-# would bias every class toward `photo`.
 STYLE_TEMPLATES: list[str] = [
     "{}",
     "an image of {}",
