@@ -13,9 +13,8 @@ Reads ``backend/data/magick/predictions.csv`` and produces:
   map over (subject_thr, style_thr).
 * Score histograms for both axes.
 
-All plots land under ``vault/attachments/2026-05-20-magick-distribution/``
-so they can be referenced from the matching report. A JSON sidecar
-``summary.json`` mirrors every numeric table for the report writer.
+Plots and a JSON sidecar (``summary.json`` with all numeric tables) are
+written to ``ATTACH_DIR``.
 """
 
 from __future__ import annotations

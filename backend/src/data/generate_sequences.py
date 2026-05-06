@@ -55,9 +55,9 @@ import pandas as pd
 from PIL import Image
 
 # Max per-object alpha layers packed into the RGB channels of a single
-# `alpha_layers/<frame>.png`. Hard-capped at 3 to match the decision
-# (≤3 foregrounds per scene → fits in one PNG; would otherwise need a TIFF
-# or a second sidecar PNG).
+# `alpha_layers/<frame>.png`. Capped at 3 because a single RGB PNG has 3
+# channels; supporting more layers would require a multi-channel TIFF or a
+# second sidecar PNG.
 LAYER_CHANNELS = 3
 
 # --------------------------------------------------------------------------- #
@@ -750,8 +750,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Comma-separated subset of easing names to sample from per layer "
             "(background and each foreground). Default: all 9. Pass a single "
-            "name to disable per-object variety (e.g. "
-            "'--easings easeInOutSine' reproduces pre-change behavior)."
+            "name to use one easing for every layer."
         ),
     )
     parser.add_argument(
