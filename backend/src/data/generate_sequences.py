@@ -263,7 +263,7 @@ def resize_shortest_side_and_center_crop(img: Image.Image, size: int) -> Image.I
 
 
 def _load_page_id_labels(fg_root: Path) -> dict[str, str]:
-    """Return {page_id: top_label} from <fg_root>/predictions.csv."""
+    """Return {page_id: top_subject} from <fg_root>/predictions.csv."""
     path = fg_root / "predictions.csv"
     if not path.exists():
         raise SystemExit(
@@ -271,7 +271,7 @@ def _load_page_id_labels(fg_root: Path) -> dict[str, str]:
         )
     with path.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
-        return {row["page_id"]: row["top_label"] for row in reader}
+        return {row["page_id"]: row["top_subject"] for row in reader}
 
 
 def list_foreground_refs(
@@ -280,7 +280,7 @@ def list_foreground_refs(
 ) -> list[str]:
     """Return list of relative paths like '0L/0LZCNUeBHK.png' under images/.
 
-    If `classes` is given, keep only foregrounds whose top_label (from
+    If `classes` is given, keep only foregrounds whose top_subject (from
     predictions.csv) is in that set.
     """
     root = fg_root / "images"

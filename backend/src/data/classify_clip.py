@@ -5,8 +5,9 @@ Reads `<data_root>/metadata.csv`, loads each image from
 `<data_root>/images/<pp>/<page_id>.png`, encodes it with an OpenCLIP model,
 and scores it against two orthogonal taxonomies — *subject* (what is in the
 image) and *style* (how it is rendered). Writes a sibling `predictions.csv`
-(page_id, top_label, top_score, top_style, top_style_score, per-class
-scores for both axes, subject) without touching the authoritative metadata.
+(page_id, top_subject, top_subject_score, top_style, top_style_score,
+per-class scores for both axes, prompt) without touching the authoritative
+metadata.
 
 Subject taxonomy (edit `SUBJECT_TAXONOMY` / `SUBJECT_TEMPLATES` to tweak):
     person   — humans, portraits, body parts
@@ -352,26 +353,26 @@ def main() -> int:
                 predictions.append(
                     {
                         "page_id": row["page_id"],
-                        "top_label": top_subject,
-                        "top_score": subject_row[top_subject],
+                        "top_subject": top_subject,
+                        "top_subject_score": subject_row[top_subject],
                         "top_style": top_style,
                         "top_style_score": style_row[top_style],
-                        **{f"score_{k}": v for k, v in subject_row.items()},
+                        **{f"score_subject_{k}": v for k, v in subject_row.items()},
                         **{f"score_style_{k}": v for k, v in style_row.items()},
-                        "subject": row.get("subject", ""),
+                        "prompt": row.get("prompt", ""),
                     },
                 )
             print(f"  processed {len(predictions)}/{len(rows)}")
 
     fieldnames = [
         "page_id",
-        "top_label",
-        "top_score",
+        "top_subject",
+        "top_subject_score",
         "top_style",
         "top_style_score",
-        *[f"score_{k}" for k in subject_labels],
+        *[f"score_subject_{k}" for k in subject_labels],
         *[f"score_style_{k}" for k in style_labels],
-        "subject",
+        "prompt",
     ]
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     with output_csv.open("w", encoding="utf-8", newline="") as f:
@@ -383,7 +384,7 @@ def main() -> int:
     subject_counts: dict[str, int] = dict.fromkeys(subject_labels, 0)
     style_counts: dict[str, int] = dict.fromkeys(style_labels, 0)
     for pred in predictions:
-        subject_counts[str(pred["top_label"])] += 1
+        subject_counts[str(pred["top_subject"])] += 1
         style_counts[str(pred["top_style"])] += 1
     print("\n  Subject distribution (top-1):")
     for label, count in subject_counts.items():
