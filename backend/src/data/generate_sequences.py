@@ -35,10 +35,9 @@ Usage:
         --count   10 \
         --seed    0
 
-    # Restrict to specific MAGICK classes (requires predictions.csv from
-    # data.classify_clip in <fg-data-root>):
     uv run python -m data.generate_sequences ... \
-        --classes person,animal,plant
+        --subjects person,animal,plant \
+        --subject-thr 0.6
 """
 
 from __future__ import annotations
@@ -55,10 +54,18 @@ import numpy as np
 from PIL import Image
 
 # Max per-object alpha layers packed into the RGB channels of a single
-# `alpha_layers/<frame>.png`. Hard-capped at 3 to match the meeting decision
+# `alpha_layers/<frame>.png`. Hard-capped at 3 to match the decision
 # (≤3 foregrounds per scene → fits in one PNG; would otherwise need a TIFF
 # or a second sidecar PNG).
 LAYER_CHANNELS = 3
+
+# --------------------------------------------------------------------------- #
+# Foreground filter defaults                                                  #
+# --------------------------------------------------------------------------- #
+DEFAULT_KEEP_SUBJECTS: tuple[str, ...] = ("person", "animal", "plant", "food", "object")
+DEFAULT_KEEP_STYLES: tuple[str, ...] = ("photo", "render")
+DEFAULT_SUBJECT_THR: float = 0.50
+DEFAULT_STYLE_THR: float = 0.00
 
 # --------------------------------------------------------------------------- #
 # Pose and homography                                                         #
@@ -262,36 +269,75 @@ def resize_shortest_side_and_center_crop(img: Image.Image, size: int) -> Image.I
     return img.crop((left, top, left + size, top + size))
 
 
-def _load_page_id_labels(fg_root: Path) -> dict[str, str]:
-    """Return {page_id: top_subject} from <fg_root>/predictions.csv."""
+def _load_predictions(fg_root: Path) -> dict[str, dict[str, str]]:
+    """Return {page_id: row} from <fg_root>/predictions.csv.
+
+    Each row keeps the four filter-relevant fields as raw strings:
+    ``top_subject``, ``top_subject_score``, ``top_style``, ``top_style_score``.
+    """
     path = fg_root / "predictions.csv"
     if not path.exists():
         raise SystemExit(
-            f"--classes requires {path}; run `data.classify_clip` on {fg_root} first.",
+            f"foreground filtering requires {path}; "
+            f"run `data.classify_clip` on {fg_root} first.",
         )
     with path.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
-        return {row["page_id"]: row["top_subject"] for row in reader}
+        return {row["page_id"]: row for row in reader}
 
 
 def list_foreground_refs(
     fg_root: Path,
-    classes: list[str] | None = None,
+    subjects: tuple[str, ...] | list[str] | None = DEFAULT_KEEP_SUBJECTS,
+    styles: tuple[str, ...] | list[str] | None = DEFAULT_KEEP_STYLES,
+    subject_thr: float = DEFAULT_SUBJECT_THR,
+    style_thr: float = DEFAULT_STYLE_THR,
 ) -> list[str]:
     """Return list of relative paths like '0L/0LZCNUeBHK.png' under images/.
 
-    If `classes` is given, keep only foregrounds whose top_subject (from
-    predictions.csv) is in that set.
+    Foregrounds are kept when **all** of the following hold (any predicate is
+    skipped if its argument is ``None`` / empty / 0.0):
+
+    * ``top_subject`` ∈ ``subjects``
+    * ``top_style`` ∈ ``styles``
+    * ``top_subject_score`` ≥ ``subject_thr``
+    * ``top_style_score`` ≥ ``style_thr``
+
+    Defaults mirror the 2026-05-20 MAGICK-distribution report's recommended
+    policy: keep `person/animal/plant/food/object` × `photo/render` with
+    ``top_subject_score ≥ 0.50`` and no style threshold. Pass empty tuples
+    or ``None`` to disable a filter axis.
     """
     root = fg_root / "images"
     if not root.exists():
         raise FileNotFoundError(f"foreground images dir missing: {root}")
     refs = sorted(str(p.relative_to(root)) for p in root.rglob("*.png") if p.is_file())
-    if not classes:
+
+    needs_filter = (
+        bool(subjects) or bool(styles) or subject_thr > 0.0 or style_thr > 0.0
+    )
+    if not needs_filter:
         return refs
-    allowed = set(classes)
-    labels = _load_page_id_labels(fg_root)
-    return [r for r in refs if labels.get(Path(r).stem) in allowed]
+
+    preds = _load_predictions(fg_root)
+    allowed_subjects = set(subjects) if subjects else None
+    allowed_styles = set(styles) if styles else None
+
+    kept: list[str] = []
+    for r in refs:
+        row = preds.get(Path(r).stem)
+        if row is None:
+            continue
+        if allowed_subjects is not None and row["top_subject"] not in allowed_subjects:
+            continue
+        if allowed_styles is not None and row["top_style"] not in allowed_styles:
+            continue
+        if subject_thr > 0.0 and float(row["top_subject_score"]) < subject_thr:
+            continue
+        if style_thr > 0.0 and float(row["top_style_score"]) < style_thr:
+            continue
+        kept.append(r)
+    return kept
 
 
 def list_background_refs(bg_root: Path) -> list[str]:
@@ -395,14 +441,20 @@ def _bg_split(bg_ref: str) -> str:
 
 
 def build_manifest(args: argparse.Namespace) -> list[SequenceSpec]:
-    fg_refs = list_foreground_refs(args.fg_data_root, args.classes)
+    fg_refs = list_foreground_refs(
+        args.fg_data_root,
+        subjects=args.subjects,
+        styles=args.styles,
+        subject_thr=args.subject_thr,
+        style_thr=args.style_thr,
+    )
     bg_refs = list_background_refs(args.bg_data_root)
     if not fg_refs:
-        if args.classes:
-            raise SystemExit(
-                f"no foregrounds under {args.fg_data_root}/images match classes {args.classes}",
-            )
-        raise SystemExit(f"no foregrounds found under {args.fg_data_root}/images")
+        raise SystemExit(
+            f"no foregrounds under {args.fg_data_root}/images match the filter "
+            f"(subjects={args.subjects}, styles={args.styles}, "
+            f"subject_thr={args.subject_thr}, style_thr={args.style_thr})",
+        )
     if not bg_refs:
         raise SystemExit(f"no backgrounds found under {args.bg_data_root}/images")
 
@@ -722,11 +774,43 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--classes",
+        "--subjects",
         type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
-        default=None,
-        help="Comma-separated class labels to keep (e.g. 'person,animal'). "
-        "Requires <fg-data-root>/predictions.csv from `data.classify_clip`.",
+        default=list(DEFAULT_KEEP_SUBJECTS),
+        help=(
+            "Comma-separated subject labels to keep "
+            f"(default: {','.join(DEFAULT_KEEP_SUBJECTS)}). "
+            "Pass an empty string to disable subject-axis filtering. "
+            "Requires <fg-data-root>/predictions.csv from `data.classify_clip`."
+        ),
+    )
+    parser.add_argument(
+        "--styles",
+        type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
+        default=list(DEFAULT_KEEP_STYLES),
+        help=(
+            "Comma-separated style labels to keep "
+            f"(default: {','.join(DEFAULT_KEEP_STYLES)}). "
+            "Pass an empty string to disable style-axis filtering."
+        ),
+    )
+    parser.add_argument(
+        "--subject-thr",
+        type=float,
+        default=DEFAULT_SUBJECT_THR,
+        help=(
+            "Minimum top_subject_score to keep a foreground "
+            f"(default: {DEFAULT_SUBJECT_THR}). Set to 0 to disable."
+        ),
+    )
+    parser.add_argument(
+        "--style-thr",
+        type=float,
+        default=DEFAULT_STYLE_THR,
+        help=(
+            "Minimum top_style_score to keep a foreground "
+            f"(default: {DEFAULT_STYLE_THR}; 0 disables — see report 2026-05-20)."
+        ),
     )
     parser.add_argument(
         "--manifest-only",
