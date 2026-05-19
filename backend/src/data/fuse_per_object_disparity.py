@@ -1,5 +1,30 @@
 #!/usr/bin/env python3
-"""Fuse per-object depth estimates into dataset disparity ground truth."""
+"""Fuse per-object depth estimates into dataset disparity ground truth.
+
+For each frame: replays the renderer's scene geometry, runs the chosen
+estimator on each object composited onto a neutral textured BG and once on
+the warped BG alone, percentile-clamps and scale-bands each result onto a
+global [0, 1] disparity axis, and composites via the GT alpha layers in
+paint order. Output is identical in path/shape/dtype/convention to
+``estimate_disparity.py``:
+
+    <data-root>/sequences/<id>/disparity/<frame>.tif   float32, larger = closer
+
+Usage:
+    # Default: DA-V2 large on all sequences
+    uv run python -m data.fuse_per_object_disparity \\
+        --data-root    backend/data/synth_dev \\
+        --fg-data-root backend/data/magick_dev \\
+        --bg-data-root backend/data/bg-20k_dev
+
+    # Specific sequences, small variant for a quick sanity check
+    uv run python -m data.fuse_per_object_disparity \\
+        --data-root    backend/data/synth_dev \\
+        --fg-data-root backend/data/magick_dev \\
+        --bg-data-root backend/data/bg-20k_dev \\
+        --model        da2-small \\
+        --seqs         0001,0003
+"""
 
 from __future__ import annotations
 
@@ -16,7 +41,7 @@ from data._neutral_bg import make_textured_bg
 from data._sequence_geometry import SampleConfig, replay_scene
 from data.depth import ESTIMATORS
 from data.estimate_disparity import list_sequences, select_device
-from data.generate_sequences import SequenceSpec, read_manifest
+from data.generate_sequences import LAYER_CHANNELS, SequenceSpec, read_manifest
 
 
 def _parse_seqs(value: str) -> list[str]:
@@ -52,12 +77,19 @@ def _process_sequence(
     band_width: float,
     bg_band_top: float,
 ) -> None:
+    depth_source = "manifest" if spec.object_depths else "replayed"
     replay = replay_scene(spec, fg_root, bg_root, cfg, validate_channel_refs=True)
     n_obj = len(replay.object_depths)
-    if n_obj > 3:
+    if n_obj > LAYER_CHANNELS:
         raise ValueError(
-            f"sequence {spec.seq_id}: {n_obj} objects > alpha_layers RGB capacity",
+            f"sequence {spec.seq_id}: {n_obj} objects > LAYER_CHANNELS="
+            f"{LAYER_CHANNELS}; alpha_layers PNG can pack at most {LAYER_CHANNELS} layers.",
         )
+
+    print(
+        f"  {seq_dir.name}  n_obj={n_obj}  "
+        f"frames={spec.n_frames}  depths={depth_source}",
+    )
 
     layers_dir = seq_dir / "alpha_layers"
     if not layers_dir.exists():
@@ -145,12 +177,6 @@ def main(argv: list[str] | None = None) -> int:
                 make_textured_bg(size=spec.size, seed=args.neutral_bg_seed),
                 mode="RGB",
             )
-        neutral_bg_img = neutral_cache[spec.size]
-        depth_status = "manifest" if spec.object_depths else "replayed"
-        print(
-            f"  {seq_name}  n_obj={len(spec.object_refs)}  "
-            f"frames={spec.n_frames}  depths={depth_status}",
-        )
         _process_sequence(
             spec,
             seq_dirs[seq_name],
@@ -158,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             args.bg_data_root,
             cfg,
             estimator,
-            neutral_bg_img,
+            neutral_cache[spec.size],
             band_width=args.band_width,
             bg_band_top=args.bg_band_top,
         )
