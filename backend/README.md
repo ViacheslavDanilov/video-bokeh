@@ -62,7 +62,7 @@ Full archive (~25–30 GB) via `kagglehub`. Requires `~/.kaggle/kaggle.json`:
 
 ```bash
 uv add kagglehub
-uv run python -m data.download_bg20k --output data/bg20k
+uv run python -m data.download_bg20k --output data/bg-20k
 ```
 
 Files land under `<output>/datasets/nguyenquocdungk16hl/bg-20o/versions/<N>/`

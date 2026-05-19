@@ -1,43 +1,30 @@
 #!/usr/bin/env python3
-"""Estimate per-frame disparity maps with Depth Anything V2.
+"""Estimate disparity ground truth for synthetic sequences.
 
-Reads `<root>/sequences/<id>/all_in_focus/*.png` and writes a sibling
-`<root>/sequences/<id>/disparity/*.tif` of float32 relative inverse depth
-(disparity), one channel, same H×W as the input frame. Larger value = closer
-to camera; smaller = farther. Values are unitless and only meaningful in
-relative ordering — there is no metric scale.
+Per-object depth fusion: replays each sequence's scene geometry, runs the
+chosen estimator on every object composited onto a neutral textured BG and
+once on the warped BG alone, percentile-clamps and scale-bands each result
+onto a global [0, 1] disparity axis, and composites via the GT alpha layers
+in paint order. The output is the disparity GT consumed by any-to-bokeh.
 
-Note: Depth Anything V2 publishes its head output as `predicted_depth`, but
-the values are inverse depth (disparity) by convention inherited from MiDaS.
-This script names the output accordingly.
+Output:
 
-Layout:
-
-    <root>/
-    └── sequences/
-        └── 0001/
-            ├── all_in_focus/01.png … 80.png   # input
-            ├── alpha/01.png        … 80.png
-            └── disparity/01.tif    … 80.tif   # written here
-
-Uses `transformers.AutoModelForDepthEstimation` with the official Depth
-Anything V2 checkpoints on Hugging Face. Default is the smallest variant
-(`Depth-Anything-V2-Small-hf`, ~25M params) so this runs on a laptop CPU/MPS.
+    <data-root>/sequences/<id>/disparity/<frame>.tif   float32, larger = closer
 
 Usage:
-    uv run python -m data.estimate_disparity \
-        --root backend/data/synth_dev
+    # Default: DA-V2 large on all sequences
+    uv run python -m data.estimate_disparity \\
+        --data-root    backend/data/synth_dev \\
+        --fg-data-root backend/data/magick_dev \\
+        --bg-data-root backend/data/bg-20k_dev
 
-    # Only specific sequences:
-    uv run python -m data.estimate_disparity \
-        --root backend/data/synth_dev \
-        --seqs 0001,0003
-
-    # Heavier checkpoint on a GPU box:
-    uv run python -m data.estimate_disparity \
-        --root  backend/data/synth_dev \
-        --model depth-anything/Depth-Anything-V2-Large-hf \
-        --device cuda
+    # Specific sequences, small variant for a quick sanity check
+    uv run python -m data.estimate_disparity \\
+        --data-root    backend/data/synth_dev \\
+        --fg-data-root backend/data/magick_dev \\
+        --bg-data-root backend/data/bg-20k_dev \\
+        --model        da2-small \\
+        --seqs         0001,0003
 """
 
 from __future__ import annotations
@@ -48,166 +35,162 @@ from typing import Any
 
 import numpy as np
 import tifffile
-import torch
 from PIL import Image
-from transformers import AutoImageProcessor, AutoModelForDepthEstimation
 
-# --------------------------------------------------------------------------- #
-# I/O                                                                         #
-# --------------------------------------------------------------------------- #
-
-
-def list_sequences(root: Path, seqs: list[str] | None) -> list[Path]:
-    seq_root = root / "sequences"
-    if not seq_root.exists():
-        raise FileNotFoundError(f"sequences dir missing: {seq_root}")
-    dirs = sorted(p for p in seq_root.iterdir() if p.is_dir())
-    if seqs is None:
-        return dirs
-    wanted = set(seqs)
-    picked = [p for p in dirs if p.name in wanted]
-    missing = wanted - {p.name for p in picked}
-    if missing:
-        raise SystemExit(f"sequences not found under {seq_root}: {sorted(missing)}")
-    return picked
+from data._fusion import band_normalize, bg_normalize, composite_layers
+from data._neutral_bg import make_textured_bg
+from data._seq_io import list_sequences, select_device
+from data._sequence_geometry import SampleConfig, replay_scene
+from data.depth import ESTIMATORS
+from data.generate_sequences import LAYER_CHANNELS, SequenceSpec, read_manifest
 
 
-def list_frames(seq_dir: Path) -> list[Path]:
-    aif_dir = seq_dir / "all_in_focus"
-    if not aif_dir.exists():
-        raise FileNotFoundError(f"all_in_focus dir missing: {aif_dir}")
-    return sorted(aif_dir.glob("*.png"))
+def _parse_seqs(value: str) -> list[str]:
+    return [part.strip() for part in value.split(",") if part.strip()]
 
 
-# --------------------------------------------------------------------------- #
-# Inference                                                                   #
-# --------------------------------------------------------------------------- #
+def _composite_on_neutral(fg_rgba: Image.Image, neutral_bg: Image.Image) -> Image.Image:
+    """Alpha-composite an RGBA foreground onto the cached neutral texture."""
+    fg = np.asarray(fg_rgba, dtype=np.float32)
+    bg = np.asarray(neutral_bg, dtype=np.float32)
+    alpha = fg[..., 3:4] / 255.0
+    rgb = alpha * fg[..., :3] + (1.0 - alpha) * bg
+    return Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), mode="RGB")
 
 
-def select_device(prefer: str) -> torch.device:
-    if prefer == "cuda" and torch.cuda.is_available():
-        return torch.device("cuda")
-    if prefer == "mps" and torch.backends.mps.is_available():
-        return torch.device("mps")
-    if prefer == "auto":
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-        if torch.backends.mps.is_available():
-            return torch.device("mps")
-    return torch.device("cpu")
+def _load_alpha_layers(path: Path, n_channels: int) -> list[np.ndarray]:
+    if n_channels > 3:
+        raise ValueError(
+            f"alpha_layers RGB PNG supports at most 3 channels, got {n_channels}",
+        )
+    rgb = np.asarray(Image.open(path).convert("RGB"), dtype=np.float32) / 255.0
+    return [rgb[..., channel] for channel in range(n_channels)]
 
 
-def estimate_disparity(
-    model: Any,
-    processor: Any,
-    device: torch.device,
-    frames: list[Path],
-    batch_size: int,
-) -> list[np.ndarray]:
-    out: list[np.ndarray] = []
-    for i in range(0, len(frames), batch_size):
-        batch_paths = frames[i : i + batch_size]
-        images = [Image.open(p).convert("RGB") for p in batch_paths]
-        sizes = [(img.height, img.width) for img in images]
+def _process_sequence(
+    spec: SequenceSpec,
+    seq_dir: Path,
+    fg_root: Path,
+    bg_root: Path,
+    cfg: SampleConfig,
+    estimator: Any,
+    neutral_bg_img: Image.Image,
+    band_width: float,
+    bg_band_top: float,
+) -> None:
+    depth_source = "manifest" if spec.object_depths else "replayed"
+    replay = replay_scene(spec, fg_root, bg_root, cfg, validate_channel_refs=True)
+    n_obj = len(replay.object_depths)
+    if n_obj > LAYER_CHANNELS:
+        raise ValueError(
+            f"sequence {spec.seq_id}: {n_obj} objects > LAYER_CHANNELS="
+            f"{LAYER_CHANNELS}; alpha_layers PNG can pack at most {LAYER_CHANNELS} layers.",
+        )
 
-        inputs = processor(images=images, return_tensors="pt").to(device)
-        with torch.no_grad():
-            outputs = model(**inputs)
+    print(
+        f"  {seq_dir.name}  n_obj={n_obj}  "
+        f"frames={spec.n_frames}  depths={depth_source}",
+    )
 
-        # HF field is named `predicted_depth` but values are disparity.
-        disparity = outputs.predicted_depth  # [B, H', W'] float
-        for j, (h, w) in enumerate(sizes):
-            d = torch.nn.functional.interpolate(
-                disparity[j : j + 1].unsqueeze(1),
-                size=(h, w),
-                mode="bicubic",
-                align_corners=False,
-            ).squeeze()
-            out.append(d.detach().cpu().numpy().astype(np.float32))
-    return out
+    layers_dir = seq_dir / "alpha_layers"
+    if not layers_dir.exists():
+        raise FileNotFoundError(f"alpha_layers dir missing: {layers_dir}")
 
+    disparity_dir = seq_dir / "disparity"
+    disparity_dir.mkdir(parents=True, exist_ok=True)
+    digits = max(2, len(str(spec.n_frames)))
 
-# --------------------------------------------------------------------------- #
-# CLI                                                                         #
-# --------------------------------------------------------------------------- #
+    for i, frame in enumerate(replay.frames):
+        isolated = [
+            _composite_on_neutral(rgba, neutral_bg_img) for rgba in frame.object_rgbas
+        ]
+        obj_disps = estimator.infer(isolated)
+        [bg_disp] = estimator.infer([frame.bg_rgb])
+
+        frame_name = f"{i + 1:0{digits}d}.png"
+        alphas = _load_alpha_layers(layers_dir / frame_name, n_obj)
+        obj_norms = [
+            band_normalize(
+                obj_disps[channel],
+                alphas[channel],
+                object_depth=replay.object_depths[channel],
+                band_width=band_width,
+                bg_band_top=bg_band_top,
+            )
+            for channel in range(n_obj)
+        ]
+        bg_norm = bg_normalize(bg_disp, bg_band_top=bg_band_top)
+        final = composite_layers(bg_norm, obj_norms, alphas)
+
+        tifffile.imwrite(
+            disparity_dir / f"{i + 1:0{digits}d}.tif",
+            final.astype(np.float32),
+        )
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--root",
-        type=Path,
-        required=True,
-        help="dataset root containing sequences/ (e.g. backend/data/synth_dev)",
-    )
+    parser.add_argument("--data-root", type=Path, required=True)
+    parser.add_argument("--fg-data-root", type=Path, required=True)
+    parser.add_argument("--bg-data-root", type=Path, required=True)
     parser.add_argument(
         "--model",
-        default="depth-anything/Depth-Anything-V2-Small-hf",
-        help="HF model id; default is the smallest variant (~25M params).",
+        choices=sorted(ESTIMATORS.keys()),
+        default="da2-large",
     )
     parser.add_argument(
         "--device",
         choices=("auto", "cuda", "mps", "cpu"),
         default="auto",
     )
-    parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Re-estimate disparity even if the .tif already exists.",
-    )
-    parser.add_argument(
-        "--seqs",
-        type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
-        default=None,
-        help="Comma-separated sequence ids (e.g. '0001,0003'). Default: all.",
-    )
+    parser.add_argument("--band-width", type=float, default=0.10)
+    parser.add_argument("--bg-band-top", type=float, default=0.05)
+    parser.add_argument("--neutral-bg-seed", type=int, default=0)
+    parser.add_argument("--seqs", type=_parse_seqs, default=None)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
+    manifest_path = args.data_root / "manifest.csv"
+    if not manifest_path.exists():
+        raise SystemExit(f"manifest missing: {manifest_path}")
+
+    specs = read_manifest(manifest_path)
+    seq_dirs = {path.name: path for path in list_sequences(args.data_root, args.seqs)}
+    wanted = set(seq_dirs)
+    specs = [spec for spec in specs if f"{spec.seq_id:04d}" in wanted]
+    if not specs:
+        raise SystemExit("no matching sequences after applying --seqs filter")
+
     device = select_device(args.device)
-    print(f"Loading {args.model} on {device}")
-    processor = AutoImageProcessor.from_pretrained(args.model)
-    model = AutoModelForDepthEstimation.from_pretrained(args.model).to(device)
-    model.eval()
+    print(f"Loading estimator {args.model!r} on {device}")
+    estimator = ESTIMATORS[args.model]()
+    estimator.load(device)
 
-    seqs = list_sequences(args.root, args.seqs)
-    if not seqs:
-        raise SystemExit(f"no sequences to process under {args.root / 'sequences'}")
-
-    for seq_dir in seqs:
-        frames = list_frames(seq_dir)
-        disparity_dir = seq_dir / "disparity"
-        disparity_dir.mkdir(parents=True, exist_ok=True)
-
-        todo: list[tuple[Path, Path]] = []
-        for f in frames:
-            out_path = disparity_dir / f"{f.stem}.tif"
-            if out_path.exists() and not args.overwrite:
-                continue
-            todo.append((f, out_path))
-
-        if not todo:
-            print(f"  {seq_dir.name}: up to date ({len(frames)} frames)")
-            continue
-
-        print(f"  {seq_dir.name}: {len(todo)}/{len(frames)} frames")
-        in_paths = [t[0] for t in todo]
-        out_paths = [t[1] for t in todo]
-        disparities = estimate_disparity(
-            model,
-            processor,
-            device,
-            in_paths,
-            args.batch_size,
+    cfg = SampleConfig()
+    neutral_cache: dict[int, Image.Image] = {}
+    for spec in specs:
+        seq_name = f"{spec.seq_id:04d}"
+        if spec.size not in neutral_cache:
+            neutral_cache[spec.size] = Image.fromarray(
+                make_textured_bg(size=spec.size, seed=args.neutral_bg_seed),
+                mode="RGB",
+            )
+        _process_sequence(
+            spec,
+            seq_dirs[seq_name],
+            args.fg_data_root,
+            args.bg_data_root,
+            cfg,
+            estimator,
+            neutral_cache[spec.size],
+            band_width=args.band_width,
+            bg_band_top=args.bg_band_top,
         )
-        for out_path, d in zip(out_paths, disparities, strict=True):
-            tifffile.imwrite(out_path, d.astype(np.float32))
 
-    print(f"\nDone. Disparity in {args.root / 'sequences' / '<id>' / 'disparity'}")
+    print(f"\nDone. Disparity in {args.data_root / 'sequences' / '<id>' / 'disparity'}")
     return 0
 
 
