@@ -7,7 +7,7 @@ import pytest
 import tifffile
 from PIL import Image
 
-from data import fuse_per_object_disparity as fuse
+from data import estimate_disparity as ed
 from data.generate_sequences import (
     SampleConfig,
     SequenceSpec,
@@ -53,9 +53,9 @@ def test_fuse_smoke_with_fake_estimator(
     render_sequence(spec, fg_root, bg_root, seq_dir, SampleConfig())
     write_manifest(root / "manifest.csv", [spec])
 
-    monkeypatch.setitem(fuse.ESTIMATORS, "fake", _FakeEstimator)
+    monkeypatch.setitem(ed.ESTIMATORS, "fake", _FakeEstimator)
 
-    rc = fuse.main(
+    rc = ed.main(
         [
             "--data-root",
             str(root),

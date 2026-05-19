@@ -28,7 +28,7 @@ import numpy as np
 import tifffile
 from PIL import Image
 
-from data.estimate_disparity import list_sequences
+from data._seq_io import list_sequences
 
 
 def _parse_seqs(value: str) -> list[str]:
