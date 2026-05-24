@@ -11,19 +11,19 @@ Copy-paste recipes for building, analyzing, and visualizing the synthetic datase
 20-image dev splits of MAGICK and BG-20k, `da2-small` depth model, `predictions.csv` skipped because `magick_dev/predictions.csv` ships with the repo.
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev_new --count 3 --depth-model da2-small --skip classify
+uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 3 --depth-model da2-small --skip classify
 ```
 
 If the `keep_confidence` filter drops too many of the 20 dev foregrounds, disable both axis thresholds:
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev_new --count 3 --depth-model da2-small --subject-thr 0.0 --style-thr 0.0 --skip classify
+uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 3 --depth-model da2-small --subject-thr 0.0 --style-thr 0.0 --skip classify
 ```
 
 Force a full re-run including the 20-image CLIP pass (about 30 seconds on MPS):
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev_new --count 3 --depth-model da2-small --batch-size 8
+uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 3 --depth-model da2-small --batch-size 8
 ```
 
 ### Production build — full datasets (~30+ minutes)
@@ -31,7 +31,7 @@ uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --
 Full MAGICK (12k FGs) + BG-20k, `da2-large` for spatial precision.
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev_new --count 10 --seed 0 --depth-model da2-large
+uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 10 --seed 0 --depth-model da2-large
 ```
 
 ### Resume after a crash
@@ -41,13 +41,13 @@ Stage short names: `classify`, `generate`, `disparity`, `prepare`. List whicheve
 Resume from disparity (sequences + `predictions.csv` already exist):
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev_new --count 10 --depth-model da2-large --skip classify,generate
+uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 10 --depth-model da2-large --skip classify,generate
 ```
 
 Re-do only the a2b layout:
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev_new --count 10 --depth-model da2-large --skip classify,generate,disparity
+uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 10 --depth-model da2-large --skip classify,generate,disparity
 ```
 
 ### Run any-to-bokeh after the pipeline finishes
@@ -55,7 +55,7 @@ uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-d
 a2b has its own Python env under `backend/third_party/any-to-bokeh/`. Make sure that env is installed first.
 
 ```bash
-cd backend/third_party/any-to-bokeh && python test/inference_demo.py --val_csv_path csv_file/synth_dev_new.csv
+cd backend/third_party/any-to-bokeh && python test/inference_demo.py --val_csv_path csv_file/synth_dev.csv
 ```
 
 ## Analyze the MAGICK CLIP filter distribution
@@ -75,7 +75,7 @@ uv run python scripts/analyze_magick_distribution.py
 Composite + union alpha + per-object alpha layers — the standard post-render sanity check:
 
 ```bash
-cd backend/data/synth_dev_new/sequences && vpv */all_in_focus/*.png */alpha/*.png */alpha_layers/*.png
+cd backend/data/synth_dev/sequences && vpv */all_in_focus/*.png */alpha/*.png */alpha_layers/*.png
 ```
 
 ### Cross-dataset view (composite + alpha_layers + a2b bokeh output)
@@ -83,7 +83,7 @@ cd backend/data/synth_dev_new/sequences && vpv */all_in_focus/*.png */alpha/*.pn
 Run from the repo root with quoted globs so `vpv` does the expansion. This is the end-to-end review once any-to-bokeh has run:
 
 ```bash
-vpv 'backend/data/synth_dev_new/sequences/*/all_in_focus/*.png' 'backend/data/synth_dev_new/sequences/*/alpha_layers/*.png' 'backend/third_party/any-to-bokeh/demo_dataset/synth_dev_new/disp/*/*.png'
+vpv 'backend/data/synth_dev/sequences/*/all_in_focus/*.png' 'backend/data/synth_dev/sequences/*/alpha_layers/*.png' 'backend/third_party/any-to-bokeh/demo_dataset/synth_dev/disp/*/*.png'
 ```
 
 ## Notes
