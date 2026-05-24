@@ -24,27 +24,47 @@ Assumes the foreground (MAGICK) and background (BG-20k) datasets are already
 downloaded under their respective --fg-data-root and --bg-data-root paths.
 
 Usage:
+    # Production / best-quality: 10 sequences, full MAGICK foregrounds,
+    # DA-V2-large depth model (highest-fidelity option in the registry),
+    # written to backend/data/synth_dev. Every flag below is at its default
+    # except --output, so the minimal form is:
+    #     uv run python scripts/build_dataset.py \\
+    #         --fg-data-root backend/data/magick \\
+    #         --bg-data-root backend/data/bg-20k_dev \\
+    #         --output backend/data/synth_dev
     uv run python scripts/build_dataset.py \\
         --fg-data-root backend/data/magick \\
         --bg-data-root backend/data/bg-20k_dev \\
-        --output       backend/data/synth_dev_new \\
+        --output       backend/data/synth_dev \\
         --count        10 \\
+        --depth-model  da2-large \\
         --seed         0
 
-    # Override depth model and filter thresholds:
+    # Subsequent run on the same MAGICK pool: skip classify_clip (predictions.csv
+    # already exists). Saves ~10 min on a GPU box per re-run.
     uv run python scripts/build_dataset.py \\
         --fg-data-root backend/data/magick \\
         --bg-data-root backend/data/bg-20k_dev \\
-        --output       backend/data/synth_dev_new \\
+        --output       backend/data/synth_dev \\
         --count        10 \\
-        --depth-model  da2-base \\
+        --depth-model  da2-large \\
+        --skip         classify
+
+    # Faster iteration: smaller model + lower-quality output (good for sanity
+    # checks). Swap da2-large -> da2-small, or relax thresholds.
+    uv run python scripts/build_dataset.py \\
+        --fg-data-root backend/data/magick \\
+        --bg-data-root backend/data/bg-20k_dev \\
+        --output       backend/data/synth_dev \\
+        --count        10 \\
+        --depth-model  da2-small \\
         --subject-thr  0.60
 
     # Skip stages that are already done (predictions.csv + sequences exist):
     uv run python scripts/build_dataset.py \\
         --fg-data-root backend/data/magick \\
         --bg-data-root backend/data/bg-20k_dev \\
-        --output       backend/data/synth_dev_new \\
+        --output       backend/data/synth_dev \\
         --count        10 \\
         --skip         classify,generate
 """
