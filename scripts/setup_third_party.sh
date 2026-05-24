@@ -18,9 +18,28 @@
 #      $HF_HOME. inference_demo.py passes local_files_only=True, so this must
 #      be cached before the first run.
 #
-# Usage: scripts/setup_third_party.sh
+# Usage: scripts/setup_third_party.sh [--start-from N]
+#        N = step number (1–4) to start from. Earlier steps are skipped.
+#        Default: 1 (run everything). Each step is idempotent, so a full
+#        re-run is always safe.
 
 set -euo pipefail
+
+# Parse --start-from
+START_FROM=1
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --start-from)
+            START_FROM="${2:?error: --start-from requires a step number (1-4)}"
+            shift 2
+            ;;
+        *)
+            echo "error: unknown argument '$1'" >&2
+            echo "usage: $0 [--start-from N]" >&2
+            exit 1
+            ;;
+    esac
+done
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 TP_DIR="$REPO_ROOT/backend/third_party"
@@ -33,53 +52,66 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 # 1. Submodules
-echo "[1/4] git submodule update --init --recursive"
-git -C "$REPO_ROOT" submodule update --init --recursive
-
-# 2. Venv + deps
-if [ ! -d "$VENV" ]; then
-    echo "[2/4] Creating venv at $VENV with uv (Python 3.10)"
-    uv venv --python 3.10 "$VENV"
+if [ "$START_FROM" -le 1 ]; then
+    echo "[1/4] git submodule update --init --recursive"
+    git -C "$REPO_ROOT" submodule update --init --recursive
 else
-    echo "[2/4] Reusing existing venv at $VENV"
+    echo "[1/4] Skipped (--start-from $START_FROM)"
 fi
 
-echo "      Installing PyTorch 2.4.1 with CUDA 12.4 wheels"
-echo "      (override CUDA_INDEX_URL for a different CUDA version)"
-CUDA_INDEX_URL="${CUDA_INDEX_URL:-https://download.pytorch.org/whl/cu124}"
-uv pip install --python "$VENV/bin/python" \
-    torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 \
-    --index-url "$CUDA_INDEX_URL"
+# 2. Venv + deps
+if [ "$START_FROM" -le 2 ]; then
+    if [ ! -d "$VENV" ]; then
+        echo "[2/4] Creating venv at $VENV with uv (Python 3.10)"
+        uv venv --python 3.10 "$VENV"
+    else
+        echo "[2/4] Reusing existing venv at $VENV"
+    fi
 
-echo "      Installing any-to-bokeh requirements"
-uv pip install --python "$VENV/bin/python" -r "$A2B_DIR/requirements.txt"
+    echo "      Installing PyTorch 2.4.1 with CUDA 12.4 wheels"
+    echo "      (override CUDA_INDEX_URL for a different CUDA version)"
+    CUDA_INDEX_URL="${CUDA_INDEX_URL:-https://download.pytorch.org/whl/cu124}"
+    uv pip install --python "$VENV/bin/python" \
+        torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 \
+        --index-url "$CUDA_INDEX_URL"
+
+    echo "      Installing any-to-bokeh requirements"
+    uv pip install --python "$VENV/bin/python" -r "$A2B_DIR/requirements.txt"
+else
+    echo "[2/4] Skipped (--start-from $START_FROM)"
+fi
 
 # 3. Checkpoints — download from Google Drive and extract into $A2B_DIR so the
 #    archive's top-level checkpoints/ dir lands as $A2B_DIR/checkpoints/.
 CHECKPOINTS="$A2B_DIR/checkpoints"
 GDRIVE_FILE_ID="${A2B_CHECKPOINTS_FILE_ID:-11UQcR7-GJtobPNKlF3f-q97xYX9pyEXb}"
 
-if [ -d "$CHECKPOINTS/unet" ] && [ -d "$CHECKPOINTS/vae" ]; then
-    echo "[3/4] Checkpoints already present at $CHECKPOINTS — skipping"
+if [ "$START_FROM" -le 3 ]; then
+    if [ -d "$CHECKPOINTS/unet" ] && [ -d "$CHECKPOINTS/vae" ]; then
+        echo "[3/4] Checkpoints already present at $CHECKPOINTS — skipping"
+    else
+        echo "[3/4] Downloading any-to-bokeh checkpoints from Google Drive"
+        ARCHIVE="$A2B_DIR/_a2b_weights.zip"
+        uvx gdown "$GDRIVE_FILE_ID" -O "$ARCHIVE"
+        echo "      Extracting"
+        unzip -q "$ARCHIVE" -d "$A2B_DIR"
+        rm -rf "$A2B_DIR/__MACOSX" "$ARCHIVE"
+    fi
 else
-    echo "[3/4] Downloading any-to-bokeh checkpoints from Google Drive"
-    ARCHIVE="$A2B_DIR/_a2b_weights.zip"
-    uvx gdown "$GDRIVE_FILE_ID" -O "$ARCHIVE"
-    echo "      Extracting"
-    unzip -q "$ARCHIVE" -d "$A2B_DIR"
-    rm -rf "$A2B_DIR/__MACOSX" "$ARCHIVE"
+    echo "[3/4] Skipped (--start-from $START_FROM)"
 fi
 
 # 4. SVD base model — inference_demo.py loads this with local_files_only=True,
 #    so it must be cached in $HF_HOME before the first run.
 SVD_REPO="stabilityai/stable-video-diffusion-img2vid-xt"
-SVD_CACHE="${HF_HOME:-$HOME/.cache/huggingface}/hub/models--${SVD_REPO//\//__}"
+SVD_CACHE="${HF_HOME:-$HOME/.cache/huggingface}/hub/models--${SVD_REPO//\//--}"
 
-if [ -d "$SVD_CACHE" ]; then
-    echo "[4/4] SVD base model already cached at $SVD_CACHE — skipping"
-else
-    echo "[4/4] Downloading SVD base model ($SVD_REPO) from Hugging Face (~10 GB, fp16)"
-    "$VENV/bin/python" -c "
+if [ "$START_FROM" -le 4 ]; then
+    if [ -d "$SVD_CACHE" ]; then
+        echo "[4/4] SVD base model already cached at $SVD_CACHE — skipping"
+    else
+        echo "[4/4] Downloading SVD base model ($SVD_REPO) from Hugging Face (~10 GB, fp16)"
+        "$VENV/bin/python" -c "
 from diffusers import StableVideoDiffusionPipeline
 import torch
 StableVideoDiffusionPipeline.from_pretrained(
@@ -89,6 +121,7 @@ StableVideoDiffusionPipeline.from_pretrained(
 )
 print('SVD base model cached successfully')
 "
+    fi
 fi
 
 cat <<EOF
