@@ -4,7 +4,7 @@ Copy-paste recipes for setting up, building, analyzing, and visualizing the synt
 
 ## First-time setup on a new machine
 
-`setup_third_party.sh` initializes the `any-to-bokeh` submodule and provisions a dedicated Python 3.10 venv for it under `backend/third_party/.venv`. CUDA-only — intended for the server.
+`setup_third_party.sh` initializes the `any-to-bokeh` submodule and provisions a dedicated Python 3.10 venv for it under `backend/third_party/any-to-bokeh/.venv`. Each third-party tool owns its own venv — no shared env, so no pin conflicts. CUDA-only — intended for the server.
 
 ```bash
 scripts/setup_third_party.sh
@@ -21,7 +21,7 @@ The Stable Video Diffusion base model used by any-to-bokeh is pulled from HF on 
 Activate the venv before running any-to-bokeh:
 
 ```bash
-source backend/third_party/.venv/bin/activate
+source backend/third_party/any-to-bokeh/.venv/bin/activate
 ```
 
 The main backend env (used by every command in the sections below) is separate — managed by `uv sync` from the repo root.

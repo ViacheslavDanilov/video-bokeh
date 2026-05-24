@@ -4,9 +4,11 @@
 #
 # What this does:
 #   1. Initializes the any-to-bokeh git submodule (idempotent).
-#   2. Creates a Python 3.10 venv at backend/third_party/.venv via uv, installs
-#      PyTorch 2.4.1 with CUDA 12.4 wheels (any-to-bokeh's requirements.txt
-#      does not pin torch), then installs any-to-bokeh's own dependencies.
+#   2. Creates a Python 3.10 venv at backend/third_party/any-to-bokeh/.venv
+#      via uv (each third-party tool owns its own venv — no shared env),
+#      installs PyTorch 2.4.1 with CUDA 12.4 wheels (any-to-bokeh's
+#      requirements.txt does not pin torch), then installs any-to-bokeh's
+#      own dependencies.
 #   3. Prints the remaining manual step (UNet + VAE weights live on Google
 #      Drive and require a browser download).
 #
@@ -16,8 +18,8 @@ set -euo pipefail
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 TP_DIR="$REPO_ROOT/backend/third_party"
-VENV="$TP_DIR/.venv"
 A2B_DIR="$TP_DIR/any-to-bokeh"
+VENV="$A2B_DIR/.venv"
 
 if ! command -v uv >/dev/null 2>&1; then
     echo "error: uv not found on PATH. Install from https://docs.astral.sh/uv/" >&2
