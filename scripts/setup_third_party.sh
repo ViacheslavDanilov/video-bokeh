@@ -9,8 +9,10 @@
 #      installs PyTorch 2.4.1 with CUDA 12.4 wheels (any-to-bokeh's
 #      requirements.txt does not pin torch), then installs any-to-bokeh's
 #      own dependencies.
-#   3. Prints the remaining manual step (UNet + VAE weights live on Google
-#      Drive and require a browser download).
+#   3. Downloads the UNet + VAE checkpoints from Google Drive via `uvx gdown`
+#      and extracts them. The archive's top-level dir is `checkpoints/`, so
+#      extraction lands them at <a2b>/checkpoints/{unet,vae}/ — matching
+#      inference_demo.py defaults.
 #
 # Usage: scripts/setup_third_party.sh
 
@@ -48,20 +50,28 @@ uv pip install --python "$VENV/bin/python" \
 echo "      Installing any-to-bokeh requirements"
 uv pip install --python "$VENV/bin/python" -r "$A2B_DIR/requirements.txt"
 
-# 3. Manual step
+# 3. Checkpoints — download from Google Drive and extract into $A2B_DIR so the
+#    archive's top-level checkpoints/ dir lands as $A2B_DIR/checkpoints/.
+CHECKPOINTS="$A2B_DIR/checkpoints"
+GDRIVE_FILE_ID="${A2B_CHECKPOINTS_FILE_ID:-11UQcR7-GJtobPNKlF3f-q97xYX9pyEXb}"
+
+if [ -d "$CHECKPOINTS/unet" ] && [ -d "$CHECKPOINTS/vae" ]; then
+    echo "[3/3] Checkpoints already present at $CHECKPOINTS — skipping"
+else
+    echo "[3/3] Downloading any-to-bokeh checkpoints from Google Drive"
+    ARCHIVE="$A2B_DIR/_a2b_weights.zip"
+    uvx gdown "$GDRIVE_FILE_ID" -O "$ARCHIVE"
+    echo "      Extracting"
+    unzip -q "$ARCHIVE" -d "$A2B_DIR"
+    rm -rf "$A2B_DIR/__MACOSX" "$ARCHIVE"
+fi
+
 cat <<EOF
 
-[3/3] Done.
+Done.
 
-Activate the third-party venv before running any-to-bokeh:
+Activate the any-to-bokeh venv before running inference:
     source $VENV/bin/activate
-
-Remaining manual step — any-to-bokeh weights are not on Hugging Face:
-    1. Download the UNet + VAE checkpoints from Google Drive:
-           https://drive.google.com/file/d/11UQcR7-GJtobPNKlF3f-q97xYX9pyEXb/view
-    2. Extract under (matches inference_demo.py defaults, gitignored by a2b):
-           $A2B_DIR/checkpoints/unet/
-           $A2B_DIR/checkpoints/vae/
 
 The Stable Video Diffusion base (stabilityai/stable-video-diffusion-img2vid-xt)
 is pulled from HF on first inference; ensure huggingface-cli is logged in if
