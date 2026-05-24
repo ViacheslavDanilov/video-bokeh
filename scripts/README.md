@@ -14,7 +14,7 @@ What it does:
 
 1. `git submodule update --init --recursive` to pull `backend/third_party/any-to-bokeh/`.
 2. Creates the venv, installs PyTorch 2.4.1 with CUDA 12.4 wheels (override via `CUDA_INDEX_URL=https://download.pytorch.org/whl/cuXYZ`), then installs `any-to-bokeh/requirements.txt`.
-3. Prints the remaining manual step: download the UNet + VAE checkpoints from Google Drive (linked in the script output) and extract them under `backend/models/any_to_bokeh/unet/` and `.../vae/`.
+3. Prints the remaining manual step: download the UNet + VAE checkpoints from Google Drive (linked in the script output) and extract them under `backend/third_party/any-to-bokeh/checkpoints/unet/` and `.../vae/`. This path matches `inference_demo.py`'s defaults and is gitignored by the a2b submodule.
 
 The Stable Video Diffusion base model used by any-to-bokeh is pulled from HF on first inference; `huggingface-cli login` first if you've gated that model.
 
