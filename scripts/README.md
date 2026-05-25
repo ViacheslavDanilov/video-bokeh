@@ -108,7 +108,7 @@ cd backend/data/synth_dev/sequences && vpv */all_in_focus/*.png */alpha/*.png */
 Run from the repo root with quoted globs so `vpv` does the expansion. This is the end-to-end review once any-to-bokeh has run:
 
 ```bash
-vpv 'backend/data/synth_dev/sequences/*/all_in_focus/*.png' 'backend/data/synth_dev/sequences/*/alpha_layers/*.png' 'backend/third_party/any-to-bokeh/demo_dataset/synth_dev/disp/*/*.png'
+vpv 'backend/data/synth_dev/sequences/*/all_in_focus/*.png' 'backend/data/synth_dev/sequences/*/bokeh/*.png' 'backend/data/synth_dev/sequences/*/alpha_layers/*.png' 'backend/data/synth_dev/sequences/*/disparity/*.png'
 ```
 
 ## Notes

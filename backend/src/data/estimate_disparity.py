@@ -7,12 +7,17 @@ once on the warped BG alone, percentile-clamps and scale-bands each result
 onto a global [0, 1] disparity axis, and composites via the GT alpha layers
 in paint order. The output is the disparity GT consumed by any-to-bokeh.
 
-Output:
+Output (default --format png):
 
-    <data-root>/sequences/<id>/disparity/<frame>.tif   float32, larger = closer
+    <data-root>/sequences/<id>/disparity/<frame>.png   uint8 (mode 'L'), larger = closer
+
+With --format tif, writes float32 .tif instead (preserves full precision).
+The PNG default matches what any-to-bokeh consumes (uint8 in [0, 255]) and
+renders correctly in standard image viewers; use TIF when you need the
+unquantized [0, 1] disparity for ablations or re-fusion.
 
 Usage:
-    # Default: DA-V2 large on all sequences
+    # Default: DA-V2 large on all sequences, uint8 PNG output
     uv run python -m data.estimate_disparity \\
         --data-root    backend/data/synth_dev \\
         --fg-data-root backend/data/magick_dev \\
@@ -25,6 +30,13 @@ Usage:
         --bg-data-root backend/data/bg-20k_dev \\
         --model        da2-small \\
         --seqs         0001,0003
+
+    # Keep float32 .tif (e.g. for ablations needing full precision)
+    uv run python -m data.estimate_disparity \\
+        --data-root    backend/data/synth_dev \\
+        --fg-data-root backend/data/magick_dev \\
+        --bg-data-root backend/data/bg-20k_dev \\
+        --format       tif
 """
 
 from __future__ import annotations
@@ -67,6 +79,21 @@ def _load_alpha_layers(path: Path, n_channels: int) -> list[np.ndarray]:
     return [rgb[..., channel] for channel in range(n_channels)]
 
 
+DISPARITY_FORMATS = ("png", "tif")
+
+
+def _write_disparity(path: Path, arr: np.ndarray, fmt: str) -> None:
+    """Persist a [0, 1] disparity map. PNG → uint8 mode 'L'; TIF → float32."""
+    if fmt == "tif":
+        tifffile.imwrite(path.with_suffix(".tif"), arr.astype(np.float32))
+        return
+    quantized = (np.clip(arr, 0.0, 1.0) * 255.0).round().astype(np.uint8)
+    Image.fromarray(quantized, mode="L").save(
+        path.with_suffix(".png"),
+        compress_level=6,
+    )
+
+
 def _process_sequence(
     spec: SequenceSpec,
     seq_dir: Path,
@@ -77,6 +104,7 @@ def _process_sequence(
     neutral_bg_img: Image.Image,
     band_width: float,
     bg_band_top: float,
+    disparity_format: str,
 ) -> None:
     depth_source = "manifest" if spec.object_depths else "replayed"
     replay = replay_scene(spec, fg_root, bg_root, cfg, validate_channel_refs=True)
@@ -122,9 +150,10 @@ def _process_sequence(
         bg_norm = bg_normalize(bg_disp, bg_band_top=bg_band_top)
         final = composite_layers(bg_norm, obj_norms, alphas)
 
-        tifffile.imwrite(
-            disparity_dir / f"{i + 1:0{digits}d}.tif",
-            final.astype(np.float32),
+        _write_disparity(
+            disparity_dir / f"{i + 1:0{digits}d}",
+            final,
+            disparity_format,
         )
 
 
@@ -147,6 +176,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bg-band-top", type=float, default=0.05)
     parser.add_argument("--neutral-bg-seed", type=int, default=0)
     parser.add_argument("--seqs", type=_parse_seqs, default=None)
+    parser.add_argument(
+        "--format",
+        dest="disparity_format",
+        choices=DISPARITY_FORMATS,
+        default="png",
+        help="Disparity encoding: 'png' (uint16, default) or 'tif' (float32).",
+    )
     return parser
 
 
@@ -188,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
             neutral_cache[spec.size],
             band_width=args.band_width,
             bg_band_top=args.bg_band_top,
+            disparity_format=args.disparity_format,
         )
 
     print(f"\nDone. Disparity in {args.data_root / 'sequences' / '<id>' / 'disparity'}")

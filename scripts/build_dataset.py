@@ -12,7 +12,8 @@ Stages:
                                    Writes manifest.csv + frames into --output.
     3. data.estimate_disparity   — bake per-frame disparity GT with the
                                    chosen depth model. Writes
-                                   <output>/sequences/<id>/disparity/*.tif.
+                                   <output>/sequences/<id>/disparity/*.png
+                                   (uint8; pass --format tif to keep float32).
     4. data.prepare_any_to_bokeh — convert to the any-to-bokeh layout under
                                    <a2b-root>/demo_dataset and write
                                    <a2b-root>/csv_file/<dataset-name>.csv.

@@ -4,6 +4,7 @@ import csv
 from pathlib import Path
 
 import numpy as np
+import pytest
 import tifffile
 from PIL import Image
 
@@ -30,16 +31,28 @@ def _write_alpha(path: Path) -> None:
     Image.fromarray(arr, mode="L").save(path)
 
 
-def test_prepare_any_to_bokeh_writes_one_based_frames_and_csv(tmp_path: Path) -> None:
+def _write_disparity(path: Path, arr: np.ndarray, fmt: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if fmt == "tif":
+        tifffile.imwrite(path.with_suffix(".tif"), arr.astype(np.float32))
+        return
+    quantized = (np.clip(arr, 0.0, 1.0) * 255.0).round().astype(np.uint8)
+    Image.fromarray(quantized, mode="L").save(path.with_suffix(".png"))
+
+
+@pytest.mark.parametrize("disparity_format", ["png", "tif"])
+def test_prepare_any_to_bokeh_writes_one_based_frames_and_csv(
+    tmp_path: Path,
+    disparity_format: str,
+) -> None:
     data_root = tmp_path / "synth"
     seq_dir = data_root / "sequences" / "0001"
     _write_rgb(seq_dir / "all_in_focus" / "01.png", 10)
     _write_rgb(seq_dir / "all_in_focus" / "02.png", 20)
     _write_alpha(seq_dir / "alpha" / "01.png")
     _write_alpha(seq_dir / "alpha" / "02.png")
-    (seq_dir / "disparity").mkdir(parents=True)
-    tifffile.imwrite(
-        seq_dir / "disparity" / "01.tif",
+    _write_disparity(
+        seq_dir / "disparity" / "01",
         np.array(
             [
                 [0.25, 0.25, 0.75, 0.75],
@@ -49,10 +62,12 @@ def test_prepare_any_to_bokeh_writes_one_based_frames_and_csv(tmp_path: Path) ->
             ],
             dtype=np.float32,
         ),
+        disparity_format,
     )
-    tifffile.imwrite(
-        seq_dir / "disparity" / "02.tif",
+    _write_disparity(
+        seq_dir / "disparity" / "02",
         np.full((4, 4), 0.5, dtype=np.float32),
+        disparity_format,
     )
 
     a2b_root = tmp_path / "any-to-bokeh"

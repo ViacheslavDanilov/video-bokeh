@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import tifffile
 from PIL import Image
 
 from data import estimate_disparity as ed
@@ -73,12 +72,11 @@ def test_fuse_smoke_with_fake_estimator(
     )
 
     assert rc == 0
-    tifs = sorted((seq_dir / "disparity").glob("*.tif"))
-    assert len(tifs) == spec.n_frames
+    pngs = sorted((seq_dir / "disparity").glob("*.png"))
+    assert len(pngs) == spec.n_frames
+    assert not list((seq_dir / "disparity").glob("*.tif"))
 
-    arr = tifffile.imread(tifs[0])
-    assert arr.dtype == np.float32
+    arr = np.asarray(Image.open(pngs[0]))
+    assert arr.dtype == np.uint8
     assert arr.shape == (spec.size, spec.size)
-    assert arr.min() >= 0.0 - 1e-6
-    assert arr.max() <= 1.0 + 1e-6
-    assert arr.max() > 0.05
+    assert arr.max() > int(0.05 * 255)

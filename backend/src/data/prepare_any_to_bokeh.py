@@ -5,7 +5,8 @@ Reads our sequence layout:
 
     <data-root>/sequences/<id>/all_in_focus/*.png
     <data-root>/sequences/<id>/alpha/*.png
-    <data-root>/sequences/<id>/disparity/*.tif
+    <data-root>/sequences/<id>/disparity/*.png       (uint8, default)
+    <data-root>/sequences/<id>/disparity/*.tif       (float32, legacy)
 
 and writes any-to-bokeh-compatible inputs:
 
@@ -45,10 +46,27 @@ def _list_png_frames(path: Path) -> list[Path]:
     return sorted(path.glob("*.png"), key=_numeric_stem)
 
 
-def _list_tif_frames(path: Path) -> list[Path]:
+def _list_disparity_frames(path: Path) -> list[Path]:
+    """List disparity frames, preferring uint16 PNG over legacy float32 TIF."""
     if not path.exists():
         raise FileNotFoundError(f"disparity directory missing: {path}")
+    pngs = sorted(path.glob("*.png"), key=_numeric_stem)
+    if pngs:
+        return pngs
     return sorted(path.glob("*.tif"), key=_numeric_stem)
+
+
+def _load_disparity(path: Path) -> np.ndarray:
+    """Read a disparity frame as float32 in [0, 1], regardless of on-disk format."""
+    if path.suffix.lower() == ".tif":
+        return tifffile.imread(path).astype(np.float32)
+    img = Image.open(path)
+    arr = np.asarray(img)
+    if arr.dtype == np.uint16:
+        return arr.astype(np.float32) / 65535.0
+    if arr.dtype == np.uint8:
+        return arr.astype(np.float32) / 255.0
+    return arr.astype(np.float32)
 
 
 def _to_uint8_disparities(arrs: list[np.ndarray]) -> list[np.ndarray]:
@@ -90,7 +108,7 @@ def _write_sequence(
     use_alpha_focus: bool,
 ) -> int:
     image_paths = _list_png_frames(seq_dir / "all_in_focus")
-    disparity_paths = _list_tif_frames(seq_dir / "disparity")
+    disparity_paths = _list_disparity_frames(seq_dir / "disparity")
     alpha_paths = (
         _list_png_frames(seq_dir / "alpha") if (seq_dir / "alpha").exists() else []
     )
@@ -109,7 +127,7 @@ def _write_sequence(
     out_video_dir.mkdir(parents=True, exist_ok=True)
     out_disp_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_disps = [tifffile.imread(path).astype(np.float32) for path in disparity_paths]
+    raw_disps = [_load_disparity(path) for path in disparity_paths]
     disp_pngs = _to_uint8_disparities(raw_disps)
     digits = max(2, len(str(len(image_paths))))
 
