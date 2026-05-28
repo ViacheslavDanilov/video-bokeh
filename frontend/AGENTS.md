@@ -22,20 +22,21 @@ Next.js 16, React 19, TypeScript 5, Tailwind 4. Node.js 24, pnpm. ESLint + Prett
   ```
 
   Both are native modules required for normal operation (sharp = Next.js image optimization; unrs-resolver = eslint-config-next resolver). New native deps with postinstall scripts will fail `pnpm install --frozen-lockfile` until added here.
+
 - **Always use `--frozen-lockfile`** in CI-equivalent installs. If `pnpm install` wants to update the lockfile and you didn't change `package.json`, something is wrong — investigate before committing.
 
 ## Commands
 
-| Task | Command |
-|---|---|
-| Install | `pnpm install --frozen-lockfile` |
-| Dev server | `pnpm dev` |
-| Lint | `pnpm lint` |
-| Format check | `pnpm check` |
-| Format write | `pnpm format` |
-| Production build | `pnpm build` |
-| Add dep | `pnpm add <pkg>` |
-| Add dev dep | `pnpm add -D <pkg>` |
+| Task             | Command                          |
+| ---------------- | -------------------------------- |
+| Install          | `pnpm install --frozen-lockfile` |
+| Dev server       | `pnpm dev`                       |
+| Lint             | `pnpm lint`                      |
+| Format check     | `pnpm check`                     |
+| Format write     | `pnpm format`                    |
+| Production build | `pnpm build`                     |
+| Add dep          | `pnpm add <pkg>`                 |
+| Add dev dep      | `pnpm add -D <pkg>`              |
 
 Run from `frontend/`.
 
