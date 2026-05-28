@@ -41,9 +41,15 @@ out/
 # Data & Models
 backend/models/*.joblib
 backend/models/*.pkl
+backend/models/any_to_bokeh/
 backend/data/*/
 !backend/data/*_dev/
 backend/data/synth*/
+
+# Third-party tool venvs and locally downloaded checkpoints
+backend/third_party/.venv/
+backend/third_party/*/checkpoints/
+backend/third_party/*/gdino_checkpoints/
 
 # Editors
 .vscode/

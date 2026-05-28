@@ -1,4 +1,4 @@
-page_id,sim_score,color,nsfw,subject,tag_idk,picked
+page_id,sim_score,color,nsfw,prompt,tag_idk,picked
 54Q1gnlMcP,0.9962939,green,0,welcome sign with we are open and alarm clock,0,hand
 0LZCNUeBHK,0.9879369,blue,0,slide screw nuts,0,hand
 8DFCXwzekj,0.9875436,green,0,"A yoga guru, their hair tied up in a top knot, guiding others to find balance and peace within.",0,hand

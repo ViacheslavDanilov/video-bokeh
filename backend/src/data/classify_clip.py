@@ -3,11 +3,13 @@
 
 Reads `<data_root>/metadata.csv`, loads each image from
 `<data_root>/images/<pp>/<page_id>.png`, encodes it with an OpenCLIP model,
-and scores it against a fixed taxonomy of prompts. Writes a sibling
-`predictions.csv` (page_id, top_label, top_score, per-class scores, subject)
-without touching the authoritative metadata.
+and scores it against two orthogonal taxonomies — *subject* (what is in the
+image) and *style* (how it is rendered). Writes a sibling `predictions.csv`
+(page_id, top_subject, top_subject_score, top_style, top_style_score,
+per-class scores for both axes, prompt) without touching the authoritative
+metadata.
 
-Taxonomy (edit `TAXONOMY` / `TEMPLATES` to tweak):
+Subject taxonomy (edit `SUBJECT_TAXONOMY` / `SUBJECT_TEMPLATES` to tweak):
     person   — humans, portraits, body parts
     animal   — any living creature (mammal, bird, insect, reptile, fish)
     plant    — flowers, leaves, trees, bark, botanical subjects
@@ -16,9 +18,19 @@ Taxonomy (edit `TAXONOMY` / `TEMPLATES` to tweak):
     text     — letters, logos, stamps, banners, typography
     effect   — water splashes, smoke, fire, bubbles, particle FX
 
-Each class has multiple noun phrasings × multiple photo templates; the text
+Style taxonomy (edit `STYLE_TAXONOMY` / `STYLE_TEMPLATES` to tweak):
+    photo        — real-world photographs (DSLR, candid, documentary)
+    illustration — digital illustration, vector art, stickers, concept art
+    drawing      — pencil/ink/line drawings, tattoo line art, sketches
+    painting     — oil, watercolour, acrylic, digital painting
+    render       — 3D render, CGI, octane render
+    cartoon      — cartoon, anime, comic book panel
+
+Each class has multiple noun phrasings × multiple templates; the text
 embeddings are averaged per class (prompt ensembling), which typically yields
-+3–5 pp over a single prompt string.
++3–5 pp over a single prompt string. The two axes are scored independently
+(separate softmaxes) so a "real wolf photograph" can be tagged
+animal+photo while an "ornate wolf tattoo" is animal+drawing.
 
 Usage:
     uv run python -m data.classify_clip \
@@ -44,8 +56,14 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
-TAXONOMY: dict[str, list[str]] = {
-    "person": ["a person", "a human", "a portrait of a person", "people"],
+# fmt: off
+SUBJECT_TAXONOMY: dict[str, list[str]] = {
+    "person": [
+        "a person",
+        "a human",
+        "a portrait of a person",
+        "people",
+    ],
     "animal": [
         "an animal",
         "a mammal",
@@ -54,7 +72,13 @@ TAXONOMY: dict[str, list[str]] = {
         "an insect",
         "a reptile",
     ],
-    "plant": ["a plant", "a flower", "a tree", "a leaf", "tree bark"],
+    "plant": [
+        "a plant",
+        "a flower",
+        "a tree",
+        "a leaf",
+        "tree bark",
+    ],
     "food": [
         "food",
         "a meal on a plate",
@@ -81,8 +105,9 @@ TAXONOMY: dict[str, list[str]] = {
         "soap bubbles",
     ],
 }
+# fmt: on
 
-TEMPLATES: list[str] = [
+SUBJECT_TEMPLATES: list[str] = [
     "a photo of {}",
     "a picture of {}",
     "an image of {}",
@@ -90,6 +115,55 @@ TEMPLATES: list[str] = [
     "a close-up photo of {}",
     "a cropped photo of {}",
     "a studio photo of {}",
+]
+
+STYLE_TAXONOMY: dict[str, list[str]] = {
+    "photo": [
+        "a photograph",
+        "a real photograph",
+        "a candid photo",
+        "a DSLR photograph",
+        "a documentary photograph",
+    ],
+    "illustration": [
+        "a digital illustration",
+        "vector art",
+        "a sticker",
+        "concept art",
+        "a graphic illustration",
+    ],
+    "drawing": [
+        "a pencil drawing",
+        "a line drawing",
+        "tattoo line art",
+        "an ink sketch",
+        "ornate line art",
+    ],
+    "painting": [
+        "an oil painting",
+        "a watercolour painting",
+        "a digital painting",
+        "an acrylic painting",
+    ],
+    "render": [
+        "a 3D render",
+        "CGI",
+        "an octane render",
+        "a computer-generated render",
+    ],
+    "cartoon": [
+        "a cartoon",
+        "anime",
+        "a comic book panel",
+    ],
+}
+
+STYLE_TEMPLATES: list[str] = [
+    "{}",
+    "an image of {}",
+    "this image is {}",
+    "this looks like {}",
+    "an example of {}",
 ]
 
 
@@ -186,11 +260,6 @@ def main() -> int:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-workers", type=int, default=4)
-    parser.add_argument(
-        "--single-prompt",
-        action="store_true",
-        help="Disable prompt ensembling (use first noun × 'a photograph of {}').",
-    )
     args = parser.parse_args()
 
     metadata_csv = args.data_root / "metadata.csv"
@@ -214,21 +283,34 @@ def main() -> int:
     model.eval()
     tokenizer = open_clip.get_tokenizer(args.model)
 
-    labels = list(TAXONOMY.keys())
-    if args.single_prompt:
-        effective_taxonomy = {k: [v[0]] for k, v in TAXONOMY.items()}
-        effective_templates = ["a photograph of {}"]
-        print("  Prompt mode: single (no ensembling)")
-    else:
-        effective_taxonomy = TAXONOMY
-        effective_templates = TEMPLATES
-        avg = sum(len(n) for n in TAXONOMY.values()) * len(TEMPLATES) // len(labels)
-        print(f"  Prompt mode: ensemble ({len(labels)} classes × {avg} avg prompts)")
-    text_features = encode_class_prompts(
+    subject_labels = list(SUBJECT_TAXONOMY.keys())
+    style_labels = list(STYLE_TAXONOMY.keys())
+    subj_avg = (
+        sum(len(n) for n in SUBJECT_TAXONOMY.values())
+        * len(SUBJECT_TEMPLATES)
+        // len(subject_labels)
+    )
+    style_avg = (
+        sum(len(n) for n in STYLE_TAXONOMY.values())
+        * len(STYLE_TEMPLATES)
+        // len(style_labels)
+    )
+    print(
+        f"  Prompts: subject {len(subject_labels)} classes × {subj_avg} avg, "
+        f"style {len(style_labels)} × {style_avg}",
+    )
+    subject_features = encode_class_prompts(
         model,
         tokenizer,
-        effective_taxonomy,
-        effective_templates,
+        SUBJECT_TAXONOMY,
+        SUBJECT_TEMPLATES,
+        device,
+    )
+    style_features = encode_class_prompts(
+        model,
+        tokenizer,
+        STYLE_TAXONOMY,
+        STYLE_TEMPLATES,
         device,
     )
 
@@ -250,31 +332,47 @@ def main() -> int:
                 dim=-1,
                 keepdim=True,
             )
-            logits = 100.0 * image_features @ text_features.T
-            scores = logits.softmax(dim=-1).cpu()
+            subject_scores = (
+                (100.0 * image_features @ subject_features.T).softmax(dim=-1).cpu()
+            )
+            style_scores = (
+                (100.0 * image_features @ style_features.T).softmax(dim=-1).cpu()
+            )
             for local_idx, row_idx in enumerate(indices.tolist()):
                 row = rows[row_idx]
-                row_scores = {
-                    labels[i]: float(scores[local_idx, i]) for i in range(len(labels))
+                subject_row = {
+                    subject_labels[i]: float(subject_scores[local_idx, i])
+                    for i in range(len(subject_labels))
                 }
-                top_label = max(row_scores, key=lambda k: row_scores[k])
+                style_row = {
+                    style_labels[i]: float(style_scores[local_idx, i])
+                    for i in range(len(style_labels))
+                }
+                top_subject = max(subject_row, key=lambda k: subject_row[k])
+                top_style = max(style_row, key=lambda k: style_row[k])
                 predictions.append(
                     {
                         "page_id": row["page_id"],
-                        "top_label": top_label,
-                        "top_score": row_scores[top_label],
-                        **{f"score_{k}": v for k, v in row_scores.items()},
-                        "subject": row.get("subject", ""),
+                        "top_subject": top_subject,
+                        "top_subject_score": subject_row[top_subject],
+                        "top_style": top_style,
+                        "top_style_score": style_row[top_style],
+                        **{f"score_subject_{k}": v for k, v in subject_row.items()},
+                        **{f"score_style_{k}": v for k, v in style_row.items()},
+                        "prompt": row.get("prompt", ""),
                     },
                 )
             print(f"  processed {len(predictions)}/{len(rows)}")
 
     fieldnames = [
         "page_id",
-        "top_label",
-        "top_score",
-        *[f"score_{k}" for k in labels],
-        "subject",
+        "top_subject",
+        "top_subject_score",
+        "top_style",
+        "top_style_score",
+        *[f"score_subject_{k}" for k in subject_labels],
+        *[f"score_style_{k}" for k in style_labels],
+        "prompt",
     ]
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     with output_csv.open("w", encoding="utf-8", newline="") as f:
@@ -283,12 +381,17 @@ def main() -> int:
         for pred in predictions:
             writer.writerow(pred)
 
-    counts: dict[str, int] = dict.fromkeys(labels, 0)
+    subject_counts: dict[str, int] = dict.fromkeys(subject_labels, 0)
+    style_counts: dict[str, int] = dict.fromkeys(style_labels, 0)
     for pred in predictions:
-        counts[str(pred["top_label"])] += 1
-    print("\n  Label distribution (top-1):")
-    for label, count in counts.items():
-        print(f"    {label:<8} {count:>5}")
+        subject_counts[str(pred["top_subject"])] += 1
+        style_counts[str(pred["top_style"])] += 1
+    print("\n  Subject distribution (top-1):")
+    for label, count in subject_counts.items():
+        print(f"    {label:<14} {count:>5}")
+    print("\n  Style distribution (top-1):")
+    for label, count in style_counts.items():
+        print(f"    {label:<14} {count:>5}")
     print(f"\n  Wrote {len(predictions)} rows → {output_csv}")
     return 0
 
