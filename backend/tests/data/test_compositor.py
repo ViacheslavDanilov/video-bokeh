@@ -50,6 +50,32 @@ def test_render_scene_outputs_aligned_streams(tmp_path) -> None:
     assert float(f.disparity.max()) > scene.bg_band_top  # an object raised depth
 
 
+def test_oversized_background_leaves_no_black_holes(tmp_path) -> None:
+    # One foreground + a solid non-black background stored OVERSIZED (48 > 32
+    # frame), mirroring build_library's margin. After pan/zoom/tilt the warped
+    # background must still cover the whole frame: no pixel should be pure black.
+    rgba = np.zeros((32, 32, 4), dtype=np.uint8)
+    rgba[8:24, 8:24, :3] = 200
+    rgba[8:24, 8:24, 3] = 255
+    write_foreground(
+        tmp_path,
+        "fg",
+        Image.fromarray(rgba, "RGBA"),
+        (rgba[..., 3] / 255.0).astype(np.float32),
+        np.full((32, 32), 0.6, dtype=np.float32),
+    )
+    write_background(
+        tmp_path,
+        "bg",
+        Image.new("RGB", (48, 48), (30, 30, 30)),  # oversized, solid gray
+        np.full((48, 48), 0.1, dtype=np.float32),
+    )
+    scene = sample_scene(tmp_path, seed=3, n_frames=6, size=32, n_objects=1)
+    for f in render_scene(scene):
+        black_holes = (f.rgb.sum(axis=2) == 0).sum()
+        assert black_holes == 0, f"{black_holes} black hole pixels from warp"
+
+
 def test_render_scene_disparity_never_exceeds_one(tmp_path) -> None:
     _tiny_library(tmp_path)
     scene = sample_scene(tmp_path, seed=2, n_frames=5, size=32, n_objects=2)

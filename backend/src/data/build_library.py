@@ -28,13 +28,18 @@ from data._neutral_bg import composite_on_neutral, make_textured_bg
 from data._propagation import propagate_disparity
 from data._seq_io import select_device
 from data._sequence_geometry import (
+    SampleConfig,
+    prepare_background,
     prepare_foreground,
-    resize_shortest_side_and_center_crop,
 )
 from data.depth import ESTIMATORS
 
 DEFAULT_KEEP_SUBJECTS = ("person", "animal", "plant", "food", "object")
 DEFAULT_KEEP_STYLES = ("photo", "render")
+# Backgrounds are stored oversized so Stage B's pan/zoom/tilt warp never samples
+# past the source edge (which would leave black holes in the frame). Must be >=
+# SampleConfig.bg_margin, the margin the compositor's bg motion is sampled within.
+DEFAULT_BG_MARGIN = SampleConfig().bg_margin
 
 
 def _ref_to_id(ref: str) -> str:
@@ -90,6 +95,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default="auto",
     )
     parser.add_argument("--neutral-bg-seed", type=int, default=0)
+    parser.add_argument(
+        "--bg-margin",
+        type=float,
+        default=DEFAULT_BG_MARGIN,
+        help="oversize backgrounds by this fraction per side so Stage B's warp "
+        f"leaves no black borders (default: {DEFAULT_BG_MARGIN}).",
+    )
     parser.add_argument("--nb-pixels-remove", type=int, default=5)
     parser.add_argument("--alpha-threshold", type=float, default=0.04)
     parser.add_argument("--limit-fg", type=int, default=None, help="cap foregrounds")
@@ -156,9 +168,10 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Backgrounds: {len(bg_refs)}")
     for ref in bg_refs:
-        bg = resize_shortest_side_and_center_crop(
-            Image.open(args.bg_data_root / "images" / ref).convert("RGB"),
+        bg = prepare_background(
+            args.bg_data_root / "images" / ref,
             args.size,
+            args.bg_margin,
         )
         [bg_disp] = estimator.infer([bg])
         write_background(args.output, _ref_to_id(ref), bg, bg_disp.astype(np.float32))
