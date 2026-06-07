@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 
 from data._library import write_background, write_foreground
+from data.build_library import DEFAULT_BG_MARGIN
 from data.compositor import render_scene, sample_scene
 from data.generate_dataset import generate_dataset
 
@@ -50,30 +51,33 @@ def test_render_scene_outputs_aligned_streams(tmp_path) -> None:
     assert float(f.disparity.max()) > scene.bg_band_top  # an object raised depth
 
 
-def test_oversized_background_leaves_no_black_holes(tmp_path) -> None:
-    # One foreground + a solid non-black background stored OVERSIZED (48 > 32
-    # frame), mirroring build_library's margin. After pan/zoom/tilt the warped
-    # background must still cover the whole frame: no pixel should be pure black.
-    rgba = np.zeros((32, 32, 4), dtype=np.uint8)
-    rgba[8:24, 8:24, :3] = 200
-    rgba[8:24, 8:24, 3] = 255
+def test_default_bg_margin_leaves_no_black_holes(tmp_path) -> None:
+    # Background stored oversized at the real DEFAULT_BG_MARGIN, solid non-black.
+    # Across several motion seeds the warped background must cover the whole frame
+    # at every frame: no pixel should be pure black. Guards the margin value.
+    size = 128
+    src = int(round(size * (1.0 + 2.0 * DEFAULT_BG_MARGIN)))
+    rgba = np.zeros((size, size, 4), dtype=np.uint8)
+    rgba[40:88, 40:88, :3] = 200
+    rgba[40:88, 40:88, 3] = 255
     write_foreground(
         tmp_path,
         "fg",
         Image.fromarray(rgba, "RGBA"),
         (rgba[..., 3] / 255.0).astype(np.float32),
-        np.full((32, 32), 0.6, dtype=np.float32),
+        np.full((size, size), 0.6, dtype=np.float32),
     )
     write_background(
         tmp_path,
         "bg",
-        Image.new("RGB", (48, 48), (30, 30, 30)),  # oversized, solid gray
-        np.full((48, 48), 0.1, dtype=np.float32),
+        Image.new("RGB", (src, src), (30, 30, 30)),  # oversized, solid gray
+        np.full((src, src), 0.1, dtype=np.float32),
     )
-    scene = sample_scene(tmp_path, seed=3, n_frames=6, size=32, n_objects=1)
-    for f in render_scene(scene):
-        black_holes = (f.rgb.sum(axis=2) == 0).sum()
-        assert black_holes == 0, f"{black_holes} black hole pixels from warp"
+    for seed in range(8):
+        scene = sample_scene(tmp_path, seed=seed, n_frames=4, size=size, n_objects=1)
+        for f in render_scene(scene):
+            holes = int((f.rgb.sum(axis=2) == 0).sum())
+            assert holes == 0, f"seed {seed}: {holes} black hole pixels from warp"
 
 
 def test_render_scene_disparity_never_exceeds_one(tmp_path) -> None:

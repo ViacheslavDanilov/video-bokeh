@@ -27,19 +27,16 @@ from data._library import write_background, write_foreground
 from data._neutral_bg import composite_on_neutral, make_textured_bg
 from data._propagation import propagate_disparity
 from data._seq_io import select_device
-from data._sequence_geometry import (
-    SampleConfig,
-    prepare_background,
-    prepare_foreground,
-)
+from data._sequence_geometry import prepare_background, prepare_foreground
 from data.depth import ESTIMATORS
 
 DEFAULT_KEEP_SUBJECTS = ("person", "animal", "plant", "food", "object")
 DEFAULT_KEEP_STYLES = ("photo", "render")
 # Backgrounds are stored oversized so Stage B's pan/zoom/tilt warp never samples
-# past the source edge (which would leave black holes in the frame). Must be >=
-# SampleConfig.bg_margin, the margin the compositor's bg motion is sampled within.
-DEFAULT_BG_MARGIN = SampleConfig().bg_margin
+# past the source edge (which would leave black holes in the frame). A sweep over
+# 40 bg-pose seeds needs >= 0.20 to stay hole-free with the default motion ranges;
+# 0.25 leaves headroom. Raise it if you widen bg_pan / bg_zoom in SampleConfig.
+DEFAULT_BG_MARGIN = 0.25
 
 
 def _ref_to_id(ref: str) -> str:
