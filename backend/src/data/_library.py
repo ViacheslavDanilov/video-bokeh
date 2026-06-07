@@ -1,10 +1,14 @@
 """On-disk layout and I/O for the precomputed artifact library.
 
     <library>/
-    ├── foregrounds/<id>/{rgb.png (RGBA), alpha.png (L), depth.tif (float32)}
-    └── backgrounds/<id>/{rgb.png (RGB), depth.tif (float32)}
+    ├── foregrounds/<id>/{rgb.png (RGBA), alpha.png (L), depth.png (uint16)}
+    └── backgrounds/<id>/{rgb.png (RGB), depth.png (uint16)}
 
-Depth is stored as float32 .tif, larger = closer (disparity convention).
+Depth is stored as a uint16 PNG, larger = closer (disparity convention). Each
+map is min/max-normalized to the full 16-bit range on write and returned as a
+float32 array in [0, 1] on read. The absolute disparity scale is intentionally
+dropped: the compositor percentile-stretches each depth map into a band, so only
+the relative structure matters and 16 bits preserves it without visible banding.
 """
 
 from __future__ import annotations
@@ -13,11 +17,32 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import tifffile
 from PIL import Image
 
 FOREGROUNDS = "foregrounds"
 BACKGROUNDS = "backgrounds"
+_U16_MAX = 65535
+
+
+def _write_depth_png(path: Path, depth: np.ndarray) -> None:
+    """Min/max-normalize a float depth map to uint16 and save as PNG."""
+    arr = np.asarray(depth, dtype=np.float32)
+    lo = float(arr.min())
+    hi = float(arr.max())
+    span = hi - lo
+    if span <= 1e-12:
+        normed = np.zeros_like(arr)
+    else:
+        normed = (arr - lo) / span
+    quantized = (normed * _U16_MAX).round().astype(np.uint16)
+    # Pillow infers mode 'I;16' from the uint16 dtype; passing mode= is deprecated.
+    Image.fromarray(quantized).save(path, compress_level=6)
+
+
+def _read_depth_png(path: Path) -> np.ndarray:
+    """Read a uint16 depth PNG back as float32 in [0, 1]."""
+    arr = np.asarray(Image.open(path)).astype(np.float32)
+    return arr / _U16_MAX
 
 
 @dataclass
@@ -61,7 +86,7 @@ def write_foreground(
     rgb.convert("RGBA").save(out / "rgb.png", compress_level=6)
     a = np.clip(alpha * 255.0, 0, 255).astype(np.uint8)
     Image.fromarray(a, mode="L").save(out / "alpha.png", compress_level=6)
-    tifffile.imwrite(out / "depth.tif", depth.astype(np.float32))
+    _write_depth_png(out / "depth.png", depth)
 
 
 def write_background(
@@ -73,7 +98,7 @@ def write_background(
     out = library_root / BACKGROUNDS / asset_id
     out.mkdir(parents=True, exist_ok=True)
     rgb.convert("RGB").save(out / "rgb.png", compress_level=6)
-    tifffile.imwrite(out / "depth.tif", depth.astype(np.float32))
+    _write_depth_png(out / "depth.png", depth)
 
 
 def load_foreground(library_root: Path, asset_id: str) -> ForegroundAsset:
@@ -81,12 +106,12 @@ def load_foreground(library_root: Path, asset_id: str) -> ForegroundAsset:
     rgb = Image.open(base / "rgb.png").convert("RGBA")
     alpha = np.asarray(Image.open(base / "alpha.png").convert("L"), dtype=np.float32)
     alpha /= 255.0
-    depth = tifffile.imread(base / "depth.tif").astype(np.float32)
+    depth = _read_depth_png(base / "depth.png")
     return ForegroundAsset(asset_id, rgb, alpha, depth)
 
 
 def load_background(library_root: Path, asset_id: str) -> BackgroundAsset:
     base = library_root / BACKGROUNDS / asset_id
     rgb = Image.open(base / "rgb.png").convert("RGB")
-    depth = tifffile.imread(base / "depth.tif").astype(np.float32)
+    depth = _read_depth_png(base / "depth.png")
     return BackgroundAsset(asset_id, rgb, depth)
