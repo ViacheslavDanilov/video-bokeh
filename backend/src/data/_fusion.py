@@ -21,15 +21,19 @@ def _band_for(
     return lo, hi
 
 
-def band_normalize(
+def place_in_band(
     disp: np.ndarray,
     alpha: np.ndarray,
-    object_depth: float,
+    band_lo: float,
+    band_hi: float,
     band_width: float = 0.10,
-    bg_band_top: float = 0.05,
 ) -> np.ndarray:
-    """Rescale in-object disparity into that object's global-axis band."""
-    band_lo, band_hi = _band_for(object_depth, band_width, bg_band_top)
+    """Percentile-stretch in-object disparity into the explicit [lo, hi] band.
+
+    Pixels outside ``alpha > 0`` are set to ``band_lo``. ``band_width`` is only
+    used to decide when a band is too degenerate to stretch into (fallback to
+    the band midpoint), preserving band_normalize's old behaviour.
+    """
     out = np.full_like(disp, band_lo, dtype=np.float32)
     mask = alpha > 0
     region = disp[mask]
@@ -52,6 +56,18 @@ def band_normalize(
     return out
 
 
+def band_normalize(
+    disp: np.ndarray,
+    alpha: np.ndarray,
+    object_depth: float,
+    band_width: float = 0.10,
+    bg_band_top: float = 0.05,
+) -> np.ndarray:
+    """Rescale in-object disparity into the band derived from ``object_depth``."""
+    band_lo, band_hi = _band_for(object_depth, band_width, bg_band_top)
+    return place_in_band(disp, alpha, band_lo, band_hi, band_width=band_width)
+
+
 def bg_normalize(disp: np.ndarray, bg_band_top: float = 0.05) -> np.ndarray:
     """Rescale full-frame background disparity into [0, bg_band_top]."""
     p_lo, p_hi = np.percentile(disp, [_P_LO, _P_HI])
@@ -62,6 +78,57 @@ def bg_normalize(disp: np.ndarray, bg_band_top: float = 0.05) -> np.ndarray:
     clipped = np.clip(disp, p_lo, p_hi)
     scaled = (clipped - p_lo) / src_range
     return (scaled * bg_band_top).astype(np.float32)
+
+
+def assign_depth_slots(
+    n_objects: int,
+    bg_band_top: float = 0.05,
+    gap: float = 0.02,
+) -> list[tuple[float, float]]:
+    """Partition the disparity axis above the background into disjoint slots.
+
+    Returns ``n_objects`` (lo, hi) bands in paint order (index 0 = farthest /
+    drawn first, last = nearest / drawn last). Slots are separated by ``gap`` so
+    that bounded zoom-scaling can never make two objects share a disparity.
+    """
+    if n_objects <= 0:
+        return []
+    usable = 1.0 - bg_band_top - gap * (n_objects - 1)
+    if usable <= 0.0:
+        raise ValueError(
+            f"no room for {n_objects} slots above bg_band_top={bg_band_top} "
+            f"with gap={gap}",
+        )
+    width = usable / n_objects
+    slots: list[tuple[float, float]] = []
+    cursor = bg_band_top
+    for _ in range(n_objects):
+        lo = cursor
+        hi = lo + width
+        slots.append((lo, hi))
+        cursor = hi + gap
+    return slots
+
+
+def scaled_band(
+    band_lo: float,
+    band_hi: float,
+    scale_t: float,
+    scale_ref: float,
+) -> tuple[float, float]:
+    """Shift a depth band within its slot by the linear zoom->disparity law.
+
+    Disparity ~ apparent size, so the band's centre moves by
+    ``scale_t / scale_ref`` relative to the slot centre, clamped so the band
+    stays fully inside [band_lo, band_hi].
+    """
+    width = band_hi - band_lo
+    centre = (band_lo + band_hi) / 2.0
+    ratio = scale_t / scale_ref if scale_ref > 1e-8 else 1.0
+    new_centre = band_lo + (centre - band_lo) * ratio
+    half = width / 2.0
+    new_centre = min(max(new_centre, band_lo + half), band_hi - half)
+    return new_centre - half, new_centre + half
 
 
 def composite_layers(
