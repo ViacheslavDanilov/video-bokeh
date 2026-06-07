@@ -67,3 +67,6 @@ Thumbs.db
 
 # Obsidian (per-user UI state, recovery cache)
 vault/
+
+# Docs
+docs/
