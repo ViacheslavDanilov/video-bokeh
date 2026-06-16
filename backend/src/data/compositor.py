@@ -35,7 +35,7 @@ from data._sequence_geometry import (
     warp_pillow,
 )
 
-_BAND_WIDTH = 0.10
+_ACTIVE_WIDTH = 0.08
 
 
 @dataclass
@@ -160,6 +160,7 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
             band_lo, band_hi = scaled_band(
                 obj.slot[0],
                 obj.slot[1],
+                active_width=_ACTIVE_WIDTH,
                 scale_t=pose.scale,
                 scale_ref=obj.scale_ref,
             )
@@ -168,7 +169,7 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
                 a,
                 band_lo,
                 band_hi,
-                band_width=_BAND_WIDTH,
+                band_width=_ACTIVE_WIDTH,
             )
 
             a3 = a[..., None]

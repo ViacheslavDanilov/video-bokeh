@@ -87,6 +87,38 @@ def test_render_scene_disparity_never_exceeds_one(tmp_path) -> None:
         assert float(f.disparity.max()) <= 1.0 + 1e-6
 
 
+def test_zoom_in_raises_object_disparity(tmp_path) -> None:
+    # One object that grows from small to large; its disparity must rise.
+    from data._library import load_background, load_foreground
+    from data._sequence_geometry import Pose
+    from data.compositor import ObjectTrack, Scene
+
+    _tiny_library(tmp_path)
+    fg = load_foreground(tmp_path, "fg_a")
+    bg = load_background(tmp_path, "bg")
+    obj = ObjectTrack(
+        asset=fg,
+        slot=(0.20, 0.80),
+        pose_start=Pose(scale=0.3),
+        pose_end=Pose(scale=0.75),
+        easing="easeInOutSine",
+        scale_ref=0.3,
+    )
+    scene = Scene(
+        background=bg,
+        objects=[obj],
+        bg_pose_start=Pose(scale=1.0),
+        bg_pose_end=Pose(scale=1.0),
+        bg_easing="easeInOutSine",
+        n_frames=2,
+        size=32,
+    )
+    frames = render_scene(scene)
+    first = float(frames[0].disparity[frames[0].alpha > 0].mean())
+    last = float(frames[-1].disparity[frames[-1].alpha > 0].mean())
+    assert last > first + 1e-3  # grew on screen => moved closer in disparity
+
+
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
     library = tmp_path / "lib"
     _tiny_library(library)

@@ -122,7 +122,7 @@ def scaled_band(
 
     The active band has width ``active_width`` (capped at the envelope width).
     If ``active_width`` is None the full envelope width is used (legacy
-    behaviour; Task 1.2 will supply an explicit value for all call sites).
+    behaviour).
     Its centre is the envelope centre at ``scale_ref`` and slides by
     ``scale_t / scale_ref`` toward the near (high-disparity) end as the object
     grows, then is clamped so the band stays fully inside [env_lo, env_hi].
