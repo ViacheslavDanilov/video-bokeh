@@ -51,7 +51,8 @@ def _save_frame(
         aif / f"{stem}.png",
         compress_level=6,
     )
-    Image.fromarray(np.clip(frame.alpha * 255, 0, 255).astype(np.uint8), "L").save(
+    alpha_u8 = np.clip(frame.alpha * 255, 0, 255).astype(np.uint8)
+    Image.fromarray(np.stack([alpha_u8] * 3, axis=-1), "RGB").save(
         alp / f"{stem}.png",
         compress_level=6,
     )
