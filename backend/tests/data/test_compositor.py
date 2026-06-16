@@ -207,6 +207,86 @@ def test_dynamic_scene_is_collision_free(tmp_path) -> None:
                 )
 
 
+def test_dynamic_paint_order_is_frame_local(tmp_path) -> None:
+    # Two fully-overlapping opaque squares whose depth order swaps across frames.
+    import numpy as np
+    from PIL import Image
+
+    from data._depth_track import DepthTrack
+    from data._library import (
+        load_background,
+        load_foreground,
+        write_background,
+        write_foreground,
+    )
+    from data._sequence_geometry import Pose
+    from data.compositor import ObjectTrack, Scene, render_scene
+
+    def _square(val_rgb):
+        rgba = np.zeros((32, 32, 4), dtype=np.uint8)
+        rgba[4:28, 4:28, :3] = val_rgb
+        rgba[4:28, 4:28, 3] = 255
+        return rgba
+
+    a_rgba, b_rgba = _square((200, 0, 0)), _square((0, 0, 200))
+    for fid, rgba in (("ra", a_rgba), ("rb", b_rgba)):
+        write_foreground(
+            tmp_path,
+            fid,
+            Image.fromarray(rgba, "RGBA"),
+            (rgba[..., 3] / 255.0).astype(np.float32),
+            np.full((32, 32), 0.5, dtype=np.float32),
+        )
+    write_background(
+        tmp_path,
+        "bg",
+        Image.new("RGB", (32, 32), (0, 0, 0)),
+        np.full((32, 32), 0.1, dtype=np.float32),
+    )
+
+    fg_a = load_foreground(tmp_path, "ra")
+    fg_b = load_foreground(tmp_path, "rb")
+    bg = load_background(tmp_path, "bg")
+
+    # a starts near (high disparity ~0.7) then goes far (disp ~0.3)
+    # b starts far (high z) then comes near: disp centre goes from low to high
+    # They fully overlap in image space => paint order must swap between frames
+    obj_a = ObjectTrack(
+        asset=fg_a,
+        slot=(0.20, 0.80),
+        pose_start=Pose(scale=0.6),
+        pose_end=Pose(scale=0.6),
+        easing="easeInOutSine",
+        scale_ref=0.6,
+        depth_track=DepthTrack(0.20, 0.80, 0.08, 0.6, 1.6, 1.0, 0.6, 0.7),
+    )
+    obj_b = ObjectTrack(
+        asset=fg_b,
+        slot=(0.20, 0.80),
+        pose_start=Pose(scale=0.6),
+        pose_end=Pose(scale=0.6),
+        easing="easeInOutSine",
+        scale_ref=0.6,
+        depth_track=DepthTrack(0.20, 0.80, 0.08, 1.6, 0.6, 1.0, 0.6, 0.3),
+    )
+
+    scene = Scene(
+        background=bg,
+        objects=[obj_a, obj_b],
+        bg_pose_start=Pose(scale=1.0),
+        bg_pose_end=Pose(scale=1.0),
+        bg_easing="easeInOutSine",
+        n_frames=2,
+        size=32,
+    )
+    frames = render_scene(scene)
+    centre0 = frames[0].rgb[16, 16].tolist()
+    centre1 = frames[-1].rgb[16, 16].tolist()
+    # The nearer (front) colour at the centre must differ between first and last frame,
+    # proving paint order is recomputed per frame.
+    assert centre0 != centre1
+
+
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
     library = tmp_path / "lib"
     _tiny_library(library)

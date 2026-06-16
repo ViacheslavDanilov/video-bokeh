@@ -202,7 +202,22 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
         union_alpha = np.zeros((size, size), dtype=np.float32)
         disparity = bg_normalize(bg_disp, bg_band_top=scene.bg_band_top)
 
-        for obj in scene.objects:
+        def _centre(o: ObjectTrack, _t: float = t) -> float:
+            ease = EASING_FNS[o.easing](_t)
+            if o.depth_track is not None:
+                lo, hi = active_interval(o.depth_track, ease)
+                return (lo + hi) / 2.0
+            band_lo, band_hi = scaled_band(
+                o.slot[0],
+                o.slot[1],
+                active_width=_ACTIVE_WIDTH,
+                scale_t=o.pose_start.lerp(o.pose_end, ease).scale,
+                scale_ref=o.scale_ref,
+            )
+            return (band_lo + band_hi) / 2.0
+
+        draw_order = sorted(scene.objects, key=_centre)  # far (low disp) first
+        for obj in draw_order:
             ease = EASING_FNS[obj.easing](t)
             pose = obj.pose_start.lerp(obj.pose_end, ease)
             if obj.depth_track is not None:
