@@ -88,14 +88,34 @@ def test_render_scene_disparity_never_exceeds_one(tmp_path) -> None:
 
 
 def test_zoom_in_raises_object_disparity(tmp_path) -> None:
-    # One object that grows from small to large; its disparity must rise.
-    from data._library import load_background, load_foreground
+    # Uses a gradient foreground depth so place_in_band exercises real percentile
+    # stretch (not the degenerate-band fallback that flat depth triggers).
+    from data._library import (
+        load_background,
+        load_foreground,
+        write_background,
+        write_foreground,
+    )
     from data._sequence_geometry import Pose
     from data.compositor import ObjectTrack, Scene
 
-    _tiny_library(tmp_path)
-    fg = load_foreground(tmp_path, "fg_a")
+    size = 32
+    rgba = np.zeros((size, size, 4), dtype=np.uint8)
+    rgba[4:28, 4:28, :3] = 180
+    rgba[4:28, 4:28, 3] = 255
+    # Gradient depth: left=0.1, right=0.9 — large src_range so place_in_band stretches
+    depth = np.tile(np.linspace(0.1, 0.9, size, dtype=np.float32), (size, 1))
+    alpha = (rgba[..., 3] / 255.0).astype(np.float32)
+    write_foreground(tmp_path, "fg_grad", Image.fromarray(rgba, "RGBA"), alpha, depth)
+    write_background(
+        tmp_path,
+        "bg",
+        Image.new("RGB", (size, size), (30, 30, 30)),
+        np.full((size, size), 0.02, dtype=np.float32),
+    )
+    fg = load_foreground(tmp_path, "fg_grad")
     bg = load_background(tmp_path, "bg")
+
     obj = ObjectTrack(
         asset=fg,
         slot=(0.20, 0.80),
@@ -111,12 +131,22 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
         bg_pose_end=Pose(scale=1.0),
         bg_easing="easeInOutSine",
         n_frames=2,
-        size=32,
+        size=size,
     )
     frames = render_scene(scene)
     first = float(frames[0].disparity[frames[0].alpha > 0].mean())
     last = float(frames[-1].disparity[frames[-1].alpha > 0].mean())
-    assert last > first + 1e-3  # grew on screen => moved closer in disparity
+    # At scale=0.75 (zoom-in relative to scale_ref=0.3), the active band is
+    # shifted toward higher disparity; the mean over object pixels must rise.
+    assert last > first + 1e-3
+    # Additionally: the max disparity over object pixels must be <= slot_hi + small
+    # tolerance, confirming the object is placed inside the active band (not beyond).
+    assert float(frames[-1].disparity[frames[-1].alpha > 0].max()) <= 0.80 + 1e-3
+    # The object disparity range must be narrow (active_width=0.08), not wide (full
+    # slot 0.60); this assertion fails if active_width is not wired into scaled_band.
+    obj_disp = frames[-1].disparity[frames[-1].alpha > 0]
+    disp_range = float(obj_disp.max() - obj_disp.min())
+    assert disp_range < 0.20  # narrower than active_width*(1+margin), not full slot
 
 
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
