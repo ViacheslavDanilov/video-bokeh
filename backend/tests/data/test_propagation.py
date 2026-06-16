@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from data._propagation import propagate_disparity
+from data._propagation import propagate_disparity, trusted_core
 
 
 def test_fills_full_frame_from_object_core() -> None:
@@ -37,3 +37,27 @@ def test_threshold_is_fraction_of_alpha_max() -> None:
     alpha = np.full((10, 10), 0.6, dtype=np.float32)
     out = propagate_disparity(disp, alpha, nb_pixels_remove=1, threshold=0.5)
     assert np.allclose(out, 0.5, atol=1e-3)
+
+
+def test_trusted_core_drops_low_outliers() -> None:
+    disp = np.full((20, 20), 0.8, dtype=np.float32)
+    disp[10, 10] = 0.0  # a depth-model hole inside the object
+    alpha = np.ones((20, 20), dtype=np.float32)
+    core = trusted_core(alpha, disp, nb_pixels_remove=2, threshold=0.5, low_pct=2.0)
+    assert not core[10, 10]  # the hole is excluded from the trusted core
+    assert core.sum() > 0
+
+
+def test_propagation_does_not_spread_low_outlier_when_cleaned() -> None:
+    disp = np.full((20, 20), 0.8, dtype=np.float32)
+    disp[10, 10] = 0.0
+    alpha = np.ones((20, 20), dtype=np.float32)
+    out = propagate_disparity(
+        disp,
+        alpha,
+        nb_pixels_remove=2,
+        threshold=0.5,
+        low_pct=2.0,
+    )
+    # The hole value never propagates: the whole frame stays near 0.8.
+    assert float(out.min()) > 0.5
