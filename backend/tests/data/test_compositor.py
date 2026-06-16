@@ -287,6 +287,30 @@ def test_dynamic_paint_order_is_frame_local(tmp_path) -> None:
     assert centre0 != centre1
 
 
+def test_manifest_records_depth_mode_and_rejections(tmp_path) -> None:
+    import csv
+
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    generate_dataset(
+        library_root=library,
+        output=out,
+        count=1,
+        n_frames=3,
+        size=32,
+        seed=0,
+        depth_mode="dynamic",
+    )
+    with (out / "manifest.csv").open(encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+    header = rows[0]
+    assert "depth_mode" in header
+    assert "n_rejections" in header
+    data_row = rows[1]
+    assert data_row[header.index("depth_mode")] == "dynamic"
+
+
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
     library = tmp_path / "lib"
     _tiny_library(library)

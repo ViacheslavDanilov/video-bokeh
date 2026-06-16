@@ -29,7 +29,15 @@ from PIL import Image
 from data._sequence_geometry import SampleConfig
 from data.compositor import RenderedFrame, render_scene, sample_scene
 
-_MANIFEST_FIELDS = ("seq_id", "seed", "n_frames", "size", "n_objects")
+_MANIFEST_FIELDS = (
+    "seq_id",
+    "seed",
+    "n_frames",
+    "size",
+    "n_objects",
+    "depth_mode",
+    "n_rejections",
+)
 
 
 def _save_frame(
@@ -63,6 +71,7 @@ def generate_dataset(
     n_objects_min: int = 1,
     n_objects_max: int = 3,
     cfg: SampleConfig | None = None,
+    depth_mode: str = "fixed",
 ) -> None:
     cfg = cfg or SampleConfig()
     output.mkdir(parents=True, exist_ok=True)
@@ -78,6 +87,7 @@ def generate_dataset(
             size=size,
             n_objects=n_obj,
             cfg=cfg,
+            depth_mode=depth_mode,
         )
         frames = render_scene(scene)
 
@@ -98,6 +108,8 @@ def generate_dataset(
                 str(n_frames),
                 str(size),
                 str(len(scene.objects)),
+                depth_mode,
+                str(scene.n_rejections),
             ],
         )
         print(
@@ -121,6 +133,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--n-objects-min", type=int, default=1)
     parser.add_argument("--n-objects-max", type=int, default=3)
+    parser.add_argument(
+        "--depth-mode",
+        choices=("fixed", "dynamic"),
+        default="fixed",
+        help="fixed = disjoint slots (default); dynamic = z(t) tracks + validator.",
+    )
     return parser
 
 
@@ -135,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         n_objects_min=args.n_objects_min,
         n_objects_max=args.n_objects_max,
+        depth_mode=args.depth_mode,
     )
     print(f"\nDone. Sequences in {args.output / 'sequences'}")
     return 0
