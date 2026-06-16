@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from data._collision import pair_collides
 from data._depth_track import DepthTrack, active_interval, scale_at
 from data._fusion import assign_depth_slots, bg_normalize, place_in_band, scaled_band
 from data._library import (
@@ -39,6 +40,7 @@ from data._sequence_geometry import (
 _ACTIVE_WIDTH = 0.08
 _Z_NEAR = 0.6
 _Z_FAR = 1.6
+_MAX_SAMPLE_TRIES = 50
 
 
 @dataclass
@@ -62,6 +64,7 @@ class Scene:
     n_frames: int
     size: int
     bg_band_top: float = 0.05
+    n_rejections: int = 0
 
 
 @dataclass
@@ -95,40 +98,74 @@ def sample_scene(
     background = load_background(library_root, rng.choice(bg_ids))
 
     slots = assign_depth_slots(n_objects, bg_band_top=bg_band_top)
-    objects: list[ObjectTrack] = []
-    for idx, fid in enumerate(chosen_fg):
-        asset = load_foreground(library_root, fid)
-        pose_start = sample_fg_pose(rng, cfg)
-        pose_end = sample_fg_pose(rng, cfg)
-        easing = rng.choice(cfg.easings)
-        # Each object claims a distinct, disjoint slot (collision-proof).
-        slot = slots[idx]
-        depth_track = None
-        if depth_mode == "dynamic":
-            zr = rng.uniform(_Z_NEAR, _Z_FAR)
-            depth_track = DepthTrack(
-                env_lo=slot[0],
-                env_hi=slot[1],
-                active_width=_ACTIVE_WIDTH,
-                z_start=rng.uniform(_Z_NEAR, _Z_FAR),
-                z_end=rng.uniform(_Z_NEAR, _Z_FAR),
-                z_ref=zr,
-                scale_ref=pose_start.scale,
-                disp_ref=(slot[0] + slot[1]) / 2.0,
+
+    def _build_objects(attempt_rng: random.Random) -> list[ObjectTrack]:
+        objs: list[ObjectTrack] = []
+        for idx, fid in enumerate(chosen_fg):
+            asset = load_foreground(library_root, fid)
+            pose_start = sample_fg_pose(attempt_rng, cfg)
+            pose_end = sample_fg_pose(attempt_rng, cfg)
+            easing = attempt_rng.choice(cfg.easings)
+            slot = slots[idx]
+            depth_track = None
+            if depth_mode == "dynamic":
+                zr = attempt_rng.uniform(_Z_NEAR, _Z_FAR)
+                depth_track = DepthTrack(
+                    env_lo=slot[0],
+                    env_hi=slot[1],
+                    active_width=_ACTIVE_WIDTH,
+                    z_start=attempt_rng.uniform(_Z_NEAR, _Z_FAR),
+                    z_end=attempt_rng.uniform(_Z_NEAR, _Z_FAR),
+                    z_ref=zr,
+                    scale_ref=pose_start.scale,
+                    disp_ref=(slot[0] + slot[1]) / 2.0,
+                )
+            objs.append(
+                ObjectTrack(
+                    asset=asset,
+                    slot=slot,
+                    pose_start=pose_start,
+                    pose_end=pose_end,
+                    easing=easing,
+                    scale_ref=pose_start.scale,
+                    depth_track=depth_track,
+                ),
             )
-        objects.append(
-            ObjectTrack(
-                asset=asset,
-                slot=slot,
-                pose_start=pose_start,
-                pose_end=pose_end,
-                easing=easing,
-                scale_ref=pose_start.scale,
-                depth_track=depth_track,
-            ),
-        )
-    # Paint order: farthest (lowest disparity band) drawn first.
-    objects.sort(key=lambda o: o.slot[0])
+        # Paint order: farthest (lowest disparity band) drawn first.
+        objs.sort(key=lambda o: o.slot[0])
+        return objs
+
+    def _has_collision(objs: list[ObjectTrack]) -> bool:
+        if depth_mode != "dynamic" or len(objs) < 2:
+            return False
+        for i in range(n_frames):
+            t = 0.0 if n_frames == 1 else i / (n_frames - 1)
+            warped = []
+            for o in objs:
+                ease = EASING_FNS[o.easing](t)
+                pose = o.pose_start.lerp(o.pose_end, ease)
+                h = build_fg_homography(pose, o.asset.rgb.size[0], size)
+                a = np.asarray(warp_pillow(o.asset.rgb, h, size))[..., 3] / 255.0
+                assert o.depth_track is not None
+                warped.append((a, active_interval(o.depth_track, ease)))
+            for x in range(len(warped)):
+                for y in range(x + 1, len(warped)):
+                    if pair_collides(
+                        warped[x][0],
+                        warped[x][1],
+                        warped[y][0],
+                        warped[y][1],
+                    ):
+                        return True
+        return False
+
+    n_rejections = 0
+    objects = _build_objects(rng)
+    while _has_collision(objects):
+        n_rejections += 1
+        if n_rejections >= _MAX_SAMPLE_TRIES:
+            break
+        objects = _build_objects(rng)
 
     return Scene(
         background=background,
@@ -139,6 +176,7 @@ def sample_scene(
         n_frames=n_frames,
         size=size,
         bg_band_top=bg_band_top,
+        n_rejections=n_rejections,
     )
 
 

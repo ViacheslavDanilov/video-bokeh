@@ -172,6 +172,41 @@ def test_fixed_mode_is_unchanged_default(tmp_path) -> None:
     assert scene.objects[0].depth_track is None
 
 
+def test_dynamic_scene_is_collision_free(tmp_path) -> None:
+    import numpy as np
+
+    from data._collision import pair_collides
+    from data._depth_track import active_interval
+    from data._sequence_geometry import EASING_FNS, build_fg_homography, warp_pillow
+
+    _tiny_library(tmp_path)
+    scene = sample_scene(
+        tmp_path,
+        seed=28,
+        n_frames=4,
+        size=32,
+        n_objects=2,
+        depth_mode="dynamic",
+    )
+    for i in range(scene.n_frames):
+        t = 0.0 if scene.n_frames == 1 else i / (scene.n_frames - 1)
+        warped = []
+        for obj in scene.objects:
+            ease = EASING_FNS[obj.easing](t)
+            pose = obj.pose_start.lerp(obj.pose_end, ease)
+            h = build_fg_homography(pose, obj.asset.rgb.size[0], scene.size)
+            a = np.asarray(warp_pillow(obj.asset.rgb, h, scene.size))[..., 3] / 255.0
+            warped.append((a, active_interval(obj.depth_track, ease)))
+        for x in range(len(warped)):
+            for y in range(x + 1, len(warped)):
+                assert not pair_collides(
+                    warped[x][0],
+                    warped[x][1],
+                    warped[y][0],
+                    warped[y][1],
+                )
+
+
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
     library = tmp_path / "lib"
     _tiny_library(library)
