@@ -9,7 +9,7 @@ depth collisions structurally impossible.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -72,6 +72,9 @@ class RenderedFrame:
     rgb: np.ndarray  # (H, W, 3) float32 in [0, 255]
     alpha: np.ndarray  # (H, W) float32 union alpha
     disparity: np.ndarray  # (H, W) float32 in [0, 1]
+    object_alphas: list[np.ndarray] = field(
+        default_factory=list,
+    )  # per-object, far→near
 
 
 def sample_scene(
@@ -201,6 +204,7 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
         rgb = bg_rgb.copy()
         union_alpha = np.zeros((size, size), dtype=np.float32)
         disparity = bg_normalize(bg_disp, bg_band_top=scene.bg_band_top)
+        object_alphas: list[np.ndarray] = []
 
         def _centre(o: ObjectTrack, _t: float = t) -> float:
             ease = EASING_FNS[o.easing](_t)
@@ -252,12 +256,14 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
             rgb = a3 * warped_rgba[..., :3] + (1.0 - a3) * rgb
             union_alpha = np.maximum(union_alpha, a)
             disparity = a * obj_disp + (1.0 - a) * disparity
+            object_alphas.append(a.astype(np.float32))
 
         frames.append(
             RenderedFrame(
                 rgb=rgb.astype(np.float32),
                 alpha=union_alpha.astype(np.float32),
                 disparity=np.clip(disparity, 0.0, 1.0).astype(np.float32),
+                object_alphas=object_alphas,
             ),
         )
     return frames
