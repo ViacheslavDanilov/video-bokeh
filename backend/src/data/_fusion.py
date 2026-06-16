@@ -111,23 +111,30 @@ def assign_depth_slots(
 
 
 def scaled_band(
-    band_lo: float,
-    band_hi: float,
+    env_lo: float,
+    env_hi: float,
     scale_t: float,
     scale_ref: float,
+    *,
+    active_width: float | None = None,
 ) -> tuple[float, float]:
-    """Shift a depth band within its slot by the linear zoom->disparity law.
+    """Place a narrow active band inside an envelope by the zoom->disparity law.
 
-    Disparity ~ apparent size, so the band's centre moves by
-    ``scale_t / scale_ref`` relative to the slot centre, clamped so the band
-    stays fully inside [band_lo, band_hi].
+    The active band has width ``active_width`` (capped at the envelope width).
+    If ``active_width`` is None the full envelope width is used (legacy
+    behaviour; Task 1.2 will supply an explicit value for all call sites).
+    Its centre is the envelope centre at ``scale_ref`` and slides by
+    ``scale_t / scale_ref`` toward the near (high-disparity) end as the object
+    grows, then is clamped so the band stays fully inside [env_lo, env_hi].
+    Disparity ~ apparent size, so growing on screen means coming closer.
     """
-    width = band_hi - band_lo
-    centre = (band_lo + band_hi) / 2.0
+    env_width = env_hi - env_lo
+    width = min(active_width if active_width is not None else env_width, env_width)
+    env_centre = (env_lo + env_hi) / 2.0
     ratio = scale_t / scale_ref if scale_ref > 1e-8 else 1.0
-    new_centre = band_lo + (centre - band_lo) * ratio
+    new_centre = env_lo + (env_centre - env_lo) * ratio
     half = width / 2.0
-    new_centre = min(max(new_centre, band_lo + half), band_hi - half)
+    new_centre = min(max(new_centre, env_lo + half), env_hi - half)
     return new_centre - half, new_centre + half
 
 

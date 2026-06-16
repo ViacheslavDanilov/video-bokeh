@@ -124,16 +124,32 @@ def test_assign_depth_slots_are_disjoint_and_ordered() -> None:
         assert hi_a + 0.02 - 1e-6 <= lo_b
 
 
-def test_scaled_band_shifts_toward_near_end_on_zoom_in() -> None:
-    lo, hi = 0.40, 0.50
-    base = scaled_band(lo, hi, scale_t=1.0, scale_ref=1.0)
-    zoomed = scaled_band(lo, hi, scale_t=2.0, scale_ref=1.0)
-    assert zoomed[1] <= hi + 1e-6
-    assert sum(zoomed) / 2 >= sum(base) / 2
+def test_scaled_band_moves_active_band_toward_near_end_on_zoom_in() -> None:
+    # Narrow active band inside a broad envelope.
+    base = scaled_band(0.20, 0.80, active_width=0.10, scale_t=1.0, scale_ref=1.0)
+    zoomed = scaled_band(0.20, 0.80, active_width=0.10, scale_t=2.0, scale_ref=1.0)
+    # Zoom in => closer => higher disparity: the band must actually move up.
+    assert zoomed[0] > base[0] + 1e-3
+    assert zoomed[1] > base[1] + 1e-3
+    # Width is preserved at active_width regardless of scale.
+    assert abs((base[1] - base[0]) - 0.10) < 1e-6
+    assert abs((zoomed[1] - zoomed[0]) - 0.10) < 1e-6
 
 
-def test_scaled_band_clamps_within_slot() -> None:
-    lo, hi = 0.40, 0.50
-    out_lo, out_hi = scaled_band(lo, hi, scale_t=10.0, scale_ref=1.0)
-    assert out_lo >= lo - 1e-6
-    assert out_hi <= hi + 1e-6
+def test_scaled_band_centers_at_envelope_centre_at_reference_scale() -> None:
+    lo, hi = scaled_band(0.20, 0.80, active_width=0.10, scale_t=1.0, scale_ref=1.0)
+    assert abs((lo + hi) / 2.0 - 0.50) < 1e-6
+
+
+def test_scaled_band_clamps_active_band_inside_envelope() -> None:
+    lo, hi = scaled_band(0.20, 0.80, active_width=0.10, scale_t=100.0, scale_ref=1.0)
+    assert lo >= 0.20 - 1e-6
+    assert hi <= 0.80 + 1e-6
+    assert abs((hi - lo) - 0.10) < 1e-6
+
+
+def test_scaled_band_active_width_capped_at_envelope_width() -> None:
+    # If active_width exceeds the envelope, it is capped to the envelope width.
+    lo, hi = scaled_band(0.40, 0.50, active_width=0.30, scale_t=1.0, scale_ref=1.0)
+    assert lo >= 0.40 - 1e-6
+    assert hi <= 0.50 + 1e-6
