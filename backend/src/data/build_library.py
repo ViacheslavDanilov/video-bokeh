@@ -23,9 +23,10 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
-from data._library import write_background, write_foreground
+from data._library import FOREGROUNDS, write_background, write_foreground
+from data._metadata import write_asset_metadata
 from data._neutral_bg import composite_on_neutral, make_textured_bg
-from data._propagation import propagate_disparity
+from data._propagation import propagate_disparity, trusted_core
 from data._seq_io import select_device
 from data._sequence_geometry import prepare_background, prepare_foreground
 from data.depth import ESTIMATORS
@@ -101,6 +102,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--nb-pixels-remove", type=int, default=5)
     parser.add_argument("--alpha-threshold", type=float, default=0.04)
+    parser.add_argument(
+        "--low-pct",
+        type=float,
+        default=2.0,
+        help="drop trusted-core pixels below this percentile as depth holes "
+        "(0 disables cleanup).",
+    )
     parser.add_argument("--limit-fg", type=int, default=None, help="cap foregrounds")
     parser.add_argument("--limit-bg", type=int, default=None, help="cap backgrounds")
     parser.add_argument(
@@ -154,14 +162,54 @@ def main(argv: list[str] | None = None) -> int:
         composited = composite_on_neutral(fg, neutral)
         [raw_disp] = estimator.infer([composited])
         alpha = np.asarray(fg, dtype=np.float32)[..., 3] / 255.0
+        core = trusted_core(
+            alpha,
+            raw_disp,
+            nb_pixels_remove=args.nb_pixels_remove,
+            threshold=args.alpha_threshold,
+            low_pct=args.low_pct,
+        )
         depth = propagate_disparity(
             raw_disp,
             alpha,
             nb_pixels_remove=args.nb_pixels_remove,
             threshold=args.alpha_threshold,
+            low_pct=args.low_pct,
         )
-        write_foreground(args.output, _ref_to_id(ref), fg, alpha, depth)
-        print(f"  fg {ref}")
+        asset_id = _ref_to_id(ref)
+        write_foreground(
+            args.output,
+            asset_id,
+            fg,
+            alpha,
+            depth,
+            raw_depth=raw_disp.astype(np.float32),
+        )
+        raw_eroded = trusted_core(
+            alpha,
+            raw_disp,
+            args.nb_pixels_remove,
+            args.alpha_threshold,
+            low_pct=0.0,
+        )
+        p01, p99 = (float(v) for v in np.percentile(raw_disp, [1.0, 99.0]))
+        write_asset_metadata(
+            args.output / FOREGROUNDS / asset_id,
+            {
+                "estimator": args.model,
+                "source_ref": ref,
+                "neutral_bg_seed": args.neutral_bg_seed,
+                "nb_pixels_remove": args.nb_pixels_remove,
+                "alpha_threshold": args.alpha_threshold,
+                "low_pct": args.low_pct,
+                "raw_p01": p01,
+                "raw_p99": p99,
+                "core_frac": float(core.mean()),
+                "n_low_outliers": int(raw_eroded.sum() - core.sum()),
+                "low_confidence": bool(core.sum() < 0.002 * core.size),
+            },
+        )
+        print(f"  fg {ref}  core_frac={float(core.mean()):.3f}")
 
     print(f"Backgrounds: {len(bg_refs)}")
     for ref in bg_refs:

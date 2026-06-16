@@ -1,7 +1,8 @@
 """On-disk layout and I/O for the precomputed artifact library.
 
     <library>/
-    ├── foregrounds/<id>/{rgb.png (RGBA), alpha.png (L), depth.png (uint16)}
+    ├── foregrounds/<id>/{rgb.png (RGBA), alpha.png (L), depth.png (uint16),
+    │                     depth_raw.png (uint16, optional)}
     └── backgrounds/<id>/{rgb.png (RGB), depth.png (uint16)}
 
 Depth is stored as a uint16 PNG, larger = closer (disparity convention). Each
@@ -9,6 +10,11 @@ map is min/max-normalized to the full 16-bit range on write and returned as a
 float32 array in [0, 1] on read. The absolute disparity scale is intentionally
 dropped: the compositor percentile-stretches each depth map into a band, so only
 the relative structure matters and 16 bits preserves it without visible banding.
+
+``depth.png`` is the propagated full-frame map consumed by Stage B.
+``depth_raw.png`` is the estimator's untouched output before propagation, saved
+only as a diagnostic (raw-vs-propagated comparison); it is optional, so older
+libraries without it load with ``raw_depth=None``.
 """
 
 from __future__ import annotations
@@ -51,6 +57,7 @@ class ForegroundAsset:
     rgb: Image.Image  # RGBA
     alpha: np.ndarray  # (H, W) float32 in [0, 1]
     depth: np.ndarray  # (H, W) float32, propagated full-frame disparity
+    raw_depth: np.ndarray | None = None  # (H, W) float32, estimator output (diagnostic)
 
 
 @dataclass
@@ -80,6 +87,7 @@ def write_foreground(
     rgb: Image.Image,
     alpha: np.ndarray,
     depth: np.ndarray,
+    raw_depth: np.ndarray | None = None,
 ) -> None:
     out = library_root / FOREGROUNDS / asset_id
     out.mkdir(parents=True, exist_ok=True)
@@ -87,6 +95,8 @@ def write_foreground(
     a = np.clip(alpha * 255.0, 0, 255).astype(np.uint8)
     Image.fromarray(a, mode="L").save(out / "alpha.png", compress_level=6)
     _write_depth_png(out / "depth.png", depth)
+    if raw_depth is not None:
+        _write_depth_png(out / "depth_raw.png", raw_depth)
 
 
 def write_background(
@@ -107,7 +117,9 @@ def load_foreground(library_root: Path, asset_id: str) -> ForegroundAsset:
     alpha = np.asarray(Image.open(base / "alpha.png").convert("L"), dtype=np.float32)
     alpha /= 255.0
     depth = _read_depth_png(base / "depth.png")
-    return ForegroundAsset(asset_id, rgb, alpha, depth)
+    raw_path = base / "depth_raw.png"
+    raw_depth = _read_depth_png(raw_path) if raw_path.exists() else None
+    return ForegroundAsset(asset_id, rgb, alpha, depth, raw_depth=raw_depth)
 
 
 def load_background(library_root: Path, asset_id: str) -> BackgroundAsset:
