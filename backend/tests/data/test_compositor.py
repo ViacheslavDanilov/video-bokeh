@@ -149,6 +149,29 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
     assert disp_range < 0.20  # narrower than active_width*(1+margin), not full slot
 
 
+def test_dynamic_mode_moves_disparity_with_depth(tmp_path) -> None:
+    _tiny_library(tmp_path)
+    scene = sample_scene(
+        tmp_path,
+        seed=3,
+        n_frames=4,
+        size=32,
+        n_objects=1,
+        depth_mode="dynamic",
+    )
+    assert scene.objects[0].depth_track is not None
+    frames = render_scene(scene)
+    first = float(frames[0].disparity[frames[0].alpha > 0].mean())
+    last = float(frames[-1].disparity[frames[-1].alpha > 0].mean())
+    assert abs(last - first) > 1e-3  # depth actually changes over the clip
+
+
+def test_fixed_mode_is_unchanged_default(tmp_path) -> None:
+    _tiny_library(tmp_path)
+    scene = sample_scene(tmp_path, seed=3, n_frames=4, size=32, n_objects=1)
+    assert scene.objects[0].depth_track is None
+
+
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
     library = tmp_path / "lib"
     _tiny_library(library)

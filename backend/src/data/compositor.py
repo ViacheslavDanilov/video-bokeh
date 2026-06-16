@@ -9,11 +9,12 @@ depth collisions structurally impossible.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
 
+from data._depth_track import DepthTrack, active_interval, scale_at
 from data._fusion import assign_depth_slots, bg_normalize, place_in_band, scaled_band
 from data._library import (
     BackgroundAsset,
@@ -36,6 +37,8 @@ from data._sequence_geometry import (
 )
 
 _ACTIVE_WIDTH = 0.08
+_Z_NEAR = 0.6
+_Z_FAR = 1.6
 
 
 @dataclass
@@ -46,6 +49,7 @@ class ObjectTrack:
     pose_end: Pose
     easing: str
     scale_ref: float
+    depth_track: DepthTrack | None = None
 
 
 @dataclass
@@ -75,6 +79,7 @@ def sample_scene(
     n_objects: int,
     cfg: SampleConfig | None = None,
     bg_band_top: float = 0.05,
+    depth_mode: str = "fixed",
 ) -> Scene:
     """Sample objects, a background, poses, easings, and disjoint depth slots."""
     cfg = cfg or SampleConfig()
@@ -98,6 +103,19 @@ def sample_scene(
         easing = rng.choice(cfg.easings)
         # Each object claims a distinct, disjoint slot (collision-proof).
         slot = slots[idx]
+        depth_track = None
+        if depth_mode == "dynamic":
+            zr = rng.uniform(_Z_NEAR, _Z_FAR)
+            depth_track = DepthTrack(
+                env_lo=slot[0],
+                env_hi=slot[1],
+                active_width=_ACTIVE_WIDTH,
+                z_start=rng.uniform(_Z_NEAR, _Z_FAR),
+                z_end=rng.uniform(_Z_NEAR, _Z_FAR),
+                z_ref=zr,
+                scale_ref=pose_start.scale,
+                disp_ref=(slot[0] + slot[1]) / 2.0,
+            )
         objects.append(
             ObjectTrack(
                 asset=asset,
@@ -106,6 +124,7 @@ def sample_scene(
                 pose_end=pose_end,
                 easing=easing,
                 scale_ref=pose_start.scale,
+                depth_track=depth_track,
             ),
         )
     # Paint order: farthest (lowest disparity band) drawn first.
@@ -148,6 +167,17 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
         for obj in scene.objects:
             ease = EASING_FNS[obj.easing](t)
             pose = obj.pose_start.lerp(obj.pose_end, ease)
+            if obj.depth_track is not None:
+                pose = replace(pose, scale=scale_at(obj.depth_track, ease))
+                band_lo, band_hi = active_interval(obj.depth_track, ease)
+            else:
+                band_lo, band_hi = scaled_band(
+                    obj.slot[0],
+                    obj.slot[1],
+                    active_width=_ACTIVE_WIDTH,
+                    scale_t=pose.scale,
+                    scale_ref=obj.scale_ref,
+                )
             fg_h = build_fg_homography(pose, obj.asset.rgb.size[0], size)
 
             warped_rgba = np.asarray(
@@ -157,13 +187,6 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
             a = warped_rgba[..., 3] / 255.0
             warped_depth = warp_depth(obj.asset.depth, fg_h, size)
 
-            band_lo, band_hi = scaled_band(
-                obj.slot[0],
-                obj.slot[1],
-                active_width=_ACTIVE_WIDTH,
-                scale_t=pose.scale,
-                scale_ref=obj.scale_ref,
-            )
             obj_disp = place_in_band(
                 warped_depth,
                 a,
