@@ -165,6 +165,25 @@ def warp_pillow(img: Image.Image, h: np.ndarray, out_size: int) -> Image.Image:
     )
 
 
+def warp_depth(arr: np.ndarray, h: np.ndarray, out_size: int) -> np.ndarray:
+    """Warp a float (H, W) disparity map with forward homography ``h``.
+
+    Mirrors ``warp_pillow`` but for single-channel float data via Pillow's
+    'F' mode, so depth moves pixel-aligned with the RGBA warp.
+    """
+    inv = np.linalg.inv(h)
+    inv = inv / inv[2, 2]
+    coeffs = tuple(inv.flatten()[:8])
+    img = Image.fromarray(np.asarray(arr, dtype=np.float32), mode="F")
+    warped = img.transform(
+        (out_size, out_size),
+        Image.Transform.PERSPECTIVE,
+        coeffs,
+        resample=Image.Resampling.BILINEAR,
+    )
+    return np.asarray(warped, dtype=np.float32)
+
+
 def resize_shortest_side_and_center_crop(img: Image.Image, size: int) -> Image.Image:
     w, h = img.size
     if w < h:
@@ -230,146 +249,3 @@ def prepare_background(path: Path, frame_size: int, margin: float) -> Image.Imag
 def prepare_foreground(path: Path, src_size: int) -> Image.Image:
     img = Image.open(path).convert("RGBA")
     return resize_shortest_side_and_center_crop(img, src_size)
-
-
-@dataclass
-class ObjectTrack:
-    ref: str
-    img: Image.Image
-    source_size: int
-    depth: float
-    pose_start: Pose
-    pose_end: Pose
-    easing: str = "easeInOutSine"
-
-
-def build_object_tracks(
-    spec,
-    fg_root: Path,
-    frame_size: int,
-    rng: random.Random,
-    cfg: SampleConfig,
-) -> list[ObjectTrack]:
-    """Load foregrounds and sample per-object poses + depths.
-
-    The RNG draw order (pose_start, pose_end, depth) per object is part of the
-    deterministic contract. Returned tracks are sorted back-to-front (largest
-    depth first) for paint order.
-    """
-    objs: list[ObjectTrack] = []
-    for ref in spec.object_refs:
-        fg_img = prepare_foreground(fg_root / "images" / ref, frame_size)
-        pose_start = sample_fg_pose(rng, cfg)
-        pose_end = sample_fg_pose(rng, cfg)
-        depth = rng.random()
-        objs.append(
-            ObjectTrack(
-                ref=ref,
-                img=fg_img,
-                source_size=frame_size,
-                depth=depth,
-                pose_start=pose_start,
-                pose_end=pose_end,
-            ),
-        )
-    objs.sort(key=lambda o: -o.depth)
-    return objs
-
-
-@dataclass
-class ReplayedFrame:
-    """One rendered frame, pre-composite."""
-
-    bg_rgb: Image.Image
-    object_rgbas: list[Image.Image]
-
-
-@dataclass
-class SceneReplay:
-    """Full deterministic replay of one sequence's geometry."""
-
-    frames: list[ReplayedFrame]
-    object_depths: list[float]
-    channel_refs: list[str]
-    bg_easing: str
-    object_easings: list[str]
-
-
-def replay_scene(
-    spec,
-    fg_root: Path,
-    bg_root: Path,
-    cfg: SampleConfig,
-    *,
-    validate_channel_refs: bool = False,
-) -> SceneReplay:
-    """Replay a sequence's scene geometry without writing files."""
-    rng = random.Random(f"poses:{spec.seed}")
-    frame_size = spec.size
-
-    bg_img = prepare_background(
-        bg_root / "images" / spec.bg_ref,
-        frame_size,
-        cfg.bg_margin,
-    )
-    bg_src_size = bg_img.size[0]
-
-    objs = build_object_tracks(spec, fg_root, frame_size, rng, cfg)
-    channel_refs = [obj.ref for obj in objs]
-    channel_refs_match = (
-        bool(spec.channel_refs) and list(spec.channel_refs) == channel_refs
-    )
-    if validate_channel_refs and spec.channel_refs and not channel_refs_match:
-        raise ValueError(
-            f"sequence {spec.seq_id}: channel_refs do not match replayed paint order",
-        )
-
-    bg_start = sample_bg_pose(rng, cfg)
-    bg_end = sample_bg_pose(rng, cfg)
-
-    bg_easing = spec.bg_easing or rng.choice(cfg.easings)
-    if spec.object_easings:
-        object_easings = list(spec.object_easings)
-    else:
-        object_easings = [rng.choice(cfg.easings) for _ in objs]
-    for obj, name in zip(objs, object_easings, strict=True):
-        obj.easing = name
-    bg_easing_fn = EASING_FNS[bg_easing]
-
-    frames: list[ReplayedFrame] = []
-    for i in range(spec.n_frames):
-        t = 0.0 if spec.n_frames == 1 else i / (spec.n_frames - 1)
-        bg_pose = bg_start.lerp(bg_end, bg_easing_fn(t))
-        bg_warp = warp_pillow(
-            bg_img,
-            build_bg_homography(bg_pose, bg_src_size, frame_size),
-            frame_size,
-        )
-        object_rgbas: list[Image.Image] = []
-        for obj in objs:
-            pose = obj.pose_start.lerp(obj.pose_end, EASING_FNS[obj.easing](t))
-            fg_warp = warp_pillow(
-                obj.img,
-                build_fg_homography(pose, obj.source_size, frame_size),
-                frame_size,
-            )
-            object_rgbas.append(fg_warp)
-        frames.append(ReplayedFrame(bg_rgb=bg_warp, object_rgbas=object_rgbas))
-
-    if spec.object_depths and (not spec.channel_refs or channel_refs_match):
-        object_depths = list(spec.object_depths)
-        if len(object_depths) != len(objs):
-            raise ValueError(
-                f"sequence {spec.seq_id}: {len(object_depths)} object_depths for "
-                f"{len(objs)} objects",
-            )
-    else:
-        object_depths = [obj.depth for obj in objs]
-
-    return SceneReplay(
-        frames=frames,
-        object_depths=object_depths,
-        channel_refs=channel_refs,
-        bg_easing=bg_easing,
-        object_easings=object_easings,
-    )

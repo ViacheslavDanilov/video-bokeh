@@ -58,14 +58,27 @@ backend/
 Dataset scripts assume working directory is `backend/`. Examples:
 
 ```bash
-# MAGICK dev mirror (HuggingFace)
+# 1. Acquire sources
+#    MAGICK dev mirror (HuggingFace)
 uv run python -m data.download_magick \
   --metadata data/magick_metadata.csv \
   --output   data/magick_dev \
   --count    20 --seed 0
-
-# BG-20k full archive (Kaggle) — needs ~/.kaggle/kaggle.json
+#    BG-20k full archive (Kaggle) — needs ~/.kaggle/kaggle.json
 uv run python -m data.download_bg20k --output data/bg-20k
+
+# 2. Stage A — build the artifact library (depth runs once per asset)
+uv run python -m data.build_library \
+  --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
+  --output data/library_dev --size 1024 --model da2-large
+
+# 3. Stage B — generate sequences on the fly from the library
+uv run python -m data.generate_dataset \
+  --library-root data/library_dev --output data/synth_dev \
+  --count 10 --frames 80 --size 1024 --seed 0
+
+# 4. Bridge to any-to-bokeh inference
+uv run python -m data.prepare_any_to_bokeh --data-root data/synth_dev
 ```
 
 `backend/data/` is gitignored — outputs stay local.

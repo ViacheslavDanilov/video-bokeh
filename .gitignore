@@ -45,6 +45,7 @@ backend/models/any_to_bokeh/
 backend/data/*/
 !backend/data/*_dev/
 backend/data/synth*/
+backend/data/library*/
 
 # Third-party tool venvs and locally downloaded checkpoints
 backend/third_party/.venv/
@@ -67,3 +68,6 @@ Thumbs.db
 
 # Obsidian (per-user UI state, recovery cache)
 vault/
+
+# Docs
+docs/

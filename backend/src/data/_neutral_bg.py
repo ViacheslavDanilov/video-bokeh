@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+from PIL import Image
 from scipy.ndimage import gaussian_filter
 
 
@@ -24,3 +25,12 @@ def make_textured_bg(size: int, seed: int = 0) -> np.ndarray:
     scale = max(float(p_hi - center), float(center - p_lo), 1e-6)
     out = 128.0 + 30.0 * ((out - center) / scale)
     return np.clip(out, 98, 158).astype(np.uint8)
+
+
+def composite_on_neutral(fg_rgba: Image.Image, neutral_bg: Image.Image) -> Image.Image:
+    """Alpha-composite an RGBA foreground onto a neutral texture, return RGB."""
+    fg = np.asarray(fg_rgba, dtype=np.float32)
+    bg = np.asarray(neutral_bg, dtype=np.float32)
+    alpha = fg[..., 3:4] / 255.0
+    rgb = alpha * fg[..., :3] + (1.0 - alpha) * bg
+    return Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), mode="RGB")
