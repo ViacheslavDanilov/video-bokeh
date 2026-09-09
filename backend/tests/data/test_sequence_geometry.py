@@ -3,9 +3,11 @@ from __future__ import annotations
 import random
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from data._sequence_geometry import (
+    EASING_FNS,
     Pose,
     SampleConfig,
     build_bg_homography,
@@ -75,3 +77,21 @@ def test_resize_shortest_side_and_center_crop_is_square() -> None:
     img = Image.new("RGB", (200, 100), (0, 0, 0))
     out = resize_shortest_side_and_center_crop(img, 64)
     assert out.size == (64, 64)
+
+
+def test_every_easing_is_bounded_and_monotone() -> None:
+    # Goal 3. The unrestricted depth model interpolates mind/maxd with these
+    # easings and checks its axis bounds only at the two endpoints. That is
+    # valid only while no easing leaves [0, 1] or backtracks. An added
+    # easeOutBack / easeOutElastic must fail here rather than silently produce
+    # out-of-axis disparity.
+    steps = 1001
+    ts = [i / (steps - 1) for i in range(steps)]
+    for name, fn in EASING_FNS.items():
+        values = [fn(t) for t in ts]
+        assert min(values) >= -1e-12, f"{name} undershoots 0"
+        assert max(values) <= 1.0 + 1e-12, f"{name} overshoots 1"
+        assert values[0] == pytest.approx(0.0, abs=1e-12), f"{name}(0) is not 0"
+        assert values[-1] == pytest.approx(1.0, abs=1e-12), f"{name}(1) is not 1"
+        for prev, cur in zip(values[:-1], values[1:], strict=True):
+            assert cur >= prev - 1e-12, f"{name} decreases at {cur}"
