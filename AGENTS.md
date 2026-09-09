@@ -51,7 +51,7 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 ## Verified
 
 - `uv run pre-commit run --all-files`: passes
-- `cd backend && uv run pytest`: 72 passed
+- `cd backend && uv run pytest`: 92 passed
 - measurements, screenshots, or manual checks, with actual numbers
 ```
 
