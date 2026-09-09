@@ -158,7 +158,8 @@ def sample_scene(
                     depth_end=depth_end,
                 ),
             )
-        # Frame-1 paint order. Later frames re-sort in render_scene.
+        # Far-to-near at frame 1. render_scene derives paint order per frame,
+        # so this only fixes which alpha channel each object owns for the clip.
         objs.sort(
             key=lambda o: (
                 o.depth_start.centre if o.depth_start is not None else o.slot[0]
