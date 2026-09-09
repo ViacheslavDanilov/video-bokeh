@@ -36,18 +36,31 @@ def test_lerp_endpoints_are_exact() -> None:
 
 
 def test_derive_end_range_obeys_the_scale_ratio_exactly() -> None:
-    # Goal 1: growing on screen by k must divide the depth range by k.
+    # Goal 1: growing on screen by k must multiply the disparity range by k.
     start = DepthRange(0.30, 0.38)
     end = derive_end_range(start, scale_start=0.25, scale_end=0.50)
-    assert end.mind / start.mind == pytest.approx(0.5, abs=1e-9)
-    assert end.maxd / start.maxd == pytest.approx(0.5, abs=1e-9)
+    assert end.mind / start.mind == pytest.approx(2.0, abs=1e-9)
+    assert end.maxd / start.maxd == pytest.approx(2.0, abs=1e-9)
 
 
-def test_derive_end_range_grows_the_range_when_the_object_shrinks() -> None:
+def test_derive_end_range_brings_a_growing_object_closer() -> None:
+    # The direction is the whole point of the law, and inverting it is silent:
+    # every other assertion here holds for the reciprocal too. Disparity is
+    # larger = closer, so growing on screen must raise it.
     start = DepthRange(0.10, 0.18)
-    end = derive_end_range(start, scale_start=0.80, scale_end=0.20)
+    end = derive_end_range(start, scale_start=0.20, scale_end=0.80)
+    assert end.mind > start.mind
+    assert end.maxd > start.maxd
     assert end.mind == pytest.approx(0.40)
     assert end.maxd == pytest.approx(0.72)
+
+
+def test_derive_end_range_moves_a_shrinking_object_away() -> None:
+    start = DepthRange(0.40, 0.72)
+    end = derive_end_range(start, scale_start=0.80, scale_end=0.20)
+    assert end.mind == pytest.approx(0.10)
+    assert end.maxd == pytest.approx(0.18)
+    assert end.width < start.width  # farther objects occupy less of the axis
 
 
 def test_derive_end_range_is_identity_at_equal_scales() -> None:
@@ -57,8 +70,8 @@ def test_derive_end_range_is_identity_at_equal_scales() -> None:
 
 
 def test_derive_end_range_rejects_a_non_positive_scale() -> None:
-    with pytest.raises(ValueError, match="scale_end must be positive"):
-        derive_end_range(DepthRange(0.1, 0.2), scale_start=0.5, scale_end=0.0)
+    with pytest.raises(ValueError, match="scale_start must be positive"):
+        derive_end_range(DepthRange(0.1, 0.2), scale_start=0.0, scale_end=0.5)
 
 
 def test_range_in_bounds_accepts_the_slot_boundary() -> None:

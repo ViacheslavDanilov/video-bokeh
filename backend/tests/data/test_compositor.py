@@ -275,8 +275,10 @@ def test_alpha_channels_stay_with_their_object_when_order_swaps(tmp_path) -> Non
 def test_shrunk_range_still_shapes_the_object(tmp_path) -> None:
     # Goal 7. A range that legitimately shrinks under the scale law must still
     # be stretched into, not collapsed onto its midpoint by place_in_band's
-    # degenerate guard. Start width 0.05, ratio 0.25 -> end width 0.0125, which
-    # is below the old constant threshold of 0.25 * _ACTIVE_WIDTH = 0.02.
+    # degenerate guard. The object shrinks on screen from 0.80 to 0.20, so the
+    # law moves it away and narrows its range by the same 0.25: start width
+    # 0.05 -> end width 0.0125, below the old constant threshold of
+    # 0.25 * _ACTIVE_WIDTH = 0.02.
     from data._library import (
         load_background,
         load_foreground,
@@ -308,10 +310,10 @@ def test_shrunk_range_still_shapes_the_object(tmp_path) -> None:
     obj = ObjectTrack(
         asset=load_foreground(tmp_path, "fg_grad"),
         slot=(0.20, 0.80),
-        pose_start=Pose(scale=0.20),
-        pose_end=Pose(scale=0.80),
+        pose_start=Pose(scale=0.80),
+        pose_end=Pose(scale=0.20),
         easing="easeInOutSine",
-        scale_ref=0.20,
+        scale_ref=0.80,
         depth_start=DepthRange(0.50, 0.55),
         depth_end=DepthRange(0.125, 0.1375),
     )
@@ -355,6 +357,38 @@ def test_unrestricted_mode_moves_disparity_over_the_clip(tmp_path) -> None:
     first = float(frames[0].disparity[frames[0].alpha > 0].mean())
     last = float(frames[-1].disparity[frames[-1].alpha > 0].mean())
     assert abs(last - first) > 1e-3
+
+
+def test_unrestricted_depth_moves_with_scale_not_against_it(tmp_path) -> None:
+    # Disparity is larger = closer, so an object that grows on screen must end
+    # at higher disparity. Inverting the ratio still satisfies every other
+    # unrestricted test -- the law holds exactly, ranges stay on the axis,
+    # objects leave their slots -- while making the disparity stream contradict
+    # the RGB stream in every clip. This is the assertion that pins the sign.
+    _tiny_library(tmp_path)
+    checked = 0
+    for seed in range(40):
+        scene = sample_scene(
+            tmp_path,
+            seed=seed,
+            n_frames=4,
+            size=32,
+            n_objects=2,
+            depth_mode="unrestricted",
+        )
+        for obj in scene.objects:
+            assert obj.depth_start is not None
+            assert obj.depth_end is not None
+            grew = obj.pose_end.scale > obj.pose_start.scale
+            came_closer = obj.depth_end.centre > obj.depth_start.centre
+            assert grew == came_closer, (
+                f"seed {seed}: scale "
+                f"{obj.pose_start.scale:.3f}->{obj.pose_end.scale:.3f} but "
+                f"disparity {obj.depth_start.centre:.3f}->"
+                f"{obj.depth_end.centre:.3f}"
+            )
+            checked += 1
+    assert checked == 80
 
 
 def test_unrestricted_scene_is_collision_free(tmp_path) -> None:

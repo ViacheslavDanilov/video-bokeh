@@ -3,8 +3,9 @@
 An object's depth state at a frame is the interval [mind, maxd] its warped depth
 map is remapped into. The interval at the end of the clip is derived from the
 start interval and the scale ratio, never sampled: growing on screen by a factor
-k must bring the object k times closer. The assigned depth band constrains only
-the start interval; every later frame is free.
+k must bring the object k times closer, which on the disparity axis (larger =
+closer) means multiplying the interval by k. The assigned depth band constrains
+only the start interval; every later frame is free.
 
 See docs/superpowers/specs/2026-09-09-unrestricted-trajectories-design.md.
 """
@@ -50,10 +51,20 @@ def derive_end_range(
 
     Never sampled independently: this is the constraint that keeps the RGB and
     disparity streams telling the same story about the object's motion.
+
+    Apparent size and disparity are both proportional to 1/z, so they move
+    together: the ratio is ``scale_end / scale_start``, not its reciprocal. The
+    approved research spec writes the reciprocal, but it derives the rule for
+    depth-as-distance ("its depth must decrease by the factor k") and then
+    applies the formula to mind/maxd, which this pipeline defines as disparity.
+    Taken literally it makes an object that grows on screen recede in the
+    disparity stream -- the exact RGB/disparity inconsistency v2 removes -- and
+    it contradicts ``scaled_band``, which `fixed` mode already scales by
+    ``scale_t / scale_ref``.
     """
-    if scale_end <= 1e-8:
-        raise ValueError(f"scale_end must be positive, got {scale_end}")
-    ratio = scale_start / scale_end
+    if scale_start <= 1e-8:
+        raise ValueError(f"scale_start must be positive, got {scale_start}")
+    ratio = scale_end / scale_start
     return DepthRange(mind=start.mind * ratio, maxd=start.maxd * ratio)
 
 
