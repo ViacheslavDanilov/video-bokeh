@@ -1,21 +1,23 @@
 """Stage B: sample a scene from the library and render aligned RGB/alpha/depth.
 
 Depth is never re-estimated here: each object's precomputed full-frame disparity
-is warped by the same homography as its RGBA, scaled within a disjoint depth slot
-by the linear zoom->disparity law, and painter-composited. Disjoint slots make
-depth collisions structurally impossible.
+is warped by the same homography as its RGBA and remapped into the disparity
+range its trajectory occupies at that frame. In `fixed` mode that range stays
+inside a disjoint slot, which makes depth collisions structurally impossible. In
+`unrestricted` mode the slot seeds frame 1 only and the range afterwards is
+derived from the object's scale ratio, so trajectories are validated against
+collisions instead of being made collision-proof by construction.
 """
 
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 
 from data._collision import pair_collides
-from data._depth_track import DepthTrack, active_interval, scale_at
 from data._fusion import assign_depth_slots, bg_normalize, place_in_band, scaled_band
 from data._library import (
     BackgroundAsset,
@@ -36,11 +38,11 @@ from data._sequence_geometry import (
     warp_depth,
     warp_pillow,
 )
+from data._trajectory import DepthRange, sample_end_pose, sample_start_range
 
 _ACTIVE_WIDTH = 0.08
-_Z_NEAR = 0.6
-_Z_FAR = 1.6
 _MAX_SAMPLE_TRIES = 50
+_MAX_RANGE_TRIES = 100
 
 
 @dataclass
@@ -51,7 +53,8 @@ class ObjectTrack:
     pose_end: Pose
     easing: str
     scale_ref: float
-    depth_track: DepthTrack | None = None
+    depth_start: DepthRange | None = None
+    depth_end: DepthRange | None = None
 
 
 @dataclass
@@ -65,6 +68,7 @@ class Scene:
     size: int
     bg_band_top: float = 0.05
     n_rejections: int = 0
+    n_range_fallbacks: int = 0
 
 
 @dataclass
@@ -74,7 +78,7 @@ class RenderedFrame:
     disparity: np.ndarray  # (H, W) float32 in [0, 1]
     object_alphas: list[np.ndarray] = field(
         default_factory=list,
-    )  # per-object, far→near
+    )  # one per object, indexed by position in Scene.objects
 
 
 def sample_scene(
@@ -102,27 +106,35 @@ def sample_scene(
 
     slots = assign_depth_slots(n_objects, bg_band_top=bg_band_top)
 
-    def _build_objects(attempt_rng: random.Random) -> list[ObjectTrack]:
+    def _build_objects(attempt_rng: random.Random) -> tuple[list[ObjectTrack], int]:
         objs: list[ObjectTrack] = []
+        fallbacks = 0
         for idx, fid in enumerate(chosen_fg):
             asset = load_foreground(library_root, fid)
+            # These three draws, in this order, are fixed mode's RNG contract.
+            # The unrestricted branch only draws after them, so switching modes
+            # cannot shift the stream fixed mode sees.
             pose_start = sample_fg_pose(attempt_rng, cfg)
             pose_end = sample_fg_pose(attempt_rng, cfg)
             easing = attempt_rng.choice(cfg.easings)
             slot = slots[idx]
-            depth_track = None
-            if depth_mode == "dynamic":
-                zr = attempt_rng.uniform(_Z_NEAR, _Z_FAR)
-                depth_track = DepthTrack(
-                    env_lo=slot[0],
-                    env_hi=slot[1],
-                    active_width=_ACTIVE_WIDTH,
-                    z_start=attempt_rng.uniform(_Z_NEAR, _Z_FAR),
-                    z_end=attempt_rng.uniform(_Z_NEAR, _Z_FAR),
-                    z_ref=zr,
-                    scale_ref=pose_start.scale,
-                    disp_ref=(slot[0] + slot[1]) / 2.0,
+            depth_start: DepthRange | None = None
+            depth_end: DepthRange | None = None
+            if depth_mode == "unrestricted":
+                depth_start = sample_start_range(
+                    attempt_rng,
+                    slot,
+                    min(_ACTIVE_WIDTH, slot[1] - slot[0]),
                 )
+                pose_end, depth_end, used_fallback = sample_end_pose(
+                    attempt_rng,
+                    cfg,
+                    depth_start,
+                    pose_start.scale,
+                    bg_band_top,
+                    _MAX_RANGE_TRIES,
+                )
+                fallbacks += int(used_fallback)
             objs.append(
                 ObjectTrack(
                     asset=asset,
@@ -131,15 +143,20 @@ def sample_scene(
                     pose_end=pose_end,
                     easing=easing,
                     scale_ref=pose_start.scale,
-                    depth_track=depth_track,
+                    depth_start=depth_start,
+                    depth_end=depth_end,
                 ),
             )
-        # Paint order: farthest (lowest disparity band) drawn first.
-        objs.sort(key=lambda o: o.slot[0])
-        return objs
+        # Frame-1 paint order. Later frames re-sort in render_scene.
+        objs.sort(
+            key=lambda o: (
+                o.depth_start.centre if o.depth_start is not None else o.slot[0]
+            ),
+        )
+        return objs, fallbacks
 
     def _has_collision(objs: list[ObjectTrack]) -> bool:
-        if depth_mode != "dynamic" or len(objs) < 2:
+        if depth_mode != "unrestricted" or len(objs) < 2:
             return False
         for i in range(n_frames):
             t = 0.0 if n_frames == 1 else i / (n_frames - 1)
@@ -149,8 +166,10 @@ def sample_scene(
                 pose = o.pose_start.lerp(o.pose_end, ease)
                 h = build_fg_homography(pose, o.asset.rgb.size[0], size)
                 a = np.asarray(warp_pillow(o.asset.rgb, h, size))[..., 3] / 255.0
-                assert o.depth_track is not None
-                warped.append((a, active_interval(o.depth_track, ease)))
+                assert o.depth_start is not None
+                assert o.depth_end is not None
+                r = o.depth_start.lerp(o.depth_end, ease)
+                warped.append((a, (r.mind, r.maxd)))
             for x in range(len(warped)):
                 for y in range(x + 1, len(warped)):
                     if pair_collides(
@@ -163,12 +182,12 @@ def sample_scene(
         return False
 
     n_rejections = 0
-    objects = _build_objects(rng)
+    objects, n_range_fallbacks = _build_objects(rng)
     while _has_collision(objects):
         n_rejections += 1
         if n_rejections >= _MAX_SAMPLE_TRIES:
             break
-        objects = _build_objects(rng)
+        objects, n_range_fallbacks = _build_objects(rng)
 
     return Scene(
         background=background,
@@ -180,6 +199,7 @@ def sample_scene(
         size=size,
         bg_band_top=bg_band_top,
         n_rejections=n_rejections,
+        n_range_fallbacks=n_range_fallbacks,
     )
 
 
@@ -204,37 +224,40 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
         rgb = bg_rgb.copy()
         union_alpha = np.zeros((size, size), dtype=np.float32)
         disparity = bg_normalize(bg_disp, bg_band_top=scene.bg_band_top)
-        object_alphas: list[np.ndarray] = []
+        # Indexed by object, not by draw order: the spec fixes each object to
+        # one alpha channel for the whole clip, and paint order changes per
+        # frame.
+        object_alphas = [
+            np.zeros((size, size), dtype=np.float32) for _ in scene.objects
+        ]
 
-        def _centre(o: ObjectTrack, _t: float = t) -> float:
+        def _band(idx: int, _t: float = t) -> tuple[float, float, float]:
+            """Target disparity band and its width for object ``idx`` at ``_t``."""
+            o = scene.objects[idx]
             ease = EASING_FNS[o.easing](_t)
-            if o.depth_track is not None:
-                lo, hi = active_interval(o.depth_track, ease)
-                return (lo + hi) / 2.0
-            band_lo, band_hi = scaled_band(
+            if o.depth_start is not None and o.depth_end is not None:
+                r = o.depth_start.lerp(o.depth_end, ease)
+                return r.mind, r.maxd, r.width
+            lo, hi = scaled_band(
                 o.slot[0],
                 o.slot[1],
                 active_width=_ACTIVE_WIDTH,
                 scale_t=o.pose_start.lerp(o.pose_end, ease).scale,
                 scale_ref=o.scale_ref,
             )
-            return (band_lo + band_hi) / 2.0
+            return lo, hi, _ACTIVE_WIDTH
 
-        draw_order = sorted(scene.objects, key=_centre)  # far (low disp) first
-        for obj in draw_order:
+        bands = [_band(idx) for idx in range(len(scene.objects))]
+        # Far (low disparity) first.
+        draw_order = sorted(
+            range(len(scene.objects)),
+            key=lambda idx: (bands[idx][0] + bands[idx][1]) / 2.0,
+        )
+        for idx in draw_order:
+            obj = scene.objects[idx]
             ease = EASING_FNS[obj.easing](t)
             pose = obj.pose_start.lerp(obj.pose_end, ease)
-            if obj.depth_track is not None:
-                pose = replace(pose, scale=scale_at(obj.depth_track, ease))
-                band_lo, band_hi = active_interval(obj.depth_track, ease)
-            else:
-                band_lo, band_hi = scaled_band(
-                    obj.slot[0],
-                    obj.slot[1],
-                    active_width=_ACTIVE_WIDTH,
-                    scale_t=pose.scale,
-                    scale_ref=obj.scale_ref,
-                )
+            band_lo, band_hi, band_width = bands[idx]
             fg_h = build_fg_homography(pose, obj.asset.rgb.size[0], size)
 
             warped_rgba = np.asarray(
@@ -249,14 +272,14 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
                 a,
                 band_lo,
                 band_hi,
-                band_width=_ACTIVE_WIDTH,
+                band_width=band_width,
             )
 
             a3 = a[..., None]
             rgb = a3 * warped_rgba[..., :3] + (1.0 - a3) * rgb
             union_alpha = np.maximum(union_alpha, a)
             disparity = a * obj_disp + (1.0 - a) * disparity
-            object_alphas.append(a.astype(np.float32))
+            object_alphas[idx] = a.astype(np.float32)
 
         frames.append(
             RenderedFrame(
