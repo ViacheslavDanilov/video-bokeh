@@ -114,12 +114,14 @@ def sample_scene(
     background = load_background(library_root, rng.choice(bg_ids))
 
     slots = assign_depth_slots(n_objects, bg_band_top=bg_band_top)
+    # Loaded once, outside the retry loop: a rejected trajectory set changes
+    # only the poses, so re-decoding the PNGs on every attempt is pure I/O.
+    assets = [load_foreground(library_root, fid) for fid in chosen_fg]
 
     def _build_objects(attempt_rng: random.Random) -> tuple[list[ObjectTrack], int]:
         objs: list[ObjectTrack] = []
         fallbacks = 0
-        for idx, fid in enumerate(chosen_fg):
-            asset = load_foreground(library_root, fid)
+        for idx, asset in enumerate(assets):
             # These three draws, in this order, are fixed mode's RNG contract.
             # The unrestricted branch only draws after them, so switching modes
             # cannot shift the stream fixed mode sees.
