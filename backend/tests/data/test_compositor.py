@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from data._library import write_background, write_foreground
@@ -459,3 +460,47 @@ def test_fixed_mode_sampling_is_unchanged_by_the_new_branch(tmp_path) -> None:
     assert [o.pose_start for o in a.objects] == [o.pose_start for o in b.objects]
     assert [o.pose_end for o in a.objects] == [o.pose_end for o in b.objects]
     assert [o.easing for o in a.objects] == [o.easing for o in b.objects]
+
+
+def test_exhausted_retries_raise_instead_of_emitting_a_collision(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    # Goal 8. Force the budget to one attempt on a crowded scene of large,
+    # fully-opaque objects in adjacent slots, so no sample can be
+    # collision-free: the slots are 0.02 apart and the collision margin is
+    # also 0.02, which is not strict separation.
+    import data.compositor as compositor_module
+    from data._sequence_geometry import SampleConfig
+
+    size = 32
+    for fid in ("fg_a", "fg_b"):
+        rgba = np.zeros((size, size, 4), dtype=np.uint8)
+        rgba[:, :, :3] = 200
+        rgba[:, :, 3] = 255  # fully opaque: every placement overlaps
+        write_foreground(
+            tmp_path,
+            fid,
+            Image.fromarray(rgba, "RGBA"),
+            np.ones((size, size), dtype=np.float32),
+            np.full((size, size), 0.5, dtype=np.float32),
+        )
+    write_background(
+        tmp_path,
+        "bg",
+        Image.new("RGB", (size, size), (30, 30, 30)),
+        np.full((size, size), 0.1, dtype=np.float32),
+    )
+    monkeypatch.setattr(compositor_module, "_MAX_SAMPLE_TRIES", 1)
+    cfg = SampleConfig(scale_min=0.79, scale_max=0.80)
+    with pytest.raises(compositor_module.CollisionRetriesExhausted, match="collide"):
+        sample_scene(
+            tmp_path,
+            seed=0,
+            n_frames=2,
+            size=size,
+            n_objects=2,
+            cfg=cfg,
+            bg_band_top=0.90,
+            depth_mode="unrestricted",
+        )

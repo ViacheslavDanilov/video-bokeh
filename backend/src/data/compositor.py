@@ -45,6 +45,15 @@ _MAX_SAMPLE_TRIES = 50
 _MAX_RANGE_TRIES = 100
 
 
+class CollisionRetriesExhausted(RuntimeError):
+    """No collision-free trajectory set was found within the retry budget.
+
+    Raised instead of returning a scene whose objects still overlap at
+    overlapping depth: such a sample has ambiguous depth ordering and would
+    teach the model something untrue.
+    """
+
+
 @dataclass
 class ObjectTrack:
     asset: ForegroundAsset
@@ -186,7 +195,10 @@ def sample_scene(
     while _has_collision(objects):
         n_rejections += 1
         if n_rejections >= _MAX_SAMPLE_TRIES:
-            break
+            raise CollisionRetriesExhausted(
+                f"seed {seed}: {len(objects)} objects still collide after "
+                f"{_MAX_SAMPLE_TRIES} attempts",
+            )
         objects, n_range_fallbacks = _build_objects(rng)
 
     return Scene(
