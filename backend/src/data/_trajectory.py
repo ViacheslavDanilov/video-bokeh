@@ -11,7 +11,10 @@ See docs/superpowers/specs/2026-09-09-unrestricted-trajectories-design.md.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import random
+from dataclasses import dataclass, replace
+
+from data._sequence_geometry import Pose, SampleConfig, sample_fg_pose
 
 _MAX_DISPARITY = 1.0
 
@@ -57,3 +60,49 @@ def derive_end_range(
 def range_in_bounds(r: DepthRange, bg_band_top: float) -> bool:
     """True if the range sits on the foreground part of the disparity axis."""
     return r.mind >= bg_band_top and r.maxd <= _MAX_DISPARITY
+
+
+def sample_start_range(
+    rng: random.Random,
+    slot: tuple[float, float],
+    width: float,
+) -> DepthRange:
+    """Sample the frame-1 range inside the object's assigned band.
+
+    The band constrains this call and nothing after it. ``width`` is capped at
+    the slot width so the range always fits, and a centre is drawn uniformly
+    among the positions where it does.
+    """
+    slot_lo, slot_hi = slot
+    half = min(width, slot_hi - slot_lo) / 2.0
+    centre = rng.uniform(slot_lo + half, slot_hi - half)
+    return DepthRange(mind=centre - half, maxd=centre + half)
+
+
+def sample_end_pose(
+    rng: random.Random,
+    cfg: SampleConfig,
+    start: DepthRange,
+    scale_start: float,
+    bg_band_top: float,
+    max_tries: int,
+) -> tuple[Pose, DepthRange, bool]:
+    """Sample an end pose whose derived depth range stays on the disparity axis.
+
+    Rejection sampling. The depth-scale law is applied exactly and any pose
+    whose implied range leaves ``[bg_band_top, 1.0]`` is discarded, so the law
+    is never bent to fit the axis. A solution always exists because
+    ``scale_end == scale_start`` reproduces the start range, which was sampled
+    inside the band; ``max_tries`` is therefore a guard, and exhausting it falls
+    back to exactly that pose.
+
+    Returns the accepted pose, its derived range, and whether the fallback
+    fired, so the caller can count fallbacks instead of losing them.
+    """
+    for _ in range(max_tries):
+        pose = sample_fg_pose(rng, cfg)
+        end = derive_end_range(start, scale_start, pose.scale)
+        if range_in_bounds(end, bg_band_top):
+            return pose, end, False
+    pose = replace(sample_fg_pose(rng, cfg), scale=scale_start)
+    return pose, derive_end_range(start, scale_start, scale_start), True
