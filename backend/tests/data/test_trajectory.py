@@ -150,3 +150,9 @@ def test_sample_end_pose_falls_back_to_the_start_scale_when_retries_run_out() ->
     assert pose.scale == pytest.approx(0.5)
     assert end == start  # ratio 1.0 reproduces the start range
     assert range_in_bounds(end, 0.05)
+    # The forced scale must also bound the translation: a pose drawn at a small
+    # scale and then forced to a large one exits the frame further than
+    # cfg.max_exit allows.
+    bound = 0.5 - pose.scale * (0.5 - cfg.max_exit)
+    assert abs(pose.tx) <= bound + 1e-12
+    assert abs(pose.ty) <= bound + 1e-12

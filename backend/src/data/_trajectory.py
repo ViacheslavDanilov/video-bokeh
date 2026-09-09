@@ -105,7 +105,8 @@ def sample_end_pose(
     is never bent to fit the axis. A solution always exists because
     ``scale_end == scale_start`` reproduces the start range, which was sampled
     inside the band; ``max_tries`` is therefore a guard, and exhausting it falls
-    back to exactly that pose.
+    back to exactly that pose, with its translation redrawn inside the bound the
+    forced scale allows.
 
     Returns the accepted pose, its derived range, and whether the fallback
     fired, so the caller can count fallbacks instead of losing them.
@@ -115,5 +116,6 @@ def sample_end_pose(
         end = derive_end_range(start, scale_start, pose.scale)
         if range_in_bounds(end, bg_band_top):
             return pose, end, False
-    pose = replace(sample_fg_pose(rng, cfg), scale=scale_start)
+    forced = replace(cfg, scale_min=scale_start, scale_max=scale_start)
+    pose = sample_fg_pose(rng, forced)
     return pose, derive_end_range(start, scale_start, scale_start), True
