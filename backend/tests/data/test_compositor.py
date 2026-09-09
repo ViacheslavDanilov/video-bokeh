@@ -150,30 +150,6 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
     assert disp_range < 0.20  # narrower than active_width*(1+margin), not full slot
 
 
-def test_manifest_records_depth_mode_and_rejections(tmp_path) -> None:
-    import csv
-
-    library = tmp_path / "lib"
-    _tiny_library(library)
-    out = tmp_path / "synth"
-    generate_dataset(
-        library_root=library,
-        output=out,
-        count=1,
-        n_frames=3,
-        size=32,
-        seed=0,
-        depth_mode="dynamic",
-    )
-    with (out / "manifest.csv").open(encoding="utf-8") as f:
-        rows = list(csv.reader(f))
-    header = rows[0]
-    assert "depth_mode" in header
-    assert "n_rejections" in header
-    data_row = rows[1]
-    assert data_row[header.index("depth_mode")] == "dynamic"
-
-
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
     library = tmp_path / "lib"
     _tiny_library(library)
@@ -504,3 +480,63 @@ def test_exhausted_retries_raise_instead_of_emitting_a_collision(
             bg_band_top=0.90,
             depth_mode="unrestricted",
         )
+
+
+def test_manifest_records_the_unrestricted_mode_and_its_counters(tmp_path) -> None:
+    import csv
+
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    written = generate_dataset(
+        library_root=library,
+        output=out,
+        count=1,
+        n_frames=3,
+        size=32,
+        seed=0,
+        depth_mode="unrestricted",
+    )
+    assert written == 1
+    with (out / "manifest.csv").open(encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+    header, data_row = rows[0], rows[1]
+    for field_name in ("depth_mode", "n_rejections", "n_range_fallbacks"):
+        assert field_name in header
+    assert data_row[header.index("depth_mode")] == "unrestricted"
+    assert int(data_row[header.index("n_range_fallbacks")]) >= 0
+
+
+def test_generate_dataset_skips_a_sequence_it_cannot_sample(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    # Goal 8, writer half. A raising sample_scene must cost one sequence, not
+    # the whole run, and the surviving sequences keep their seed-derived names.
+    import data.generate_dataset as writer_module
+    from data.compositor import CollisionRetriesExhausted
+
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    real_sample_scene = writer_module.sample_scene
+
+    def _fail_on_second(*args, **kwargs):
+        if kwargs["seed"] == 1:
+            raise CollisionRetriesExhausted("seed 1: forced")
+        return real_sample_scene(*args, **kwargs)
+
+    monkeypatch.setattr(writer_module, "sample_scene", _fail_on_second)
+    written = generate_dataset(
+        library_root=library,
+        output=out,
+        count=3,
+        n_frames=2,
+        size=32,
+        seed=0,
+        depth_mode="unrestricted",
+    )
+    assert written == 2
+    assert (out / "sequences" / "0001").is_dir()
+    assert not (out / "sequences" / "0002").exists()  # the skipped seed's slot
+    assert (out / "sequences" / "0003").is_dir()
