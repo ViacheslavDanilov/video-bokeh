@@ -27,7 +27,17 @@ import numpy as np
 from PIL import Image
 
 from data._sequence_geometry import SampleConfig
-from data.compositor import RenderedFrame, render_scene, sample_scene
+from data.compositor import (
+    CollisionRetriesExhausted,
+    RenderedFrame,
+    render_scene,
+    sample_scene,
+)
+
+# The alpha stream is one RGB PNG, so it carries exactly three object masks.
+# Lifting this means changing the format (multi-channel TIFF or NumPy), not
+# raising the constant.
+_ALPHA_CHANNELS = 3
 
 _MANIFEST_FIELDS = (
     "seq_id",
@@ -37,6 +47,7 @@ _MANIFEST_FIELDS = (
     "n_objects",
     "depth_mode",
     "n_rejections",
+    "n_range_fallbacks",
 )
 
 
@@ -51,11 +62,15 @@ def _save_frame(
         aif / f"{stem}.png",
         compress_level=6,
     )
-    channels = [
-        np.clip(a * 255, 0, 255).astype(np.uint8) for a in frame.object_alphas[:3]
-    ]
+    if len(frame.object_alphas) > _ALPHA_CHANNELS:
+        raise ValueError(
+            f"frame has {len(frame.object_alphas)} object masks but the "
+            f"alpha stream holds {_ALPHA_CHANNELS}; writing it would drop "
+            f"{len(frame.object_alphas) - _ALPHA_CHANNELS} of them",
+        )
+    channels = [np.clip(a * 255, 0, 255).astype(np.uint8) for a in frame.object_alphas]
     h, w = frame.alpha.shape
-    while len(channels) < 3:
+    while len(channels) < _ALPHA_CHANNELS:
         channels.append(np.zeros((h, w), dtype=np.uint8))
     Image.fromarray(np.stack(channels, axis=-1), "RGB").save(
         alp / f"{stem}.png",
@@ -78,23 +93,42 @@ def generate_dataset(
     n_objects_max: int = 3,
     cfg: SampleConfig | None = None,
     depth_mode: str = "fixed",
-) -> None:
+) -> int:
+    """Write ``count`` sequences and return how many were actually written.
+
+    A sequence whose trajectories cannot be made collision-free is skipped, not
+    written. Sequence names stay tied to the seed, so a skip leaves a gap in the
+    numbering rather than shifting every later sequence onto a different seed.
+    """
+    if n_objects_max > _ALPHA_CHANNELS:
+        raise ValueError(
+            f"n_objects_max={n_objects_max} but the alpha stream holds "
+            f"{_ALPHA_CHANNELS} masks; every object past the third would be "
+            f"present in all_in_focus and disparity but absent from alpha. "
+            f"Lifting the limit needs a multi-channel alpha format.",
+        )
     cfg = cfg or SampleConfig()
     output.mkdir(parents=True, exist_ok=True)
     rows: list[list[str]] = []
+    skipped: list[int] = []
 
     for i in range(count):
         seq_seed = seed + i
         n_obj = random.Random(f"nobj:{seq_seed}").randint(n_objects_min, n_objects_max)
-        scene = sample_scene(
-            library_root,
-            seed=seq_seed,
-            n_frames=n_frames,
-            size=size,
-            n_objects=n_obj,
-            cfg=cfg,
-            depth_mode=depth_mode,
-        )
+        try:
+            scene = sample_scene(
+                library_root,
+                seed=seq_seed,
+                n_frames=n_frames,
+                size=size,
+                n_objects=n_obj,
+                cfg=cfg,
+                depth_mode=depth_mode,
+            )
+        except CollisionRetriesExhausted as exc:
+            skipped.append(seq_seed)
+            print(f"  skip  seed={seq_seed}  {exc}")
+            continue
         frames = render_scene(scene)
 
         seq_name = f"{i + 1:04d}"
@@ -116,6 +150,7 @@ def generate_dataset(
                 str(len(scene.objects)),
                 depth_mode,
                 str(scene.n_rejections),
+                str(scene.n_range_fallbacks),
             ],
         )
         print(
@@ -127,6 +162,10 @@ def generate_dataset(
         writer = csv.writer(f)
         writer.writerow(_MANIFEST_FIELDS)
         writer.writerows(rows)
+
+    if skipped:
+        print(f"\nSkipped {len(skipped)} of {count} sequences; seeds: {skipped}")
+    return len(rows)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -141,27 +180,34 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-objects-max", type=int, default=3)
     parser.add_argument(
         "--depth-mode",
-        choices=("fixed", "dynamic"),
+        choices=("fixed", "unrestricted"),
         default="fixed",
-        help="fixed = disjoint slots (default); dynamic = z(t) tracks + validator.",
+        help=(
+            "fixed = disjoint slots (default); unrestricted = free trajectories "
+            "with a collision validator."
+        ),
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
-    generate_dataset(
-        library_root=args.library_root,
-        output=args.output,
-        count=args.count,
-        n_frames=args.frames,
-        size=args.size,
-        seed=args.seed,
-        n_objects_min=args.n_objects_min,
-        n_objects_max=args.n_objects_max,
-        depth_mode=args.depth_mode,
-    )
-    print(f"\nDone. Sequences in {args.output / 'sequences'}")
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    try:
+        written = generate_dataset(
+            library_root=args.library_root,
+            output=args.output,
+            count=args.count,
+            n_frames=args.frames,
+            size=args.size,
+            seed=args.seed,
+            n_objects_min=args.n_objects_min,
+            n_objects_max=args.n_objects_max,
+            depth_mode=args.depth_mode,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(f"\nDone. {written} sequences in {args.output / 'sequences'}")
     return 0
 
 

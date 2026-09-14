@@ -66,8 +66,17 @@ Thumbs.db
 # Claude Code
 .claude
 
-# Obsidian (per-user UI state, recovery cache)
-vault/
+# Personal docs working area. `docs/` is the Obsidian vault root; the shared
+# folders (explanation/how-to/reference) plus README and STYLE are tracked,
+# everything below is local-only. A new personal folder needs a new line.
+docs/meetings/
+docs/reports/
+docs/specs/
+docs/plans/
+docs/templates/
+docs/attachments/
+docs/dashboard.md
+docs/.obsidian/
+docs/.smart-env/
 
-# Docs
-docs/
+.DS_Store
