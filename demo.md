@@ -25,7 +25,7 @@ The current `library_dev` holds 12 foregrounds and 20 backgrounds, which is enou
 
 ## 1. The main comparison: fixed vs unrestricted, same seed
 
-This is the one to run first. Same seeds, same assets, same motion sampling for the first three draws — only the depth model differs.
+This is the one to run first. The same seed gives both runs the same background and the same foreground objects, because those are drawn before any trajectory is built. The motion itself differs: the unrestricted branch consumes extra random draws while rejecting end poses, and it orders objects by depth rather than by slot. So this is an A/B of the two depth models on the same assets, not the same clip rendered twice.
 
 ```bash
 cd backend
@@ -131,7 +131,9 @@ uv run python -m data.generate_dataset \
 
 If the run prints `Skipped N of 10 sequences`, the named seeds are the crowded ones. That is the validator refusing to emit an ambiguous sample, not a failure.
 
-For a full-resolution look, raise `--size` to 1024. Budget roughly 3 seconds per scene for trajectory sampling alone at 3 objects and 80 frames, before any rendering: the collision validator warps every object's mask on every frame, and rejected attempts pay that cost again.
+Recipe 1 as written (4 sequences, 80 frames, size 512) took 12.5 s in `fixed` and 13.9 s in `unrestricted` on this machine. The difference is the collision validator, which warps every object's mask on every frame and pays that cost again for each rejected attempt.
+
+For a full-resolution look, raise `--size` to 1024. Budget roughly 3 seconds per scene for trajectory sampling alone at 3 objects and 80 frames, before any rendering.
 
 ---
 
