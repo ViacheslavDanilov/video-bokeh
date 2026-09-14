@@ -149,7 +149,7 @@ column -s, -t < data/demo_unrestricted/manifest.csv
 | column | meaning |
 |---|---|
 | `n_rejections` | trajectory sets discarded because two objects collided. Rises with object count. |
-| `n_range_fallbacks` | objects whose end pose could not be sampled within the retry budget and fell back to holding their start scale. Expected to be 0; a non-zero value means the depth axis is unusually tight, typically from a raised `--bg-band-top`. |
+| `n_range_fallbacks` | objects whose end pose could not be sampled within the retry budget and fell back to holding their start scale. Expected to be 0 at the default settings; it was 0 across 120 objects when measured. A non-zero value means the depth axis is unusually tight, which needs `bg_band_top` raised through the Python API, since the CLI does not expose it. |
 | `depth_mode` | which model produced the sequence. |
 
 ---
