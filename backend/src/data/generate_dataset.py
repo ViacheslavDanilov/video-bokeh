@@ -34,6 +34,11 @@ from data.compositor import (
     sample_scene,
 )
 
+# The alpha stream is one RGB PNG, so it carries exactly three object masks.
+# Lifting this means changing the format (multi-channel TIFF or NumPy), not
+# raising the constant.
+_ALPHA_CHANNELS = 3
+
 _MANIFEST_FIELDS = (
     "seq_id",
     "seed",
@@ -57,11 +62,15 @@ def _save_frame(
         aif / f"{stem}.png",
         compress_level=6,
     )
-    channels = [
-        np.clip(a * 255, 0, 255).astype(np.uint8) for a in frame.object_alphas[:3]
-    ]
+    if len(frame.object_alphas) > _ALPHA_CHANNELS:
+        raise ValueError(
+            f"frame has {len(frame.object_alphas)} object masks but the "
+            f"alpha stream holds {_ALPHA_CHANNELS}; writing it would drop "
+            f"{len(frame.object_alphas) - _ALPHA_CHANNELS} of them",
+        )
+    channels = [np.clip(a * 255, 0, 255).astype(np.uint8) for a in frame.object_alphas]
     h, w = frame.alpha.shape
-    while len(channels) < 3:
+    while len(channels) < _ALPHA_CHANNELS:
         channels.append(np.zeros((h, w), dtype=np.uint8))
     Image.fromarray(np.stack(channels, axis=-1), "RGB").save(
         alp / f"{stem}.png",
@@ -91,6 +100,13 @@ def generate_dataset(
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
     numbering rather than shifting every later sequence onto a different seed.
     """
+    if n_objects_max > _ALPHA_CHANNELS:
+        raise ValueError(
+            f"n_objects_max={n_objects_max} but the alpha stream holds "
+            f"{_ALPHA_CHANNELS} masks; every object past the third would be "
+            f"present in all_in_focus and disparity but absent from alpha. "
+            f"Lifting the limit needs a multi-channel alpha format.",
+        )
     cfg = cfg or SampleConfig()
     output.mkdir(parents=True, exist_ok=True)
     rows: list[list[str]] = []
@@ -175,18 +191,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
-    written = generate_dataset(
-        library_root=args.library_root,
-        output=args.output,
-        count=args.count,
-        n_frames=args.frames,
-        size=args.size,
-        seed=args.seed,
-        n_objects_min=args.n_objects_min,
-        n_objects_max=args.n_objects_max,
-        depth_mode=args.depth_mode,
-    )
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    try:
+        written = generate_dataset(
+            library_root=args.library_root,
+            output=args.output,
+            count=args.count,
+            n_frames=args.frames,
+            size=args.size,
+            seed=args.seed,
+            n_objects_min=args.n_objects_min,
+            n_objects_max=args.n_objects_max,
+            depth_mode=args.depth_mode,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     print(f"\nDone. {written} sequences in {args.output / 'sequences'}")
     return 0
 

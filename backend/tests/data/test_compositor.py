@@ -574,3 +574,60 @@ def test_generate_dataset_skips_a_sequence_it_cannot_sample(
     assert (out / "sequences" / "0001").is_dir()
     assert not (out / "sequences" / "0002").exists()  # the skipped seed's slot
     assert (out / "sequences" / "0003").is_dir()
+
+
+def test_generate_dataset_refuses_more_objects_than_alpha_channels(tmp_path) -> None:
+    # The alpha stream is a 3-channel PNG. Asking for more objects than that
+    # used to write the first three masks and drop the rest without a word,
+    # producing sequences whose RGB and disparity contain objects the alpha
+    # stream never mentions.
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    with pytest.raises(ValueError, match="alpha stream holds 3"):
+        generate_dataset(
+            library_root=library,
+            output=tmp_path / "synth",
+            count=1,
+            n_frames=2,
+            size=32,
+            seed=0,
+            n_objects_max=4,
+            depth_mode="unrestricted",
+        )
+    assert not (tmp_path / "synth" / "sequences").exists()
+
+
+def test_save_frame_refuses_to_drop_a_mask(tmp_path) -> None:
+    # Second line of defence: any caller handing over more masks than the
+    # format carries is a bug, not something to silently truncate.
+    from data.compositor import RenderedFrame
+    from data.generate_dataset import _save_frame
+
+    size = 8
+    frame = RenderedFrame(
+        rgb=np.zeros((size, size, 3), dtype=np.float32),
+        alpha=np.zeros((size, size), dtype=np.float32),
+        disparity=np.zeros((size, size), dtype=np.float32),
+        object_alphas=[np.zeros((size, size), dtype=np.float32) for _ in range(4)],
+    )
+    for d in ("aif", "alp", "disp"):
+        (tmp_path / d).mkdir()
+    with pytest.raises(ValueError, match="alpha stream holds 3"):
+        _save_frame(frame, "01", tmp_path / "aif", tmp_path / "alp", tmp_path / "disp")
+
+
+def test_generate_dataset_still_accepts_three_objects(tmp_path) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    written = generate_dataset(
+        library_root=library,
+        output=tmp_path / "synth",
+        count=1,
+        n_frames=2,
+        size=32,
+        seed=0,
+        n_objects_min=1,
+        n_objects_max=3,
+        depth_mode="unrestricted",
+    )
+    assert written == 1
