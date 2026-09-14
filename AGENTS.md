@@ -106,8 +106,7 @@ CI mirrors these in `.github/workflows/ci.yaml`. If a step passes locally but fa
 - `backend/src/video_bokeh/` — FastAPI runtime
 - `backend/src/data/` — dataset download + preprocessing scripts (run from `backend/`)
 - `frontend/src/` — Next.js app
-- `vault/` — long-form writeups and reports (see `vault/` writing style if you're editing those)
-- `docs/` — design specs and decision records
+- `docs/` — documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/` and `reference/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
 - `scripts/` — repo-level setup scripts (`setup_third_party.sh`, etc.)
 
 ## Working principles
