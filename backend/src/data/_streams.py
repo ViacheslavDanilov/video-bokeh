@@ -44,7 +44,17 @@ def write_alpha_tiff(path: Path, masks: list[np.ndarray]) -> None:
     pages = np.stack(
         [(np.clip(m, 0.0, 1.0) * _U8_MAX).round().astype(np.uint8) for m in masks],
     )
-    tifffile.imwrite(path, pages, compression="deflate", predictor=True)
+    # photometric="minisblack" is load-bearing, not decoration. Without it tifffile
+    # infers meaning from the shape: (3, H, W) becomes one RGB page and (4, H, W)
+    # one RGBA page, so three or four masks -- the commonest counts -- would be
+    # silently interleaved into a single colour image and read back as one mask.
+    tifffile.imwrite(
+        path,
+        pages,
+        photometric="minisblack",
+        compression="deflate",
+        predictor=True,
+    )
 
 
 def read_alpha_tiff(path: Path) -> list[np.ndarray]:

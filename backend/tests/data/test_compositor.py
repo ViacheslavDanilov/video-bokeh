@@ -5,20 +5,24 @@ import pytest
 from PIL import Image
 
 from data._library import write_background, write_foreground
+from data._streams import read_alpha_tiff, read_disparity_png
 from data.build_library import DEFAULT_BG_MARGIN
 from data.compositor import render_scene, sample_scene
 from data.generate_dataset import generate_dataset
 
 
-def _tiny_library(root) -> None:
-    # Two foregrounds: a centred opaque square each, flat depth.
-    for fid, val in (("fg_a", 0.6), ("fg_b", 0.9)):
+def _tiny_library(root, n_fg: int = 2, half: int = 8) -> None:
+    # ``n_fg`` foregrounds: a centred opaque square each, flat depth. ``half``
+    # shrinks the square, which is what makes crowded scenes placeable at all --
+    # five 16x16 objects on a 32x32 frame collide no matter how they are posed.
+    for i in range(n_fg):
+        val = 0.6 + 0.3 * i / max(n_fg - 1, 1)
         rgba = np.zeros((32, 32, 4), dtype=np.uint8)
-        rgba[8:24, 8:24, :3] = 200
-        rgba[8:24, 8:24, 3] = 255
+        rgba[16 - half : 16 + half, 16 - half : 16 + half, :3] = 200
+        rgba[16 - half : 16 + half, 16 - half : 16 + half, 3] = 255
         alpha = (rgba[..., 3] / 255.0).astype(np.float32)
         depth = np.full((32, 32), val, dtype=np.float32)
-        write_foreground(root, fid, Image.fromarray(rgba, "RGBA"), alpha, depth)
+        write_foreground(root, f"fg_{i}", Image.fromarray(rgba, "RGBA"), alpha, depth)
     write_background(
         root,
         "bg",
@@ -170,8 +174,11 @@ def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
     for sid in ("0001", "0002"):
         seq = out / "sequences" / sid
         assert len(list((seq / "all_in_focus").glob("*.png"))) == 3
-        assert len(list((seq / "alpha").glob("*.png"))) == 3
+        assert len(list((seq / "alpha").glob("*.tif"))) == 3
         assert len(list((seq / "disparity").glob("*.png"))) == 3
+        # the streams are the formats the contract names, not just the right count
+        with Image.open(seq / "disparity" / "01.png") as dimg:
+            assert dimg.mode == "I;16"
 
 
 def _overlapping_pair_scene(tmp_path, range_a, range_b, n_frames=2, size=32):
@@ -464,7 +471,7 @@ def test_exhausted_retries_raise_instead_of_emitting_a_collision(
     from data._sequence_geometry import SampleConfig
 
     size = 32
-    for fid in ("fg_a", "fg_b"):
+    for fid in ("fg_0", "fg_1"):
         rgba = np.zeros((size, size, 4), dtype=np.uint8)
         rgba[:, :, :3] = 200
         rgba[:, :, 3] = 255  # fully opaque: every placement overlaps
@@ -553,29 +560,31 @@ def test_generate_dataset_skips_a_sequence_it_cannot_sample(
     assert (out / "sequences" / "0003").is_dir()
 
 
-def test_generate_dataset_refuses_more_objects_than_alpha_channels(tmp_path) -> None:
-    # The alpha stream is a 3-channel PNG. Asking for more objects than that
-    # used to write the first three masks and drop the rest without a word,
-    # producing sequences whose RGB and disparity contain objects the alpha
-    # stream never mentions.
+def test_generate_dataset_writes_a_page_per_object_past_three(tmp_path) -> None:
+    # The three-object ceiling was the RGB PNG's, not the pipeline's. With a
+    # multi-page TIFF the count is bounded only by what the depth axis can place.
     library = tmp_path / "lib"
-    _tiny_library(library)
-    with pytest.raises(ValueError, match="alpha stream holds 3"):
-        generate_dataset(
-            library_root=library,
-            output=tmp_path / "synth",
-            count=1,
-            n_frames=2,
-            size=32,
-            seed=0,
-            n_objects_max=4,
-        )
-    assert not (tmp_path / "synth" / "sequences").exists()
+    _tiny_library(library, n_fg=5, half=3)
+    out = tmp_path / "synth"
+    written = generate_dataset(
+        library_root=library,
+        output=out,
+        count=1,
+        n_frames=2,
+        size=32,
+        seed=0,
+        n_objects_min=5,
+        n_objects_max=5,
+    )
+    assert written == 1
+
+    frame = out / "sequences" / "0001" / "alpha" / "01.tif"
+    assert len(read_alpha_tiff(frame)) == 5
 
 
-def test_save_frame_refuses_to_drop_a_mask(tmp_path) -> None:
-    # Second line of defence: any caller handing over more masks than the
-    # format carries is a bug, not something to silently truncate.
+def test_save_frame_writes_every_mask_it_is_given(tmp_path) -> None:
+    # This replaces a guard that refused more than three masks. The format no
+    # longer truncates, so the test that mattered is now the positive one.
     from data.compositor import RenderedFrame
     from data.generate_dataset import _save_frame
 
@@ -583,26 +592,36 @@ def test_save_frame_refuses_to_drop_a_mask(tmp_path) -> None:
     frame = RenderedFrame(
         rgb=np.zeros((size, size, 3), dtype=np.float32),
         alpha=np.zeros((size, size), dtype=np.float32),
-        disparity=np.zeros((size, size), dtype=np.float32),
-        object_alphas=[np.zeros((size, size), dtype=np.float32) for _ in range(4)],
+        disparity=np.full((size, size), 0.5, dtype=np.float32),
+        object_alphas=[
+            np.full((size, size), 0.2 * (i + 1), dtype=np.float32) for i in range(7)
+        ],
     )
     for d in ("aif", "alp", "disp"):
         (tmp_path / d).mkdir()
-    with pytest.raises(ValueError, match="alpha stream holds 3"):
-        _save_frame(frame, "01", tmp_path / "aif", tmp_path / "alp", tmp_path / "disp")
+    _save_frame(frame, "01", tmp_path / "aif", tmp_path / "alp", tmp_path / "disp")
+
+    pages = read_alpha_tiff(tmp_path / "alp" / "01.tif")
+    assert len(pages) == 7
+    assert read_disparity_png(tmp_path / "disp" / "01.png").mean() == pytest.approx(
+        0.5,
+        abs=1e-4,
+    )
 
 
 def test_generate_dataset_still_accepts_three_objects(tmp_path) -> None:
     library = tmp_path / "lib"
-    _tiny_library(library)
+    _tiny_library(library, n_fg=3, half=4)
+    out = tmp_path / "synth"
     written = generate_dataset(
         library_root=library,
-        output=tmp_path / "synth",
+        output=out,
         count=1,
         n_frames=2,
         size=32,
         seed=0,
-        n_objects_min=1,
+        n_objects_min=3,
         n_objects_max=3,
     )
     assert written == 1
+    assert len(read_alpha_tiff(out / "sequences" / "0001" / "alpha" / "01.tif")) == 3

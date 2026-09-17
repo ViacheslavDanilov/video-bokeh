@@ -54,9 +54,9 @@ Written by `data.generate_dataset`. This is the layout `prepare_any_to_bokeh.py`
 <output>/
 ├── manifest.csv
 └── sequences/<seq-id>/
-    ├── all_in_focus/<frame>.png   RGB  uint8  the sharp composite
-    ├── alpha/<frame>.png          RGB  uint8  one object mask per colour channel
-    └── disparity/<frame>.png      L    uint8  disparity, larger = closer
+    ├── all_in_focus/<frame>.png   RGB    uint8   the sharp composite
+    ├── alpha/<frame>.tif          multi-page uint8, one page per object
+    └── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
 ```
 
 - `<seq-id>` is 4 digits, 1-based: `0001`, `0002`.
@@ -67,11 +67,20 @@ Written by `data.generate_dataset`. This is the layout `prepare_any_to_bokeh.py`
 
 ### The three streams
 
-| stream | mode | dtype | what a pixel means |
+| stream | format | dtype | what a pixel means |
 |---|---|---|---|
-| `all_in_focus` | RGB | uint8 | the composite with nothing blurred |
-| `alpha` | RGB | uint8 | channel `c` is object `c`'s matte, `0`–`255`, soft |
-| `disparity` | L | uint8 | `[0, 1]` disparity scaled to `[0, 255]`, larger = closer |
+| `all_in_focus` | PNG, RGB | uint8 | the composite with nothing blurred |
+| `alpha` | TIFF, multi-page | uint8 | page `k` is object `k`'s matte, `0`–`255`, soft |
+| `disparity` | PNG, `I;16` | uint16 | `[0, 1]` disparity scaled to `[0, 65535]`, larger = closer |
+
+Both sides of these formats live in `src/data/_streams.py`, so the writer and the reader
+cannot drift apart.
+
+**The alpha TIFF is multi-page, never multi-sample.** Pillow raises
+`UnidentifiedImageError` on a TIFF with more than four samples per pixel; it reads a paged
+file exactly. The writer pins `photometric="minisblack"` for a second reason: without it
+`tifffile` infers meaning from the array shape, turning three masks into one RGB page and four
+into one RGBA page — silently, and exactly at the commonest object counts.
 
 **Alpha masks are soft and they overlap.** Measured over 24 frames: every frame has partially
 transparent pixels, a median 7.9 % of the frame, and 13 of 24 frames had two objects with
@@ -82,19 +91,28 @@ represent them.
 **Disparity, not depth.** Larger means closer, throughout the pipeline. The background
 occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live above it.
 
-### The three-object ceiling
+### How many objects a scene can hold
 
-`_ALPHA_CHANNELS = 3` in `generate_dataset.py`. Asking for more is refused, loudly, rather
-than silently dropping masks:
+There is no format ceiling any more. A multi-page TIFF takes as many masks as it is given, and
+`--n-objects-max` defaults to **5**.
 
-```
-n_objects_max=4 but the alpha stream holds 3 masks; every object past the third would be
-present in all_in_focus and disparity but absent from alpha.
-```
+The limit is now the depth axis. Objects get disjoint slots above the background, so each
+extra object makes every slot narrower and collisions harder to avoid. Measured over 12 scenes
+of 40 frames:
 
-The cap comes from the container, not from the pipeline. A PNG carries at most four channels
-— grayscale, GA, RGB, RGBA — and the writer currently uses RGB, leaving the fourth unused.
-Lifting the limit past four is a format change.
+| objects | slot width | skipped | mean rejections | sec/scene |
+|---|---|---|---|---|
+| 3 | 0.303 | 0 | 0.42 | 0.31 |
+| 4 | 0.222 | 0 | 0.83 | 0.45 |
+| 5 | 0.174 | 0 | 5.17 | 1.12 |
+| 6 | 0.142 | 2 | 8.75 | 2.18 |
+| 8 | 0.101 | 11 | 1.42 | 3.48 |
+
+Five places every scene. Six starts losing them, and eight loses 11 of 12 — its low rejection
+count is an artifact of scenes hitting the retry cap and being skipped rather than counted.
+
+Above five, raise `bg_band_top`, the slot `gap`, or `_ACTIVE_WIDTH` rather than expecting the
+writer to refuse.
 
 ### `manifest.csv`
 

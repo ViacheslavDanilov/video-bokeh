@@ -65,6 +65,26 @@ def test_alpha_keeps_soft_edges(tmp_path: Path) -> None:
     assert partial > 50, f"only {partial} partially transparent pixels survived"
 
 
+@pytest.mark.parametrize("n", [1, 2, 3, 4, 5, 6, 7])
+def test_every_object_count_writes_that_many_pages(tmp_path: Path, n: int) -> None:
+    """Regression: tifffile infers meaning from shape unless told otherwise.
+
+    A (3, H, W) array became one RGB page and (4, H, W) one RGBA page, so three and
+    four masks -- the commonest counts -- were silently interleaved into a single
+    colour image and read back as one mask. Only sweeping the count catches it: the
+    boundary is invisible at 1, 2 and 5.
+    """
+    masks = [np.full((16, 16), (i + 1) / 10.0, dtype=np.float32) for i in range(n)]
+    path = tmp_path / "01.tif"
+    write_alpha_tiff(path, masks)
+
+    back = read_alpha_tiff(path)
+    assert len(back) == n
+    for i, page in enumerate(back):
+        assert page.shape == (16, 16)
+        assert float(page.mean()) == pytest.approx((i + 1) / 10.0, abs=_U8_STEP)
+
+
 def test_single_mask_is_still_a_valid_tiff(tmp_path: Path) -> None:
     path = tmp_path / "01.tif"
     write_alpha_tiff(path, [_soft_mask(16, 8, 8, 5.0)])
