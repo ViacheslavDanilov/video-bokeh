@@ -76,12 +76,14 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 
 - `.env` files are gitignored. Never commit them or paste their contents into chat logs.
 - `backend/.env.example` is the only template that's checked in.
-- Dataset directories under `backend/data/` and model weights under `backend/models/` are gitignored and excluded from pre-commit (see `exclude:` in `.pre-commit-config.yaml`). Don't add files there to git.
+- Model weights under `backend/models/` are gitignored and excluded from pre-commit (see `exclude:` in `.pre-commit-config.yaml`). Don't add files there to git.
+- **`backend/data/` is a deliberate exception.** Most of it is gitignored, but the small development pools are tracked on purpose: `magick_dev/` (20 foregrounds), `bg-20k_dev/` (20 backgrounds) and `magick_metadata.csv`. Cloning the repo is then enough to run the pipeline — no downloads, no Kaggle credentials, no waiting. That is worth the 56 MB, of which `magick_metadata.csv` alone is 15.4 MB.
+- Everything *generated* under `backend/data/` stays ignored: `library*/`, `synth*/` and anything else a run produces. Adding a generated tree to git is still wrong; adding a source asset the dev recipes depend on is not.
 
 ## Don't touch
 
 - `backend/third_party/` — git submodules (currently `any-to-bokeh`). Treat as read-only vendored code.
-- `backend/models/`, `backend/data/` — large binary artifacts, gitignored.
+- `backend/models/` — large binary artifacts, gitignored. `backend/data/` is mostly gitignored, with the tracked exception described under "Secrets and data".
 - `frontend/.next/`, `frontend/node_modules/`, `.venv/`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/` — generated.
 
 ## Verification before claiming done
