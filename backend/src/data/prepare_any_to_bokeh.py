@@ -245,8 +245,15 @@ def main(argv: list[str] | None = None) -> int:
         writer.writerows(rows)
 
     print(f"\nDone. CSV: {csv_path}")
-    print(f"Run any-to-bokeh from {a2b_root}:")
-    print(f"  python test/inference_demo.py --val_csv_path csv_file/{dataset_name}.csv")
+    print(f"Inference working directory: {a2b_root}")
+    if (a2b_root / "test/inference_demo.py").is_file():
+        print(
+            f"  python test/inference_demo.py --val_csv_path csv_file/{dataset_name}.csv",
+        )
+    else:
+        print(
+            "Inputs only: use absolute paths to the inference script and checkpoints.",
+        )
     return 0
 
 
