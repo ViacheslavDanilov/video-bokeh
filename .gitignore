@@ -63,8 +63,14 @@ backend/third_party/*/gdino_checkpoints/
 .DS_Store
 Thumbs.db
 
-# Claude Code
-.claude
+# Claude Code. The skills and the push-blocking hook are shared working
+# agreements -- AGENTS.md already points at .claude/settings.json -- so they are
+# tracked. Per-machine overrides and local state are not.
+.claude/*
+!.claude/skills/
+!.claude/hooks/
+!.claude/settings.json
+.claude/settings.local.json
 
 # Personal docs working area. `docs/` is the Obsidian vault root; the shared
 # folders (explanation/how-to/reference) plus README and STYLE are tracked,
