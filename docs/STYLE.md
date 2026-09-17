@@ -17,7 +17,9 @@ Plain, direct prose. The vault is read by Pablo and Valery as well as Slava — 
 6. **Numbered recipes for processes.** Five short steps beat one long paragraph.
 7. **Concrete numbers, not qualifiers.** "8,586 assets" not "a large subset"; "~30 min" not "a while."
 8. **Each decision / open question / trade-off gets its own labelled bullet.** Never bury a decision inside prose.
-9. **Avoid Latin and math notation in prose** (`i.e.`, `e.g.`, `≲`, `∈`) unless it's strictly more compact and the audience expects it. Prefer "about," "for example," "in."
+9. **No shell commands in `explanation/`.** A page with a `$` or a ```bash fence is a how-to or a reference, whatever folder it sits in. This one is greppable, so it is the rule that actually holds.
+10. **A command lives in exactly one file.** Everything else links to it. The same command in three places is three chances to rot, and when the copies disagree nobody can tell which is right.
+11. **Avoid Latin and math notation in prose** (`i.e.`, `e.g.`, `≲`, `∈`) unless it's strictly more compact and the audience expects it. Prefer "about," "for example," "in."
 
 ## Where this applies
 

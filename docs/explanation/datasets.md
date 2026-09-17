@@ -25,7 +25,8 @@ Index of datasets used or considered for the video-bokeh project. Group them by 
 
 ## Building our own data
 
-- **[[synthetic-data-pipeline]]** — how to run the two-stage pipeline (build the artifact library, then generate sequences) at any resolution, including 1024×1024.
+- **[[generate-a-dataset]]** — how to run the two-stage pipeline: build the artifact library, then generate sequences.
+- **[[dataset-layout]]** — what the pipeline writes to disk, with formats and bit depths.
 
 ## Cross-references
 

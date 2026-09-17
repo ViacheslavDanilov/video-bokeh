@@ -1,3 +1,10 @@
+---
+type: how-to
+status: active
+tags: [how-to, unrestricted-trajectories, demo, vpv, runbook]
+related: [pipeline-explainer, generate-a-dataset, dataset-layout]
+---
+
 # Unrestricted trajectories — demo
 
 How to exercise the `unrestricted` depth mode and judge the result by eye in `vpv`.
