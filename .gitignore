@@ -86,3 +86,6 @@ docs/.obsidian/
 docs/.smart-env/
 
 .DS_Store
+
+# Superseded docs, kept locally until reviewed and deleted by hand.
+docs/deprecated/

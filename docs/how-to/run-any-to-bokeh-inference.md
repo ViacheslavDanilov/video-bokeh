@@ -1,0 +1,103 @@
+---
+type: how-to
+status: active
+tags: [how-to, any-to-bokeh, inference, bokeh, runbook]
+related: [dataset-layout, generate-a-dataset, cli]
+---
+
+# Run any-to-bokeh inference
+
+Converts a generated sequence tree into the layout the vendored `any-to-bokeh` code expects,
+then runs its inference script.
+
+Commands run from `backend/`. All of them have been executed as written, except the inference
+step itself, which needs the model checkpoints.
+
+---
+
+## 1. Convert the sequences
+
+```bash
+uv run python -m data.prepare_any_to_bokeh --data-root data/demo_unrestricted
+```
+
+```
+  0001: wrote 80 frame(s)
+  0002: wrote 80 frame(s)
+
+Done. CSV: third_party/any-to-bokeh/csv_file/demo_unrestricted.csv
+Inference working directory: third_party/any-to-bokeh
+  python test/inference_demo.py --val_csv_path csv_file/demo_unrestricted.csv
+```
+
+The last line appears only when the inference script is actually present. Without the
+submodule checked out, the command still writes its inputs and says so instead of printing a
+path that does not exist.
+
+What lands where is in [[dataset-layout]].
+
+---
+
+## 2. Choose the focus plane
+
+The renderer needs one in-focus disparity per frame, and it reads it out of the disparity
+filename — `01_zf_0.500000.png`.
+
+| what you want | flag |
+|---|---|
+| Follow the subject: focus on the mean disparity under the alpha mask | default, or `--focus alpha` |
+| Focus on the mean disparity of the whole frame | `--focus full` |
+| Pin one focus plane for the entire clip | `--focus-disparity 0.5` |
+
+**Pin the focus when you are comparing frames rather than following a subject.** With the
+default the focus chases the object, so a clip where the object moves through depth never
+shows it going out of focus — which is usually the thing you wanted to see.
+
+```bash
+uv run python -m data.prepare_any_to_bokeh \
+  --data-root data/demo_unrestricted --dataset-name pinned --focus-disparity 0.5
+```
+
+```
+third_party/any-to-bokeh/demo_dataset/pinned/disp/0001/01_zf_0.500000.png
+```
+
+`--focus-disparity` overrides `--focus` and is rejected outside `[0, 1]`.
+
+---
+
+## 3. Run inference
+
+```bash
+cd third_party/any-to-bokeh
+python test/inference_demo.py --val_csv_path csv_file/demo_unrestricted.csv
+```
+
+`third_party/any-to-bokeh` is a submodule and read-only — do not edit anything inside it. It
+needs its own environment and checkpoints; see `scripts/setup_third_party.sh`.
+
+**`--k` sets blur strength**, written into the CSV as a column, `16` by default. It is a
+property of the conversion, not of the dataset, so re-running the bridge with a different
+`--k` and a different `--dataset-name` is how you compare blur strengths.
+
+---
+
+## Known defect
+
+Disparity is quantized to 8 bits twice: once when Stage B writes it, once more inside the
+bridge. Harmless today, because the input is already 8-bit. It becomes a silent precision
+loss the moment the disparity stream gains bit depth, and no test covers it. Recorded in
+[[dataset-layout]].
+
+---
+
+## Clean up
+
+The bridge writes into the submodule's working tree. To leave it clean:
+
+```bash
+rm -rf third_party/any-to-bokeh/demo_dataset/demo_unrestricted \
+       third_party/any-to-bokeh/demo_dataset/pinned \
+       third_party/any-to-bokeh/csv_file/demo_unrestricted.csv \
+       third_party/any-to-bokeh/csv_file/pinned.csv
+```
