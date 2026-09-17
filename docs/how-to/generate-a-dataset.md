@@ -61,18 +61,17 @@ uv run python -m data.build_library \
 
 ```bash
 uv run python -m data.generate_dataset \
-  --library-root data/library_dev --output data/demo_unrestricted \
-  --count 4 --frames 80 --size 512 --seed 0 --depth-mode unrestricted
+  --library-root data/library_dev --output data/demo \
+  --count 4 --frames 80 --size 512 --seed 0
 ```
 
-**`--depth-mode` picks the depth model.** `fixed` pins every object inside its own depth slot
-for the whole clip. `unrestricted` lets objects move through depth freely and validates the
-result against collisions. `unrestricted` is the current design; `fixed` is the baseline it
-replaced.
+**Objects move freely through depth**, and their on-screen size and their distance move
+together. Every sampled trajectory set is checked against collisions, and one that cannot be
+made collision-free is resampled rather than written.
 
-Measured on `library_dev`, 4 sequences of 80 frames at size 512: **13.6 s** in `fixed`,
-**14.9 s** in `unrestricted`. The difference is the collision validator, which warps every
-mask on every frame and pays that cost again for each rejected attempt.
+Measured on `library_dev`, 4 sequences of 80 frames at size 512: **14.9 s**. Most of that is
+the collision validator, which warps every mask on every frame and pays that cost again for
+each rejected attempt.
 
 **Sequence names follow the seed.** Sequence `i` always comes from `seed + i`, so a sequence
 the validator rejects leaves a gap in the numbering instead of shifting every later sequence
@@ -83,7 +82,7 @@ onto a different seed.
 ```bash
 uv run python -m data.generate_dataset \
   --library-root data/library_dev --output data/demo_toomany \
-  --count 1 --frames 8 --size 256 --n-objects-max 4 --depth-mode unrestricted
+  --count 1 --frames 8 --size 256 --n-objects-max 4
 ```
 
 Nothing is written, and the run says why:
@@ -101,13 +100,13 @@ Why three and not more: [[dataset-layout]].
 ## 3. Read the manifest
 
 ```bash
-column -s, -t < data/demo_unrestricted/manifest.csv
+column -s, -t < data/demo/manifest.csv
 ```
 
 ```
-seq_id  seed  n_frames  size  n_objects  depth_mode    n_rejections  n_range_fallbacks
-0001    0     80        512   1          unrestricted  0             0
-0002    1     80        512   2          unrestricted  0             0
+seq_id  seed  n_frames  size  n_objects  n_rejections  n_range_fallbacks
+0001    0     80        512   1          0             0
+0002    1     80        512   2          0             0
 ```
 
 `n_rejections` counts trajectory sets the collision validator threw away; it climbs with
@@ -122,7 +121,7 @@ sign the depth axis is unusually tight. Column meanings in full: [[dataset-layou
 `vpv` opens synchronized panes. Run it from inside the dataset's `sequences/` directory:
 
 ```bash
-cd data/demo_unrestricted/sequences
+cd data/demo/sequences
 vpv "*/all_in_focus/*.png" "*/alpha/*.png" "*/disparity/*.png"
 ```
 
@@ -136,15 +135,14 @@ What to check:
 - **Overlap is unambiguous.** Two objects may overlap on screen but never at the same depth,
   so one is always clearly in front.
 
-A fuller side-by-side comparison of the two depth modes is in
-[[demo-unrestricted-trajectories]].
+A fuller set of checks on the trajectory model is in [[demo-unrestricted-trajectories]].
 
 ---
 
 ## 5. Hand it to the renderer
 
 ```bash
-uv run python -m data.prepare_any_to_bokeh --data-root data/demo_unrestricted
+uv run python -m data.prepare_any_to_bokeh --data-root data/demo
 ```
 
 See [[run-any-to-bokeh-inference]].
@@ -154,5 +152,5 @@ See [[run-any-to-bokeh-inference]].
 ## Clean up
 
 ```bash
-rm -rf data/demo_fixed data/demo_unrestricted data/demo_toomany
+rm -rf data/demo data/demo_toomany
 ```

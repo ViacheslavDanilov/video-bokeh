@@ -18,16 +18,16 @@ step itself, which needs the model checkpoints.
 ## 1. Convert the sequences
 
 ```bash
-uv run python -m data.prepare_any_to_bokeh --data-root data/demo_unrestricted
+uv run python -m data.prepare_any_to_bokeh --data-root data/demo
 ```
 
 ```
   0001: wrote 80 frame(s)
   0002: wrote 80 frame(s)
 
-Done. CSV: third_party/any-to-bokeh/csv_file/demo_unrestricted.csv
+Done. CSV: third_party/any-to-bokeh/csv_file/demo.csv
 Inference working directory: third_party/any-to-bokeh
-  python test/inference_demo.py --val_csv_path csv_file/demo_unrestricted.csv
+  python test/inference_demo.py --val_csv_path csv_file/demo.csv
 ```
 
 The last line appears only when the inference script is actually present. Without the
@@ -55,7 +55,7 @@ shows it going out of focus — which is usually the thing you wanted to see.
 
 ```bash
 uv run python -m data.prepare_any_to_bokeh \
-  --data-root data/demo_unrestricted --dataset-name pinned --focus-disparity 0.5
+  --data-root data/demo --dataset-name pinned --focus-disparity 0.5
 ```
 
 ```
@@ -70,7 +70,7 @@ third_party/any-to-bokeh/demo_dataset/pinned/disp/0001/01_zf_0.500000.png
 
 ```bash
 cd third_party/any-to-bokeh
-python test/inference_demo.py --val_csv_path csv_file/demo_unrestricted.csv
+python test/inference_demo.py --val_csv_path csv_file/demo.csv
 ```
 
 `third_party/any-to-bokeh` is a submodule and read-only — do not edit anything inside it. It
@@ -96,8 +96,8 @@ loss the moment the disparity stream gains bit depth, and no test covers it. Rec
 The bridge writes into the submodule's working tree. To leave it clean:
 
 ```bash
-rm -rf third_party/any-to-bokeh/demo_dataset/demo_unrestricted \
+rm -rf third_party/any-to-bokeh/demo_dataset/demo \
        third_party/any-to-bokeh/demo_dataset/pinned \
-       third_party/any-to-bokeh/csv_file/demo_unrestricted.csv \
+       third_party/any-to-bokeh/csv_file/demo.csv \
        third_party/any-to-bokeh/csv_file/pinned.csv
 ```

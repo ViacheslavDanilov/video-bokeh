@@ -99,24 +99,19 @@ Object 2:    [0.51 ————————————— 0.93]
 An object never fills its slot. It occupies a narrow **active band**, 0.08 wide by default,
 and the rest is room to move.
 
-### Two depth models
+### What the slot is for
 
-The `--depth-mode` flag picks between them, and the difference is what the slot is for.
+**The slot constrains frame 1 and nothing after it.** That is the whole design.
 
-| | `fixed` | `unrestricted` |
-|---|---|---|
-| What the slot constrains | every frame | **frame 1 only** |
-| How the band moves | slides inside the slot, clamped | free, derived from the scale ratio |
-| Can two objects meet at one depth | no, structurally | yes — so it is checked |
-| Collision validation | not needed | rejection sampling |
+An earlier version pinned each object inside its slot for the entire clip. Collisions were
+then impossible by construction, which was safe and wrong: an object could never move past
+another in depth, and a camera that sees something approach is exactly what we are modelling.
+That version has been removed.
 
-**`fixed`** keeps each object inside its own slot for the whole clip. Collisions are
-impossible by construction, which is safe and unrealistic: an object can never move past
-another in depth.
+Letting objects leave their slots means two can end up at the same depth, so what used to be
+guaranteed by construction is now checked instead.
 
-**`unrestricted`** is the current design, and the slot only seeds the start.
-
-### How an unrestricted trajectory is built
+### How a trajectory is built
 
 1. Sample a start interval inside the object's slot.
 2. Sample an end pose. Its on-screen scale implies the end interval, which is *derived*,
@@ -140,7 +135,7 @@ interval scales. That is physically correct: the nearer something is, the more d
 
 ### Collision validation
 
-Because objects now move freely, two can end up overlapping on screen while sharing a depth.
+Two objects can end up overlapping on screen while sharing a depth.
 That sample has no defensible depth ordering and would teach the model something untrue.
 
 Every frame is checked for pairs that overlap in alpha **and** in disparity interval. A

@@ -107,7 +107,6 @@ One row per written sequence.
 | `n_frames` | frames written |
 | `size` | square frame side in pixels |
 | `n_objects` | objects actually placed |
-| `depth_mode` | `fixed` or `unrestricted` |
 | `n_rejections` | trajectory sets discarded by the collision validator |
 | `n_range_fallbacks` | objects forced to hold their start scale because no end pose fit |
 

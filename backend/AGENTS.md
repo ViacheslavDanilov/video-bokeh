@@ -75,8 +75,7 @@ uv run python -m data.build_library \
 # 3. Stage B — generate sequences on the fly from the library
 uv run python -m data.generate_dataset \
   --library-root data/library_dev --output data/synth_dev \
-  --count 10 --frames 80 --size 1024 --seed 0 \
-  --depth-mode unrestricted
+  --count 10 --frames 80 --size 1024 --seed 0
 
 # 4. Bridge to any-to-bokeh inference
 uv run python -m data.prepare_any_to_bokeh --data-root data/synth_dev

@@ -55,7 +55,6 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 | `--seed` | int | `0` | sequence `i` is seeded from `seed + i` |
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
 | `--n-objects-max` | int | `3` | most objects. Above 3 the run is refused — see [[dataset-layout]] |
-| `--depth-mode` | str | `fixed` | `fixed` = disjoint depth slots; `unrestricted` = free trajectories with a collision validator |
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
 
