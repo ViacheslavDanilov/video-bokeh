@@ -98,6 +98,7 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
         write_foreground,
     )
     from data._sequence_geometry import Pose
+    from data._trajectory import DepthRange, derive_end_range
     from data.compositor import ObjectTrack, Scene
 
     size = 32
@@ -117,6 +118,9 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
     fg = load_foreground(tmp_path, "fg_grad")
     bg = load_background(tmp_path, "bg")
 
+    # Scale 0.3 -> 0.75 is a ratio of 2.5, so the derived end range is the start
+    # range times 2.5: (0.20, 0.28) becomes (0.50, 0.70), still inside the axis.
+    depth_start = DepthRange(mind=0.20, maxd=0.28)
     obj = ObjectTrack(
         asset=fg,
         slot=(0.20, 0.80),
@@ -124,6 +128,8 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
         pose_end=Pose(scale=0.75),
         easing="easeInOutSine",
         scale_ref=0.3,
+        depth_start=depth_start,
+        depth_end=derive_end_range(depth_start, 0.3, 0.75),
     )
     scene = Scene(
         background=bg,
@@ -137,17 +143,15 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
     frames = render_scene(scene)
     first = float(frames[0].disparity[frames[0].alpha > 0].mean())
     last = float(frames[-1].disparity[frames[-1].alpha > 0].mean())
-    # At scale=0.75 (zoom-in relative to scale_ref=0.3), the active band is
-    # shifted toward higher disparity; the mean over object pixels must rise.
+    # Growing on screen must move the object nearer, which on the disparity axis
+    # means up. This is the claim the whole depth-scale law exists to enforce.
     assert last > first + 1e-3
-    # Additionally: the max disparity over object pixels must be <= slot_hi + small
-    # tolerance, confirming the object is placed inside the active band (not beyond).
-    assert float(frames[-1].disparity[frames[-1].alpha > 0].max()) <= 0.80 + 1e-3
-    # The object disparity range must be narrow (active_width=0.08), not wide (full
-    # slot 0.60); this assertion fails if active_width is not wired into scaled_band.
+    # The object stays on the foreground part of the axis.
+    assert float(frames[-1].disparity[frames[-1].alpha > 0].max()) <= 1.0
+    # Its disparity spread matches the derived end range (0.08 * 2.5 = 0.20), not
+    # the full slot: the interval scales with the object, it does not smear.
     obj_disp = frames[-1].disparity[frames[-1].alpha > 0]
-    disp_range = float(obj_disp.max() - obj_disp.min())
-    assert disp_range < 0.20  # narrower than active_width*(1+margin), not full slot
+    assert float(obj_disp.max() - obj_disp.min()) < 0.25
 
 
 def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
@@ -333,14 +337,6 @@ def test_shrunk_range_still_shapes_the_object(tmp_path) -> None:
     assert spread > 0.006, f"object collapsed to a depth plate: spread={spread}"
 
 
-def test_fixed_mode_has_no_depth_range(tmp_path) -> None:
-    # Replaces test_fixed_mode_is_unchanged_default, which named depth_track.
-    _tiny_library(tmp_path)
-    scene = sample_scene(tmp_path, seed=3, n_frames=4, size=32, n_objects=1)
-    assert scene.objects[0].depth_start is None
-    assert scene.objects[0].depth_end is None
-
-
 def test_unrestricted_mode_moves_disparity_over_the_clip(tmp_path) -> None:
     _tiny_library(tmp_path)
     scene = sample_scene(
@@ -349,7 +345,6 @@ def test_unrestricted_mode_moves_disparity_over_the_clip(tmp_path) -> None:
         n_frames=4,
         size=32,
         n_objects=1,
-        depth_mode="unrestricted",
     )
     assert scene.objects[0].depth_start is not None
     assert scene.objects[0].depth_end is not None
@@ -374,7 +369,6 @@ def test_unrestricted_depth_moves_with_scale_not_against_it(tmp_path) -> None:
             n_frames=4,
             size=32,
             n_objects=2,
-            depth_mode="unrestricted",
         )
         for obj in scene.objects:
             assert obj.depth_start is not None
@@ -403,7 +397,6 @@ def test_unrestricted_scene_is_collision_free(tmp_path) -> None:
         n_frames=4,
         size=32,
         n_objects=2,
-        depth_mode="unrestricted",
     )
     for i in range(scene.n_frames):
         t = 0.0 if scene.n_frames == 1 else i / (scene.n_frames - 1)
@@ -445,7 +438,6 @@ def test_unrestricted_object_leaves_its_starting_slot(tmp_path) -> None:
             n_frames=8,
             size=32,
             n_objects=2,
-            depth_mode="unrestricted",
         )
         for obj in scene.objects:
             assert obj.depth_start is not None
@@ -458,18 +450,6 @@ def test_unrestricted_object_leaves_its_starting_slot(tmp_path) -> None:
         if escaped:
             break
     assert escaped, "no seed left its starting slot: the band still constrains"
-
-
-def test_fixed_mode_sampling_is_unchanged_by_the_new_branch(tmp_path) -> None:
-    # Goal 10. The unrestricted branch draws from the RNG only after the three
-    # draws fixed mode makes, so fixed-mode poses must be bit-identical to what
-    # the same seed produced before this change.
-    _tiny_library(tmp_path)
-    a = sample_scene(tmp_path, seed=5, n_frames=4, size=32, n_objects=2)
-    b = sample_scene(tmp_path, seed=5, n_frames=4, size=32, n_objects=2)
-    assert [o.pose_start for o in a.objects] == [o.pose_start for o in b.objects]
-    assert [o.pose_end for o in a.objects] == [o.pose_end for o in b.objects]
-    assert [o.easing for o in a.objects] == [o.easing for o in b.objects]
 
 
 def test_exhausted_retries_raise_instead_of_emitting_a_collision(
@@ -512,11 +492,10 @@ def test_exhausted_retries_raise_instead_of_emitting_a_collision(
             n_objects=2,
             cfg=cfg,
             bg_band_top=0.90,
-            depth_mode="unrestricted",
         )
 
 
-def test_manifest_records_the_unrestricted_mode_and_its_counters(tmp_path) -> None:
+def test_manifest_records_the_trajectory_counters(tmp_path) -> None:
     import csv
 
     library = tmp_path / "lib"
@@ -529,15 +508,14 @@ def test_manifest_records_the_unrestricted_mode_and_its_counters(tmp_path) -> No
         n_frames=3,
         size=32,
         seed=0,
-        depth_mode="unrestricted",
     )
     assert written == 1
     with (out / "manifest.csv").open(encoding="utf-8") as f:
         rows = list(csv.reader(f))
     header, data_row = rows[0], rows[1]
-    for field_name in ("depth_mode", "n_rejections", "n_range_fallbacks"):
+    for field_name in ("n_rejections", "n_range_fallbacks"):
         assert field_name in header
-    assert data_row[header.index("depth_mode")] == "unrestricted"
+    assert "depth_mode" not in header
     assert int(data_row[header.index("n_range_fallbacks")]) >= 0
 
 
@@ -568,7 +546,6 @@ def test_generate_dataset_skips_a_sequence_it_cannot_sample(
         n_frames=2,
         size=32,
         seed=0,
-        depth_mode="unrestricted",
     )
     assert written == 2
     assert (out / "sequences" / "0001").is_dir()
@@ -592,7 +569,6 @@ def test_generate_dataset_refuses_more_objects_than_alpha_channels(tmp_path) -> 
             size=32,
             seed=0,
             n_objects_max=4,
-            depth_mode="unrestricted",
         )
     assert not (tmp_path / "synth" / "sequences").exists()
 
@@ -628,6 +604,5 @@ def test_generate_dataset_still_accepts_three_objects(tmp_path) -> None:
         seed=0,
         n_objects_min=1,
         n_objects_max=3,
-        depth_mode="unrestricted",
     )
     assert written == 1

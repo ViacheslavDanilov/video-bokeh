@@ -58,9 +58,8 @@ def derive_end_range(
     depth-as-distance ("its depth must decrease by the factor k") and then
     applies the formula to mind/maxd, which this pipeline defines as disparity.
     Taken literally it makes an object that grows on screen recede in the
-    disparity stream -- the exact RGB/disparity inconsistency v2 removes -- and
-    it contradicts ``scaled_band``, which `fixed` mode already scales by
-    ``scale_t / scale_ref``.
+    disparity stream -- the exact RGB/disparity inconsistency this model
+    removes.
     """
     if scale_start <= 1e-8:
         raise ValueError(f"scale_start must be positive, got {scale_start}")

@@ -2,11 +2,10 @@
 
 Depth is never re-estimated here: each object's precomputed full-frame disparity
 is warped by the same homography as its RGBA and remapped into the disparity
-range its trajectory occupies at that frame. In `fixed` mode that range stays
-inside a disjoint slot, which makes depth collisions structurally impossible. In
-`unrestricted` mode the slot seeds frame 1 only and the range afterwards is
-derived from the object's scale ratio, so trajectories are validated against
-collisions instead of being made collision-proof by construction.
+range its trajectory occupies at that frame. The assigned slot seeds frame 1
+only; every later range is derived from the object's scale ratio, so objects
+move freely through depth and trajectories are validated against collisions
+rather than made collision-proof by construction.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from data._collision import pair_collides
-from data._fusion import assign_depth_slots, bg_normalize, place_in_band, scaled_band
+from data._fusion import assign_depth_slots, bg_normalize, place_in_band
 from data._library import (
     BackgroundAsset,
     ForegroundAsset,
@@ -62,8 +61,8 @@ class ObjectTrack:
     pose_end: Pose
     easing: str
     scale_ref: float
-    depth_start: DepthRange | None = None
-    depth_end: DepthRange | None = None
+    depth_start: DepthRange
+    depth_end: DepthRange
 
 
 @dataclass
@@ -98,9 +97,8 @@ def sample_scene(
     n_objects: int,
     cfg: SampleConfig | None = None,
     bg_band_top: float = 0.05,
-    depth_mode: str = "fixed",
 ) -> Scene:
-    """Sample objects, a background, poses, easings, and disjoint depth slots."""
+    """Sample objects, a background, poses, easings, and depth trajectories."""
     cfg = cfg or SampleConfig()
     rng = random.Random(f"scene:{seed}")
 
@@ -129,23 +127,20 @@ def sample_scene(
             pose_end = sample_fg_pose(attempt_rng, cfg)
             easing = attempt_rng.choice(cfg.easings)
             slot = slots[idx]
-            depth_start: DepthRange | None = None
-            depth_end: DepthRange | None = None
-            if depth_mode == "unrestricted":
-                depth_start = sample_start_range(
-                    attempt_rng,
-                    slot,
-                    min(_ACTIVE_WIDTH, slot[1] - slot[0]),
-                )
-                pose_end, depth_end, used_fallback = sample_end_pose(
-                    attempt_rng,
-                    cfg,
-                    depth_start,
-                    pose_start.scale,
-                    bg_band_top,
-                    _MAX_RANGE_TRIES,
-                )
-                fallbacks += int(used_fallback)
+            depth_start = sample_start_range(
+                attempt_rng,
+                slot,
+                min(_ACTIVE_WIDTH, slot[1] - slot[0]),
+            )
+            pose_end, depth_end, used_fallback = sample_end_pose(
+                attempt_rng,
+                cfg,
+                depth_start,
+                pose_start.scale,
+                bg_band_top,
+                _MAX_RANGE_TRIES,
+            )
+            fallbacks += int(used_fallback)
             objs.append(
                 ObjectTrack(
                     asset=asset,
@@ -159,16 +154,12 @@ def sample_scene(
                 ),
             )
         # Far-to-near at frame 1. render_scene derives paint order per frame,
-        # so this only fixes which alpha channel each object owns for the clip.
-        objs.sort(
-            key=lambda o: (
-                o.depth_start.centre if o.depth_start is not None else o.slot[0]
-            ),
-        )
+        # so this only fixes which alpha layer each object owns for the clip.
+        objs.sort(key=lambda o: o.depth_start.centre)
         return objs, fallbacks
 
     def _has_collision(objs: list[ObjectTrack]) -> bool:
-        if depth_mode != "unrestricted" or len(objs) < 2:
+        if len(objs) < 2:
             return False
         for i in range(n_frames):
             t = 0.0 if n_frames == 1 else i / (n_frames - 1)
@@ -178,8 +169,6 @@ def sample_scene(
                 pose = o.pose_start.lerp(o.pose_end, ease)
                 h = build_fg_homography(pose, o.asset.rgb.size[0], size)
                 a = np.asarray(warp_pillow(o.asset.rgb, h, size))[..., 3] / 255.0
-                assert o.depth_start is not None
-                assert o.depth_end is not None
                 r = o.depth_start.lerp(o.depth_end, ease)
                 warped.append((a, (r.mind, r.maxd)))
             for x in range(len(warped)):
@@ -250,17 +239,8 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
             """Target disparity band and its width for object ``idx`` at ``_t``."""
             o = scene.objects[idx]
             ease = EASING_FNS[o.easing](_t)
-            if o.depth_start is not None and o.depth_end is not None:
-                r = o.depth_start.lerp(o.depth_end, ease)
-                return r.mind, r.maxd, r.width
-            lo, hi = scaled_band(
-                o.slot[0],
-                o.slot[1],
-                active_width=_ACTIVE_WIDTH,
-                scale_t=o.pose_start.lerp(o.pose_end, ease).scale,
-                scale_ref=o.scale_ref,
-            )
-            return lo, hi, _ACTIVE_WIDTH
+            r = o.depth_start.lerp(o.depth_end, ease)
+            return r.mind, r.maxd, r.width
 
         bands = [_band(idx) for idx in range(len(scene.objects))]
         # Far (low disparity) first.

@@ -45,7 +45,6 @@ _MANIFEST_FIELDS = (
     "n_frames",
     "size",
     "n_objects",
-    "depth_mode",
     "n_rejections",
     "n_range_fallbacks",
 )
@@ -92,7 +91,6 @@ def generate_dataset(
     n_objects_min: int = 1,
     n_objects_max: int = 3,
     cfg: SampleConfig | None = None,
-    depth_mode: str = "fixed",
 ) -> int:
     """Write ``count`` sequences and return how many were actually written.
 
@@ -123,7 +121,6 @@ def generate_dataset(
                 size=size,
                 n_objects=n_obj,
                 cfg=cfg,
-                depth_mode=depth_mode,
             )
         except CollisionRetriesExhausted as exc:
             skipped.append(seq_seed)
@@ -148,7 +145,6 @@ def generate_dataset(
                 str(n_frames),
                 str(size),
                 str(len(scene.objects)),
-                depth_mode,
                 str(scene.n_rejections),
                 str(scene.n_range_fallbacks),
             ],
@@ -178,15 +174,6 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--n-objects-min", type=int, default=1)
     parser.add_argument("--n-objects-max", type=int, default=3)
-    parser.add_argument(
-        "--depth-mode",
-        choices=("fixed", "unrestricted"),
-        default="fixed",
-        help=(
-            "fixed = disjoint slots (default); unrestricted = free trajectories "
-            "with a collision validator."
-        ),
-    )
     return parser
 
 
@@ -203,7 +190,6 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
             n_objects_min=args.n_objects_min,
             n_objects_max=args.n_objects_max,
-            depth_mode=args.depth_mode,
         )
     except ValueError as exc:
         parser.error(str(exc))
