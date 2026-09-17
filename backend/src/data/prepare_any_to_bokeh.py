@@ -106,6 +106,7 @@ def _write_sequence(
     out_video_dir: Path,
     out_disp_dir: Path,
     use_alpha_focus: bool,
+    focus_disparity: float | None = None,
 ) -> int:
     image_paths = _list_png_frames(seq_dir / "all_in_focus")
     disparity_paths = _list_disparity_frames(seq_dir / "disparity")
@@ -141,9 +142,14 @@ def _write_sequence(
             compress_level=6,
         )
 
-        alpha_path = alpha_paths[idx - 1] if use_alpha_focus and alpha_paths else None
-        mask = _load_focus_mask(alpha_path, disp_u8.shape)
-        zf = float(disp_u8[mask].mean() / 255.0)
+        if focus_disparity is None:
+            alpha_path = (
+                alpha_paths[idx - 1] if use_alpha_focus and alpha_paths else None
+            )
+            mask = _load_focus_mask(alpha_path, disp_u8.shape)
+            zf = float(disp_u8[mask].mean() / 255.0)
+        else:
+            zf = focus_disparity
         Image.fromarray(disp_u8, mode="L").save(
             out_disp_dir / f"{frame_stem}_zf_{zf:.6f}.png",
             compress_level=6,
@@ -179,6 +185,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Comma-separated sequence ids (e.g. '0001,0003'). Default: all.",
     )
     parser.add_argument(
+        "--focus-disparity",
+        type=float,
+        default=None,
+        help="Fixed focus in [0, 1] for every frame; overrides --focus.",
+    )
+    parser.add_argument(
         "--focus",
         choices=("alpha", "full"),
         default="alpha",
@@ -188,7 +200,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if args.focus_disparity is not None and not 0 <= args.focus_disparity <= 1:
+        parser.error("--focus-disparity must be in [0, 1]")
 
     dataset_name = args.dataset_name or args.data_root.name
     a2b_root = args.a2b_root
@@ -212,7 +227,8 @@ def main(argv: list[str] | None = None) -> int:
             seq_dir=seq_dir,
             out_video_dir=out_video_dir,
             out_disp_dir=out_disp_dir,
-            use_alpha_focus=args.focus == "alpha",
+            use_alpha_focus=args.focus == "alpha" and args.focus_disparity is None,
+            focus_disparity=args.focus_disparity,
         )
         rows.append(
             [

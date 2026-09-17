@@ -110,3 +110,52 @@ def test_prepare_any_to_bokeh_writes_one_based_frames_and_csv(
             "k": "16",
         },
     ]
+
+
+def test_fixed_focus_is_preserved_across_frames(tmp_path: Path) -> None:
+    root = tmp_path / "dataset"
+    seq = root / "sequences" / "0001"
+    for index, depth in enumerate((0.2, 0.8), start=1):
+        _write_rgb(seq / "all_in_focus" / f"{index:02}.png", 100)
+        _write_disparity(
+            seq / "disparity" / f"{index:02}",
+            np.full((4, 4), depth),
+            "png",
+        )
+    target = tmp_path / "a2b"
+    assert (
+        main(
+            [
+                "--data-root",
+                str(root),
+                "--a2b-root",
+                str(target),
+                "--focus-disparity",
+                "0.5",
+            ],
+        )
+        == 0
+    )
+    assert sorted(
+        p.name for p in (target / "demo_dataset/dataset/disp/0001").glob("*.png")
+    ) == [
+        "01_zf_0.500000.png",
+        "02_zf_0.500000.png",
+    ]
+
+
+@pytest.mark.parametrize("focus", ["-0.1", "1.1", "nan"])
+def test_invalid_fixed_focus_writes_nothing(tmp_path: Path, focus: str) -> None:
+    target = tmp_path / "a2b"
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--data-root",
+                str(tmp_path),
+                "--a2b-root",
+                str(target),
+                "--focus-disparity",
+                focus,
+            ],
+        )
+    assert not target.exists()
