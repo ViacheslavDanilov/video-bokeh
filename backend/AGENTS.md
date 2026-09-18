@@ -68,7 +68,7 @@ uv run python -m data.download_magick \
 uv run python -m data.download_bg20k --output data/bg-20k
 
 # 2. Stage A — build the artifact library (depth runs once per asset)
-uv run python -m data.build_library \
+uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
   --output data/library_dev --size 1024 --model da2-large
 

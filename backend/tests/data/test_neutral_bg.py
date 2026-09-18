@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-from data._neutral_bg import composite_on_neutral, make_textured_bg
+from video_bokeh.library._neutral_bg import composite_on_neutral, make_textured_bg
 
 
 def test_shape_and_dtype() -> None:

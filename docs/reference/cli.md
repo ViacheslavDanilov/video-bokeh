@@ -18,7 +18,7 @@ uv run python -m data.<module> [flags]
 
 ---
 
-## `data.build_library` — Stage A
+## `video_bokeh.library.build` — Stage A
 
 Estimates depth once per asset and writes the artifact library.
 

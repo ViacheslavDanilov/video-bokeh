@@ -17,7 +17,7 @@ pull request.
 
 ## Stage A — the artifact library
 
-Built once per asset pool by `data.build_library`. Depth is estimated here and never again.
+Built once per asset pool by `video_bokeh.library.build`. Depth is estimated here and never again.
 
 ```
 <library-root>/

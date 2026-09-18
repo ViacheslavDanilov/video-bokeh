@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from data.build_library import DEFAULT_BG_MARGIN
 from data.compositor import render_scene, sample_scene
 from data.generate_dataset import generate_dataset
 from video_bokeh.core._library import write_background, write_foreground
 from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
+from video_bokeh.library.build import DEFAULT_BG_MARGIN
 
 
 def _tiny_library(root, n_fg: int = 2, half: int = 8) -> None:

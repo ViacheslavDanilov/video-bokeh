@@ -33,7 +33,7 @@ which is enough for every recipe below.
 ## 1. Stage A — build the library
 
 ```bash
-uv run python -m data.build_library \
+uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
   --output data/library_dev --size 1024 --model da2-large
 ```
@@ -49,7 +49,7 @@ A fast check with no large download — 3 foregrounds, 2 backgrounds, the small 
 on an M-series Mac using `mps`:
 
 ```bash
-uv run python -m data.build_library \
+uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
   --output /tmp/lib_smoke --size 256 --model da2-small \
   --limit-fg 3 --limit-bg 2

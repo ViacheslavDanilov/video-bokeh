@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from data._propagation import propagate_disparity, trusted_core
+from video_bokeh.library._propagation import propagate_disparity, trusted_core
 
 
 def test_fills_full_frame_from_object_core() -> None:
