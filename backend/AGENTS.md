@@ -15,8 +15,8 @@ Run from `backend/` unless noted.
 | Task | Command |
 |---|---|
 | Install everything (development) | `uv sync --all-extras --dev` (from repo root) |
-| Install Stage B only | `uv sync` (from repo root) |
-| Install Stage A | `uv sync --extra library` |
+| Install Stage B only | `uv sync --no-dev` (from repo root) |
+| Install Stage A | `uv sync --no-dev --extra library` |
 | Run API (reload) | `uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
 | Tests | `uv run pytest` |
 | Type check | `uv run ty check src/` |
