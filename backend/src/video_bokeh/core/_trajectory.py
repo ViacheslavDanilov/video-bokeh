@@ -15,7 +15,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, replace
 
-from data._sequence_geometry import Pose, SampleConfig, sample_fg_pose
+from video_bokeh.core._sequence_geometry import Pose, SampleConfig, sample_fg_pose
 
 _MAX_DISPARITY = 1.0
 

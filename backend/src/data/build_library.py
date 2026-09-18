@@ -24,12 +24,12 @@ import pandas as pd
 from PIL import Image
 
 from data._device import select_device
-from data._library import FOREGROUNDS, write_background, write_foreground
-from data._metadata import write_asset_metadata
 from data._neutral_bg import composite_on_neutral, make_textured_bg
 from data._propagation import propagate_disparity, trusted_core
-from data._sequence_geometry import prepare_background, prepare_foreground
 from data.depth import ESTIMATORS
+from video_bokeh.core._library import FOREGROUNDS, write_background, write_foreground
+from video_bokeh.core._metadata import write_asset_metadata
+from video_bokeh.core._sequence_geometry import prepare_background, prepare_foreground
 
 DEFAULT_KEEP_SUBJECTS = ("person", "animal", "plant", "food", "object")
 DEFAULT_KEEP_STYLES = ("photo", "render")

@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from data._library import write_background, write_foreground
-from data._streams import read_alpha_tiff, read_disparity_png
 from data.build_library import DEFAULT_BG_MARGIN
 from data.compositor import render_scene, sample_scene
 from data.generate_dataset import generate_dataset
+from video_bokeh.core._library import write_background, write_foreground
+from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
 
 
 def _tiny_library(root, n_fg: int = 2, half: int = 8) -> None:
@@ -95,15 +95,15 @@ def test_render_scene_disparity_never_exceeds_one(tmp_path) -> None:
 def test_zoom_in_raises_object_disparity(tmp_path) -> None:
     # Uses a gradient foreground depth so place_in_band exercises real percentile
     # stretch (not the degenerate-band fallback that flat depth triggers).
-    from data._library import (
+    from data.compositor import ObjectTrack, Scene
+    from video_bokeh.core._library import (
         load_background,
         load_foreground,
         write_background,
         write_foreground,
     )
-    from data._sequence_geometry import Pose
-    from data._trajectory import DepthRange, derive_end_range
-    from data.compositor import ObjectTrack, Scene
+    from video_bokeh.core._sequence_geometry import Pose
+    from video_bokeh.core._trajectory import DepthRange, derive_end_range
 
     size = 32
     rgba = np.zeros((size, size, 4), dtype=np.uint8)
@@ -182,14 +182,14 @@ def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
 
 def _overlapping_pair_scene(tmp_path, range_a, range_b, n_frames=2, size=32):
     """Two fully-overlapping opaque squares with hand-picked depth ranges."""
-    from data._library import (
+    from data.compositor import ObjectTrack, Scene
+    from video_bokeh.core._library import (
         load_background,
         load_foreground,
         write_background,
         write_foreground,
     )
-    from data._sequence_geometry import Pose
-    from data.compositor import ObjectTrack, Scene
+    from video_bokeh.core._sequence_geometry import Pose
 
     def _square(rgb):
         arr = np.zeros((size, size, 4), dtype=np.uint8)
@@ -240,7 +240,7 @@ def test_unrestricted_paint_order_is_frame_local(tmp_path) -> None:
     # Goal 6. Object a starts near and ends far; b does the opposite. They fully
     # overlap on screen, so the centre pixel colour must change between the
     # first and last frame.
-    from data._trajectory import DepthRange
+    from video_bokeh.core._trajectory import DepthRange
 
     scene = _overlapping_pair_scene(
         tmp_path,
@@ -257,8 +257,8 @@ def test_alpha_channels_stay_with_their_object_when_order_swaps(tmp_path) -> Non
     # indexed by object position, not by draw order.
     from dataclasses import replace as dc_replace
 
-    from data._sequence_geometry import Pose
-    from data._trajectory import DepthRange
+    from video_bokeh.core._sequence_geometry import Pose
+    from video_bokeh.core._trajectory import DepthRange
 
     scene = _overlapping_pair_scene(
         tmp_path,
@@ -288,15 +288,15 @@ def test_shrunk_range_still_shapes_the_object(tmp_path) -> None:
     # law moves it away and narrows its range by the same 0.25: start width
     # 0.05 -> end width 0.0125, below the old constant threshold of
     # 0.25 * _ACTIVE_WIDTH = 0.02.
-    from data._library import (
+    from data.compositor import ObjectTrack, Scene
+    from video_bokeh.core._library import (
         load_background,
         load_foreground,
         write_background,
         write_foreground,
     )
-    from data._sequence_geometry import Pose
-    from data._trajectory import DepthRange
-    from data.compositor import ObjectTrack, Scene
+    from video_bokeh.core._sequence_geometry import Pose
+    from video_bokeh.core._trajectory import DepthRange
 
     size = 32
     rgba = np.zeros((size, size, 4), dtype=np.uint8)
@@ -391,8 +391,12 @@ def test_unrestricted_depth_moves_with_scale_not_against_it(tmp_path) -> None:
 
 def test_unrestricted_scene_is_collision_free(tmp_path) -> None:
     # Goal 5.
-    from data._collision import pair_collides
-    from data._sequence_geometry import EASING_FNS, build_fg_homography, warp_pillow
+    from video_bokeh.core._collision import pair_collides
+    from video_bokeh.core._sequence_geometry import (
+        EASING_FNS,
+        build_fg_homography,
+        warp_pillow,
+    )
 
     _tiny_library(tmp_path)
     scene = sample_scene(
@@ -465,7 +469,7 @@ def test_exhausted_retries_raise_instead_of_emitting_a_collision(
     # collision-free: the slots are 0.02 apart and the collision margin is
     # also 0.02, which is not strict separation.
     import data.compositor as compositor_module
-    from data._sequence_geometry import SampleConfig
+    from video_bokeh.core._sequence_geometry import SampleConfig
 
     size = 32
     for fid in ("fg_0", "fg_1"):

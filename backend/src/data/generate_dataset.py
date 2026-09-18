@@ -29,14 +29,14 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from data._sequence_geometry import SampleConfig
-from data._streams import write_alpha_tiff, write_disparity_png
 from data.compositor import (
     CollisionRetriesExhausted,
     RenderedFrame,
     render_scene,
     sample_scene,
 )
+from video_bokeh.core._sequence_geometry import SampleConfig
+from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 
 _MANIFEST_FIELDS = (
     "seq_id",

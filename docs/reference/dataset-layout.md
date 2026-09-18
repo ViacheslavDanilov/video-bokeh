@@ -80,7 +80,7 @@ Written by `data.generate_dataset`. This is the layout `prepare_any_to_bokeh.py`
 | `alpha` | TIFF, multi-page | uint8 | page `k` is object `k`'s matte, `0`–`255`, soft |
 | `disparity` | PNG, `I;16` | uint16 | `[0, 1]` disparity scaled to `[0, 65535]`, larger = closer |
 
-Both sides of these formats live in `src/data/_streams.py`, so the writer and the reader
+Both sides of these formats live in `src/video_bokeh/core/_streams.py`, so the writer and the reader
 cannot drift apart.
 
 **The alpha TIFF is multi-page, never multi-sample.** Pillow raises

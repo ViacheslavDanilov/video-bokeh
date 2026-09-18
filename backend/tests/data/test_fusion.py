@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from data._fusion import (
+from video_bokeh.core._fusion import (
     assign_depth_slots,
     bg_normalize,
     place_in_band,

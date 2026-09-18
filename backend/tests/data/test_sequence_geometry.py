@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from data._sequence_geometry import (
+from video_bokeh.core._sequence_geometry import (
     EASING_FNS,
     Pose,
     SampleConfig,

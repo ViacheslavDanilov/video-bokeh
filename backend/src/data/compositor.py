@@ -16,9 +16,9 @@ from pathlib import Path
 
 import numpy as np
 
-from data._collision import pair_collides
-from data._fusion import assign_depth_slots, bg_normalize, place_in_band
-from data._library import (
+from video_bokeh.core._collision import pair_collides
+from video_bokeh.core._fusion import assign_depth_slots, bg_normalize, place_in_band
+from video_bokeh.core._library import (
     BackgroundAsset,
     ForegroundAsset,
     list_backgrounds,
@@ -26,7 +26,7 @@ from data._library import (
     load_background,
     load_foreground,
 )
-from data._sequence_geometry import (
+from video_bokeh.core._sequence_geometry import (
     EASING_FNS,
     Pose,
     SampleConfig,
@@ -37,7 +37,7 @@ from data._sequence_geometry import (
     warp_depth,
     warp_pillow,
 )
-from data._trajectory import DepthRange, sample_end_pose, sample_start_range
+from video_bokeh.core._trajectory import DepthRange, sample_end_pose, sample_start_range
 
 _ACTIVE_WIDTH = 0.08
 _MAX_SAMPLE_TRIES = 50
