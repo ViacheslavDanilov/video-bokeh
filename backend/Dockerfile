@@ -5,18 +5,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install dependencies (cached layer)
 COPY pyproject.toml ./
-RUN uv sync --no-dev --no-install-project
+RUN uv sync --extra api --no-install-project
 
 # Copy application code
 COPY src/ src/
 
 # Install the project itself
-RUN uv sync --no-dev
+RUN uv sync --extra api
 
 EXPOSE 8000
 
