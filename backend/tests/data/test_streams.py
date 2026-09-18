@@ -145,3 +145,16 @@ def test_disparity_clips_out_of_range_input(tmp_path: Path) -> None:
     back = read_disparity_png(path)
     assert back[0, 0] == pytest.approx(0.0)
     assert back[0, 2] == pytest.approx(1.0)
+
+
+def test_disparity_reader_rejects_an_8_bit_png(tmp_path: Path) -> None:
+    """An 8-bit file read as 16-bit is wrong by 257x, silently, and exits 0.
+
+    Datasets generated before the format change hold 8-bit disparity, nothing deletes
+    them, and the bridge would turn one into a near-black stream and report success.
+    """
+    path = tmp_path / "01.png"
+    Image.fromarray(np.full((4, 4), 204, dtype=np.uint8), mode="L").save(path)
+
+    with pytest.raises(ValueError, match="16-bit"):
+        read_disparity_png(path)

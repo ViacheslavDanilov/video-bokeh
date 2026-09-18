@@ -235,3 +235,30 @@ def test_16_bit_disparity_is_quantized_once(tmp_path: Path) -> None:
     )
     expected = (disp * 255.0).round().astype(np.uint8)
     assert np.array_equal(written, expected)
+
+
+def test_alpha_directory_without_tif_frames_is_an_error(tmp_path: Path) -> None:
+    """The old alpha/*.png layout must fail loudly, not fall back to whole-frame focus.
+
+    An empty .tif listing short-circuited the frame-count guard, so `_load_focus_mask`
+    received None and returned an all-ones mask -- the same silent fallback the union
+    fix removed, re-entering through a different door.
+    """
+    seq = tmp_path / "data" / "sequences" / "0001"
+    _write_rgb(seq / "all_in_focus" / "01.png", 100)
+    (seq / "alpha").mkdir(parents=True, exist_ok=True)
+    Image.fromarray(np.zeros((4, 4, 3), np.uint8), "RGB").save(seq / "alpha" / "01.png")
+    _write_disparity(
+        seq / "disparity" / "01.png",
+        np.full((4, 4), 0.9, dtype=np.float32),
+    )
+
+    with pytest.raises(ValueError, match="no .tif frames"):
+        main(
+            [
+                "--data-root",
+                str(tmp_path / "data"),
+                "--a2b-root",
+                str(tmp_path / "a2b"),
+            ],
+        )

@@ -74,6 +74,18 @@ def write_disparity_png(path: Path, disparity: np.ndarray) -> None:
 
 
 def read_disparity_png(path: Path) -> np.ndarray:
-    """Read a uint16 disparity PNG back as float32 in [0, 1]."""
+    """Read a uint16 disparity PNG back as float32 in [0, 1].
+
+    Refuses anything that is not 16-bit. Datasets written before this format existed
+    hold 8-bit disparity and nothing deletes them, so a permissive reader would scale
+    one by 1/65535 instead of 1/255 -- a silent factor of 257 that produces a
+    near-black stream, no exception, and a zero exit code.
+    """
     with Image.open(path) as im:
-        return np.asarray(im, dtype=np.float32) / _U16_MAX
+        arr = np.asarray(im)
+    if arr.dtype != np.uint16:
+        raise ValueError(
+            f"{path} is {arr.dtype}, not 16-bit. The disparity stream is uint16 PNG; "
+            f"an older 8-bit dataset has to be regenerated, not reinterpreted.",
+        )
+    return arr.astype(np.float32) / _U16_MAX

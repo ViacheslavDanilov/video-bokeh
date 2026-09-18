@@ -46,9 +46,23 @@ def _list_png_frames(path: Path) -> list[Path]:
 
 
 def _list_tif_frames(path: Path) -> list[Path]:
+    """List the alpha pages. An existing but empty listing is an error, not a default.
+
+    Returning [] here short-circuits the frame-count guard in ``_write_sequence`` and
+    hands ``_load_focus_mask`` a None, which falls back to whole-frame focus without
+    a word -- the same silent failure the union fix removed. The old alpha/*.png
+    layout lands exactly here.
+    """
     if not path.exists():
         raise FileNotFoundError(f"frame directory missing: {path}")
-    return sorted(path.glob("*.tif"), key=_numeric_stem)
+    frames = sorted(path.glob("*.tif"), key=_numeric_stem)
+    if not frames:
+        raise ValueError(
+            f"{path} exists but has no .tif frames. The alpha stream is multi-page "
+            f"TIFF; a dataset written in the older alpha/*.png layout has to be "
+            f"regenerated.",
+        )
+    return frames
 
 
 def _to_uint8_disparities(arrs: list[np.ndarray]) -> list[np.ndarray]:
