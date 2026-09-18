@@ -56,11 +56,12 @@ class CollisionRetriesExhausted(RuntimeError):
 @dataclass
 class ObjectTrack:
     asset: ForegroundAsset
+    # Kept although the renderer never reads it: it records which slot seeded frame 1,
+    # which is what lets a test assert the object actually leaves it.
     slot: tuple[float, float]
     pose_start: Pose
     pose_end: Pose
     easing: str
-    scale_ref: float
     depth_start: DepthRange
     depth_end: DepthRange
 
@@ -148,7 +149,6 @@ def sample_scene(
                     pose_start=pose_start,
                     pose_end=pose_end,
                     easing=easing,
-                    scale_ref=pose_start.scale,
                     depth_start=depth_start,
                     depth_end=depth_end,
                 ),

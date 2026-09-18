@@ -131,7 +131,6 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
         pose_start=Pose(scale=0.3),
         pose_end=Pose(scale=0.75),
         easing="easeInOutSine",
-        scale_ref=0.3,
         depth_start=depth_start,
         depth_end=derive_end_range(depth_start, 0.3, 0.75),
     )
@@ -222,7 +221,6 @@ def _overlapping_pair_scene(tmp_path, range_a, range_b, n_frames=2, size=32):
             pose_start=Pose(scale=0.6),
             pose_end=Pose(scale=0.6),
             easing="easeInOutSine",
-            scale_ref=0.6,
             depth_start=start,
             depth_end=end,
         )
@@ -324,7 +322,6 @@ def test_shrunk_range_still_shapes_the_object(tmp_path) -> None:
         pose_start=Pose(scale=0.80),
         pose_end=Pose(scale=0.20),
         easing="easeInOutSine",
-        scale_ref=0.80,
         depth_start=DepthRange(0.50, 0.55),
         depth_end=DepthRange(0.125, 0.1375),
     )

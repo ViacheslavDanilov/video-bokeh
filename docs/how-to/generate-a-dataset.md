@@ -105,7 +105,8 @@ column -s, -t < data/demo/manifest.csv
 ```
 seq_id  seed  n_frames  size  n_objects  n_rejections  n_range_fallbacks
 0001    0     80        512   1          0             0
-0002    1     80        512   2          0             0
+0002    1     80        512   3          0             0
+0003    2     80        512   4          0             0
 ```
 
 `n_rejections` counts trajectory sets the collision validator threw away; it climbs with
