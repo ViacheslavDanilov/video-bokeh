@@ -40,7 +40,10 @@ Run the depth estimator once per asset, clean the result, and save it.
 ### 1. Composite on a neutral background
 
 A foreground is a cut-out with transparency. The depth model needs a full image, so the
-object is pasted onto a plain textured backdrop first.
+object is pasted onto a backdrop first. That backdrop is deliberately not blank: it is
+low-frequency noise around mid-gray, clipped to a narrow band, because a flat background gives
+the model nothing to separate the object from. The composite is saved as `depth_input.png`, so
+a bad depth map later can be traced to the model or to the compositing rather than guessed at.
 
 ### 2. Estimate depth
 

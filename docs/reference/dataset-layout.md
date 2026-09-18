@@ -26,6 +26,7 @@ Built once per asset pool by `data.build_library`. Depth is estimated here and n
 │   ├── alpha.png      L     uint8   (1024, 1024)      its matte, 0–255
 │   ├── depth.png      I;16  uint16  (1024, 1024)      propagated disparity
 │   ├── depth_raw.png  I;16  uint16  (1024, 1024)      estimator output, diagnostic, optional
+│   ├── depth_input.png RGB  uint8   (1024, 1024, 3)   what the estimator saw, diagnostic, optional
 │   └── meta.json      JSON                            how the asset was produced, diagnostic
 └── backgrounds/<id>/
     ├── rgb.png        RGB   uint8   (1536, 1536, 3)   larger than the frame, for pan headroom
@@ -43,6 +44,12 @@ carry it without visible banding.
 `meta.json` records the estimator name, the propagation parameters, and raw-depth statistics
 such as `core_frac` — the fraction of the object the trusted core covered. Stage B never reads
 it; it exists so a bad depth map can be diagnosed without re-running Stage A.
+
+`depth_input.png` is the image the estimator was actually given: the cut-out composited onto
+the neutral texture, because a depth model cannot read a transparent cut-out. Statistics alone
+cannot tell a model failure from a compositing failure — with this you can look. It costs
+about 38 % of a foreground's footprint, which is nothing against the dataset the library
+produces.
 
 ---
 

@@ -91,3 +91,43 @@ def test_constant_depth_roundtrips_without_error(tmp_path) -> None:
     asset = load_background(tmp_path, "flat")
     assert asset.depth.shape == (8, 8)
     assert np.all(np.isfinite(asset.depth))
+
+
+def test_depth_input_round_trips(tmp_path) -> None:
+    """The image the estimator actually saw is saved, so a bad depth map can be seen.
+
+    meta.json records statistics about the raw depth, but nothing showed what was fed
+    in. Without it there is no way to tell a model failure from a compositing failure.
+    """
+    rgba = Image.fromarray(np.zeros((8, 8, 4), dtype=np.uint8), mode="RGBA")
+    alpha = np.zeros((8, 8), dtype=np.float32)
+    depth = np.full((8, 8), 0.5, dtype=np.float32)
+    composited = Image.fromarray(
+        np.full((8, 8, 3), 128, dtype=np.uint8),
+        mode="RGB",
+    )
+
+    write_foreground(tmp_path, "fg", rgba, alpha, depth, depth_input=composited)
+
+    saved = tmp_path / "foregrounds" / "fg" / "depth_input.png"
+    assert saved.is_file()
+    with Image.open(saved) as im:
+        assert im.mode == "RGB"
+
+    asset = load_foreground(tmp_path, "fg")
+    assert asset.depth_input is not None
+    assert asset.depth_input.size == (8, 8)
+
+
+def test_library_without_depth_input_still_loads(tmp_path) -> None:
+    """Libraries built before this existed must keep working."""
+    rgba = Image.fromarray(np.zeros((8, 8, 4), dtype=np.uint8), mode="RGBA")
+    write_foreground(
+        tmp_path,
+        "fg",
+        rgba,
+        np.zeros((8, 8), dtype=np.float32),
+        np.full((8, 8), 0.5, dtype=np.float32),
+    )
+
+    assert load_foreground(tmp_path, "fg").depth_input is None
