@@ -22,21 +22,45 @@ backend/src/video_bokeh/
 | You want to | Install |
 |---|---|
 | generate scenes from an existing library | `uv sync --no-dev` |
-| build a library yourself (needs a GPU) | `uv sync --no-dev --extra library` |
-| download the source pools | `uv sync --extra acquire` |
-| run the API | `uv sync --extra api` |
+| build a library yourself | `uv sync --no-dev --extra library` |
+| download the source pools | `uv sync --no-dev --extra acquire` |
+| run the API | `uv sync --no-dev --extra api` |
 | develop on the repository | `uv sync --all-extras --dev` |
+
+Drop `--no-dev` and uv adds the `dev` group — pytest, ruff, ty, pre-commit — on top, which
+only the last row wants.
 
 ### Smoke test
 
-`data/library_dev` is tracked in the repository, so this runs right after cloning — no
-downloads, no GPU. On the machine this was measured on, 4 sequences of 80 frames took 17.7 s:
+A fresh clone can run the pipeline without a download or a Kaggle account: the two source
+pools `data/magick_dev` (20 foregrounds) and `data/bg-20k_dev` (20 backgrounds) are tracked on
+purpose. The artifact library is not — it is generated, and `.gitignore` keeps
+`backend/data/library*/` out — so build it once with Stage A, then run Stage B as often as you
+like. Both numbers below were measured on an Apple M3 Pro.
+
+**Stage A — build the library.** Install `uv sync --no-dev --extra library`.
+
+```bash
+uv run python -m video_bokeh.library.build \
+  --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
+  --output data/library_dev --size 512 --model da2-small
+```
+
+**10 s**, on MPS, once the depth model is cached; the first run also pulls it from Hugging
+Face. `da2-small` is the fast model and is what makes this a smoke test — `da2-large` is the
+default elsewhere and is slower and better. The CLIP filter keeps about 12 of the 20
+foregrounds.
+
+**Stage B — generate sequences.** `uv sync --no-dev` is enough; Stage B needs no torch.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/synth_dev \
   --count 4 --frames 80 --size 512 --seed 0
 ```
+
+**17 s** for 4 sequences of 80 frames. Rerun it with a different `--seed` or `--count` without
+touching Stage A. `--size` must match between the two stages.
 
 Full recipes — building a library, downloading the source pools — are in
 [`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md). Every flag is in
