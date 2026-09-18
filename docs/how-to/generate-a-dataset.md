@@ -60,7 +60,7 @@ uv run python -m video_bokeh.library.build \
 ## 2. Stage B — generate sequences
 
 ```bash
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo \
   --count 4 --frames 80 --size 512 --seed 0
 ```
@@ -83,7 +83,7 @@ There is no format ceiling: the alpha stream is a multi-page TIFF and takes as m
 it is given. `--n-objects-max` defaults to 5.
 
 ```bash
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo5 \
   --count 3 --frames 8 --size 512 --n-objects-min 5 --n-objects-max 5
 ```

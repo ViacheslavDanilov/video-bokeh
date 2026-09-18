@@ -13,7 +13,7 @@ generate_sequences.py + estimate_disparity.py pair: depth is now sampled and
 transformed from the library, not estimated per frame.
 
 Usage:
-    uv run python -m data.generate_dataset \\
+    uv run python -m video_bokeh.scenes.generate \\
         --library-root data/library_dev \\
         --output       data/synth_dev \\
         --count 10 --frames 80 --size 1024 --seed 0
@@ -29,14 +29,14 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from data.compositor import (
+from video_bokeh.core._sequence_geometry import SampleConfig
+from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
+from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     RenderedFrame,
     render_scene,
     sample_scene,
 )
-from video_bokeh.core._sequence_geometry import SampleConfig
-from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 
 _MANIFEST_FIELDS = (
     "seq_id",

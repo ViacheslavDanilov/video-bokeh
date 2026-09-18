@@ -41,7 +41,7 @@ Estimates depth once per asset and writes the artifact library.
 | `--styles` | list | `photo, render` | CLIP style classes kept |
 | `--subject-thr` | float | `0.5` | minimum CLIP score to keep an asset |
 
-## `data.generate_dataset` — Stage B
+## `video_bokeh.scenes.generate` — Stage B
 
 Samples scenes from the library and writes the sequence tree in [[dataset-layout]].
 

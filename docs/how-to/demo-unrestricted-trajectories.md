@@ -38,7 +38,7 @@ uv run python -m video_bokeh.library.build \
 
 ```bash
 cd backend
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo \
   --count 4 --frames 80 --size 512 --seed 0
 ```
@@ -68,7 +68,7 @@ the collision validator.
 ```bash
 cd backend
 for n in 1 2 3; do
-  uv run python -m data.generate_dataset \
+  uv run python -m video_bokeh.scenes.generate \
     --library-root data/library_dev --output "data/demo_n$n" \
     --count 4 --frames 80 --size 512 --seed 0 \
     --n-objects-min $n --n-objects-max $n
@@ -116,7 +116,7 @@ numbering rather than shifting every later sequence onto a different seed.
 
 ```bash
 cd backend
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo_seeds \
   --count 10 --frames 80 --size 512 --seed 100
 ```

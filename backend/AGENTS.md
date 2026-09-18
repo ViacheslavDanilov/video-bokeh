@@ -75,7 +75,7 @@ uv run python -m video_bokeh.library.build \
 # 3. Stage B — generate sequences on the fly from the library
 #    Writes all_in_focus/*.png (RGB), alpha/*.tif (one page per object)
 #    and disparity/*.png (uint16). See docs/reference/dataset-layout.md.
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/synth_dev \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5
 

@@ -55,7 +55,7 @@ produces.
 
 ## Stage B — a generated sequence
 
-Written by `data.generate_dataset`. This is the layout `prepare_any_to_bokeh.py` consumes.
+Written by `video_bokeh.scenes.generate`. This is the layout `prepare_any_to_bokeh.py` consumes.
 
 ```
 <output>/
