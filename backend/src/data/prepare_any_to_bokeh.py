@@ -4,9 +4,8 @@
 Reads our sequence layout:
 
     <data-root>/sequences/<id>/all_in_focus/*.png
-    <data-root>/sequences/<id>/alpha/*.png
-    <data-root>/sequences/<id>/disparity/*.png       (uint8, default)
-    <data-root>/sequences/<id>/disparity/*.tif       (float32, legacy)
+    <data-root>/sequences/<id>/alpha/*.tif           (multi-page uint8)
+    <data-root>/sequences/<id>/disparity/*.png       (uint16)
 
 and writes any-to-bokeh-compatible inputs:
 
@@ -26,10 +25,10 @@ import csv
 from pathlib import Path
 
 import numpy as np
-import tifffile
 from PIL import Image
 
 from data._seq_io import list_sequences
+from data._streams import read_alpha_tiff, read_disparity_png
 
 
 def _parse_seqs(value: str) -> list[str]:
@@ -46,30 +45,19 @@ def _list_png_frames(path: Path) -> list[Path]:
     return sorted(path.glob("*.png"), key=_numeric_stem)
 
 
-def _list_disparity_frames(path: Path) -> list[Path]:
-    """List disparity frames, preferring uint16 PNG over legacy float32 TIF."""
+def _list_tif_frames(path: Path) -> list[Path]:
     if not path.exists():
-        raise FileNotFoundError(f"disparity directory missing: {path}")
-    pngs = sorted(path.glob("*.png"), key=_numeric_stem)
-    if pngs:
-        return pngs
+        raise FileNotFoundError(f"frame directory missing: {path}")
     return sorted(path.glob("*.tif"), key=_numeric_stem)
 
 
-def _load_disparity(path: Path) -> np.ndarray:
-    """Read a disparity frame as float32 in [0, 1], regardless of on-disk format."""
-    if path.suffix.lower() == ".tif":
-        return tifffile.imread(path).astype(np.float32)
-    img = Image.open(path)
-    arr = np.asarray(img)
-    if arr.dtype == np.uint16:
-        return arr.astype(np.float32) / 65535.0
-    if arr.dtype == np.uint8:
-        return arr.astype(np.float32) / 255.0
-    return arr.astype(np.float32)
-
-
 def _to_uint8_disparities(arrs: list[np.ndarray]) -> list[np.ndarray]:
+    """Quantize float disparity to the 8 bits any-to-bokeh reads. Exactly once.
+
+    The stream on disk is 16-bit, so this is the single lossy step in the bridge.
+    It used to run on an already-quantized uint8 array, which was harmless only
+    while the source had no precision to lose.
+    """
     stack = np.asarray(arrs, dtype=np.float32)
     lo = float(np.nanmin(stack))
     hi = float(np.nanmax(stack))
@@ -84,14 +72,25 @@ def _to_uint8_disparities(arrs: list[np.ndarray]) -> list[np.ndarray]:
 
 
 def _load_focus_mask(alpha_path: Path | None, shape: tuple[int, int]) -> np.ndarray:
+    """Union of the object masks, used to average the in-focus disparity.
+
+    Taking the union matters. The previous reader collapsed the RGB alpha stream
+    with ``convert("L")``, a luminance blend weighting the channels 0.299, 0.587
+    and 0.114, then thresholded at 127. An object alone in the first channel
+    scored 76 and one in the third scored 29, so neither passed and the focus
+    silently fell back to the whole frame.
+    """
     if alpha_path is None or not alpha_path.exists():
         return np.ones(shape, dtype=bool)
-    alpha = np.asarray(Image.open(alpha_path).convert("L"), dtype=np.uint8)
-    if alpha.shape != shape:
+    pages = read_alpha_tiff(alpha_path)
+    if pages and pages[0].shape != shape:
         raise ValueError(
-            f"alpha shape {alpha.shape} does not match disparity shape {shape}: {alpha_path}",
+            f"alpha shape {pages[0].shape} does not match disparity shape {shape}: "
+            f"{alpha_path}",
         )
-    mask = alpha > 127
+    mask = np.zeros(shape, dtype=bool)
+    for page in pages:
+        mask |= page > 0.5
     if not mask.any():
         return np.ones(shape, dtype=bool)
     return mask
@@ -109,9 +108,9 @@ def _write_sequence(
     focus_disparity: float | None = None,
 ) -> int:
     image_paths = _list_png_frames(seq_dir / "all_in_focus")
-    disparity_paths = _list_disparity_frames(seq_dir / "disparity")
+    disparity_paths = _list_png_frames(seq_dir / "disparity")
     alpha_paths = (
-        _list_png_frames(seq_dir / "alpha") if (seq_dir / "alpha").exists() else []
+        _list_tif_frames(seq_dir / "alpha") if (seq_dir / "alpha").exists() else []
     )
 
     if len(image_paths) != len(disparity_paths):
@@ -128,7 +127,7 @@ def _write_sequence(
     out_video_dir.mkdir(parents=True, exist_ok=True)
     out_disp_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_disps = [_load_disparity(path) for path in disparity_paths]
+    raw_disps = [read_disparity_png(path) for path in disparity_paths]
     disp_pngs = _to_uint8_disparities(raw_disps)
     digits = max(2, len(str(len(image_paths))))
 
