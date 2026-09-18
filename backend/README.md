@@ -1,74 +1,62 @@
 # 🐍 Video Bokeh Backend
 
-FastAPI backend for the depth-aware synthetic bokeh video pipeline.
+FastAPI backend and dataset pipeline for the depth-aware synthetic bokeh video project.
 
 ## 📁 Structure
 
 ```
-backend/
-├── Dockerfile                  # Container configuration
-├── src/
-│   └── video_bokeh/            # Runtime + dataset pipeline (package shipped in the wheel)
-│       ├── __init__.py
-│       ├── api/           main.py                     # FastAPI app
-│       ├── acquire/       magick.py  bg20k.py  classify.py  # source pools
-│       ├── bridge/        any_to_bokeh.py             # hand-off to the vendored checkout
-│       ├── core/          shared pipeline modules
-│       ├── library/       build.py                    # Stage A
-│       ├── preview/       pack.py                     # streams a human looks at
-│       └── scenes/        generate.py                 # Stage B
-├── models/                     # Trained model artifacts
-├── data/                       # Datasets (e.g. magick/, magick_dev/)
-└── pyproject.toml              # Package dependencies
+backend/src/video_bokeh/
+├── __init__.py
+├── api/            main.py                          — FastAPI app
+├── acquire/        magick.py  bg20k.py  classify.py  — source pools
+├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
+├── core/           _collision.py  _fusion.py  _library.py  _metadata.py
+│                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py
+├── library/        build.py  _device.py  _neutral_bg.py  _propagation.py  depth/
+├── preview/        pack.py                           — streams a human looks at
+└── scenes/         generate.py  _compositor.py       — Stage B
 ```
 
 ## 🚀 Quick Start
 
-```bash
-# From project root
-uv sync                     # Install dependencies
+| You want to | Install |
+|---|---|
+| generate scenes from an existing library | `uv sync --no-dev` |
+| build a library yourself (needs a GPU) | `uv sync --no-dev --extra library` |
+| download the source pools | `uv sync --extra acquire` |
+| run the API | `uv sync --extra api` |
+| develop on the repository | `uv sync --all-extras --dev` |
 
-# Run the API
+### Smoke test
+
+`data/library_dev` is tracked in the repository, so this runs right after cloning — no
+downloads, no GPU. On the machine this was measured on, 4 sequences of 80 frames took 17.7 s:
+
+```bash
+uv run python -m video_bokeh.scenes.generate \
+  --library-root data/library_dev --output data/synth_dev \
+  --count 4 --frames 80 --size 512 --seed 0
+```
+
+Full recipes — building a library, downloading the source pools — are in
+[`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md). Every flag is in
+[`docs/reference/cli.md`](../docs/reference/cli.md). The on-disk contract each stage writes is
+in [`docs/reference/dataset-layout.md`](../docs/reference/dataset-layout.md).
+
+**`--extra acquire` is not a light install.** It pulls in `open-clip-torch`, which pulls in
+`torch`, despite what "acquire" suggests. The runnable download commands live in `AGENTS.md`;
+two facts worth knowing before you run them: the full MAGICK mirror comes from the HuggingFace
+CLI, not this repository's script, and the BG-20k Kaggle download lands as upload shards
+`1/`…`7/` that have to be concatenated into the full `train/` and `testval/` split.
+
+### Run the API
+
+```bash
 uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 ```
 
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs
-
-## 📚 Datasets
-
-All dataset scripts live under `src/video_bokeh/acquire/` and `src/video_bokeh/bridge/`. Run from `backend/`.
-
-### MAGICK (HuggingFace)
-
-Sampled dev-set mirror of [OneOverZero/MAGICK](https://huggingface.co/datasets/OneOverZero/MAGICK):
-
-```bash
-uv run python -m video_bokeh.acquire.magick \
-  --metadata data/magick_metadata.csv \
-  --output   data/magick_dev \
-  --count    20 --seed 0
-```
-
-For the full mirror, use the HF CLI instead:
-
-```bash
-huggingface-cli download OneOverZero/MAGICK \
-  --repo-type dataset --local-dir data/magick
-```
-
-### BG-20k (Kaggle)
-
-Full archive (~25–30 GB) via `kagglehub`. Requires `~/.kaggle/kaggle.json`:
-
-```bash
-uv add kagglehub
-uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
-```
-
-Files land under `<output>/datasets/nguyenquocdungk16hl/bg-20o/versions/<N>/`
-(folders `1/`…`7/` are Kaggle upload shards — concatenate them for the full
-`train/` + `testval/` split).
 
 ## 🐳 Docker
 
@@ -108,5 +96,5 @@ uv run ruff format src/
 ## 🔌 API Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+|--------|----------|--------------|
 | GET | `/health` | Health check |

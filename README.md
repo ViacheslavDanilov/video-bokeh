@@ -65,6 +65,8 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://localhost:8000/docs](http://localhost:8000/docs) (API docs).
 
+To generate training data instead of running the API, see [backend/README.md](backend/README.md).
+
 ## License
 
 [MIT](LICENSE)
