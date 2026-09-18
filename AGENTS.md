@@ -105,8 +105,7 @@ CI mirrors these in `.github/workflows/ci.yaml`. If a step passes locally but fa
 
 ## Where things live
 
-- `backend/src/video_bokeh/` — FastAPI runtime
-- `backend/src/data/` — dataset download + preprocessing scripts (run from `backend/`)
+- `backend/src/video_bokeh/` — FastAPI runtime and dataset pipeline (run scripts from `backend/`)
 - `frontend/src/` — Next.js app
 - `docs/` — documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/` and `reference/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
 - `scripts/` — repo-level setup scripts (`setup_third_party.sh`, etc.)

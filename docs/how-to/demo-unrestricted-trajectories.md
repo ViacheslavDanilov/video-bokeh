@@ -148,7 +148,7 @@ Every column: [[dataset-layout]].
 
 ```bash
 cd backend
-uv run python -m data.prepare_any_to_bokeh --data-root data/demo
+uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ```
 
 See [[run-any-to-bokeh-inference]].

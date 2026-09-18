@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from data.prepare_any_to_bokeh import main
+from video_bokeh.bridge.any_to_bokeh import main
 from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 
 

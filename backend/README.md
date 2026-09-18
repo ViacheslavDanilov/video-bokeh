@@ -8,14 +8,15 @@ FastAPI backend for the depth-aware synthetic bokeh video pipeline.
 backend/
 ├── Dockerfile                  # Container configuration
 ├── src/
-│   ├── video_bokeh/            # FastAPI app package (runtime)
-│   │   ├── __init__.py
-│   │   └── main.py
-│   └── data/                   # Data scripts: download, depth conversion, visualization
+│   └── video_bokeh/            # Runtime + dataset pipeline (package shipped in the wheel)
 │       ├── __init__.py
-│       ├── download_magick.py
-│       ├── convert_depth.py
-│       └── visualize_depth.py
+│       ├── main.py                                   # FastAPI app
+│       ├── acquire/       magick.py  bg20k.py  classify.py  # source pools
+│       ├── bridge/        any_to_bokeh.py             # hand-off to the vendored checkout
+│       ├── core/          shared pipeline modules
+│       ├── library/       build.py                    # Stage A
+│       ├── preview/       pack.py                     # streams a human looks at
+│       └── scenes/        generate.py                 # Stage B
 ├── models/                     # Trained model artifacts
 ├── data/                       # Datasets (e.g. magick/, magick_dev/)
 └── pyproject.toml              # Package dependencies
@@ -36,14 +37,14 @@ uv run uvicorn video_bokeh.main:app --reload --port 8000
 
 ## 📚 Datasets
 
-All dataset scripts live under `src/data/`. Run from `backend/`.
+All dataset scripts live under `src/video_bokeh/acquire/` and `src/video_bokeh/bridge/`. Run from `backend/`.
 
 ### MAGICK (HuggingFace)
 
 Sampled dev-set mirror of [OneOverZero/MAGICK](https://huggingface.co/datasets/OneOverZero/MAGICK):
 
 ```bash
-uv run python -m data.download_magick \
+uv run python -m video_bokeh.acquire.magick \
   --metadata data/magick_metadata.csv \
   --output   data/magick_dev \
   --count    20 --seed 0
@@ -62,7 +63,7 @@ Full archive (~25–30 GB) via `kagglehub`. Requires `~/.kaggle/kaggle.json`:
 
 ```bash
 uv add kagglehub
-uv run python -m data.download_bg20k --output data/bg-20k
+uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
 ```
 
 Files land under `<output>/datasets/nguyenquocdungk16hl/bg-20o/versions/<N>/`

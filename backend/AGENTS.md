@@ -32,8 +32,7 @@ Pre-commit invokes `pycln`, `ruff` (with `--fix`), `ruff-format`, and `ty` again
 ```
 backend/
 ├── src/
-│   ├── video_bokeh/   # FastAPI runtime (the package shipped in the wheel)
-│   └── data/          # Dataset download + preprocessing scripts
+│   └── video_bokeh/   # FastAPI runtime (the package shipped in the wheel)
 ├── tests/             # pytest tests
 ├── models/            # Trained model artifacts (gitignored)
 ├── data/              # Datasets (gitignored)
@@ -42,13 +41,12 @@ backend/
 ```
 
 - **`src/video_bokeh/`** = production code (API surface).
-- **`src/data/`** = standalone scripts, run as modules from `backend/`: `uv run python -m data.download_magick ...`.
 - **`third_party/`** = git submodules. Read-only. To update: `git submodule update --remote <path>` after confirming with the user.
 
 ## Conventions
 
 - **Ruff config** is in `backend/pyproject.toml` (`[tool.ruff]`). Line length 88, target `py313`. Lint selection includes pyflakes, isort, bugbear, comprehensions, pyupgrade — don't reintroduce things ruff would remove.
-- **isort first-party packages** are `video_bokeh` and `data` (configured). Local imports follow the third-party block.
+- **isort first-party package** is `video_bokeh` (configured). Local imports follow the third-party block.
 - **Type hints required on public functions.** `ty` runs in pre-commit against `src/`. Tests are excluded.
 - **`models/` and `data/` are excluded from pre-commit** (see top-level `.pre-commit-config.yaml`). Don't add Python files there.
 - **No emoji in code or commit messages** unless the user explicitly asks. (README files can use them — they already do.)
@@ -60,12 +58,12 @@ Dataset scripts assume working directory is `backend/`. Examples:
 ```bash
 # 1. Acquire sources
 #    MAGICK dev mirror (HuggingFace)
-uv run python -m data.download_magick \
+uv run python -m video_bokeh.acquire.magick \
   --metadata data/magick_metadata.csv \
   --output   data/magick_dev \
   --count    20 --seed 0
 #    BG-20k full archive (Kaggle) — needs ~/.kaggle/kaggle.json
-uv run python -m data.download_bg20k --output data/bg-20k
+uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
 
 # 2. Stage A — build the artifact library (depth runs once per asset)
 uv run python -m video_bokeh.library.build \
@@ -80,7 +78,7 @@ uv run python -m video_bokeh.scenes.generate \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5
 
 # 4. Bridge to any-to-bokeh inference
-uv run python -m data.prepare_any_to_bokeh --data-root data/synth_dev
+uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/synth_dev
 ```
 
 `backend/data/` is gitignored — outputs stay local.

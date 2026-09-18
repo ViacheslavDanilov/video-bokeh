@@ -8,7 +8,7 @@
         ├── alpha/<frame>.tif          multi-page uint8, one page per object
         └── disparity/<frame>.png      uint16
 
-This layout matches what prepare_any_to_bokeh.py consumes. Replaces the old
+This layout matches what bridge/any_to_bokeh.py consumes. Replaces the old
 generate_sequences.py + estimate_disparity.py pair: depth is now sampled and
 transformed from the library, not estimated per frame.
 

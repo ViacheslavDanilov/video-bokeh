@@ -23,17 +23,17 @@ Layout:
 
 Usage:
     # Default: all sequences, all_in_focus stream, visually lossless
-    uv run python -m data.pack_videos \\
+    uv run python -m video_bokeh.preview.pack \\
         --data-root backend/data/synth_dev
 
     # Multiple streams, custom fps
-    uv run python -m data.pack_videos \\
+    uv run python -m video_bokeh.preview.pack \\
         --data-root backend/data/synth_dev \\
         --streams all_in_focus,alpha,bokeh \\
         --fps 30
 
     # Limit to specific sequences
-    uv run python -m data.pack_videos \\
+    uv run python -m video_bokeh.preview.pack \\
         --data-root backend/data/synth_dev \\
         --seqs 0001,0003
 """

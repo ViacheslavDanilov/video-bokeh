@@ -55,7 +55,7 @@ produces.
 
 ## Stage B — a generated sequence
 
-Written by `video_bokeh.scenes.generate`. This is the layout `prepare_any_to_bokeh.py` consumes.
+Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_bokeh.py` consumes.
 
 ```
 <output>/
@@ -142,7 +142,7 @@ regenerates every sequence exactly.
 
 ## The any-to-bokeh bridge
 
-`data.prepare_any_to_bokeh` converts a sequence tree into what the vendored inference code
+`video_bokeh.bridge.any_to_bokeh` converts a sequence tree into what the vendored inference code
 expects.
 
 ```

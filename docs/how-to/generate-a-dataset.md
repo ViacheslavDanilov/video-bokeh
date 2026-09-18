@@ -143,7 +143,7 @@ A fuller set of checks on the trajectory model is in [[demo-unrestricted-traject
 ## 5. Hand it to the renderer
 
 ```bash
-uv run python -m data.prepare_any_to_bokeh --data-root data/demo
+uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ```
 
 See [[run-any-to-bokeh-inference]].

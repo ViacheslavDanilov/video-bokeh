@@ -12,7 +12,7 @@ _BACKEND = Path(__file__).resolve().parents[2]
 def test_bridge_imports_without_torch() -> None:
     code = (
         "import sys\n"
-        "import data.prepare_any_to_bokeh\n"
+        "import video_bokeh.bridge.any_to_bokeh\n"
         "sys.exit(1 if 'torch' in sys.modules else 0)\n"
     )
     result = subprocess.run(

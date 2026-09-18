@@ -33,13 +33,13 @@ embeddings are averaged per class (prompt ensembling), which typically yields
 animal+photo while an "ornate wolf tattoo" is animal+drawing.
 
 Usage:
-    uv run python -m data.classify_clip \
+    uv run python -m video_bokeh.acquire.classify \
         --data-root backend/data/magick_dev \
         --batch-size 16
 
     # Full mirror (populate via `huggingface-cli download OneOverZero/MAGICK
     # --repo-type dataset --local-dir backend/data/magick`), on a GPU:
-    uv run python -m data.classify_clip \
+    uv run python -m video_bokeh.acquire.classify \
         --data-root backend/data/magick \
         --batch-size 64 --device cuda
 """

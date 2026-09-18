@@ -25,7 +25,7 @@ _VENDORED = {"inference_demo.py"}  # third_party/any-to-bokeh/test/inference_dem
 _DOC_ROOTS = ("docs/explanation", "docs/how-to", "docs/reference")
 _DOC_FILES = ("AGENTS.md", "README.md", "docs/README.md", "docs/STYLE.md")
 
-# Any Python module the docs name: `src/data/foo.py`, `backend/src/...`, or a bare `foo.py`.
+# Any Python module the docs name: `src/video_bokeh/foo.py`, `backend/src/...`, or a bare `foo.py`.
 _PATH_RE = re.compile(r"\b(?:backend/)?src/[\w/]+\.py\b")
 _NAME_RE = re.compile(r"\b([a-z_][\w]*\.py)\b")
 # Module constants named inside backticks, which is how the docs write them:
