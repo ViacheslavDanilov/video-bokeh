@@ -15,7 +15,7 @@ Run from `backend/` unless noted.
 | Task | Command |
 |---|---|
 | Install (dev deps included) | `uv sync --dev` (from repo root) |
-| Run API (reload) | `uv run uvicorn video_bokeh.main:app --reload --port 8000` |
+| Run API (reload) | `uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
 | Tests | `uv run pytest` |
 | Type check | `uv run ty check src/` |
 | Lint | `uv run ruff check src/` |

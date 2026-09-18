@@ -55,7 +55,7 @@ The backend estimates per-frame depth, applies a controllable blur kernel modula
 cd backend
 cp .env.example .env
 uv sync
-uv run uvicorn video_bokeh.main:app --reload
+uv run uvicorn video_bokeh.api.main:app --reload
 
 # Frontend
 cd frontend

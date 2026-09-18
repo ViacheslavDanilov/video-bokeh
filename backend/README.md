@@ -10,7 +10,7 @@ backend/
 ├── src/
 │   └── video_bokeh/            # Runtime + dataset pipeline (package shipped in the wheel)
 │       ├── __init__.py
-│       ├── main.py                                   # FastAPI app
+│       ├── api/           main.py                     # FastAPI app
 │       ├── acquire/       magick.py  bg20k.py  classify.py  # source pools
 │       ├── bridge/        any_to_bokeh.py             # hand-off to the vendored checkout
 │       ├── core/          shared pipeline modules
@@ -29,7 +29,7 @@ backend/
 uv sync                     # Install dependencies
 
 # Run the API
-uv run uvicorn video_bokeh.main:app --reload --port 8000
+uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 ```
 
 - API: http://localhost:8000
