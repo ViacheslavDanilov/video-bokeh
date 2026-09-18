@@ -29,51 +29,51 @@ The main backend env (used by every command in the sections below) is separate �
 
 ## Build a synthetic dataset
 
-`build_dataset.py` chains four stages: CLIP classification → sequence rendering → disparity estimation → any-to-bokeh layout. The orchestrator stops after stage 4; run any-to-bokeh by hand from its own env (see below).
+`build_dataset.py` runs the two stages of the pipeline in order and stops. Bokeh is a
+separate pipeline and is not part of it.
 
-### Dev build — fast iteration (~minutes)
+1. **Stage A** — estimate depth once per asset and write the artifact library. The slow one.
+2. **Stage B** — sample scenes from that library and write sequences. Fast, and repeatable
+   from the same library.
 
-20-image dev splits of MAGICK and BG-20k, `da2-small` depth model, `predictions.csv` skipped because `magick_dev/predictions.csv` ships with the repo.
-
-```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 3 --depth-model da2-small --skip classify
-```
-
-If the `keep_confidence` filter drops too many of the 20 dev foregrounds, disable both axis thresholds:
+### Just run it
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 3 --depth-model da2-small --subject-thr 0.0 --style-thr 0.0 --skip classify
+uv run python scripts/build_dataset.py
 ```
 
-Force a full re-run including the 20-image CLIP pass (about 30 seconds on MPS):
+A fresh clone has everything this needs. `backend/data/magick_dev` (20 foregrounds) and
+`backend/data/bg-20k_dev` (20 backgrounds) are tracked on purpose, so nothing is downloaded
+except the depth model, which Hugging Face caches on first use.
+
+Defaults write `backend/data/library_demo` and `backend/data/demo`: 4 sequences, 24 frames,
+512 px, 1 to 5 objects, `da2-small`. **Measured end to end on an M-series Mac: 14 s**, of
+which Stage A is 9 s. The script then prints what it wrote and the `vpv` command to look at it.
+
+### Run it again
+
+Stage A is reused unless you ask for it back, because rebuilding the library is the expensive
+part:
 
 ```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick_dev --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 3 --depth-model da2-small --batch-size 8
+uv run python scripts/build_dataset.py --count 10 --frames 80
+uv run python scripts/build_dataset.py --rebuild-library --model da2-large --size 1024
 ```
 
-### Production build — full datasets (~30+ minutes)
+### Useful flags
 
-Full MAGICK (12k FGs) + BG-20k, `da2-large` for spatial precision.
+| flag | default | what it does |
+|---|---|---|
+| `--count` | `4` | sequences to generate |
+| `--frames` | `24` | frames per sequence |
+| `--size` | `512` | square frame side. Must match between the two stages, and the script enforces that by passing it to both |
+| `--n-objects-min` / `--n-objects-max` | `1` / `5` | objects per scene. Past five the depth axis starts refusing scenes — see `docs/reference/dataset-layout.md` |
+| `--model` | `da2-small` | `da2-large` is slower and better |
+| `--rebuild-library` | off | rerun Stage A |
+| `--seed` | `0` | sequence `i` comes from `seed + i` |
 
-```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 10 --seed 0 --depth-model da2-large
-```
-
-### Resume after a crash
-
-Stage short names: `classify`, `generate`, `disparity`, `prepare`. List whichever stages already produced their output.
-
-Resume from disparity (sequences + `predictions.csv` already exist):
-
-```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 10 --depth-model da2-large --skip classify,generate
-```
-
-Re-do only the a2b layout:
-
-```bash
-uv run python scripts/build_dataset.py --fg-data-root backend/data/magick --bg-data-root backend/data/bg-20k_dev --output backend/data/synth_dev --count 10 --depth-model da2-large --skip classify,generate,disparity
-```
+For what lands on disk, read `docs/reference/dataset-layout.md`. For the stages one at a
+time, `docs/how-to/generate-a-dataset.md`.
 
 ### Run any-to-bokeh after the pipeline finishes
 

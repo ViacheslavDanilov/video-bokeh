@@ -184,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             alpha,
             depth,
             raw_depth=raw_disp.astype(np.float32),
+            depth_input=composited,
         )
         raw_eroded = trusted_core(
             alpha,

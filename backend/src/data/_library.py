@@ -2,7 +2,8 @@
 
     <library>/
     ├── foregrounds/<id>/{rgb.png (RGBA), alpha.png (L), depth.png (uint16),
-    │                     depth_raw.png (uint16, optional)}
+    │                     depth_raw.png (uint16, optional),
+    │                     depth_input.png (RGB, optional)}
     └── backgrounds/<id>/{rgb.png (RGB), depth.png (uint16)}
 
 Depth is stored as a uint16 PNG, larger = closer (disparity convention). Each
@@ -13,8 +14,14 @@ the relative structure matters and 16 bits preserves it without visible banding.
 
 ``depth.png`` is the propagated full-frame map consumed by Stage B.
 ``depth_raw.png`` is the estimator's untouched output before propagation, saved
-only as a diagnostic (raw-vs-propagated comparison); it is optional, so older
-libraries without it load with ``raw_depth=None``.
+only as a diagnostic (raw-vs-propagated comparison).
+``depth_input.png`` is the image the estimator actually saw: the cut-out
+composited onto the neutral texture, since the model cannot read a transparent
+cut-out. It is what separates a model failure from a compositing failure, which
+``meta.json``'s statistics cannot do on their own.
+
+Both diagnostics are optional, so libraries built before they existed load with
+``raw_depth=None`` and ``depth_input=None``.
 """
 
 from __future__ import annotations
@@ -58,6 +65,7 @@ class ForegroundAsset:
     alpha: np.ndarray  # (H, W) float32 in [0, 1]
     depth: np.ndarray  # (H, W) float32, propagated full-frame disparity
     raw_depth: np.ndarray | None = None  # (H, W) float32, estimator output (diagnostic)
+    depth_input: Image.Image | None = None  # RGB, what the estimator saw (diagnostic)
 
 
 @dataclass
@@ -88,6 +96,7 @@ def write_foreground(
     alpha: np.ndarray,
     depth: np.ndarray,
     raw_depth: np.ndarray | None = None,
+    depth_input: Image.Image | None = None,
 ) -> None:
     out = library_root / FOREGROUNDS / asset_id
     out.mkdir(parents=True, exist_ok=True)
@@ -97,6 +106,8 @@ def write_foreground(
     _write_depth_png(out / "depth.png", depth)
     if raw_depth is not None:
         _write_depth_png(out / "depth_raw.png", raw_depth)
+    if depth_input is not None:
+        depth_input.convert("RGB").save(out / "depth_input.png", compress_level=6)
 
 
 def write_background(
@@ -119,7 +130,16 @@ def load_foreground(library_root: Path, asset_id: str) -> ForegroundAsset:
     depth = _read_depth_png(base / "depth.png")
     raw_path = base / "depth_raw.png"
     raw_depth = _read_depth_png(raw_path) if raw_path.exists() else None
-    return ForegroundAsset(asset_id, rgb, alpha, depth, raw_depth=raw_depth)
+    input_path = base / "depth_input.png"
+    depth_input = Image.open(input_path).convert("RGB") if input_path.exists() else None
+    return ForegroundAsset(
+        asset_id,
+        rgb,
+        alpha,
+        depth,
+        raw_depth=raw_depth,
+        depth_input=depth_input,
+    )
 
 
 def load_background(library_root: Path, asset_id: str) -> BackgroundAsset:

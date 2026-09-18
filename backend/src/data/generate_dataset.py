@@ -3,7 +3,10 @@
 
     <output>/
     ├── manifest.csv
-    └── sequences/<id>/{all_in_focus,alpha,disparity}/<frame>.png
+    └── sequences/<id>/
+        ├── all_in_focus/<frame>.png   RGB uint8
+        ├── alpha/<frame>.tif          multi-page uint8, one page per object
+        └── disparity/<frame>.png      uint16
 
 This layout matches what prepare_any_to_bokeh.py consumes. Replaces the old
 generate_sequences.py + estimate_disparity.py pair: depth is now sampled and
@@ -27,7 +30,13 @@ import numpy as np
 from PIL import Image
 
 from data._sequence_geometry import SampleConfig
-from data.compositor import RenderedFrame, render_scene, sample_scene
+from data._streams import write_alpha_tiff, write_disparity_png
+from data.compositor import (
+    CollisionRetriesExhausted,
+    RenderedFrame,
+    render_scene,
+    sample_scene,
+)
 
 _MANIFEST_FIELDS = (
     "seq_id",
@@ -35,8 +44,8 @@ _MANIFEST_FIELDS = (
     "n_frames",
     "size",
     "n_objects",
-    "depth_mode",
     "n_rejections",
+    "n_range_fallbacks",
 )
 
 
@@ -51,20 +60,8 @@ def _save_frame(
         aif / f"{stem}.png",
         compress_level=6,
     )
-    channels = [
-        np.clip(a * 255, 0, 255).astype(np.uint8) for a in frame.object_alphas[:3]
-    ]
-    h, w = frame.alpha.shape
-    while len(channels) < 3:
-        channels.append(np.zeros((h, w), dtype=np.uint8))
-    Image.fromarray(np.stack(channels, axis=-1), "RGB").save(
-        alp / f"{stem}.png",
-        compress_level=6,
-    )
-    Image.fromarray(
-        (np.clip(frame.disparity, 0, 1) * 255).round().astype(np.uint8),
-        "L",
-    ).save(disp / f"{stem}.png", compress_level=6)
+    write_alpha_tiff(alp / f"{stem}.tif", frame.object_alphas)
+    write_disparity_png(disp / f"{stem}.png", frame.disparity)
 
 
 def generate_dataset(
@@ -75,26 +72,36 @@ def generate_dataset(
     size: int,
     seed: int,
     n_objects_min: int = 1,
-    n_objects_max: int = 3,
+    n_objects_max: int = 5,
     cfg: SampleConfig | None = None,
-    depth_mode: str = "fixed",
-) -> None:
+) -> int:
+    """Write ``count`` sequences and return how many were actually written.
+
+    A sequence whose trajectories cannot be made collision-free is skipped, not
+    written. Sequence names stay tied to the seed, so a skip leaves a gap in the
+    numbering rather than shifting every later sequence onto a different seed.
+    """
     cfg = cfg or SampleConfig()
     output.mkdir(parents=True, exist_ok=True)
     rows: list[list[str]] = []
+    skipped: list[int] = []
 
     for i in range(count):
         seq_seed = seed + i
         n_obj = random.Random(f"nobj:{seq_seed}").randint(n_objects_min, n_objects_max)
-        scene = sample_scene(
-            library_root,
-            seed=seq_seed,
-            n_frames=n_frames,
-            size=size,
-            n_objects=n_obj,
-            cfg=cfg,
-            depth_mode=depth_mode,
-        )
+        try:
+            scene = sample_scene(
+                library_root,
+                seed=seq_seed,
+                n_frames=n_frames,
+                size=size,
+                n_objects=n_obj,
+                cfg=cfg,
+            )
+        except CollisionRetriesExhausted as exc:
+            skipped.append(seq_seed)
+            print(f"  skip  seed={seq_seed}  {exc}")
+            continue
         frames = render_scene(scene)
 
         seq_name = f"{i + 1:04d}"
@@ -114,8 +121,8 @@ def generate_dataset(
                 str(n_frames),
                 str(size),
                 str(len(scene.objects)),
-                depth_mode,
                 str(scene.n_rejections),
+                str(scene.n_range_fallbacks),
             ],
         )
         print(
@@ -128,6 +135,10 @@ def generate_dataset(
         writer.writerow(_MANIFEST_FIELDS)
         writer.writerows(rows)
 
+    if skipped:
+        print(f"\nSkipped {len(skipped)} of {count} sequences; seeds: {skipped}")
+    return len(rows)
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -138,30 +149,27 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--size", type=int, default=1024)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--n-objects-min", type=int, default=1)
-    parser.add_argument("--n-objects-max", type=int, default=3)
-    parser.add_argument(
-        "--depth-mode",
-        choices=("fixed", "dynamic"),
-        default="fixed",
-        help="fixed = disjoint slots (default); dynamic = z(t) tracks + validator.",
-    )
+    parser.add_argument("--n-objects-max", type=int, default=5)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
-    generate_dataset(
-        library_root=args.library_root,
-        output=args.output,
-        count=args.count,
-        n_frames=args.frames,
-        size=args.size,
-        seed=args.seed,
-        n_objects_min=args.n_objects_min,
-        n_objects_max=args.n_objects_max,
-        depth_mode=args.depth_mode,
-    )
-    print(f"\nDone. Sequences in {args.output / 'sequences'}")
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    try:
+        written = generate_dataset(
+            library_root=args.library_root,
+            output=args.output,
+            count=args.count,
+            n_frames=args.frames,
+            size=args.size,
+            seed=args.seed,
+            n_objects_min=args.n_objects_min,
+            n_objects_max=args.n_objects_max,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(f"\nDone. {written} sequences in {args.output / 'sequences'}")
     return 0
 
 

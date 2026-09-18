@@ -9,18 +9,6 @@ _P_HI = 99.0
 _DEGENERATE_BAND_FRAC = 0.25
 
 
-def _band_for(
-    object_depth: float,
-    band_width: float,
-    bg_band_top: float,
-) -> tuple[float, float]:
-    """Map renderer depth (larger = farther) to disparity band (larger = closer)."""
-    anchor = 1.0 - float(object_depth)
-    lo = max(bg_band_top, anchor - band_width / 2.0)
-    hi = min(1.0, anchor + band_width / 2.0)
-    return lo, hi
-
-
 def place_in_band(
     disp: np.ndarray,
     alpha: np.ndarray,
@@ -31,8 +19,8 @@ def place_in_band(
     """Percentile-stretch in-object disparity into the explicit [lo, hi] band.
 
     Pixels outside ``alpha > 0`` are set to ``band_lo``. ``band_width`` is only
-    used to decide when a band is too degenerate to stretch into (fallback to
-    the band midpoint), preserving band_normalize's old behaviour.
+    used to decide when a band is too degenerate to stretch into, in which case
+    the whole object falls back to the band midpoint.
     """
     out = np.full_like(disp, band_lo, dtype=np.float32)
     mask = alpha > 0
@@ -54,18 +42,6 @@ def place_in_band(
     rescaled = band_lo + scaled * band_size
     out[mask] = rescaled[mask]
     return out
-
-
-def band_normalize(
-    disp: np.ndarray,
-    alpha: np.ndarray,
-    object_depth: float,
-    band_width: float = 0.10,
-    bg_band_top: float = 0.05,
-) -> np.ndarray:
-    """Rescale in-object disparity into the band derived from ``object_depth``."""
-    band_lo, band_hi = _band_for(object_depth, band_width, bg_band_top)
-    return place_in_band(disp, alpha, band_lo, band_hi, band_width=band_width)
 
 
 def bg_normalize(disp: np.ndarray, bg_band_top: float = 0.05) -> np.ndarray:
@@ -108,48 +84,3 @@ def assign_depth_slots(
         slots.append((lo, hi))
         cursor = hi + gap
     return slots
-
-
-def scaled_band(
-    env_lo: float,
-    env_hi: float,
-    scale_t: float,
-    scale_ref: float,
-    *,
-    active_width: float | None = None,
-) -> tuple[float, float]:
-    """Place a narrow active band inside an envelope by the zoom->disparity law.
-
-    The active band has width ``active_width`` (capped at the envelope width).
-    If ``active_width`` is None the full envelope width is used (legacy
-    behaviour).
-    Its centre is the envelope centre at ``scale_ref`` and slides by
-    ``scale_t / scale_ref`` toward the near (high-disparity) end as the object
-    grows, then is clamped so the band stays fully inside [env_lo, env_hi].
-    Disparity ~ apparent size, so growing on screen means coming closer.
-    """
-    env_width = env_hi - env_lo
-    width = min(active_width if active_width is not None else env_width, env_width)
-    env_centre = (env_lo + env_hi) / 2.0
-    ratio = scale_t / scale_ref if scale_ref > 1e-8 else 1.0
-    new_centre = env_lo + (env_centre - env_lo) * ratio
-    half = width / 2.0
-    new_centre = min(max(new_centre, env_lo + half), env_hi - half)
-    return new_centre - half, new_centre + half
-
-
-def composite_layers(
-    bg_norm: np.ndarray,
-    obj_norms: list[np.ndarray],
-    alphas: list[np.ndarray],
-) -> np.ndarray:
-    """Composite normalized object disparities over the background in paint order."""
-    if len(obj_norms) != len(alphas):
-        raise ValueError(
-            f"obj_norms ({len(obj_norms)}) and alphas ({len(alphas)}) length mismatch",
-        )
-
-    final = bg_norm.astype(np.float32, copy=True)
-    for disp, alpha in zip(obj_norms, alphas, strict=True):
-        final = alpha * disp + (1.0 - alpha) * final
-    return final.astype(np.float32, copy=False)
