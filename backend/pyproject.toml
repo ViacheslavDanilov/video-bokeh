@@ -7,30 +7,43 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "imagecodecs>=2026.1.1",
+    "numpy>=2.4.0",
+    "pillow>=12.1.0",
+    "tifffile>=2025.12.20",
+]
+
+[project.optional-dependencies]
+library = [
+    "pandas>=2.2.0",
+    "scipy>=1.13.0",
+    "torch>=2.5.0",
+    "transformers>=4.45.0",
+]
+acquire = [
+    "httpx>=0.28.0",
+    "kagglehub>=1.0.0",
+    "open-clip-torch>=2.30.0",
+    "torch>=2.5.0",
+]
+preview = [
+    "imageio[ffmpeg]>=2.34.0",
+]
+api = [
+    "video-bokeh[preview]",
     "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.34.0",
     "pydantic>=2.10.0",
+    "uvicorn[standard]>=0.34.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.0",
-    "imagecodecs>=2026.1.1",
-    "imageio[ffmpeg]>=2.34.0",
     "kaggle>=2.0.1",
-    "kagglehub>=1.0.0",
     "matplotlib>=3.10.8",
-    "numpy>=2.4.0",
-    "open-clip-torch>=2.30.0",
-    "pandas>=2.2.0",
-    "pillow>=12.1.0",
     "pre-commit>=4.5.1",
     "pytest>=8.0.0",
     "ruff>=0.9.0",
-    "scipy>=1.13.0",
-    "tifffile>=2025.12.20",
-    "torch>=2.5.0",
-    "transformers>=4.45.0",
     "ty>=0.0.32",
 ]
 
