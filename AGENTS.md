@@ -75,7 +75,7 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 ## Secrets and data
 
 - `.env` files are gitignored. Never commit them or paste their contents into chat logs.
-- `backend/.env.example` is the only template that's checked in.
+- Two `.env.example` templates are checked in: `backend/.env.example` for the backend process (LLM keys, CORS), and the root `.env.example` for `docker compose` (`VIDEO_BOKEH_DATA_ROOT`).
 - Model weights under `backend/models/` are gitignored and excluded from pre-commit (see `exclude:` in `.pre-commit-config.yaml`). Don't add files there to git.
 - **`backend/data/` is a deliberate exception.** Most of it is gitignored, but the small development pools are tracked on purpose: `magick_dev/` (20 foregrounds), `bg-20k_dev/` (20 backgrounds) and `magick_metadata.csv`. Cloning the repo is then enough to run the pipeline — no downloads, no Kaggle credentials, no waiting. That is worth the 56 MB, of which `magick_metadata.csv` alone is 15.4 MB.
 - Everything *generated* under `backend/data/` stays ignored: `library*/`, `synth*/` and anything else a run produces. Adding a generated tree to git is still wrong; adding a source asset the dev recipes depend on is not.
