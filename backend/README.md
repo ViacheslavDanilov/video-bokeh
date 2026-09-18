@@ -84,10 +84,21 @@ uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 
 ## 🐳 Docker
 
+`docker compose up` from the repository root is the entry point. It builds this image and the
+frontend together, publishes 8000 and 3000, and mounts the data root named by
+`VIDEO_BOKEH_DATA_ROOT` — see `compose.yaml` and `.env.example`, both at the root.
+
+```bash
+# From the repository root
+docker compose up --build
+```
+
+To build and run this service on its own:
+
 ```bash
 # From backend/ directory
-docker build -t video-bokeh-backend .
-docker run -p 8000:8000 video-bokeh-backend
+docker build -t video-bokeh-api .
+docker run -p 8000:8000 video-bokeh-api
 ```
 
 ## 📦 Package Management
