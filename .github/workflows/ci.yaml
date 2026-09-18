@@ -28,7 +28,7 @@ jobs:
         enable-cache: true
 
     - name: Install dependencies
-      run: uv sync --dev
+      run: uv sync --all-extras --dev
 
     - name: Run all pre-commit hooks
       run: uv run pre-commit run --all-files --verbose
