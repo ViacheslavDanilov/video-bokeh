@@ -23,11 +23,11 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
+from data._device import select_device
 from data._library import FOREGROUNDS, write_background, write_foreground
 from data._metadata import write_asset_metadata
 from data._neutral_bg import composite_on_neutral, make_textured_bg
 from data._propagation import propagate_disparity, trusted_core
-from data._seq_io import select_device
 from data._sequence_geometry import prepare_background, prepare_foreground
 from data.depth import ESTIMATORS
 
