@@ -66,11 +66,12 @@ def _summarize(dataset: Path) -> None:
     print('  vpv "*/all_in_focus/*.png" "*/disparity/*.png"')
     print("\n  An object that grows on screen must get brighter in the disparity pane.")
     print(
-        "  vpv shows only a TIFF's first page, so read alpha with data._streams instead.",
+        "  vpv shows only a TIFF's first page, so read alpha with\n"
+        "  video_bokeh.core._streams instead.",
     )
     print("\nNext, if you want bokeh:\n")
     print(
-        f"  cd backend && uv run python -m data.prepare_any_to_bokeh "
+        f"  cd backend && uv run python -m video_bokeh.bridge.any_to_bokeh "
         f"--data-root {dataset.relative_to(_BACKEND)}",
     )
 
@@ -78,7 +79,7 @@ def _summarize(dataset: Path) -> None:
 def _pages(seq: Path) -> int:
     """Object count for a sequence, read from its first alpha frame."""
     sys.path.insert(0, str(_BACKEND / "src"))
-    from data._streams import read_alpha_tiff
+    from video_bokeh.core._streams import read_alpha_tiff
 
     return len(read_alpha_tiff(sorted((seq / "alpha").glob("*.tif"))[0]))
 
@@ -134,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         _run(
             "Stage A — build the artifact library (depth runs once per asset)",
             [
-                "data.build_library",
+                "video_bokeh.library.build",
                 "--fg-data-root",
                 args.fg_data_root,
                 "--bg-data-root",
@@ -151,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     _run(
         "Stage B — generate sequences from the library",
         [
-            "data.generate_dataset",
+            "video_bokeh.scenes.generate",
             "--library-root",
             args.library,
             "--output",
