@@ -25,7 +25,7 @@ Activate the venv before running any-to-bokeh:
 source backend/third_party/any-to-bokeh/.venv/bin/activate
 ```
 
-The main backend env (used by every command in the sections below) is separate — managed by `uv sync` from the repo root.
+The main backend env (used by every command in the sections below) is separate — managed by `uv sync --extra library` from the repo root.
 
 ## Build a synthetic dataset
 
@@ -114,5 +114,5 @@ vpv 'backend/data/synth_dev/sequences/*/all_in_focus/*.png' 'backend/data/synth_
 ## Notes
 
 - The legacy `commands.txt` at the repo root is superseded by the VPV section above. Safe to delete once you've confirmed nothing else references it.
-- All `uv run python` commands assume the backend env is installed; if a stage fails on import, run `uv sync` from the repo root first.
+- All `uv run python` commands assume the backend env is installed; if a stage fails on import, run `uv sync --extra library` from the repo root first.
 - `--device auto` picks CUDA → MPS → CPU. On a Mac, MPS is fine for `da2-small`; `da2-large` is much slower on MPS than on a CUDA box.
