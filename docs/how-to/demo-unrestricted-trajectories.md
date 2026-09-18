@@ -77,15 +77,16 @@ done
 
 ```bash
 cd backend/data/demo_n3/sequences
-vpv "*/all_in_focus/*.png" "*/alpha/*.png" "*/disparity/*.png"
+vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 ```
 
 **What to look for.**
 
 - Two objects may overlap on screen, but never while sharing a depth. When their outlines
   cross, one is unambiguously in front.
-- Each object keeps its own alpha layer for the whole clip. A mask that jumps between layers
-  mid-clip is a bug.
+- Each object keeps its own alpha page for the whole clip. A mask that jumps between pages
+  mid-clip is a bug. `vpv` renders only a TIFF's first page, so read the alpha stream with
+  `read_alpha_tiff` from `src/data/_streams.py` instead of looking at it.
 - Paint order is recomputed per frame, so a pair that swaps depth also swaps which one
   occludes the other. Expect to see it at three objects.
 

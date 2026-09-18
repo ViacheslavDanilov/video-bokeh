@@ -77,23 +77,22 @@ each rejected attempt.
 the validator rejects leaves a gap in the numbering instead of shifting every later sequence
 onto a different seed.
 
-### The object limit is enforced, not silent
+### More than three objects
+
+There is no format ceiling: the alpha stream is a multi-page TIFF and takes as many masks as
+it is given. `--n-objects-max` defaults to 5.
 
 ```bash
 uv run python -m data.generate_dataset \
-  --library-root data/library_dev --output data/demo_toomany \
-  --count 1 --frames 8 --size 256 --n-objects-max 4
+  --library-root data/library_dev --output data/demo5 \
+  --count 3 --frames 8 --size 512 --n-objects-min 5 --n-objects-max 5
 ```
 
-Nothing is written, and the run says why:
-
-```
-generate_dataset.py: error: n_objects_max=4 but the alpha stream holds 3 masks; every
-object past the third would be present in all_in_focus and disparity but absent from alpha.
-Lifting the limit needs a multi-channel alpha format.
-```
-
-Why three and not more: [[dataset-layout]].
+What binds now is the depth axis, not the image format. Objects get disjoint slots above the
+background, so each extra object narrows every slot and makes collisions harder to avoid.
+Five places every scene; six starts losing them. The measured sweep is in
+[[demo-unrestricted-trajectories]], and [[dataset-layout]] says what to raise if you need
+more.
 
 ---
 
@@ -122,7 +121,7 @@ sign the depth axis is unusually tight. Column meanings in full: [[dataset-layou
 
 ```bash
 cd data/demo/sequences
-vpv "*/all_in_focus/*.png" "*/alpha/*.png" "*/disparity/*.png"
+vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 ```
 
 What to check:
@@ -130,8 +129,9 @@ What to check:
 - **Disparity tracks size.** An object that grows on screen must get brighter in the
   disparity pane. Growing while darkening means the depth-scale law inverted, which is the
   one regression this pipeline exists to prevent.
-- **Each object keeps its channel.** Object 1 is red, 2 is green, 3 is blue, for the whole
-  clip. A mask that jumps channels mid-clip is a bug.
+- **Each object keeps its page.** Page `k` is object `k` for the whole clip. A mask that
+  jumps pages mid-clip is a bug. `vpv` shows only the first page of a TIFF, so check the
+  masks with `read_alpha_tiff` rather than by eye.
 - **Overlap is unambiguous.** Two objects may overlap on screen but never at the same depth,
   so one is always clearly in front.
 
@@ -152,5 +152,5 @@ See [[run-any-to-bokeh-inference]].
 ## Clean up
 
 ```bash
-rm -rf data/demo data/demo_toomany
+rm -rf data/demo data/demo5
 ```

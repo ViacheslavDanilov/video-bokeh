@@ -154,9 +154,11 @@ than written. The manifest records the rejection count.
 **Paint order is recomputed every frame.** Two objects that swap depth mid-clip swap which one
 occludes the other, which is the whole point of letting them move.
 
-**Each object keeps one alpha channel for the whole clip**, even as paint order changes. The
+**Each object keeps one alpha page for the whole clip**, even as paint order changes. The
 masks are recorded before occlusion is resolved, so they are independent soft layers, not a
-partition of the frame — a renderer can blur each layer separately and then composite.
+partition of the frame — a renderer can blur each layer separately and then composite. That
+independence is also why a single index or label map cannot stand in for them: two objects
+can be partly transparent at the same pixel.
 
 ---
 

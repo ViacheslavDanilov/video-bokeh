@@ -82,12 +82,16 @@ property of the conversion, not of the dataset, so re-running the bridge with a 
 
 ---
 
-## Known defect
+## What the bridge loses
 
-Disparity is quantized to 8 bits twice: once when Stage B writes it, once more inside the
-bridge. Harmless today, because the input is already 8-bit. It becomes a silent precision
-loss the moment the disparity stream gains bit depth, and no test covers it. Recorded in
-[[dataset-layout]].
+any-to-bokeh reads 8-bit disparity, so the bridge quantizes the 16-bit stream down. That is
+the single lossy step, and it happens once — it used to happen twice, which was harmless only
+while the source had no precision to lose.
+
+The focus plane is the mean disparity under the **union** of the object masks. Until
+2026-09-18 the bridge blended the mask channels by luminance instead, which dropped objects
+that were not in the middle channel and often fell back to whole-frame focus without saying
+so. Any comparison against output generated before that fix is invalid.
 
 ---
 
