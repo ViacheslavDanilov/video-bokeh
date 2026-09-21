@@ -131,7 +131,7 @@ approved research spec writes the reciprocal because it derives the rule for dep
 and then applies the formula to a disparity interval. Taken literally it makes an object that
 grows on screen recede in the depth stream — exactly the inconsistency this design exists to
 remove. The code is right and the spec's formula is not; `derive_end_range` in
-`src/data/_trajectory.py` carries the argument in full.
+`src/video_bokeh/core/_trajectory.py` carries the argument in full.
 
 An object coming closer therefore occupies a *wider* disparity interval, because the whole
 interval scales. That is physically correct: the nearer something is, the more depth it spans.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from data._collision import pair_collides
+from video_bokeh.core._collision import pair_collides
 
 
 def _mask(box):

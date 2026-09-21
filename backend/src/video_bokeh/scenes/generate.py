@@ -8,12 +8,12 @@
         ├── alpha/<frame>.tif          multi-page uint8, one page per object
         └── disparity/<frame>.png      uint16
 
-This layout matches what prepare_any_to_bokeh.py consumes. Replaces the old
+This layout matches what bridge/any_to_bokeh.py consumes. Replaces the old
 generate_sequences.py + estimate_disparity.py pair: depth is now sampled and
 transformed from the library, not estimated per frame.
 
 Usage:
-    uv run python -m data.generate_dataset \\
+    uv run python -m video_bokeh.scenes.generate \\
         --library-root data/library_dev \\
         --output       data/synth_dev \\
         --count 10 --frames 80 --size 1024 --seed 0
@@ -29,9 +29,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from data._sequence_geometry import SampleConfig
-from data._streams import write_alpha_tiff, write_disparity_png
-from data.compositor import (
+from video_bokeh.core._sequence_geometry import SampleConfig
+from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
+from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     RenderedFrame,
     render_scene,

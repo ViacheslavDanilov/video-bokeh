@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from video_bokeh.main import app
+from video_bokeh.api.main import app
 
 client = TestClient(app)
 

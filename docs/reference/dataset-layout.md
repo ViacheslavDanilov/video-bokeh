@@ -17,7 +17,7 @@ pull request.
 
 ## Stage A — the artifact library
 
-Built once per asset pool by `data.build_library`. Depth is estimated here and never again.
+Built once per asset pool by `video_bokeh.library.build`. Depth is estimated here and never again.
 
 ```
 <library-root>/
@@ -55,7 +55,7 @@ produces.
 
 ## Stage B — a generated sequence
 
-Written by `data.generate_dataset`. This is the layout `prepare_any_to_bokeh.py` consumes.
+Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_bokeh.py` consumes.
 
 ```
 <output>/
@@ -80,7 +80,7 @@ Written by `data.generate_dataset`. This is the layout `prepare_any_to_bokeh.py`
 | `alpha` | TIFF, multi-page | uint8 | page `k` is object `k`'s matte, `0`–`255`, soft |
 | `disparity` | PNG, `I;16` | uint16 | `[0, 1]` disparity scaled to `[0, 65535]`, larger = closer |
 
-Both sides of these formats live in `src/data/_streams.py`, so the writer and the reader
+Both sides of these formats live in `src/video_bokeh/core/_streams.py`, so the writer and the reader
 cannot drift apart.
 
 **The alpha TIFF is multi-page, never multi-sample.** Pillow raises
@@ -142,7 +142,7 @@ regenerates every sequence exactly.
 
 ## The any-to-bokeh bridge
 
-`data.prepare_any_to_bokeh` converts a sequence tree into what the vendored inference code
+`video_bokeh.bridge.any_to_bokeh` converts a sequence tree into what the vendored inference code
 expects.
 
 ```

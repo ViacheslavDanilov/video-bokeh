@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from data._streams import write_alpha_tiff, write_disparity_png
-from data.prepare_any_to_bokeh import main
+from video_bokeh.bridge.any_to_bokeh import main
+from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 
 
 def _write_rgb(path: Path, value: int) -> None:

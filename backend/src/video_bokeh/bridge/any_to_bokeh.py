@@ -27,8 +27,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from data._seq_io import list_sequences
-from data._streams import read_alpha_tiff, read_disparity_png
+from video_bokeh.core._seq_io import list_sequences
+from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
 
 
 def _parse_seqs(value: str) -> list[str]:

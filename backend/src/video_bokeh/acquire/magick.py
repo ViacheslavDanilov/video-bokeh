@@ -15,17 +15,17 @@ Source URL pattern:
     https://huggingface.co/datasets/OneOverZero/MAGICK/resolve/main/images/<pp>/<page_id>.png
 
 Usage:
-    uv run python -m data.download_magick \
+    uv run python -m video_bokeh.acquire.magick \
         --metadata backend/data/magick_metadata.csv \
         --output   backend/data/magick_dev \
         --count    20 \
         --seed     0
 
     # Include auto-picked rows too
-    uv run python -m data.download_magick ... --picked any
+    uv run python -m video_bokeh.acquire.magick ... --picked any
 
     # Only auto-picked rows
-    uv run python -m data.download_magick ... --picked auto
+    uv run python -m video_bokeh.acquire.magick ... --picked auto
 """
 
 from __future__ import annotations

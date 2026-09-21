@@ -7,7 +7,7 @@ map (Valery's edge refinement), and store rgb/alpha/depth. For every background:
 run the estimator on the whole image and store rgb/depth.
 
 Usage:
-    uv run python -m data.build_library \\
+    uv run python -m video_bokeh.library.build \\
         --fg-data-root data/magick_dev \\
         --bg-data-root data/bg-20k_dev \\
         --output       data/library_dev \\
@@ -23,13 +23,13 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
-from data._library import FOREGROUNDS, write_background, write_foreground
-from data._metadata import write_asset_metadata
-from data._neutral_bg import composite_on_neutral, make_textured_bg
-from data._propagation import propagate_disparity, trusted_core
-from data._seq_io import select_device
-from data._sequence_geometry import prepare_background, prepare_foreground
-from data.depth import ESTIMATORS
+from video_bokeh.core._library import FOREGROUNDS, write_background, write_foreground
+from video_bokeh.core._metadata import write_asset_metadata
+from video_bokeh.core._sequence_geometry import prepare_background, prepare_foreground
+from video_bokeh.library._device import select_device
+from video_bokeh.library._neutral_bg import composite_on_neutral, make_textured_bg
+from video_bokeh.library._propagation import propagate_disparity, trusted_core
+from video_bokeh.library.depth import ESTIMATORS
 
 DEFAULT_KEEP_SUBJECTS = ("person", "animal", "plant", "food", "object")
 DEFAULT_KEEP_STYLES = ("photo", "render")

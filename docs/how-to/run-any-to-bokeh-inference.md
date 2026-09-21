@@ -18,7 +18,7 @@ step itself, which needs the model checkpoints.
 ## 1. Convert the sequences
 
 ```bash
-uv run python -m data.prepare_any_to_bokeh --data-root data/demo
+uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ```
 
 ```
@@ -54,7 +54,7 @@ default the focus chases the object, so a clip where the object moves through de
 shows it going out of focus — which is usually the thing you wanted to see.
 
 ```bash
-uv run python -m data.prepare_any_to_bokeh \
+uv run python -m video_bokeh.bridge.any_to_bokeh \
   --data-root data/demo --dataset-name pinned --focus-disparity 0.5
 ```
 

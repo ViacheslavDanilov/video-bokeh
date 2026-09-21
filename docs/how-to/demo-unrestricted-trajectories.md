@@ -27,7 +27,7 @@ for every recipe here.
 
 ```bash
 cd backend
-uv run python -m data.build_library \
+uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
   --output data/library_dev --size 1024 --model da2-large
 ```
@@ -38,7 +38,7 @@ uv run python -m data.build_library \
 
 ```bash
 cd backend
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo \
   --count 4 --frames 80 --size 512 --seed 0
 ```
@@ -68,7 +68,7 @@ the collision validator.
 ```bash
 cd backend
 for n in 1 2 3; do
-  uv run python -m data.generate_dataset \
+  uv run python -m video_bokeh.scenes.generate \
     --library-root data/library_dev --output "data/demo_n$n" \
     --count 4 --frames 80 --size 512 --seed 0 \
     --n-objects-min $n --n-objects-max $n
@@ -86,7 +86,7 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
   cross, one is unambiguously in front.
 - Each object keeps its own alpha page for the whole clip. A mask that jumps between pages
   mid-clip is a bug. `vpv` renders only a TIFF's first page, so read the alpha stream with
-  `read_alpha_tiff` from `src/data/_streams.py` instead of looking at it.
+  `read_alpha_tiff` from `src/video_bokeh/core/_streams.py` instead of looking at it.
 - Paint order is recomputed per frame, so a pair that swaps depth also swaps which one
   occludes the other. Expect to see it at three objects.
 
@@ -116,7 +116,7 @@ numbering rather than shifting every later sequence onto a different seed.
 
 ```bash
 cd backend
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo_seeds \
   --count 10 --frames 80 --size 512 --seed 100
 ```
@@ -148,7 +148,7 @@ Every column: [[dataset-layout]].
 
 ```bash
 cd backend
-uv run python -m data.prepare_any_to_bokeh --data-root data/demo
+uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ```
 
 See [[run-any-to-bokeh-inference]].

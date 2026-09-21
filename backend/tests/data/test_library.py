@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-from data._library import (
+from video_bokeh.core._library import (
     ForegroundAsset,
     list_backgrounds,
     list_foregrounds,

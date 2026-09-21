@@ -33,7 +33,7 @@ which is enough for every recipe below.
 ## 1. Stage A — build the library
 
 ```bash
-uv run python -m data.build_library \
+uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
   --output data/library_dev --size 1024 --model da2-large
 ```
@@ -49,7 +49,7 @@ A fast check with no large download — 3 foregrounds, 2 backgrounds, the small 
 on an M-series Mac using `mps`:
 
 ```bash
-uv run python -m data.build_library \
+uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
   --output /tmp/lib_smoke --size 256 --model da2-small \
   --limit-fg 3 --limit-bg 2
@@ -60,7 +60,7 @@ uv run python -m data.build_library \
 ## 2. Stage B — generate sequences
 
 ```bash
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo \
   --count 4 --frames 80 --size 512 --seed 0
 ```
@@ -83,7 +83,7 @@ There is no format ceiling: the alpha stream is a multi-page TIFF and takes as m
 it is given. `--n-objects-max` defaults to 5.
 
 ```bash
-uv run python -m data.generate_dataset \
+uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/demo5 \
   --count 3 --frames 8 --size 512 --n-objects-min 5 --n-objects-max 5
 ```
@@ -143,7 +143,7 @@ A fuller set of checks on the trajectory model is in [[demo-unrestricted-traject
 ## 5. Hand it to the renderer
 
 ```bash
-uv run python -m data.prepare_any_to_bokeh --data-root data/demo
+uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ```
 
 See [[run-any-to-bokeh-inference]].

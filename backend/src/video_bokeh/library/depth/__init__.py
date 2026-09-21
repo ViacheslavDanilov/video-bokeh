@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from data.depth.base import DepthEstimator
-from data.depth.depth_anything_v2 import (
+from video_bokeh.library.depth.base import DepthEstimator
+from video_bokeh.library.depth.depth_anything_v2 import (
     DepthAnythingV2Base,
     DepthAnythingV2Large,
     DepthAnythingV2Small,

@@ -7,18 +7,18 @@ related: [dataset-layout, generate-a-dataset]
 
 # CLI reference
 
-Every flag of every `data.*` module, read out of the `argparse` parsers. Defaults here are
+Every flag of every `video_bokeh.*` module, read out of the `argparse` parsers. Defaults here are
 the parser's defaults, not what a recipe happens to pass.
 
 All commands run from `backend/` and go through `uv run`, so they use the locked environment:
 
 ```bash
-uv run python -m data.<module> [flags]
+uv run python -m video_bokeh.<role>.<module> [flags]
 ```
 
 ---
 
-## `data.build_library` — Stage A
+## `video_bokeh.library.build` — Stage A
 
 Estimates depth once per asset and writes the artifact library.
 
@@ -41,7 +41,7 @@ Estimates depth once per asset and writes the artifact library.
 | `--styles` | list | `photo, render` | CLIP style classes kept |
 | `--subject-thr` | float | `0.5` | minimum CLIP score to keep an asset |
 
-## `data.generate_dataset` — Stage B
+## `video_bokeh.scenes.generate` — Stage B
 
 Samples scenes from the library and writes the sequence tree in [[dataset-layout]].
 
@@ -58,7 +58,7 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
 
-## `data.prepare_any_to_bokeh` — the inference bridge
+## `video_bokeh.bridge.any_to_bokeh` — the inference bridge
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -70,7 +70,7 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 | `--focus-disparity` | float | unset | pin one focus in `[0, 1]` for every frame. Overrides `--focus` |
 | `--focus` | str | `alpha` | `alpha` = mean disparity under the mask; `full` = whole frame |
 
-## `data.pack_videos` — PNG streams to MP4
+## `video_bokeh.preview.pack` — PNG streams to MP4
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -87,9 +87,9 @@ and a normalization choice that belong in a visualization script, not here.
 
 | module | flags |
 |---|---|
-| `data.download_magick` | `--metadata` (csv), `--output`, `--count`, `--seed`, `--picked` |
-| `data.download_bg20k` | `--output`. Needs `~/.kaggle/kaggle.json` |
-| `data.classify_clip` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers` |
+| `video_bokeh.acquire.magick` | `--metadata` (csv), `--output`, `--count`, `--seed`, `--picked` |
+| `video_bokeh.acquire.bg20k` | `--output`. Needs `~/.kaggle/kaggle.json` |
+| `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers` |
 
 ---
 
