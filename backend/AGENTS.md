@@ -14,15 +14,18 @@ Run from `backend/` unless noted.
 
 | Task | Command |
 |---|---|
-| Install (dev deps included) | `uv sync --dev` (from repo root) |
+| Install everything (development) | `uv sync --all-extras --dev` (from repo root) |
+| Install Stage B only | `uv sync --no-dev` (from repo root) |
+| Install Stage A | `uv sync --no-dev --extra library` |
 | Run API (reload) | `uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
 | Tests | `uv run pytest` |
 | Type check | `uv run ty check src/` |
 | Lint | `uv run ruff check src/` |
 | Format | `uv run ruff format src/` |
 | Pre-commit (all hooks) | `uv run pre-commit run --all-files` (from repo root) |
-| Add dep | `uv add <pkg> --package video-bokeh` |
-| Add dev dep | `uv add <pkg> --package video-bokeh --dev` |
+| Add a base dep | `uv add <pkg> --package video-bokeh` |
+| Add a role dep | `uv add <pkg> --package video-bokeh --optional <role>` |
+| Add a dev dep | `uv add <pkg> --package video-bokeh --dev` |
 | Remove dep | `uv remove <pkg> --package video-bokeh` |
 
 Pre-commit invokes `pycln`, `ruff` (with `--fix`), `ruff-format`, and `ty` against `backend/src`. Config flags live in `backend/pyproject.toml`; runner config is `../.pre-commit-config.yaml`.
@@ -32,7 +35,7 @@ Pre-commit invokes `pycln`, `ruff` (with `--fix`), `ruff-format`, and `ty` again
 ```
 backend/
 ├── src/
-│   └── video_bokeh/   # FastAPI runtime (the package shipped in the wheel)
+│   └── video_bokeh/   # FastAPI runtime and dataset pipeline (the package shipped in the wheel)
 ├── tests/             # pytest tests
 ├── models/            # Trained model artifacts (gitignored)
 ├── data/              # Datasets (gitignored)
@@ -40,7 +43,7 @@ backend/
 └── pyproject.toml
 ```
 
-- **`src/video_bokeh/`** = production code (API surface).
+- **`src/video_bokeh/`** = production code (FastAPI runtime and dataset pipeline).
 - **`third_party/`** = git submodules. Read-only. To update: `git submodule update --remote <path>` after confirming with the user.
 
 ## Conventions

@@ -22,7 +22,7 @@ pipeline is shaped this way, see [[pipeline-explainer]].
 
 1. Foregrounds in `data/magick_dev` — see [[magick]].
 2. Backgrounds in `data/bg-20k_dev` — see [[datasets]].
-3. Dependencies: `uv sync --dev` from the repo root.
+3. Dependencies: `uv sync --extra library` from the repo root.
 
 If `data/library_dev/` already holds `foregrounds/` and `backgrounds/`, Stage A is done and
 you can skip to Stage B. The current `library_dev` has 12 foregrounds and 20 backgrounds,
@@ -69,9 +69,9 @@ uv run python -m video_bokeh.scenes.generate \
 together. Every sampled trajectory set is checked against collisions, and one that cannot be
 made collision-free is resampled rather than written.
 
-Measured on `library_dev`, 4 sequences of 80 frames at size 512: **14.9 s**. Most of that is
-the collision validator, which warps every mask on every frame and pays that cost again for
-each rejected attempt.
+Measured on `library_dev`, 4 sequences of 80 frames at size 512: **18 s** on an Apple M3 Pro.
+Most of that is the collision validator, which warps every mask on every frame and pays that
+cost again for each rejected attempt.
 
 **Sequence names follow the seed.** Sequence `i` always comes from `seed + i`, so a sequence
 the validator rejects leaves a gap in the numbering instead of shifting every later sequence

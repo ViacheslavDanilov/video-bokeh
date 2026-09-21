@@ -1,0 +1,19 @@
+services:
+  web:
+    build: ./frontend
+    image: video-bokeh-web
+    ports:
+    - "3000:3000"
+    depends_on:
+    - api
+
+  api:
+    build: ./backend
+    image: video-bokeh-api
+    ports:
+    - "8000:8000"
+    environment:
+      VIDEO_BOKEH_DATA_ROOT: /data
+    volumes:
+    - ${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/library:/data/library:ro
+    - ${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/scenes:/data/scenes
