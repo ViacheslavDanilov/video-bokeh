@@ -7,9 +7,9 @@ must be directories under each sequence (e.g. `all_in_focus`, `alpha`,
 later `bokeh`). Single-channel grayscale frames (e.g. `alpha`) are
 expanded to RGB at encode time so any video player handles them.
 
-Disparity (`.tif`) is intentionally not supported here — packing float
-depth into a viewable video needs a colormap + normalization choice that
-belongs in a separate visualization script.
+Disparity is a uint16 PNG (see `core/_streams.py`), not RGB, so it is
+encoded through a colormap (`--colormap`, default `spectral_r`) rather
+than through `Image.convert`.
 
 Layout:
 
@@ -36,6 +36,11 @@ Usage:
     uv run python -m video_bokeh.preview.pack \\
         --data-root backend/data/synth_dev \\
         --seqs 0001,0003
+
+    # Disparity, through the colormap
+    uv run python -m video_bokeh.preview.pack \\
+        --data-root backend/data/synth_dev \\
+        --streams disparity --colormap spectral_r
 """
 
 from __future__ import annotations
@@ -47,6 +52,9 @@ from typing import Any, cast
 import imageio.v2 as iio
 import numpy as np
 from PIL import Image
+
+from video_bokeh.core._streams import read_disparity_png
+from video_bokeh.preview._colormap import COLORMAPS, apply_colormap
 
 # --------------------------------------------------------------------------- #
 # I/O                                                                         #
@@ -80,11 +88,29 @@ def list_stream_frames(seq_dir: Path, stream: str) -> list[Path]:
 # --------------------------------------------------------------------------- #
 
 
+def load_frame(path: Path, stream: str, colormap: str) -> np.ndarray:
+    """Load one frame as uint8 RGB.
+
+    The `disparity` stream is a uint16 PNG (see `core/_streams.py`), so it goes
+    through `read_disparity_png` and the colormap rather than `Image.convert`,
+    which would silently reinterpret it as garbage. Every other stream keeps
+    the existing convert-to-RGB path.
+    """
+    if stream == "disparity":
+        return apply_colormap(read_disparity_png(path), colormap)
+    img = Image.open(path)
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    return np.asarray(img, dtype=np.uint8)
+
+
 def encode_stream(
     frames: list[Path],
     out_path: Path,
     fps: int,
     quality: int,
+    stream: str,
+    colormap: str,
 ) -> None:
     """Encode a sorted list of PNG frames to H.264 MP4."""
     # libx264 wants even spatial dimensions and yuv420p for broad compatibility.
@@ -103,10 +129,7 @@ def encode_stream(
     )
     with writer:
         for p in frames:
-            img = Image.open(p)
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            writer.append_data(np.asarray(img, dtype=np.uint8))
+            writer.append_data(load_frame(p, stream, colormap))
 
 
 # --------------------------------------------------------------------------- #
@@ -142,6 +165,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Comma-separated sequence ids (e.g. '0001,0003'). Default: all.",
     )
+    parser.add_argument(
+        "--colormap",
+        choices=sorted(COLORMAPS),
+        default="spectral_r",
+        help="Colormap for the disparity stream. Default: 'spectral_r'.",
+    )
     return parser
 
 
@@ -164,7 +193,14 @@ def main(argv: list[str] | None = None) -> int:
                 continue
 
             print(f"  {seq_dir.name}/{stream}: encoding {len(frames)} frames")
-            encode_stream(frames, out_path, args.fps, args.quality)
+            encode_stream(
+                frames,
+                out_path,
+                args.fps,
+                args.quality,
+                stream,
+                args.colormap,
+            )
 
     print(f"\nDone. Videos in {args.data_root / 'sequences' / '<id>' / '<stream>.mp4'}")
     return 0
