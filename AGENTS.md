@@ -66,7 +66,7 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 ## Git workflow
 
 1. **Never commit directly to `main`.** Branch, commit there, then open a pull request.
-2. **Never `git push` without explicit user approval.** Stage and commit if asked, but stop at the push step. A `PreToolUse` hook in `.claude/settings.json` blocks pushes — do not attempt to bypass it.
+2. **Never `git push` without explicit user approval.** Stage and commit if asked, but stop at the push step. This is enforced by the agent honouring it, not by a hook.
 3. **Never `--force-push` to `main`.** Force-push to feature branches only after the user authorizes it.
 4. **Pre-commit runs on every commit.** Config is `.pre-commit-config.yaml`. If hooks fail, fix the underlying issue — don't use `--no-verify`.
 5. **Don't amend pushed commits** without the user's go-ahead (force-push territory).
