@@ -124,6 +124,38 @@ last frame:
 | 0005 | 4 | 4 | 4 |
 | 0006 | 5 | 5 | 5 |
 
+```bash
+cd backend
+uv run python - <<'PY'
+import csv
+from pathlib import Path
+
+import video_bokeh.core._streams
+
+root = Path("/tmp/vb-demo/synth_demo")
+manifest = {
+    row["seq_id"]: int(row["n_objects"])
+    for row in csv.DictReader(open(root / "manifest.csv"))
+}
+for seq_id in sorted(manifest):
+    seq_dir = root / "sequences" / seq_id
+    first = video_bokeh.core._streams.read_alpha_tiff(seq_dir / "alpha" / "01.tif")
+    last = video_bokeh.core._streams.read_alpha_tiff(seq_dir / "alpha" / "80.tif")
+    print(f"{seq_id}: objects={manifest[seq_id]} frame1={len(first)} frame80={len(last)}")
+PY
+```
+
+Output:
+
+```
+0001: objects=4 frame1=4 frame80=4
+0002: objects=5 frame1=5 frame80=5
+0003: objects=5 frame1=5 frame80=5
+0004: objects=4 frame1=4 frame80=4
+0005: objects=4 frame1=4 frame80=4
+0006: objects=5 frame1=5 frame80=5
+```
+
 Every mask is `(512, 512)` `float32`, and the page count never drifts between the first and
 last frame of a clip.
 
@@ -144,6 +176,28 @@ objects), the mean disparity under each object's own alpha mask across all 80 fr
 | 2 | 0.676 | 0.203 | 0.473 |
 | 3 | 0.700 | 0.898 | 0.198 |
 | 4 | 0.861 | 0.686 | 0.175 |
+
+```bash
+cd backend
+uv run python - <<'PY'
+from pathlib import Path
+
+import imageio.v2 as iio
+import numpy as np
+
+path = Path("/tmp/vb-demo/synth_demo/sequences/0002/disparity.mp4")
+frame = np.asarray(iio.get_reader(path).get_data(0))
+red, blue = frame[..., 0].astype(np.int16), frame[..., 2].astype(np.int16)
+gap = np.abs(red - blue)
+print(f"max R-B gap: {gap.max()} / 255, mean R-B gap: {gap.mean():.1f} / 255")
+PY
+```
+
+Output:
+
+```
+max R-B gap: 180 / 255, mean R-B gap: 79.5 / 255
+```
 
 Object 0 alone crosses three-quarters of the disparity range, which reads on screen as that
 object sliding from teal-green at the start of the clip to deep red by the end: the colour
