@@ -66,7 +66,22 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 ## Git workflow
 
 1. **Never commit directly to `main`.** Branch, commit there, then open a pull request.
-2. **Never `git push` without explicit user approval.** Stage and commit if asked, but stop at the push step. This is enforced by the agent honouring it, not by a hook.
+2. **Never `git push` without explicit user approval.** Stage and commit if asked, but stop at the push step. Nothing enforces this mechanically — the agent honours it. `.claude/hooks/no-push.sh` is still here and will block every push from an agent's shell if you want the guard back; it is deliberately not wired up in the shared settings, because a stateless hook cannot tell an approved push from an unapproved one and blocks both. To enable it for yourself, add it to `.claude/settings.local.json`, which is gitignored:
+
+   ```json
+   {
+     "hooks": {
+       "PreToolUse": [
+         {
+           "matcher": "Bash",
+           "hooks": [
+             {"type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/no-push.sh"}
+           ]
+         }
+       ]
+     }
+   }
+   ```
 3. **Never `--force-push` to `main`.** Force-push to feature branches only after the user authorizes it.
 4. **Pre-commit runs on every commit.** Config is `.pre-commit-config.yaml`. If hooks fail, fix the underlying issue — don't use `--no-verify`.
 5. **Don't amend pushed commits** without the user's go-ahead (force-push territory).
