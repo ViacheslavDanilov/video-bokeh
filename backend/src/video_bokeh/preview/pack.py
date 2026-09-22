@@ -3,9 +3,11 @@
 
 For each sequence under `<data-root>/sequences/<id>/`, reads `<stream>/*.png`
 and writes `<stream>.mp4` alongside the frames. Streams named on the CLI
-must be directories under each sequence (e.g. `all_in_focus`, `alpha`,
-later `bokeh`). Single-channel grayscale frames (e.g. `alpha`) are
-expanded to RGB at encode time so any video player handles them.
+must be directories under each sequence (e.g. `all_in_focus`, later `bokeh`).
+
+Alpha is a multi-page `.tif`, not a `.png` (see `core/_streams.py`), so this
+packer's `*.png` glob finds no frames for `--streams alpha`: it prints
+"no PNG frames, skip" and writes nothing.
 
 Disparity is a uint16 PNG (see `core/_streams.py`), not RGB, so it is
 encoded through a colormap (`--colormap`, default `spectral_r`) rather
