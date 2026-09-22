@@ -23,7 +23,15 @@ _SRC = _REPO / "backend" / "src"
 _OURS = (_SRC, _REPO / "backend" / "tests", _REPO / "scripts")
 _VENDORED = {"inference_demo.py"}  # third_party/any-to-bokeh/test/inference_demo.py
 _DOC_ROOTS = ("docs/explanation", "docs/how-to", "docs/reference")
-_DOC_FILES = ("AGENTS.md", "README.md", "docs/README.md", "docs/STYLE.md")
+_DOC_FILES = (
+    "AGENTS.md",
+    "README.md",
+    "docs/README.md",
+    "docs/STYLE.md",
+    "backend/AGENTS.md",
+    "backend/README.md",
+    "scripts/README.md",
+)
 
 # Any Python module the docs name: `src/video_bokeh/foo.py`, `backend/src/...`, or a bare `foo.py`.
 _PATH_RE = re.compile(r"\b(?:backend/)?src/[\w/]+\.py\b")
@@ -31,7 +39,13 @@ _NAME_RE = re.compile(r"\b([a-z_][\w]*\.py)\b")
 # Module constants named inside backticks, which is how the docs write them:
 # `_ALPHA_CHANNELS`, `_ALPHA_CHANNELS = 3`, `_Z_NEAR`/`_Z_FAR`.
 _CONST_RE = re.compile(r"\b(_[A-Z][A-Z0-9_]{2,})\b")
+# Dotted module paths named inside backticks, e.g. `video_bokeh.library.build`.
+_MODULE_RE = re.compile(r"\bvideo_bokeh(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+\b")
 _TICKS_RE = re.compile(r"`([^`\n]+)`")
+
+
+def _module_file(dotted: str) -> Path:
+    return _SRC.joinpath(*dotted.split(".")).with_suffix(".py")
 
 
 def _tracked_docs() -> list[Path]:
@@ -70,6 +84,18 @@ def test_doc_names_only_code_that_exists(doc: Path) -> None:
     assert not missing_consts, (
         f"{rel} names constants that appear nowhere in backend/src: {missing_consts}. "
         f"A renamed or deleted constant leaves the doc quietly wrong."
+    )
+
+    named_modules = {
+        m for span in _TICKS_RE.findall(text) for m in _MODULE_RE.findall(span)
+    }
+    missing_modules = sorted(
+        {m for m in named_modules if not _module_file(m).is_file()},
+    )
+    assert not missing_modules, (
+        f"{rel} names a video_bokeh module that does not resolve to a file under "
+        f"backend/src/: {missing_modules}. Either the module moved and the doc did not "
+        f"follow, or the doc is inventing a path."
     )
 
 
