@@ -20,7 +20,7 @@ def test_matches_matplotlib_spectral_r() -> None:
     x = np.linspace(0.0, 1.0, 256, dtype=np.float32)
     expected = (np.asarray(cmap(x))[:, :3] * 255).round().astype(np.uint8)
     got = apply_colormap(x.reshape(1, -1))[0]
-    assert np.abs(got.astype(int) - expected.astype(int)).max() <= 2
+    assert np.abs(got.astype(int) - expected.astype(int)).max() == 0
 
 
 def test_near_is_red_and_far_is_blue() -> None:
@@ -56,6 +56,7 @@ def test_runtime_does_not_import_matplotlib() -> None:
     code = (
         "import sys\n"
         "import video_bokeh.preview._colormap\n"
+        "import video_bokeh.preview.pack\n"
         "sys.exit(1 if 'matplotlib' in sys.modules else 0)\n"
     )
     assert COLORMAPS  # the module under test is the one imported above
