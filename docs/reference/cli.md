@@ -79,9 +79,10 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 | `--fps` | int | `24` | frame rate |
 | `--quality` | int | `10` | imageio quality, 10 is visually lossless |
 | `--seqs` | list | all | comma-separated sequence ids |
+| `--colormap` | str | `spectral_r` | `spectral_r`, `grey` |
 
-Disparity is deliberately unsupported: packing depth into a viewable video needs a colormap
-and a normalization choice that belong in a visualization script, not here.
+Disparity is a uint16 PNG, not RGB (see [[dataset-layout]]), so it is packed through
+`--colormap` rather than through the `Image.convert` path the other streams use.
 
 ## Acquisition
 
