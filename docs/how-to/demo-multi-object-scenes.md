@@ -9,8 +9,8 @@ related: [cli, dataset-layout, generate-a-dataset, demo-unrestricted-trajectorie
 
 This pipeline generates scenes with four and five objects, renders disparity as a red-near,
 blue-far colour video instead of grey, and stores alpha as one TIFF page per object. This
-recipe reproduces all three from a clean checkout, with every artifact written under `/tmp` so
-it never touches `backend/data/`.
+recipe reproduces all three from a clean checkout, with every artifact written under
+`backend/data/demo/`, gitignored (`backend/data/*/`) so nothing generated here gets committed.
 
 Every command below was executed as written on this machine (Apple Silicon, `mps`). Commands
 run from `backend/`, except the `uv sync` below, which runs from the repo root.
@@ -38,10 +38,10 @@ No download, no Kaggle credentials.
 cd backend
 uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output /tmp/vb-demo/library --size 512 --model da2-small
+  --output data/demo/library --size 512 --model da2-small
 ```
 
-**10.25 s.** `da2-small` is the fast depth model; `da2-large` is the default and slower. This
+**11.37 s.** `da2-small` is the fast depth model; `da2-large` is the default and slower. This
 recipe uses `da2-small` because the demo is about the colormap and the object count, not depth
 fidelity, and a fast Stage A is what makes the recipe reproducible on a fresh clone in under a
 minute rather than several.
@@ -55,29 +55,28 @@ how many sequences were requested but how many actually came out.
 ```bash
 cd backend
 uv run python -m video_bokeh.scenes.generate \
-  --library-root /tmp/vb-demo/library --output /tmp/vb-demo/synth_4obj_n20 \
-  --count 20 --frames 80 --size 512 --seed 300 \
+  --library-root data/demo/library --output data/demo/synth_4obj_n30 \
+  --count 30 --frames 80 --size 512 --seed 300 \
   --n-objects-min 4 --n-objects-max 4
 ```
 
 ```bash
 cd backend
 uv run python -m video_bokeh.scenes.generate \
-  --library-root /tmp/vb-demo/library --output /tmp/vb-demo/synth_5obj_n20 \
-  --count 20 --frames 80 --size 512 --seed 400 \
+  --library-root data/demo/library --output data/demo/synth_5obj_n30 \
+  --count 30 --frames 80 --size 512 --seed 400 \
   --n-objects-min 5 --n-objects-max 5
 ```
 
-Measured, including an earlier 10-sequence batch at each count (seeds 100 and 200) run the same
-way:
+Measured:
 
 | objects | requested | generated | sec/sequence |
 |---|---|---|---|
-| 4 | 30 | 30 | 6.55 |
-| 5 | 30 | 30 | 8.84 |
+| 4 | 30 | 30 | 6.72 |
+| 5 | 30 | 30 | 9.05 |
 
 **Every one of the 60 requested sequences came out; none were skipped.** Five-object scenes
-cost 35 % more wall-clock time per sequence than four-object scenes (8.84 s against 6.55 s),
+cost 35 % more wall-clock time per sequence than four-object scenes (9.05 s against 6.72 s),
 which matches the collision validator needing more retries as the depth slots narrow, but on
 this library (12 foregrounds, 20 backgrounds) that extra cost never became a dropped sequence.
 This is measured on the small tracked dev pool; a bigger asset library changes the retry
@@ -88,12 +87,12 @@ The demo videos below come from a third, smaller run mixing both counts:
 ```bash
 cd backend
 uv run python -m video_bokeh.scenes.generate \
-  --library-root /tmp/vb-demo/library --output /tmp/vb-demo/synth_demo \
+  --library-root data/demo/library --output data/demo/synth_demo \
   --count 6 --frames 80 --size 512 --seed 0 \
   --n-objects-min 4 --n-objects-max 5
 ```
 
-**44.17 s, 6 of 6 sequences generated:** `0001` and `0004`/`0005` at 4 objects, `0002`/`0003`/`0006`
+**46.40 s, 6 of 6 sequences generated:** `0001` and `0004`/`0005` at 4 objects, `0002`/`0003`/`0006`
 at 5 objects.
 
 ## 3. Pack both streams to video
@@ -101,13 +100,13 @@ at 5 objects.
 ```bash
 cd backend
 uv run python -m video_bokeh.preview.pack \
-  --data-root /tmp/vb-demo/synth_demo --streams all_in_focus,disparity \
+  --data-root data/demo/synth_demo --streams all_in_focus,disparity \
   --colormap spectral_r --fps 24
 ```
 
-**5.14 s** for 6 sequences, 2 streams, 80 frames each. Output: `all_in_focus.mp4` and
+**5.03 s** for 6 sequences, 2 streams, 80 frames each. Output: `all_in_focus.mp4` and
 `disparity.mp4` next to each sequence's PNG streams, e.g.
-`/tmp/vb-demo/synth_demo/sequences/0002/disparity.mp4`.
+`data/demo/synth_demo/sequences/0002/disparity.mp4`.
 
 ## 4. Verify alpha is one TIFF page per object
 
@@ -132,7 +131,7 @@ from pathlib import Path
 
 import video_bokeh.core._streams
 
-root = Path("/tmp/vb-demo/synth_demo")
+root = Path("data/demo/synth_demo")
 manifest = {
     row["seq_id"]: int(row["n_objects"])
     for row in csv.DictReader(open(root / "manifest.csv"))
@@ -185,7 +184,7 @@ from pathlib import Path
 import imageio.v2 as iio
 import numpy as np
 
-path = Path("/tmp/vb-demo/synth_demo/sequences/0002/disparity.mp4")
+path = Path("data/demo/synth_demo/sequences/0002/disparity.mp4")
 frame = np.asarray(iio.get_reader(path).get_data(0))
 red, blue = frame[..., 0].astype(np.int16), frame[..., 2].astype(np.int16)
 gap = np.abs(red - blue)
@@ -208,14 +207,13 @@ depth streams open next to it.
 
 ## Artifacts
 
-Everything below is under `/tmp/vb-demo` and was left in place:
+Everything below is under `data/demo` and was left in place:
 
 - `library/` — Stage A output, 12 foregrounds, 20 backgrounds
 - `synth_demo/` — the 6-sequence demo dataset, with `all_in_focus.mp4` and `disparity.mp4`
   packed for each sequence
-- `synth_4obj_n20/`, `synth_5obj_n20/` — the 20-sequence reliability batches at four and five
+- `synth_4obj_n30/`, `synth_5obj_n30/` — the 30-sequence reliability batches at four and five
   objects
-- `synth_4obj/`, `synth_5obj/` — the earlier 10-sequence batches at the same two counts
 
-These stay under `/tmp` deliberately, for the 2026-09-22 meeting to open directly; nothing here
-runs a cleanup step.
+These stay under `backend/data/demo/` deliberately, gitignored so nothing generated here is
+committed, for the 2026-09-22 meeting to open directly; nothing here runs a cleanup step.
