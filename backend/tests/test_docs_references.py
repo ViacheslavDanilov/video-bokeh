@@ -23,7 +23,15 @@ _SRC = _REPO / "backend" / "src"
 _OURS = (_SRC, _REPO / "backend" / "tests", _REPO / "scripts")
 _VENDORED = {"inference_demo.py"}  # third_party/any-to-bokeh/test/inference_demo.py
 _DOC_ROOTS = ("docs/explanation", "docs/how-to", "docs/reference")
-_DOC_FILES = ("AGENTS.md", "README.md", "docs/README.md", "docs/STYLE.md")
+_DOC_FILES = (
+    "AGENTS.md",
+    "README.md",
+    "docs/README.md",
+    "docs/STYLE.md",
+    "backend/AGENTS.md",
+    "backend/README.md",
+    "scripts/README.md",
+)
 
 # Any Python module the docs name: `src/video_bokeh/foo.py`, `backend/src/...`, or a bare `foo.py`.
 _PATH_RE = re.compile(r"\b(?:backend/)?src/[\w/]+\.py\b")
@@ -31,7 +39,28 @@ _NAME_RE = re.compile(r"\b([a-z_][\w]*\.py)\b")
 # Module constants named inside backticks, which is how the docs write them:
 # `_ALPHA_CHANNELS`, `_ALPHA_CHANNELS = 3`, `_Z_NEAR`/`_Z_FAR`.
 _CONST_RE = re.compile(r"\b(_[A-Z][A-Z0-9_]{2,})\b")
+# Dotted module paths named inside backticks, e.g. `video_bokeh.library.build`.
+_MODULE_RE = re.compile(r"\bvideo_bokeh(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+\b")
 _TICKS_RE = re.compile(r"`([^`\n]+)`")
+
+
+def _module_resolves(dotted: str) -> bool:
+    """True if `dotted` names a module file, a package, or an attribute in one.
+
+    `video_bokeh.core._streams` is a module file, `video_bokeh.core` is a
+    package (its own `__init__.py`), and `video_bokeh.preview.pack.load_frame`
+    is a function inside the `pack` module -- so the dotted name doesn't
+    resolve to a file itself, its `video_bokeh.preview.pack` prefix does.
+    Walk prefixes from the full name down to find one that does.
+    """
+    parts = dotted.split(".")
+    for end in range(len(parts), 0, -1):
+        candidate = _SRC.joinpath(*parts[:end])
+        if candidate.with_suffix(".py").is_file():
+            return True
+        if (candidate / "__init__.py").is_file():
+            return True
+    return False
 
 
 def _tracked_docs() -> list[Path]:
@@ -72,6 +101,19 @@ def test_doc_names_only_code_that_exists(doc: Path) -> None:
         f"A renamed or deleted constant leaves the doc quietly wrong."
     )
 
+    # Applied to the full text, not just inline-backtick spans: a fenced
+    # ```bash block is where the docs actually name modules, and it has no
+    # backticks of its own for `_TICKS_RE` to find.
+    named_modules = set(_MODULE_RE.findall(text))
+    missing_modules = sorted(
+        {m for m in named_modules if not _module_resolves(m)},
+    )
+    assert not missing_modules, (
+        f"{rel} names a video_bokeh module that does not resolve to a file under "
+        f"backend/src/: {missing_modules}. Either the module moved and the doc did not "
+        f"follow, or the doc is inventing a path."
+    )
+
 
 def test_the_check_has_something_to_check() -> None:
     """Guard against the regexes silently matching nothing and the suite going green."""
@@ -82,6 +124,7 @@ def test_the_check_has_something_to_check() -> None:
         + len(
             [c for span in _TICKS_RE.findall(joined) for c in _CONST_RE.findall(span)],
         )
+        + len(_MODULE_RE.findall(joined))
     )
     assert found >= 5, (
         f"only {found} code references found across the tracked docs; "

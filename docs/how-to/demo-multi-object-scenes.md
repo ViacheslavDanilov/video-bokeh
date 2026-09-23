@@ -1,0 +1,219 @@
+---
+type: how-to
+status: active
+tags: [how-to, demo, colormap, multi-object, runbook]
+related: [cli, dataset-layout, generate-a-dataset, demo-unrestricted-trajectories]
+---
+
+# Demo: four and five objects, colour disparity, multi-page alpha
+
+This pipeline generates scenes with four and five objects, renders disparity as a red-near,
+blue-far colour video instead of grey, and stores alpha as one TIFF page per object. This
+recipe reproduces all three from a clean checkout, with every artifact written under
+`backend/data/demo/`, gitignored (`backend/data/*/`) so nothing generated here gets committed.
+
+Every command below was executed as written on this machine (Apple Silicon, `mps`). Commands
+run from `backend/`, except the `uv sync` below, which runs from the repo root.
+
+---
+
+## Before you start
+
+Install both extras this recipe needs: `library` for Stage A, `preview` for the video packer.
+Run this one from the repo root, not `backend/`:
+
+```bash
+uv sync --all-extras --dev
+```
+
+You need the tracked dev pools, already in the repo: `data/magick_dev` (12 usable foregrounds
+out of 20, the rest dropped by the CLIP subject filter) and `data/bg-20k_dev` (20 backgrounds).
+No download, no Kaggle credentials.
+
+---
+
+## 1. Build the library (Stage A)
+
+```bash
+cd backend
+uv run python -m video_bokeh.library.build \
+  --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
+  --output data/demo/library --size 512 --model da2-small
+```
+
+**11.37 s.** `da2-small` is the fast depth model; `da2-large` is the default and slower. This
+recipe uses `da2-small` because the demo is about the colormap and the object count, not depth
+fidelity, and a fast Stage A is what makes the recipe reproducible on a fresh clone in under a
+minute rather than several.
+
+## 2. Generate four- and five-object scenes (Stage B)
+
+The scene sampler rejects layouts where two objects overlap on screen while their depth ranges
+overlap, and retries. More objects means more retries, so the number that matters here is not
+how many sequences were requested but how many actually came out.
+
+```bash
+cd backend
+uv run python -m video_bokeh.scenes.generate \
+  --library-root data/demo/library --output data/demo/synth_4obj_n30 \
+  --count 30 --frames 80 --size 512 --seed 300 \
+  --n-objects-min 4 --n-objects-max 4
+```
+
+```bash
+cd backend
+uv run python -m video_bokeh.scenes.generate \
+  --library-root data/demo/library --output data/demo/synth_5obj_n30 \
+  --count 30 --frames 80 --size 512 --seed 400 \
+  --n-objects-min 5 --n-objects-max 5
+```
+
+Measured:
+
+| objects | requested | generated | sec/sequence |
+|---|---|---|---|
+| 4 | 30 | 30 | 6.72 |
+| 5 | 30 | 30 | 9.05 |
+
+**Every one of the 60 requested sequences came out; none were skipped.** Five-object scenes
+cost 35 % more wall-clock time per sequence than four-object scenes (9.05 s against 6.72 s),
+which matches the collision validator needing more retries as the depth slots narrow, but on
+this library (12 foregrounds, 20 backgrounds) that extra cost never became a dropped sequence.
+This is measured on the small tracked dev pool; a bigger asset library changes the retry
+arithmetic and is worth re-checking before relying on the same reliability at scale.
+
+The demo videos below come from a third, smaller run mixing both counts:
+
+```bash
+cd backend
+uv run python -m video_bokeh.scenes.generate \
+  --library-root data/demo/library --output data/demo/synth_demo \
+  --count 6 --frames 80 --size 512 --seed 0 \
+  --n-objects-min 4 --n-objects-max 5
+```
+
+**46.40 s, 6 of 6 sequences generated:** `0001` and `0004`/`0005` at 4 objects, `0002`/`0003`/`0006`
+at 5 objects.
+
+## 3. Pack both streams to video
+
+```bash
+cd backend
+uv run python -m video_bokeh.preview.pack \
+  --data-root data/demo/synth_demo --streams all_in_focus,disparity \
+  --colormap spectral_r --fps 24
+```
+
+**5.03 s** for 6 sequences, 2 streams, 80 frames each. Output: `all_in_focus.mp4` and
+`disparity.mp4` next to each sequence's PNG streams, e.g.
+`data/demo/synth_demo/sequences/0002/disparity.mp4`.
+
+## 4. Verify alpha is one TIFF page per object
+
+For every sequence in `synth_demo`, `read_alpha_tiff` (`src/video_bokeh/core/_streams.py`) reads
+back the page count and it matches the object count Stage B printed, on both the first and the
+last frame:
+
+| sequence | objects (from Stage B log) | TIFF pages, frame 1 | TIFF pages, frame 80 |
+|---|---|---|---|
+| 0001 | 4 | 4 | 4 |
+| 0002 | 5 | 5 | 5 |
+| 0003 | 5 | 5 | 5 |
+| 0004 | 4 | 4 | 4 |
+| 0005 | 4 | 4 | 4 |
+| 0006 | 5 | 5 | 5 |
+
+```bash
+cd backend
+uv run python - <<'PY'
+import csv
+from pathlib import Path
+
+import video_bokeh.core._streams
+
+root = Path("data/demo/synth_demo")
+manifest = {
+    row["seq_id"]: int(row["n_objects"])
+    for row in csv.DictReader(open(root / "manifest.csv"))
+}
+for seq_id in sorted(manifest):
+    seq_dir = root / "sequences" / seq_id
+    first = video_bokeh.core._streams.read_alpha_tiff(seq_dir / "alpha" / "01.tif")
+    last = video_bokeh.core._streams.read_alpha_tiff(seq_dir / "alpha" / "80.tif")
+    print(f"{seq_id}: objects={manifest[seq_id]} frame1={len(first)} frame80={len(last)}")
+PY
+```
+
+Output:
+
+```
+0001: objects=4 frame1=4 frame80=4
+0002: objects=5 frame1=5 frame80=5
+0003: objects=5 frame1=5 frame80=5
+0004: objects=4 frame1=4 frame80=4
+0005: objects=4 frame1=4 frame80=4
+0006: objects=5 frame1=5 frame80=5
+```
+
+Every mask is `(512, 512)` `float32`, and the page count never drifts between the first and
+last frame of a clip.
+
+## 5. Watch the videos
+
+`disparity.mp4` is genuinely colour, not a grey ramp with a palette applied at display time: on
+a sampled frame the red and blue channels differ by up to 180 out of 255, with a mean channel
+gap of 79.5 across the frame. The background reads deep blue-violet (far) and foreground
+subjects read orange to red (near), matching `Spectral_r` reversed so red is near.
+
+Motion through depth shows up as a colour change, not a still image. On sequence `0002` (5
+objects), the mean disparity under each object's own alpha mask across all 80 frames moves by:
+
+| object | disparity at frame 1 | disparity at frame 80 | range over the clip |
+|---|---|---|---|
+| 0 | 0.204 | 0.899 | 0.747 |
+| 1 | 0.283 | 0.146 | 0.359 |
+| 2 | 0.676 | 0.203 | 0.473 |
+| 3 | 0.700 | 0.898 | 0.198 |
+| 4 | 0.861 | 0.686 | 0.175 |
+
+```bash
+cd backend
+uv run python - <<'PY'
+from pathlib import Path
+
+import imageio.v2 as iio
+import numpy as np
+
+path = Path("data/demo/synth_demo/sequences/0002/disparity.mp4")
+frame = np.asarray(iio.get_reader(path).get_data(0))
+red, blue = frame[..., 0].astype(np.int16), frame[..., 2].astype(np.int16)
+gap = np.abs(red - blue)
+print(f"max R-B gap: {gap.max()} / 255, mean R-B gap: {gap.mean():.1f} / 255")
+PY
+```
+
+Output:
+
+```
+max R-B gap: 180 / 255, mean R-B gap: 79.5 / 255
+```
+
+Object 0 alone crosses three-quarters of the disparity range, which reads on screen as that
+object sliding from teal-green at the start of the clip to deep red by the end: the colour
+carries the depth motion, so a viewer sees the object approach without needing the alpha or
+depth streams open next to it.
+
+---
+
+## Artifacts
+
+Everything below is under `data/demo` and was left in place:
+
+- `library/` — Stage A output, 12 foregrounds, 20 backgrounds
+- `synth_demo/` — the 6-sequence demo dataset, with `all_in_focus.mp4` and `disparity.mp4`
+  packed for each sequence
+- `synth_4obj_n30/`, `synth_5obj_n30/` — the 30-sequence reliability batches at four and five
+  objects
+
+These stay under `backend/data/demo/` deliberately, gitignored so nothing generated here is
+committed, for the 2026-09-22 meeting to open directly; nothing here runs a cleanup step.
