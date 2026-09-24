@@ -65,6 +65,12 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://localhost:8000/docs](http://localhost:8000/docs) (API docs).
 
+The API serves scenes generated from an artifact library, so it needs one before `/library`
+and `/scenes` answer. Build it once with Stage A, then start the API with
+`VIDEO_BOKEH_LIBRARY` pointing at it — both steps are in
+[backend/README.md](backend/README.md), and the endpoints are in
+[docs/reference/api.md](docs/reference/api.md).
+
 To generate training data instead of running the API, see [backend/README.md](backend/README.md).
 
 ## License
