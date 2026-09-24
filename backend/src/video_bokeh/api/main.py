@@ -13,8 +13,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Self
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi import Path as PathParam
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 
@@ -31,13 +32,14 @@ from video_bokeh.api._settings import (
     load_settings,
     require_library,
 )
+from video_bokeh.preview._colormap import COLORMAPS
 from video_bokeh.preview.pack import encode_stream, list_stream_frames
 
 #: Matches the defaults of `video_bokeh.preview.pack`, so a stream looks the same
 #: whether it was packed on the command line or served from here.
 _FPS = 24
 _QUALITY = 10
-_COLORMAP = "spectral_r"
+DEFAULT_COLORMAP = "spectral_r"
 
 #: The endpoint blocks while it generates, so the request has to be bounded. 240
 #: frames is three times the 80 every measurement so far has used.
@@ -47,6 +49,17 @@ app = FastAPI(
     title="Video Bokeh",
     description="Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.js frontend.",
     version="0.1.0",
+)
+
+# Read once at import rather than per request, unlike the paths: middleware is installed
+# when the app object is built, and an origin list is a deployment setting that changes
+# with a restart anyway. The page always runs on a different port from the API, so
+# without this every browser request is refused before it reaches a route.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(load_settings().cors_origins),
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["content-type"],
 )
 
 
@@ -72,6 +85,20 @@ class LibraryResponse(BaseModel):
     asset_size: int | None
 
 
+class StreamInfo(BaseModel):
+    """How one stream of a scene can be displayed.
+
+    The client renders whatever this manifest reports rather than knowing the stream
+    names itself, so a stream added later -- `bokeh`, once the render container
+    exists -- shows up in the interface without a frontend change.
+    """
+
+    url: str
+    #: Colormaps this stream accepts, empty when it is already RGB and the parameter
+    #: would do nothing.
+    colormaps: list[str]
+
+
 class SceneResponse(BaseModel):
     id: str
     cached: bool
@@ -79,7 +106,7 @@ class SceneResponse(BaseModel):
     frames: int
     size: int
     n_objects: int
-    streams: dict[str, str]
+    streams: dict[str, StreamInfo]
 
 
 def _mounted_library(settings: Settings) -> Path:
@@ -140,7 +167,11 @@ def create_scene(params: SceneParams) -> SceneResponse:
         size=params.size,
         n_objects=result.n_objects,
         streams={
-            stream: f"/scenes/{result.id}/{stream}.mp4" for stream in VIDEO_STREAMS
+            stream: StreamInfo(
+                url=f"/scenes/{result.id}/{stream}.mp4",
+                colormaps=sorted(COLORMAPS) if stream == "disparity" else [],
+            )
+            for stream in VIDEO_STREAMS
         },
     )
 
@@ -149,22 +180,35 @@ def create_scene(params: SceneParams) -> SceneResponse:
 def read_scene_video(
     scene_id: Annotated[str, PathParam(pattern=r"^[0-9a-f]{16}$")],
     stream: str,
+    colormap: Annotated[str, Query(pattern=r"^[a-z_]+$")] = DEFAULT_COLORMAP,
 ) -> FileResponse:
     """Serve one stream as H.264.
 
     Encoded on the first request and kept next to the frames, so the second request
     is a file read. `scene_id` is constrained to the hash alphabet in the route
     itself, which is also what keeps it from naming a path outside `scenes/`.
+
+    `colormap` applies to `disparity` only -- it is 16-bit grey on disk and gets its
+    colour here. Every other stream is already RGB, so the parameter is dropped
+    rather than forking that stream's cache into identical copies.
     """
     if stream not in VIDEO_STREAMS:
         raise HTTPException(status_code=404, detail=f"no video for stream {stream!r}")
+    if colormap not in COLORMAPS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown colormap {colormap!r}. Known: {', '.join(sorted(COLORMAPS))}",
+        )
+    if stream != "disparity":
+        colormap = DEFAULT_COLORMAP
 
     settings = load_settings()
     scene_dir = settings.scenes / scene_id
     if not (scene_dir / "scene.json").is_file():
         raise HTTPException(status_code=404, detail=f"no scene {scene_id}")
 
-    video = scene_dir / f"{stream}.mp4"
+    suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
+    video = scene_dir / f"{stream}{suffix}.mp4"
     if not video.is_file():
         frames = list_stream_frames(scene_dir, stream)
         if not frames:
@@ -172,6 +216,6 @@ def read_scene_video(
                 status_code=404,
                 detail=f"scene {scene_id} has no {stream}",
             )
-        encode_stream(frames, video, _FPS, _QUALITY, stream, _COLORMAP)
+        encode_stream(frames, video, _FPS, _QUALITY, stream, colormap)
 
     return FileResponse(video, media_type="video/mp4")
