@@ -39,7 +39,7 @@ The backend estimates per-frame depth, applies a controllable blur kernel modula
 | Frontend | TypeScript, Next.js, React, Tailwind CSS |
 | Data | NumPy, Pillow, tifffile, matplotlib |
 | Package Management | uv (backend), pnpm (frontend) |
-| Deployment | Docker, GitHub Actions, Google Artifact Registry |
+| Build & CI | Docker, Docker Compose, GitHub Actions |
 
 ## Getting Started
 
