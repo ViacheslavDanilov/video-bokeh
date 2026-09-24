@@ -5,53 +5,56 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Light and close to neutral, because this is a tool for judging images: a tinted
- * surface would tint the frames next to it.
+ * Tokens from DESIGN.md — the Vercel style reference: a near-white canvas, black
+ * typography, hairline borders, and no decorative colour at all.
  *
- * The one chromatic decision is the accent, taken from the near end of the Spectral
- * colormap the pipeline itself produces. In focus means near, so the colour marking the
- * active control is the colour of the nearest object in the depth map beside it.
+ * Monochrome is the right call for this page rather than a fashion: every frame and
+ * depth map on screen is already saturated, so the only colour a viewer should have to
+ * read is the data's. The one place hue survives is the Spectral scale under the depth
+ * pane, which is a legend, not decoration.
  */
 :root {
-  --radius: 0.5rem;
+  /* DESIGN.md: 6px on buttons, cards and inputs. */
+  --radius: 6px;
 
-  --background: #fbfaf9;
-  --foreground: #211f2b;
-  --card: #ffffff;
-  --card-foreground: #211f2b;
+  --background: #fafafa; /* Paper White */
+  --foreground: #171717; /* Obsidian */
+  --card: #ffffff; /* Pure White */
+  --card-foreground: #171717;
   --popover: #ffffff;
-  --popover-foreground: #211f2b;
+  --popover-foreground: #171717;
 
-  /* Spectral's near end. */
-  --primary: #c62f42;
+  /* The filled black button: the only element that reaches Obsidian. */
+  --primary: #171717;
   --primary-foreground: #ffffff;
 
-  --secondary: #f1efec;
-  --secondary-foreground: #211f2b;
-  --muted: #f1efec;
-  --muted-foreground: #5f5a6b;
-  --accent: #f1efec;
-  --accent-foreground: #211f2b;
+  --secondary: #fafafa;
+  --secondary-foreground: #4d4d4d; /* Charcoal */
+  --muted: #ebebeb; /* Hairline */
+  --muted-foreground: #666666; /* Stone */
+  --accent: #ebebeb;
+  --accent-foreground: #171717;
 
-  /* Spectral's nearest, which is also where an error belongs. */
-  --destructive: #9e0142;
+  /*
+   * DESIGN.md has no error colour — it describes a marketing site, which has no
+   * failure states. An interface needs one, so this is an extension of the reference,
+   * not a quotation from it: the least saturated red that still clears 4.5:1 on the
+   * canvas, used only for the rule beside a message.
+   */
+  --destructive: #b4231f;
 
-  --border: #e3e0da;
-  --input: #e3e0da;
-  --ring: #c62f42;
-
-  /* Spectral's other end, for the quiet "this came from cache" note. */
-  --far: #2c78a6;
+  --border: #ebebeb; /* Hairline */
+  --input: #ebebeb;
+  --ring: #171717; /* focus in Obsidian, since the system has no accent hue */
 }
 
 /*
  * Tailwind needs every semantic variable mapped to a colour utility before
- * `bg-background`, `border-border` and friends exist. shadcn generates this block; it is
- * trimmed to the tokens this interface actually uses.
+ * `bg-background`, `border-border` and friends exist. Trimmed to what is used.
  */
 @theme inline {
-  --font-sans: var(--font-archivo);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -71,12 +74,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-far: var(--far);
 
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
 }
 
 @layer base {
@@ -91,14 +93,39 @@
 
   body {
     font-family: var(--font-sans);
-    /* Archivo runs loose at interface sizes. */
-    letter-spacing: -0.006em;
+  }
+
+  /*
+   * DESIGN.md: tight tracking at display sizes, normal at body sizes. Geist is drawn
+   * for this, and loosening it back at 14-16px is half the reason the system reads as
+   * precise rather than cramped.
+   */
+  h1 {
+    letter-spacing: -0.02em;
   }
 }
 
 /*
- * The one piece of motion that no one asked for: a sweep along the depth axis while a
- * scene generates, on the same scale that afterwards explains the depth map's colours.
+ * The signature border of the system: a hairline that survives any background, made
+ * from an inset ring plus an outer ring in the canvas colour rather than a plain
+ * 1px border. Depth here comes from value, never from shadow.
+ */
+.hairline {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.08),
+    0 0 0 1px var(--background);
+}
+
+/* Mono labels: metadata and identifiers, at the tracking DESIGN.md specifies. */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.071em;
+}
+
+/*
+ * The one piece of motion nobody asked for: a sweep along the depth axis while a scene
+ * generates, on the same scale that afterwards explains the depth map's colours.
  */
 @keyframes depth-sweep {
   from {

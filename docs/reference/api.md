@@ -16,7 +16,7 @@ Interactive docs are at `/docs` when the server is running.
 
 ## Configuration
 
-Two environment variables, both optional.
+Three environment variables, all optional.
 
 | Variable | Default | Names |
 |---|---|---|

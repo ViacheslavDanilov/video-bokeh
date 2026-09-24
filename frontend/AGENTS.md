@@ -52,6 +52,15 @@ control stays anonymous. Re-adding the component from the registry would lose th
 
 Everything else under `src/components/` is this project's own.
 
+## Turbopack serves stale CSS after a theme edit
+
+**Editing `@theme` or `:root` in `globals.css` can leave the dev server serving the previous
+compiled stylesheet.** The symptom is not an error: every custom property resolves to nothing,
+so popovers are transparent, slider tracks vanish, and the page looks broken in ways that
+point at the components. It cost an hour once.
+
+Check it by reading a variable rather than guessing — `getComputedStyle(document.documentElement).getPropertyValue('--popover')` empty means stale. The fix is `rm -rf .next` and restart.
+
 ## Talking to the API
 
 `src/lib/api.ts` is the only place that knows the API exists. The base URL comes from
