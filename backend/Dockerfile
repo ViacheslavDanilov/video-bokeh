@@ -19,4 +19,9 @@ RUN uv sync --extra api --no-dev
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "video_bokeh.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the venv's uvicorn directly rather than through `uv run`. `uv run` re-resolves
+# and re-syncs the environment at every container start, and it includes the dev group
+# by default -- so the image built with --no-dev was downloading ruff, ty, matplotlib
+# and 49 other packages on each fresh start: 14.7 s, and a hard dependency on the
+# container having network.
+CMD ["/app/.venv/bin/uvicorn", "video_bokeh.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
