@@ -64,6 +64,34 @@ def _save_frame(
     write_disparity_png(disp / f"{stem}.png", frame.disparity)
 
 
+def sample_n_objects(seed: int, n_objects_min: int, n_objects_max: int) -> int:
+    """How many objects a seed asks for.
+
+    Keyed on a prefixed string rather than the bare seed so this draw is independent
+    of the stream the scene itself uses. Shared with the API, so the same seed and
+    range produce the same scene whether it came from the CLI or over HTTP.
+    """
+    return random.Random(f"nobj:{seed}").randint(n_objects_min, n_objects_max)
+
+
+def write_sequence(seq_dir: Path, frames: list[RenderedFrame]) -> None:
+    """Write one sequence's three streams into ``seq_dir``.
+
+    The frame-number width comes from the frame count, so an 80-frame sequence is
+    ``01``..``80`` and a 100-frame one is ``001``..``100``. The bridge and
+    ``preview.pack`` both sort on the numeric prefix, so the width only has to be
+    consistent inside a sequence.
+    """
+    aif = seq_dir / "all_in_focus"
+    alp = seq_dir / "alpha"
+    disp = seq_dir / "disparity"
+    for d in (aif, alp, disp):
+        d.mkdir(parents=True, exist_ok=True)
+    digits = max(2, len(str(len(frames))))
+    for fi, frame in enumerate(frames):
+        _save_frame(frame, f"{fi + 1:0{digits}d}", aif, alp, disp)
+
+
 def generate_dataset(
     library_root: Path,
     output: Path,
@@ -88,7 +116,7 @@ def generate_dataset(
 
     for i in range(count):
         seq_seed = seed + i
-        n_obj = random.Random(f"nobj:{seq_seed}").randint(n_objects_min, n_objects_max)
+        n_obj = sample_n_objects(seq_seed, n_objects_min, n_objects_max)
         try:
             scene = sample_scene(
                 library_root,
@@ -105,15 +133,7 @@ def generate_dataset(
         frames = render_scene(scene)
 
         seq_name = f"{i + 1:04d}"
-        seq_dir = output / "sequences" / seq_name
-        aif = seq_dir / "all_in_focus"
-        alp = seq_dir / "alpha"
-        disp = seq_dir / "disparity"
-        for d in (aif, alp, disp):
-            d.mkdir(parents=True, exist_ok=True)
-        digits = max(2, len(str(n_frames)))
-        for fi, frame in enumerate(frames):
-            _save_frame(frame, f"{fi + 1:0{digits}d}", aif, alp, disp)
+        write_sequence(output / "sequences" / seq_name, frames)
         rows.append(
             [
                 seq_name,

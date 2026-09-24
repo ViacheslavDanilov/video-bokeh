@@ -7,7 +7,7 @@ FastAPI backend and dataset pipeline for the depth-aware synthetic bokeh video p
 ```
 backend/src/video_bokeh/
 ├── __init__.py
-├── api/            main.py                          — FastAPI app
+├── api/            main.py  _library.py  _scenes.py  _settings.py  — HTTP surface
 ├── acquire/        magick.py  bg20k.py  classify.py  — source pools
 ├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
 ├── core/           _collision.py  _fusion.py  _library.py  _metadata.py
@@ -75,12 +75,37 @@ CLI, not this repository's script, and the BG-20k Kaggle download lands as uploa
 
 ### Run the API
 
+The API mounts a library and generates scenes from it on demand, so point it at one. Every
+library on disk is flat, so name it directly:
+
 ```bash
-uv run uvicorn video_bokeh.api.main:app --reload --port 8000
+VIDEO_BOKEH_LIBRARY=data/library_dev \
+  uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 ```
 
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs
+
+Without `VIDEO_BOKEH_LIBRARY` it looks for `$VIDEO_BOKEH_DATA_ROOT/library`, and
+`VIDEO_BOKEH_DATA_ROOT` itself defaults to `data`. Scenes are written under
+`$VIDEO_BOKEH_DATA_ROOT/scenes/`.
+
+Generate one and watch it:
+
+```bash
+curl -X POST http://localhost:8000/scenes \
+  -H 'content-type: application/json' \
+  -d '{"seed": 42, "frames": 80, "size": 512, "n_objects_min": 4, "n_objects_max": 5}'
+```
+
+That takes about 7 seconds on an Apple M3 Pro and answers with a scene id. The same request
+again returns the same id in 0.02 s — the id is a hash of the parameters and the library, so
+the directory on disk is the cache. Then open
+`http://localhost:8000/scenes/<id>/disparity.mp4`.
+
+Timings for other frame counts, and for the container, are in `docs/reference/api.md`.
+
+Full surface in `docs/reference/api.md`.
 
 ## 🐳 Docker
 

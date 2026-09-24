@@ -9,10 +9,17 @@ on:
     branches:
     - main
 
+# A second push to a pull request makes the first run pointless. Never cancel on
+# main, where each run is the record for one merged commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   backend:
     runs-on: ubuntu-latest
     name: "Backend: Lint & Type Check"
+    timeout-minutes: 20
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -40,6 +47,7 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     name: "Frontend: Lint, Format & Build"
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -52,10 +60,16 @@ jobs:
       with:
         node-version: "24"
 
+    # No version here: pnpm/action-setup reads packageManager from
+    # frontend/package.json, so CI and a laptop run the same pnpm. `latest` used to
+    # sit here, and AGENTS.md names exactly that as the first thing to suspect when a
+    # step passes locally and fails in CI.
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
-        version: latest
+        # The path is explicit because there is no package.json at the repository
+        # root, and a `uses:` step does not inherit defaults.run.working-directory.
+        package_json_file: frontend/package.json
         run_install: false
 
     - name: Get pnpm store directory
@@ -85,6 +99,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     name: "Docker: Build Images"
+    timeout-minutes: 20
     needs: [backend, frontend]
     steps:
     - name: Checkout code
@@ -95,3 +110,39 @@ jobs:
 
     - name: Build frontend image
       run: docker build -t video-bokeh-web ./frontend
+
+    # Building an image proves its layers resolve. It does not prove the image runs,
+    # and that gap shipped a real defect: the CMD went through `uv run`, which
+    # re-syncs the environment at every start and pulls the dev group, so each fresh
+    # container downloaded 52 packages before serving anything. `--network none` is
+    # what catches that class of bug -- an image that needs the internet to start
+    # cannot start here.
+    - name: The api image must run with no network
+      run: |
+        docker run -d --name api-smoke --network none video-bokeh-api
+        for _ in $(seq 1 30); do
+          if docker exec api-smoke /app/.venv/bin/python -c \
+              "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" \
+              2>/dev/null; then
+            echo "api answered /health with no network"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::api did not answer /health within 30s"
+        docker logs api-smoke
+        exit 1
+
+    - name: The web image must serve its root
+      run: |
+        docker run -d --name web-smoke -p 3000:3000 video-bokeh-web
+        for _ in $(seq 1 30); do
+          if curl -sf -o /dev/null http://127.0.0.1:3000/; then
+            echo "web answered on 3000"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::web did not answer within 30s"
+        docker logs web-smoke
+        exit 1

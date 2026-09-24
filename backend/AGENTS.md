@@ -17,7 +17,7 @@ Run from `backend/` unless noted.
 | Install everything (development) | `uv sync --all-extras --dev` (from repo root) |
 | Install Stage B only | `uv sync --no-dev` (from repo root) |
 | Install Stage A | `uv sync --no-dev --extra library` |
-| Run API (reload) | `uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
+| Run API (reload) | `VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
 | Tests | `uv run pytest` |
 | Type check | `uv run ty check src/` |
 | Lint | `uv run ruff check src/` |
