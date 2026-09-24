@@ -89,3 +89,6 @@ docs/.smart-env/
 
 # Superseded docs, kept locally until reviewed and deleted by hand.
 docs/deprecated/
+
+# Playwright MCP scratch output (screenshots, snapshots, console logs)
+.playwright-mcp/
