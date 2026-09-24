@@ -85,13 +85,11 @@ cd backend/third_party/any-to-bokeh && python test/inference_demo.py --val_csv_p
 
 ## Measure any-to-bokeh inference
 
-`measure_a2b.sh` generates one sequence, converts it, runs inference and reports wall clock and seconds per frame next to the GPU that produced them. CUDA-only — `inference_demo.py` is pinned to `cuda:0`, so this is a lab-machine script.
+`measure_a2b.sh` generates one 80-frame sequence, converts it, runs inference and reports wall clock and seconds per frame next to the GPU that produced them. No arguments. CUDA-only — `inference_demo.py` is pinned to `cuda:0`, so this is a lab-machine script.
 
 ```bash
 scripts/measure_a2b.sh
 ```
-
-Defaults to 80 frames at 512 px, the length every existing estimate refers to. `--frames`, `--size` and `--start-from N` change what runs; `--keep` leaves the converted inputs inside the submodule instead of removing them on exit.
 
 The full transcript lands in `backend/data/measurements/a2b-<timestamp>.log`. Send that file back — it carries the commands, the card and the timing together. Details in `docs/how-to/run-any-to-bokeh-inference.md`.
 
