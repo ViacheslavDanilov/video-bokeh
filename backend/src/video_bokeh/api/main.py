@@ -35,6 +35,7 @@ from video_bokeh.api._settings import (
     require_library,
 )
 from video_bokeh.preview._colormap import COLORMAPS
+from video_bokeh.preview._masks import object_color_hex
 from video_bokeh.preview.pack import encode_stream, list_stream_frames
 
 #: Matches the defaults of `video_bokeh.preview.pack`, so a stream looks the same
@@ -156,6 +157,9 @@ class SceneResponse(BaseModel):
     frames: int
     size: int
     n_objects: int
+    #: One hex colour per object, in the order the alpha pages carry them, so a legend
+    #: cannot drift from what the alpha video actually paints.
+    object_colors: list[str]
     streams: dict[str, StreamInfo]
 
 
@@ -216,6 +220,7 @@ def create_scene(params: SceneParams) -> SceneResponse:
         frames=params.frames,
         size=params.size,
         n_objects=result.n_objects,
+        object_colors=[object_color_hex(i) for i in range(result.n_objects)],
         streams={
             stream: StreamInfo(
                 url=f"/scenes/{result.id}/{stream}.mp4",

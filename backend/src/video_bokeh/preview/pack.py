@@ -55,8 +55,9 @@ import imageio.v2 as iio
 import numpy as np
 from PIL import Image
 
-from video_bokeh.core._streams import read_disparity_png
+from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
 from video_bokeh.preview._colormap import COLORMAPS, apply_colormap
+from video_bokeh.preview._masks import render_object_masks
 
 # --------------------------------------------------------------------------- #
 # I/O                                                                         #
@@ -78,11 +79,16 @@ def list_sequences(root: Path, seqs: list[str] | None) -> list[Path]:
     return picked
 
 
+#: What each stream is stored as. Alpha is multi-page TIFF because it carries one page
+#: per object; everything else is PNG.
+_STREAM_SUFFIX = {"alpha": "*.tif"}
+
+
 def list_stream_frames(seq_dir: Path, stream: str) -> list[Path]:
     stream_dir = seq_dir / stream
     if not stream_dir.exists() or not stream_dir.is_dir():
         return []
-    return sorted(stream_dir.glob("*.png"))
+    return sorted(stream_dir.glob(_STREAM_SUFFIX.get(stream, "*.png")))
 
 
 # --------------------------------------------------------------------------- #
@@ -93,13 +99,18 @@ def list_stream_frames(seq_dir: Path, stream: str) -> list[Path]:
 def load_frame(path: Path, stream: str, colormap: str) -> np.ndarray:
     """Load one frame as uint8 RGB.
 
-    The `disparity` stream is a uint16 PNG (see `core/_streams.py`), so it goes
+    The `alpha` stream is a multi-page TIFF and the `disparity` stream is a uint16
+    PNG (see `core/_streams.py`), so each goes
     through `read_disparity_png` and the colormap rather than `Image.convert`,
     which would silently reinterpret it as garbage. Every other stream keeps
     the existing convert-to-RGB path.
     """
     if stream == "disparity":
         return apply_colormap(read_disparity_png(path), colormap)
+    if stream == "alpha":
+        # One page per object, coloured by identity. See preview/_masks.py for why the
+        # page index is the object and not its distance.
+        return render_object_masks(read_alpha_tiff(path))
     img = Image.open(path)
     if img.mode != "RGB":
         img = img.convert("RGB")

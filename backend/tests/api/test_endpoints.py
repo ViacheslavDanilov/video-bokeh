@@ -83,7 +83,7 @@ def test_generates_a_scene_and_lists_its_streams(client: TestClient) -> None:
     assert body["cached"] is False
     assert body["frames"] == 3
     assert 1 <= body["n_objects"] <= 2
-    assert set(body["streams"]) == {"all_in_focus", "disparity"}
+    assert set(body["streams"]) == {"all_in_focus", "alpha", "disparity"}
     assert body["streams"]["disparity"]["url"] == f"/scenes/{body['id']}/disparity.mp4"
 
 
@@ -168,10 +168,18 @@ def test_the_encode_is_kept_for_the_next_request(
     assert encoded.stat().st_mtime_ns == stamp
 
 
-def test_alpha_has_no_video_form(client: TestClient) -> None:
-    """Multi-page TIFF carries one page per object; there is no single video for it."""
+def test_alpha_is_served_with_one_colour_per_object(client: TestClient) -> None:
+    """Each page is an object, so the video shows identity rather than one silhouette."""
     scene = client.post("/scenes", json=SCENE_BODY).json()
-    assert client.get(f"/scenes/{scene['id']}/alpha.mp4").status_code == 404
+    response = client.get(f"/scenes/{scene['id']}/alpha.mp4")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp4"
+    assert len(response.content) > 0
+
+
+def test_an_unknown_stream_has_no_video(client: TestClient) -> None:
+    scene = client.post("/scenes", json=SCENE_BODY).json()
+    assert client.get(f"/scenes/{scene['id']}/depth.mp4").status_code == 404
 
 
 def test_an_unknown_scene_is_not_found(client: TestClient) -> None:
@@ -290,3 +298,14 @@ def test_the_loopback_spelling_of_the_dev_frontend_is_allowed_too() -> None:
     from video_bokeh.api._settings import load_settings
 
     assert "http://127.0.0.1:3000" in load_settings({}).cors_origins
+
+
+def test_the_scene_names_a_colour_for_every_object(client: TestClient) -> None:
+    """The legend reads these rather than keeping its own copy of the palette, so it
+    cannot drift from what the alpha video paints.
+    """
+    body = client.post("/scenes", json=SCENE_BODY).json()
+    colors = body["object_colors"]
+    assert len(colors) == body["n_objects"]
+    assert all(c.startswith("#") and len(c) == 7 for c in colors), colors
+    assert len(set(colors)) == len(colors), "objects must be told apart"
