@@ -74,6 +74,9 @@ export function Controls({
           type="number"
           className="font-mono"
           min={0}
+          // Past this the field emits exponent notation and the server answers with
+          // its own integer-parser error, which means nothing to a reader.
+          max={999_999_999}
           value={params.seed}
           onChange={(e) => set("seed", Number(e.target.value))}
         />

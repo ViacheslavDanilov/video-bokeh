@@ -11,6 +11,7 @@ function Slider({
   min = 0,
   max = 100,
   "aria-label": ariaLabel,
+  "aria-valuetext": ariaValueText,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
   const _values = React.useMemo(
@@ -52,6 +53,7 @@ function Slider({
           // The thumb is what carries role="slider", so the name has to reach it: an
           // aria-label left on the root names a group and the control stays anonymous.
           // With a range, each thumb says which end it is.
+          aria-valuetext={ariaValueText}
           aria-label={
             ariaLabel && _values.length > 1
               ? `${ariaLabel}, ${index === 0 ? "start" : "end"}`

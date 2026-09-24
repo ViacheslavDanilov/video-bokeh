@@ -170,9 +170,16 @@ export function Viewer({
     ]);
   };
 
-  const frameNumber = duration
-    ? Math.min(Math.round((time / duration) * scene.frames) + 1, scene.frames)
+  // The transport counts frames, not seconds. A slider stepping by duration/frames
+  // lands on fractions the browser then rounds back, so arrow keys stalled after two
+  // presses -- and a screen reader read out seconds when the interesting number is the
+  // frame. Integers fix both.
+  const lastFrame = Math.max(scene.frames - 1, 0);
+  const frameIndex = duration
+    ? Math.min(Math.round((time / duration) * scene.frames), lastFrame)
     : 0;
+  const seekToFrame = (frame: number) =>
+    seek(duration ? (frame / scene.frames) * duration : 0);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -306,8 +313,8 @@ export function Viewer({
                   />
                 </div>
 
-                {stream === "disparity" && colormap === "spectral_r" && (
-                  <SpectralScale />
+                {stream === "disparity" && (
+                  <SpectralScale colormap={colormap} />
                 )}
               </figure>
             );
@@ -337,15 +344,16 @@ export function Viewer({
         </Button>
         <Slider
           aria-label="Position"
+          aria-valuetext={`Frame ${frameIndex + 1} of ${scene.frames}`}
           className="flex-1"
           min={0}
-          max={duration || 1}
-          step={duration ? duration / Math.max(scene.frames, 1) : 0.01}
-          value={[time]}
-          onValueChange={([v]) => seek(v)}
+          max={lastFrame}
+          step={1}
+          value={[frameIndex]}
+          onValueChange={([f]) => seekToFrame(f)}
         />
         <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
-          {frameNumber} / {scene.frames}
+          {frameIndex + 1} / {scene.frames}
         </span>
       </div>
 

@@ -26,12 +26,28 @@ const SPECTRAL_R = [
 
 const RAMP = `linear-gradient(to right, ${SPECTRAL_R.join(", ")})`;
 
-export function SpectralScale({ sweeping = false }: { sweeping?: boolean }) {
+// Grey is the same axis under a different rendering, so it gets the same legend.
+// Without one, the grey pane loses every cue about which end is near.
+const RAMPS: Record<string, string> = {
+  spectral_r: `linear-gradient(to right, ${SPECTRAL_R.join(", ")})`,
+  grey: "linear-gradient(to right, #ffffff, #000000)",
+};
+
+export function SpectralScale({
+  sweeping = false,
+  colormap = "spectral_r",
+}: {
+  sweeping?: boolean;
+  colormap?: string;
+}) {
   return (
     <div className="flex items-center gap-3">
       <span className="text-muted-foreground shrink-0 text-xs">near</span>
       <div className="border-border relative h-2 flex-1 overflow-hidden rounded-full border">
-        <div className="absolute inset-0" style={{ background: RAMP }} />
+        <div
+          className="absolute inset-0"
+          style={{ background: RAMPS[colormap] ?? RAMP }}
+        />
         {sweeping && (
           <div
             className="depth-sweep absolute inset-y-0 w-1/3"
