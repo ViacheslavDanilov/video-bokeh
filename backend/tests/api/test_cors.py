@@ -85,5 +85,11 @@ def test_blank_entries_and_padding_are_ignored() -> None:
     )
 
 
-def test_an_unset_variable_falls_back_to_the_dev_frontend() -> None:
-    assert load_settings({}).cors_origins == ("http://localhost:3000",)
+def test_an_unset_variable_falls_back_to_both_spellings_of_the_dev_frontend() -> None:
+    """A browser treats localhost and 127.0.0.1 as different origins, so opening the
+    page by IP would otherwise have every request refused with nothing to explain it.
+    """
+    assert load_settings({}).cors_origins == (
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    )

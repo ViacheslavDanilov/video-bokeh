@@ -30,7 +30,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_DATA_ROOT = "data"
-DEFAULT_CORS_ORIGINS = ("http://localhost:3000",)
+# Both spellings of the dev frontend: a browser treats them as different origins, and
+# opening the page by IP otherwise gets every request refused with no explanation.
+DEFAULT_CORS_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 
 # A library is a directory holding these two. Both must exist: a library with no
 # backgrounds cannot produce a scene, and finding out at render time gives a 500

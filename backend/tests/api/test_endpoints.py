@@ -260,3 +260,33 @@ def test_a_half_encoded_video_is_never_served(
     leftovers = [p.name for p in scene_dir.glob(".all_in_focus-*")]
     assert leftovers == [], leftovers
     assert (scene_dir / "all_in_focus.mp4").stat().st_size > 0
+
+
+def test_a_request_that_would_exhaust_memory_is_refused(client: TestClient) -> None:
+    """240 frames at 1024 px took 97 s and 9.7 GB, and put the machine into swap.
+
+    Each limit on its own is harmless; the product is not, because render_scene holds
+    every frame at once. A synchronous endpoint must not let one caller do that.
+    """
+    response = client.post(
+        "/scenes",
+        json={**SCENE_BODY, "frames": 240, "size": 1024},
+    )
+    assert response.status_code == 422
+    detail = str(response.json()["detail"])
+    assert "megapixels" in detail
+    assert "frames or fewer" in detail
+
+
+def test_the_heaviest_shape_anyone_has_measured_still_fits(client: TestClient) -> None:
+    """80 frames at 1024 px is 11 s and 2.9 GB -- heavy, but a thing people do."""
+    from video_bokeh.api.main import SceneParams
+
+    SceneParams(seed=0, frames=80, size=1024, n_objects_min=1, n_objects_max=5)
+
+
+def test_the_loopback_spelling_of_the_dev_frontend_is_allowed_too() -> None:
+    """A browser treats localhost and 127.0.0.1 as different origins."""
+    from video_bokeh.api._settings import load_settings
+
+    assert "http://127.0.0.1:3000" in load_settings({}).cors_origins

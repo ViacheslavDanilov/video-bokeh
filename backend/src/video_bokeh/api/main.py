@@ -47,6 +47,22 @@ DEFAULT_COLORMAP = "spectral_r"
 #: frames is three times the 80 every measurement so far has used.
 _MAX_FRAMES = 240
 
+#: Total pixels a single request may ask for, frames times area.
+#:
+#: Each limit alone is harmless and the product is not: `render_scene` holds every
+#: frame of the sequence in memory at once, so cost grows with the area and with the
+#: count together. Measured on an Apple M3 Pro against `data/library_dev`:
+#:
+#:     80 frames at 512   =  21.0 Mpx    2.6 to 3.3 s     modest
+#:     80 frames at 1024  =  83.9 Mpx   11.2 s            2.9 GB peak
+#:    240 frames at 1024  = 251.7 Mpx   97 s              9.7 GB peak, machine swaps
+#:
+#: The last one takes the whole machine down with it, which a synchronous endpoint
+#: must not let a caller do. The cap admits the second and refuses the third. Lifting
+#: it means making generation stream to disk instead of accumulating frames, which is
+#: a change to Stage B rather than to the API.
+_MAX_PIXELS = 96_000_000
+
 router = APIRouter()
 
 
@@ -91,6 +107,19 @@ class SceneParams(BaseModel):
     def _range_is_ordered(self) -> Self:
         if self.n_objects_min > self.n_objects_max:
             raise ValueError("n_objects_min must not exceed n_objects_max")
+        return self
+
+    @model_validator(mode="after")
+    def _fits_in_memory(self) -> Self:
+        pixels = self.frames * self.size * self.size
+        if pixels > _MAX_PIXELS:
+            affordable = _MAX_PIXELS // (self.size * self.size)
+            raise ValueError(
+                f"{self.frames} frames at {self.size} px is "
+                f"{pixels / 1e6:.0f} megapixels, over the {_MAX_PIXELS / 1e6:.0f} "
+                f"a single request may hold in memory. At {self.size} px, ask for "
+                f"{affordable} frames or fewer, or drop the size.",
+            )
         return self
 
 
