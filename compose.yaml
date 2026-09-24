@@ -15,5 +15,9 @@ services:
     environment:
       VIDEO_BOKEH_DATA_ROOT: /data
     volumes:
-    - ${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/library:/data/library:ro
+    # The library is named separately from the root because the ones on disk are not
+    # called "library" -- data/library_dev is the one a fresh clone can build. Inside
+    # the container it always lands at /data/library, which is where the api looks by
+    # default, so VIDEO_BOKEH_LIBRARY is a host-side setting only.
+    - ${VIDEO_BOKEH_LIBRARY:-${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/library}:/data/library:ro
     - ${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/scenes:/data/scenes
