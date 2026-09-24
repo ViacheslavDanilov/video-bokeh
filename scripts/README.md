@@ -83,6 +83,16 @@ a2b has its own Python env under `backend/third_party/any-to-bokeh/`. Make sure 
 cd backend/third_party/any-to-bokeh && python test/inference_demo.py --val_csv_path csv_file/synth_dev.csv
 ```
 
+## Measure any-to-bokeh inference
+
+`measure_a2b.sh` generates one 80-frame sequence, converts it, runs inference and reports wall clock and seconds per frame next to the GPU that produced them. No arguments. CUDA-only — `inference_demo.py` is pinned to `cuda:0`, so this is a lab-machine script.
+
+```bash
+scripts/measure_a2b.sh
+```
+
+The full transcript lands in `backend/data/measurements/a2b-<timestamp>.log`. Send that file back — it carries the commands, the card and the timing together. Details in `docs/how-to/run-any-to-bokeh-inference.md`.
+
 ## Analyze the MAGICK CLIP filter distribution
 
 Regenerates the keep-curve plots and `summary.json` sidecar into the output directory configured at the top of the script. Re-run after re-classifying or after editing the keep / exclude sets.
