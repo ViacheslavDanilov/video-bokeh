@@ -71,6 +71,19 @@ and `/scenes` answer. Build it once with Stage A, then start the API with
 [backend/README.md](backend/README.md), and the endpoints are in
 [docs/reference/api.md](docs/reference/api.md).
 
+### With Docker
+
+```bash
+cp .env.example .env          # then point VIDEO_BOKEH_LIBRARY at a library you built
+docker compose up api
+```
+
+The containers are `video-bokeh-api` and `video-bokeh-web`. `api` mounts the library read-only
+at `/data/library` and writes scenes to `/data/scenes`; both come from
+`VIDEO_BOKEH_DATA_ROOT`, which defaults to `backend/data`. Generating a scene in the container
+costs roughly half again what it costs natively — the numbers are in
+[docs/reference/api.md](docs/reference/api.md).
+
 To generate training data instead of running the API, see [backend/README.md](backend/README.md).
 
 ## License
