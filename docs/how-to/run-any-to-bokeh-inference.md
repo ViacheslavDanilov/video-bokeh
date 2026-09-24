@@ -82,6 +82,48 @@ property of the conversion, not of the dataset, so re-running the bridge with a 
 
 ---
 
+## 4. Measure what inference costs
+
+Nobody has measured it. The submodule has never been run, so every figure quoted so far —
+"about a minute for 80 frames" — is a recollection. That matters beyond curiosity: anything
+past a few seconds cannot be a synchronous HTTP request, and the shape of the render API
+hangs off the answer.
+
+`scripts/measure_a2b.sh` produces the number. Prerequisite: `scripts/setup_third_party.sh`
+has been run once on the machine.
+
+```bash
+scripts/measure_a2b.sh
+```
+
+Four steps, each skippable with `--start-from N`:
+
+| step | what it does | needs CUDA |
+|---|---|---|
+| 1 | records the GPU, the driver and the torch build | yes |
+| 2 | Stage A + Stage B into `data/library_a2b_measure` and `data/a2b_measure` | no |
+| 3 | the bridge, exactly as in section 1 | no |
+| 4 | inference, wall-clocked | yes |
+
+**Steps 2 and 3 have been executed as written. Steps 1 and 4 have not** — they need an
+NVIDIA card, and `test/inference_demo.py` is pinned to `cuda:0` in six places.
+
+Everything is teed into `backend/data/measurements/a2b-<timestamp>.log`. That file is what
+to send back: it carries the commands, the card and the timing in one place.
+
+Defaults are one sequence of 80 frames at 512 px with four to five objects, because 80
+frames is the length every existing estimate refers to. `--frames` and `--size` change it.
+
+Two things the script is careful about. It writes to its own directories, so an existing
+`data/demo` survives. And it removes the converted inputs from the read-only submodule on
+the way out — including after a failed inference, which is otherwise how that checkout ends
+up permanently dirty. `--keep` leaves them in place.
+
+**a2b renders at 576×1024 regardless of what you generated.** `inference_demo.py` fixes the
+sample size, so square frames come back stretched. That is its behaviour, not the bridge's.
+
+---
+
 ## What the bridge loses
 
 any-to-bokeh reads 8-bit disparity, so the bridge quantizes the 16-bit stream down. That is
