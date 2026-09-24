@@ -64,6 +64,16 @@ def _save_frame(
     write_disparity_png(disp / f"{stem}.png", frame.disparity)
 
 
+def sample_n_objects(seed: int, n_objects_min: int, n_objects_max: int) -> int:
+    """How many objects a seed asks for.
+
+    Keyed on a prefixed string rather than the bare seed so this draw is independent
+    of the stream the scene itself uses. Shared with the API, so the same seed and
+    range produce the same scene whether it came from the CLI or over HTTP.
+    """
+    return random.Random(f"nobj:{seed}").randint(n_objects_min, n_objects_max)
+
+
 def write_sequence(seq_dir: Path, frames: list[RenderedFrame]) -> None:
     """Write one sequence's three streams into ``seq_dir``.
 
@@ -106,7 +116,7 @@ def generate_dataset(
 
     for i in range(count):
         seq_seed = seed + i
-        n_obj = random.Random(f"nobj:{seq_seed}").randint(n_objects_min, n_objects_max)
+        n_obj = sample_n_objects(seq_seed, n_objects_min, n_objects_max)
         try:
             scene = sample_scene(
                 library_root,
