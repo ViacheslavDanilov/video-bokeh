@@ -12,9 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { ObjectLegend } from "./object-legend";
 import { SpectralScale } from "./spectral-scale";
 
-const MAX_PANES = 3;
+// Four: the frame, the masks, the depth, and the bokeh render once that container
+// exists. Past four the panes are too small to judge anything on a laptop.
+const MAX_PANES = 4;
 
 // Independent <video> elements drift apart as they play -- measured at about 1.75
 // frames after a second and a half. A comparison is worthless if the panes are not on
@@ -43,10 +46,11 @@ function label(name: string): string {
   return LABELS[name] ?? name.replaceAll("_", " ");
 }
 
-/** Open on a comparison: the frame beside its depth map. */
+/** Open on everything the scene has, in the order the server lists it: the frame,
+ *  who is in it, and how far away they are. */
 function initialPanes(streams: string[]): Pane[] {
   return streams
-    .slice(0, 2)
+    .slice(0, MAX_PANES)
     .map((stream, i) => ({ key: i, stream, colormap: "" }));
 }
 
@@ -315,6 +319,9 @@ export function Viewer({
 
                 {stream === "disparity" && (
                   <SpectralScale colormap={colormap} />
+                )}
+                {stream === "alpha" && (
+                  <ObjectLegend colors={scene.object_colors} />
                 )}
               </figure>
             );

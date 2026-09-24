@@ -103,11 +103,18 @@ curl -X POST http://localhost:8000/scenes \
   "streams": {
     "all_in_focus": {
       "url": "/scenes/f68bd7a7b87c8404/all_in_focus.mp4",
-      "colormaps": []
+      "colormaps": [],
+      "default": null
+    },
+    "alpha": {
+      "url": "/scenes/f68bd7a7b87c8404/alpha.mp4",
+      "colormaps": [],
+      "default": null
     },
     "disparity": {
       "url": "/scenes/f68bd7a7b87c8404/disparity.mp4",
-      "colormaps": ["grey", "spectral_r"]
+      "colormaps": ["grey", "spectral_r"],
+      "default": "spectral_r"
     }
   }
 }
@@ -145,7 +152,21 @@ no collision-free scene could be sampled. Answers 503 when there is no library.
 
 ## `GET /scenes/{id}/{stream}.mp4`
 
-Serves one stream as H.264. `stream` is `all_in_focus` or `disparity`.
+Serves one stream as H.264. `stream` is `all_in_focus`, `alpha` or `disparity`.
+
+**`alpha` is one colour per object, not one silhouette.** The stream is a multi-page TIFF
+with one page per object, and the page index is that object's identity for the whole clip —
+`scenes/_compositor.py` fixes it deliberately, because paint order is recomputed every frame
+as objects move past each other. So an object keeps its colour from the first frame to the
+last, and watching which colour covers which is watching the depth ordering change.
+
+The masks are **amodal**: each page holds the object's full silhouette, including the part a
+nearer object hides. They are painted in page order, so where two overlap the higher object
+number wins — that is identity order, not distance. The disparity pane beside it is where
+distance is read.
+
+`object_colors` in the scene response names the colour of each object, so a legend cannot
+drift from what the video paints.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read.
@@ -156,9 +177,6 @@ writes) and `grey` are two renderings of one stream. Each is cached as its own f
 `disparity.mp4` and `disparity.grey.mp4`. Every other stream is already RGB, so the parameter
 is dropped rather than forking that stream's cache into identical copies. An unknown name
 answers 422 and lists the ones that exist.
-
-There is no video for `alpha`. It is a multi-page TIFF with one page per object, which has no
-meaningful single-video form. See [[dataset-layout]].
 
 Answers 404 for an unknown scene, an unknown stream, or an id that is not a 16-character hex
 hash.
