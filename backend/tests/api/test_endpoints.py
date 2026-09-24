@@ -94,6 +94,17 @@ def test_the_manifest_says_which_streams_take_a_colormap(client: TestClient) -> 
     assert streams["all_in_focus"]["colormaps"] == []
 
 
+def test_the_manifest_names_the_colormap_the_url_already_uses(
+    client: TestClient,
+) -> None:
+    """Named, not inferred from the order of `colormaps`: adding one whose name sorts
+    last must not silently change what a client renders by default.
+    """
+    streams = client.post("/scenes", json=SCENE_BODY).json()["streams"]
+    assert streams["disparity"]["default"] == "spectral_r"
+    assert streams["all_in_focus"]["default"] is None
+
+
 def test_the_same_request_returns_the_same_scene(client: TestClient) -> None:
     first = client.post("/scenes", json=SCENE_BODY).json()
     second = client.post("/scenes", json=SCENE_BODY).json()
@@ -232,3 +243,20 @@ def test_the_colormap_is_ignored_for_a_stream_that_is_not_depth(
         p.name for p in (tmp_path / "scenes" / scene["id"]).glob("all_in_focus*.mp4")
     )
     assert written == ["all_in_focus.mp4"]
+
+
+def test_a_half_encoded_video_is_never_served(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Encoding writes beside the destination and renames, so a request arriving while
+    another encode runs cannot be handed a truncated file. Two panes on one stream, or
+    a reload during the first encode, both reach this.
+    """
+    scene = client.post("/scenes", json=SCENE_BODY).json()
+    scene_dir = tmp_path / "scenes" / scene["id"]
+    client.get(f"/scenes/{scene['id']}/all_in_focus.mp4")
+
+    leftovers = [p.name for p in scene_dir.glob(".all_in_focus-*")]
+    assert leftovers == [], leftovers
+    assert (scene_dir / "all_in_focus.mp4").stat().st_size > 0

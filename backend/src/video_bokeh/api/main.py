@@ -10,10 +10,12 @@ gets a job id and polling when `render` exists.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 from typing import Annotated, Self
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -45,22 +47,37 @@ DEFAULT_COLORMAP = "spectral_r"
 #: frames is three times the 80 every measurement so far has used.
 _MAX_FRAMES = 240
 
-app = FastAPI(
-    title="Video Bokeh",
-    description="Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.js frontend.",
-    version="0.1.0",
-)
+router = APIRouter()
 
-# Read once at import rather than per request, unlike the paths: middleware is installed
-# when the app object is built, and an origin list is a deployment setting that changes
-# with a restart anyway. The page always runs on a different port from the API, so
-# without this every browser request is refused before it reaches a route.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=list(load_settings().cors_origins),
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["content-type"],
-)
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Build the application.
+
+    CORS is the one setting read here rather than per request, because middleware is
+    installed when the app object is built. Taking `settings` as an argument is what
+    makes that testable: patching `load_settings` after import cannot reach middleware
+    that was already installed, so a test that tried would pass or fail on whatever
+    happened to be in the environment at import time.
+    """
+    settings = settings or load_settings()
+    application = FastAPI(
+        title="Video Bokeh",
+        description=(
+            "Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend "
+            "and Next.js frontend."
+        ),
+        version="0.1.0",
+    )
+    # The page always runs on a different port from the API, so without a matching
+    # origin here the browser refuses every request before it reaches a route.
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["content-type"],
+    )
+    application.include_router(router)
+    return application
 
 
 class SceneParams(BaseModel):
@@ -97,6 +114,10 @@ class StreamInfo(BaseModel):
     #: Colormaps this stream accepts, empty when it is already RGB and the parameter
     #: would do nothing.
     colormaps: list[str]
+    #: Which of them the url above already renders. Named rather than left to the
+    #: order of `colormaps`, so adding one whose name sorts last cannot silently
+    #: change what a client shows.
+    default: str | None
 
 
 class SceneResponse(BaseModel):
@@ -119,20 +140,20 @@ def _mounted_library(settings: Settings) -> Path:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@app.get("/health")
+@router.get("/health")
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy"}
 
 
-@app.get("/library")
+@router.get("/library")
 def read_library() -> LibraryResponse:
     settings = load_settings()
     summary = summarize(_mounted_library(settings))
     return LibraryResponse(**vars(summary))
 
 
-@app.post("/scenes")
+@router.post("/scenes")
 def create_scene(params: SceneParams) -> SceneResponse:
     """Generate a scene, or hand back the one this request already produced.
 
@@ -170,13 +191,14 @@ def create_scene(params: SceneParams) -> SceneResponse:
             stream: StreamInfo(
                 url=f"/scenes/{result.id}/{stream}.mp4",
                 colormaps=sorted(COLORMAPS) if stream == "disparity" else [],
+                default=DEFAULT_COLORMAP if stream == "disparity" else None,
             )
             for stream in VIDEO_STREAMS
         },
     )
 
 
-@app.get("/scenes/{scene_id}/{stream}.mp4")
+@router.get("/scenes/{scene_id}/{stream}.mp4")
 def read_scene_video(
     scene_id: Annotated[str, PathParam(pattern=r"^[0-9a-f]{16}$")],
     stream: str,
@@ -216,6 +238,25 @@ def read_scene_video(
                 status_code=404,
                 detail=f"scene {scene_id} has no {stream}",
             )
-        encode_stream(frames, video, _FPS, _QUALITY, stream, colormap)
+        # Encode beside the destination and rename, so a second request arriving
+        # mid-encode either waits for nothing or serves a complete file. Writing
+        # straight to `video` leaves a path that exists but is half-written, and
+        # `is_file()` cannot tell the difference. Two panes showing one stream, or a
+        # reload during the first encode, both reach this.
+        with tempfile.NamedTemporaryFile(
+            dir=scene_dir,
+            prefix=f".{stream}-",
+            suffix=".mp4",
+            delete=False,
+        ) as handle:
+            partial = Path(handle.name)
+        try:
+            encode_stream(frames, partial, _FPS, _QUALITY, stream, colormap)
+            os.replace(partial, video)
+        finally:
+            partial.unlink(missing_ok=True)
 
     return FileResponse(video, media_type="video/mp4")
+
+
+app = create_app()

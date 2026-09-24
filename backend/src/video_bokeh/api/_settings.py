@@ -1,6 +1,6 @@
 """Where the API finds the library it serves and the scenes it writes.
 
-Two environment variables, both optional:
+Three environment variables, all optional:
 
 ``VIDEO_BOKEH_DATA_ROOT``
     The single directory everything generated lives under. Defaults to ``data``,
@@ -51,7 +51,7 @@ class Settings:
 
 
 def load_settings(env: Mapping[str, str] | None = None) -> Settings:
-    """Read the two variables. An empty value counts as unset, because that is what
+    """Read the three variables. An empty value counts as unset, because that is what
     ``docker compose`` passes through for a ``.env`` key with nothing after the ``=``.
     """
     env = os.environ if env is None else env
