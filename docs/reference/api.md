@@ -159,3 +159,24 @@ The three stream directories are the layout in [[dataset-layout]], without the
 A scene appears atomically. Generation writes to a temporary directory beside the destination
 and renames it into place, so a scene on disk is either absent or complete, and a crashed or
 concurrent generation leaves nothing half-written behind.
+
+## Limits
+
+Deliberate, and worth knowing before the library or the audience grows.
+
+**Nothing evicts `scenes/`.** It grows until someone deletes it. A scene of 80 frames at 512
+is about 44 MB, so a thousand of them is about 43 GB. Deleting the directory is safe: every
+scene is reproducible from its library and its seed, which is the same reason
+[[dataset-layout]] treats frames as disposable and the library as the thing to keep.
+
+**The library is re-read on every request.** Two directory listings, one small JSON and one
+image header, so that `/library` and `/scenes` always reflect what is mounted rather than what
+was mounted at startup. Cheap against a library of tens. Against a library of thousands it is
+worth caching on the directory's modification time.
+
+**Two identical requests arriving together both generate.** There is no lock. The rename
+decides which one lands and the loser discards its work, so the result is correct and no
+directory is ever overwritten while someone reads it — it just costs the duplicated CPU. For
+an audience of a handful of people that is cheaper than the coordination would be.
+
+**The library id does not cover pixel content.** Covered above under `GET /library`.

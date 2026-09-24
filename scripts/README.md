@@ -80,7 +80,7 @@ time, `docs/how-to/generate-a-dataset.md`.
 a2b has its own Python env under `backend/third_party/any-to-bokeh/`. Make sure that env is installed first.
 
 ```bash
-cd backend/third_party/any-to-bokeh && python test/inference_demo.py --val_csv_path csv_file/synth_dev.csv
+cd backend/third_party/any-to-bokeh && python test/inference_demo.py --val_csv_path csv_file/demo.csv
 ```
 
 ## Measure any-to-bokeh inference
@@ -107,19 +107,17 @@ uv run python scripts/analyze_magick_distribution.py
 
 ### Inspect the rendered streams
 
-Composite + union alpha + per-object alpha layers — the standard post-render sanity check:
+Composite next to depth — the standard post-render sanity check. Quote the globs so `vpv` expands them itself:
 
 ```bash
-cd backend/data/synth_dev/sequences && vpv */all_in_focus/*.png */alpha/*.png */alpha_layers/*.png
+cd backend/data/demo/sequences && vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 ```
 
-### Cross-dataset view (composite + alpha_layers + a2b bokeh output)
+An object that grows on screen must get brighter in the disparity pane. Disparity is raw 16-bit greyscale on disk, so `vpv` shows it grey; the `Spectral_r` colouring lives in the packed MP4s and in the API's video endpoint.
 
-Run from the repo root with quoted globs so `vpv` does the expansion. This is the end-to-end review once any-to-bokeh has run:
+**There is no alpha pane.** Alpha is a multi-page TIFF with one page per object, and `vpv` renders only a TIFF's first page, so it would show object 0 and silently hide the rest. Read alpha with `video_bokeh.core._streams.read_alpha_tiff` instead. The layout is in `docs/reference/dataset-layout.md`.
 
-```bash
-vpv 'backend/data/synth_dev/sequences/*/all_in_focus/*.png' 'backend/data/synth_dev/sequences/*/bokeh/*.png' 'backend/data/synth_dev/sequences/*/alpha_layers/*.png' 'backend/data/synth_dev/sequences/*/disparity/*.png'
-```
+**There is no bokeh pane yet.** `any-to-bokeh` writes whole MP4s into its own `output/` directory, not per-frame PNGs into our sequence tree, so an end-to-end pane arrives when the render container does.
 
 ## Notes
 
