@@ -2,6 +2,11 @@ services:
   web:
     build: ./frontend
     image: video-bokeh-web
+    # Named outright so the container is video-bokeh-web, not video-bokeh-web-1.
+    # There is one replica and there will be one. The project prefix stays because
+    # container names are global to the daemon, and the lab machine will not be
+    # running only this project.
+    container_name: video-bokeh-web
     ports:
     - "3000:3000"
     depends_on:
@@ -10,6 +15,7 @@ services:
   api:
     build: ./backend
     image: video-bokeh-api
+    container_name: video-bokeh-api
     ports:
     - "8000:8000"
     environment:
