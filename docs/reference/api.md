@@ -22,6 +22,7 @@ Two environment variables, both optional.
 |---|---|---|
 | `VIDEO_BOKEH_DATA_ROOT` | `data` | the directory everything generated lives under |
 | `VIDEO_BOKEH_LIBRARY` | `$VIDEO_BOKEH_DATA_ROOT/library` | the library directory itself |
+| `CORS_ORIGINS` | `http://localhost:3000` | comma-separated origins a browser may call from |
 
 Set the second one when the library is not called `library`. Every library on disk today is
 flat — `data/library_dev` holds `foregrounds/` and `backgrounds/` directly — so pointing at it
@@ -31,8 +32,12 @@ is what makes an existing checkout work without moving anything:
 VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --port 8000
 ```
 
-Both are read per request, not at startup. The container starts before the library volume is
-populated, and `/health` answers either way.
+The two paths are read per request, not at startup: the container starts before the library
+volume is populated, and `/health` answers either way.
+
+`CORS_ORIGINS` is the exception — it is read once when the app is built, because middleware is
+installed then. **The page and the API always sit on different ports**, so without a matching
+origin here the browser refuses every request before it reaches a route.
 
 ## `GET /health`
 
@@ -96,11 +101,22 @@ curl -X POST http://localhost:8000/scenes \
   "size": 512,
   "n_objects": 4,
   "streams": {
-    "all_in_focus": "/scenes/f68bd7a7b87c8404/all_in_focus.mp4",
-    "disparity": "/scenes/f68bd7a7b87c8404/disparity.mp4"
+    "all_in_focus": {
+      "url": "/scenes/f68bd7a7b87c8404/all_in_focus.mp4",
+      "colormaps": []
+    },
+    "disparity": {
+      "url": "/scenes/f68bd7a7b87c8404/disparity.mp4",
+      "colormaps": ["grey", "spectral_r"]
+    }
   }
 }
 ```
+
+**`streams` is a manifest, not a list of URLs.** Each entry says how that stream can be
+displayed, and `colormaps` is empty when the stream is already RGB. A client that renders what
+the manifest reports needs no change when a stream is added — `bokeh` will appear here once
+the render container exists.
 
 **The scene id is a hash of the five parameters and the library id.** Stage B is
 deterministic, so the same request always names the same scene. The cache is the directory
@@ -132,8 +148,14 @@ no collision-free scene could be sampled. Answers 503 when there is no library.
 Serves one stream as H.264. `stream` is `all_in_focus` or `disparity`.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
-file read. Disparity is coloured with `Spectral_r`, matching what `video_bokeh.preview.pack`
-writes by default — the frames on disk stay 16-bit greyscale.
+file read.
+
+**`?colormap=` applies to `disparity` only.** It is 16-bit greyscale on disk and gets its
+colour when served, so `spectral_r` (the default, matching what `video_bokeh.preview.pack`
+writes) and `grey` are two renderings of one stream. Each is cached as its own file,
+`disparity.mp4` and `disparity.grey.mp4`. Every other stream is already RGB, so the parameter
+is dropped rather than forking that stream's cache into identical copies. An unknown name
+answers 422 and lists the ones that exist.
 
 There is no video for `alpha`. It is a multi-page TIFF with one page per object, which has no
 meaningful single-video form. See [[dataset-layout]].
@@ -150,7 +172,8 @@ $VIDEO_BOKEH_DATA_ROOT/scenes/<id>/
 ├── alpha/                  multi-page uint8 TIFF, one page per object
 ├── disparity/              uint16 PNG
 ├── all_in_focus.mp4        written on first request
-└── disparity.mp4           written on first request
+├── disparity.mp4           written on first request, Spectral
+└── disparity.grey.mp4      written if grey is ever asked for
 ```
 
 The three stream directories are the layout in [[dataset-layout]], without the
