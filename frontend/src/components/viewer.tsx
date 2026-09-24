@@ -64,6 +64,13 @@ export function Viewer({
   const [duration, setDuration] = useState(0);
 
   const videos = useRef(new Map<number, HTMLVideoElement>());
+  // Read inside onLoadedMetadata, which fires long after the render that set the
+  // src, so state captured by closure would be stale.
+  const timeRef = useRef(0);
+  const playingRef = useRef(false);
+  // Which scene the refs above describe. Compared inside the load handler rather than
+  // reset during render, because writing a ref while rendering is not allowed.
+  const restoredScene = useRef<string | null>(null);
 
   // A new scene rewinds the transport. Adjusting state during render rather than in an
   // effect is React's own recommendation for state that has to follow a prop: an effect
@@ -73,6 +80,7 @@ export function Viewer({
     setShownScene(scene?.id ?? null);
     setPlaying(false);
     setTime(0);
+    setDuration(0);
   }
 
   // Mounting happens before any scene exists, so there are no stream names to lay out
@@ -94,24 +102,28 @@ export function Viewer({
 
   // One transport drives every pane, the way vpv drives its panes: a comparison is only
   // worth anything if the frames line up.
+  // Side effects live outside the updater: React may call an updater twice under
+  // StrictMode, and pausing or playing twice is not what it is for.
   const togglePlay = useCallback(() => {
-    setPlaying((wasPlaying) => {
-      if (wasPlaying) {
-        eachVideo((v) => v.pause());
-        return false;
-      }
-      const lead = videos.current.values().next().value;
-      const at = lead ? lead.currentTime : 0;
-      eachVideo((v) => {
-        v.currentTime = at;
-        void v.play();
-      });
-      return true;
+    const next = !playingRef.current;
+    playingRef.current = next;
+    setPlaying(next);
+    if (!next) {
+      eachVideo((v) => v.pause());
+      return;
+    }
+    const lead = videos.current.values().next().value;
+    const at = lead ? lead.currentTime : 0;
+    timeRef.current = at;
+    eachVideo((v) => {
+      v.currentTime = at;
+      void v.play();
     });
   }, [eachVideo]);
 
   const seek = useCallback(
     (to: number) => {
+      timeRef.current = to;
       setTime(to);
       eachVideo((v) => {
         v.currentTime = to;
@@ -169,7 +181,9 @@ export function Viewer({
           {panes.map((pane) => {
             const stream = streamFor(pane);
             const info = scene.streams[stream];
-            const colormap = pane.colormap || info.colormaps.at(-1) || "";
+            // The server names its default. Deriving it from the order of `colormaps`
+            // would make adding one whose name sorts last change this silently.
+            const colormap = pane.colormap || info.default || "";
             return (
               <figure key={pane.key} className="flex min-w-0 flex-col gap-2">
                 <figcaption className="flex items-center gap-2">
@@ -248,7 +262,7 @@ export function Viewer({
 
                 <div className="border-border bg-card aspect-square overflow-hidden rounded-lg border">
                   <video
-                    key={`${scene.id}-${stream}-${colormap}`}
+                    key={scene.id}
                     ref={(el) => registerVideo(pane.key, el)}
                     className="h-full w-full object-contain"
                     src={streamUrl(info, colormap || undefined)}
@@ -256,14 +270,29 @@ export function Viewer({
                     muted
                     playsInline
                     preload="metadata"
-                    onLoadedMetadata={(e) =>
-                      setDuration(e.currentTarget.duration)
-                    }
+                    onLoadedMetadata={(e) => {
+                      setDuration(e.currentTarget.duration);
+                      if (restoredScene.current !== scene.id) {
+                        // First load of a new scene: the transport is at the start and
+                        // nothing should resume on its own.
+                        restoredScene.current = scene.id;
+                        timeRef.current = 0;
+                        playingRef.current = false;
+                        return;
+                      }
+                      // A stream or colormap change swapped src on an element React
+                      // kept, which resets it. Put it back where the transport is and
+                      // resume with the others, or this pane silently stops driving
+                      // the ones that follow it.
+                      e.currentTarget.currentTime = timeRef.current;
+                      if (playingRef.current) void e.currentTarget.play();
+                    }}
                     onTimeUpdate={(e) => {
                       // Only the first pane reports, or the panes fight over the value.
                       const lead = videos.current.values().next().value;
                       if (lead !== e.currentTarget) return;
                       const at = e.currentTarget.currentTime;
+                      timeRef.current = at;
                       setTime(at);
                       videos.current.forEach((v) => {
                         if (
