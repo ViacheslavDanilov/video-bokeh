@@ -109,11 +109,20 @@ deterministic, so the same request always names the same scene. The cache is the
 `cached` says whether this request generated the scene or found it. On a cache hit the call
 returns in milliseconds.
 
-**The call blocks while it generates.** Measured on an Apple M3 Pro against `data/library_dev`
-at size 512 with four to five objects: 8 to 13 seconds per scene, and 0.04 seconds on a cache
-hit. Frame count is not what dominates — sampling collision-free trajectories is, so a scene
-of 80 frames can finish faster than one of 24 with an extra object. Anything driving this from
-a browser needs a spinner.
+**The call blocks while it generates.** Measured against `data/library_dev` at size 512 with
+four to five objects per scene:
+
+| Where | 24 frames | 80 frames | cache hit |
+|---|---|---|---|
+| Apple M3 Pro, native | 2.0 to 3.7 s | 6.6 to 8.0 s | 0.02 s |
+| the same machine, in the container | 3.5 to 6.1 s | 10.1 to 11.0 s | 0.04 s |
+
+Cost scales with frame count, roughly linearly. The spread inside each cell is seed to seed:
+sampling collision-free trajectories takes a variable number of retries, which is worth up to
+about a factor of two. The container is consistently slower than the host, which is what
+running Linux in a virtual machine on macOS costs.
+
+Anything driving this from a browser needs a spinner.
 
 Answers 422 when the parameters are out of range, when the object range is inverted, or when
 no collision-free scene could be sampled. Answers 503 when there is no library.

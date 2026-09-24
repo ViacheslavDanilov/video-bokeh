@@ -98,10 +98,12 @@ curl -X POST http://localhost:8000/scenes \
   -d '{"seed": 42, "frames": 80, "size": 512, "n_objects_min": 4, "n_objects_max": 5}'
 ```
 
-That takes 8 to 13 seconds on an Apple M3 Pro and answers with a scene id. The same request
-again returns the same id in milliseconds — the id is a hash of the parameters and the
-library, so the directory on disk is the cache. Then open
+That takes about 7 seconds on an Apple M3 Pro and answers with a scene id. The same request
+again returns the same id in 0.02 s — the id is a hash of the parameters and the library, so
+the directory on disk is the cache. Then open
 `http://localhost:8000/scenes/<id>/disparity.mp4`.
+
+Timings for other frame counts, and for the container, are in `docs/reference/api.md`.
 
 Full surface in `docs/reference/api.md`.
 
