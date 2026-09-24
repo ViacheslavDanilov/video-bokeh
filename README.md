@@ -65,10 +65,11 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://localhost:8000/docs](http://localhost:8000/docs) (API docs).
 
-The API serves scenes generated from an artifact library, so it needs one before `/library`
-and `/scenes` answer. Build it once with Stage A, then start the API with
+The page sets the scene parameters, generates, and compares the streams side by side. It
+needs an artifact library behind it, so build one with Stage A and start the API with
 `VIDEO_BOKEH_LIBRARY` pointing at it — both steps are in
-[backend/README.md](backend/README.md), and the endpoints are in
+[backend/README.md](backend/README.md), the page is in
+[frontend/README.md](frontend/README.md), and the endpoints are in
 [docs/reference/api.md](docs/reference/api.md).
 
 ### With Docker

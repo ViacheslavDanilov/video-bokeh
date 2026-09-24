@@ -12,7 +12,7 @@ Next.js 16, React 19, TypeScript 5, Tailwind 4. Node.js 24, pnpm. ESLint + Prett
 
 ## pnpm gotchas
 
-- **Local pnpm should match CI.** CI installs `pnpm@latest` via `pnpm/action-setup@v4`. As of 2026-05-28 that's pnpm 11.4.0. Local versions older than 11 may not surface CI errors. Bump local pnpm if behavior diverges.
+- **pnpm is pinned through `packageManager` in `package.json`** (currently 11.5.0), and `pnpm/action-setup@v4` in CI reads it from there with `package_json_file: frontend/package.json`. CI and a laptop therefore run the same pnpm. Bump the field rather than the local install.
 - **Build-script allowlist lives in `pnpm-workspace.yaml`** under the `allowBuilds:` key (pnpm 11 schema). The old `onlyBuiltDependencies: [...]` array and the `pnpm.*` field in `package.json` are **silently ignored** by pnpm 11. Currently allowed:
 
   ```yaml
@@ -39,6 +39,38 @@ Next.js 16, React 19, TypeScript 5, Tailwind 4. Node.js 24, pnpm. ESLint + Prett
 | Add dev dep      | `pnpm add -D <pkg>`              |
 
 Run from `frontend/`.
+
+## UI components
+
+`src/components/ui/` is shadcn/ui, built on the `radix-ui` package. The files are **copied
+into the repository, not a dependency** — edit them directly, and `pnpm dlx shadcn@latest add
+<name>` brings in new ones (`dlx`, never `npx`: this repo is pnpm only).
+
+One local change so far: `slider.tsx` forwards the accessible name to the thumb, because
+that is the element carrying `role="slider"`. A label left on the root names a group and the
+control stays anonymous. Re-adding the component from the registry would lose that.
+
+Everything else under `src/components/` is this project's own.
+
+## Turbopack serves stale CSS after a theme edit
+
+**Editing `@theme` or `:root` in `globals.css` can leave the dev server serving the previous
+compiled stylesheet.** The symptom is not an error: every custom property resolves to nothing,
+so popovers are transparent, slider tracks vanish, and the page looks broken in ways that
+point at the components. It cost an hour once.
+
+Check it by reading a variable rather than guessing — `getComputedStyle(document.documentElement).getPropertyValue('--popover')` empty means stale. The fix is `rm -rf .next` and restart.
+
+## Talking to the API
+
+`src/lib/api.ts` is the only place that knows the API exists. The base URL comes from
+`NEXT_PUBLIC_API_URL` and falls back to `http://localhost:8000`; being a `NEXT_PUBLIC_`
+variable it is read at build time, so a container built for one address cannot be pointed at
+another without rebuilding.
+
+**Which streams a scene has, and which of them take a colormap, come from the server's
+manifest.** Do not hardcode stream names in components — a stream added to the API appears in
+the interface on its own, and that is the point.
 
 ## Conventions
 
