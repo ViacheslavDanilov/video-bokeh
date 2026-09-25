@@ -11,6 +11,7 @@ Two kinds of document live here, and the split is what `.gitignore` encodes.
 | `explanation/` | how things work and why: the pipeline, the datasets, the methods we evaluated | no shell commands |
 | `how-to/` | runbooks, one task each. Every command in one has been run | starts from a goal |
 | `reference/` | lookup material: the on-disk contract, CLI flags, schemas | you look things up, not read it through |
+| `adr/` | one decision per file, recorded during grilling, with the alternatives it beat | hard to reverse, surprising without context, a real trade-off |
 
 **One home per fact.** A command, a format, a default belongs to exactly one page; everything
 else links to it. This is the rule the vault previously lacked, and its absence is why
@@ -53,7 +54,7 @@ Prefer Obsidian wikilinks over markdown links: they survive renames.
 2. Digest it into `meetings/` under the same filename, using the `meeting.md` template. Pull out decisions and action items, link to `explanation/` rather than restating research.
 3. Roll a period's meetings and work into `reports/`.
 4. When a change needs designing, write the spec in `specs/`, then the plan in `plans/`.
-5. When something in `explanation/`, `how-to/` or `reference/` goes stale, fix it in the same pull request as the code that made it stale. The `bokeh-task` skill runs `document-release` before every pull request for exactly this, and `backend/tests/test_docs_references.py` fails when a page names code that no longer exists.
+5. When something in `explanation/`, `how-to/` or `reference/` goes stale, fix it in the same pull request as the code that made it stale. The `bokeh-review` skill runs `document-release` on every pull request before it merges for exactly this, and `backend/tests/test_docs_references.py` fails when a page names code that no longer exists.
 6. When a page is superseded rather than wrong, move it to `deprecated/` with a banner saying what replaced it. Nothing is deleted on your behalf.
 
 ## Writing style
