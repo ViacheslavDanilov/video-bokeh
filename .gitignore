@@ -72,6 +72,9 @@ Thumbs.db
 !.claude/settings.json
 .claude/settings.local.json
 
+# gstack QA reports and screenshots, written by the qa skill
+.gstack/
+
 # Personal docs working area. `docs/` is the Obsidian vault root; the shared
 # folders (explanation/how-to/reference) plus README and STYLE are tracked,
 # everything below is local-only. A new personal folder needs a new line.
