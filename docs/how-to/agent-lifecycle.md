@@ -38,7 +38,7 @@ flowchart TD
         TICKETS --> TDD
         ROUTE -->|"bug"| DIAG["diagnosing-bugs"]
         DIAG --> TDD["tdd"]
-        TDD --> VERIFY["Tests, lint, types"]
+        TDD --> VERIFY["Tests, lint, types,<br/>commit"]
         VERIFY --> SELF["two-axis-review<br/>fresh-context self-check"]
         SELF --> OK2{{"You approve the push"}}
     end
