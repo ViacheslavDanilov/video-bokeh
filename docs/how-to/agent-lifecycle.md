@@ -46,16 +46,16 @@ flowchart TD
     OK2 --> CI["CI: pre-commit, tests,<br/>frontend build, Docker"]
 
     subgraph S2 ["Session 2: /bokeh-review"]
-        LENSES["two-axis-review + /code-review<br/>history, threads, docs style"] --> HIGH{"High-risk?"}
+        LENSES["two-axis-review + /code-review<br/>history, threads, docs style,<br/>document-release"] --> HIGH{"High-risk?"}
         HIGH -->|"yes"| CODEX["codex second opinion"]
         HIGH -->|"no"| GATE
         CODEX --> GATE["Notation gate"]
         GATE --> QA["qa: browser or pipeline run"]
-        QA --> DOCS["document-release"]
-        DOCS --> LEFT{"Must-fix left?"}
-        LEFT -->|"yes, up to 3 rounds"| FIX["Fix, commit, push"]
+        QA --> LEFT{"Must-fix left?"}
+        LEFT -->|"yes, up to 3 rounds"| FIX["Fix and commit"]
         FIX --> LENSES
-        LEFT -->|"no"| PUBLISH["Review on GitHub"]
+        LEFT -->|"no"| OK3{{"You approve pushing<br/>the fixes"}}
+        OK3 --> PUBLISH["Review on GitHub"]
     end
 
     CI --> LENSES
@@ -63,14 +63,14 @@ flowchart TD
     PUBLISH --> MERGE{{"You merge"}}
 ```
 
-The hexagons are yours. Everything else runs without you. Routes that build nothing, such as an investigation or a literature search, stop after triage with a written finding and never reach a branch.
+The hexagons are yours. Everything else runs without you. Routes that build nothing, such as an investigation or a literature search, end with a written finding once you confirm the criteria, and never reach a branch.
 
 ## What runs for which task
 
 | Task | Session 1 runs | Session 2 adds |
 |---|---|---|
-| Small bug | `diagnosing-bugs`, `tdd`, self-check | lenses, notation gate |
-| Ordinary feature | grilling, `to-spec`, `tdd`, self-check | lenses, notation gate, `qa`, `document-release` |
+| Small bug | `diagnosing-bugs`, `tdd`, self-check | lenses, notation gate, `qa` |
+| Ordinary feature | grilling, `to-spec`, `tdd`, self-check | lenses, notation gate, `qa` |
 | New direction | CEO review first, then as a feature | as a feature |
 | Changes the dataset contract or the API | `plan-eng-review` after the spec | `codex` second opinion |
 
