@@ -51,23 +51,17 @@ The backend estimates per-frame depth, applies a controllable blur kernel modula
 ### Installation & Running
 
 ```bash
-# Backend
-cd backend
-cp .env.example .env
-uv sync --extra api
-uv run uvicorn video_bokeh.api.main:app --reload
-
-# Frontend
-cd frontend
-pnpm install
-pnpm dev
+make setup    # every backend extra, the frontend packages, Chromium for the smoke test
+make api      # terminal 1: the API on :8000
+make web      # terminal 2: the page on :3000
 ```
 
 Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://localhost:8000/docs](http://localhost:8000/docs) (API docs).
+`make` alone lists every target, including `make check` and `make smoke`.
 
 The page sets the scene parameters, generates, and compares the streams side by side. It
-needs an artifact library behind it, so build one with Stage A and start the API with
-`VIDEO_BOKEH_LIBRARY` pointing at it — both steps are in
+needs an artifact library behind it: `make api` serves `backend/data/library_dev` from the
+main checkout, and `make api LIBRARY=<path>` serves another. Building one with Stage A is in
 [backend/README.md](backend/README.md), the page is in
 [frontend/README.md](frontend/README.md), and the endpoints are in
 [docs/reference/api.md](docs/reference/api.md).
