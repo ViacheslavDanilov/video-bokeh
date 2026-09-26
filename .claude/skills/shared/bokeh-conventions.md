@@ -96,8 +96,8 @@ Four adaptations this repo needs, none of which the stock skill knows:
 3. **The gitignored half of the vault is off limits**, and so are ADRs and `CONTEXT.md`,
    which belong to `domain-modeling`. A doc pass that "fixes" a meeting note has corrupted
    the record of what was actually said.
-4. **Both skills end by committing, pushing and editing the pull request.** Stop them before
-   that step, as **Pushing** below says.
+4. **Both skills end with a step that commits, pushes and edits the pull request.** Never run
+   it, as **Pushing** below says.
 
 **Docs drift silently and this repo has already proved it.** `pipeline-explainer.md` spent
 months documenting a `_depth_track.py` and a "dynamic mode" that had been deleted, and
@@ -120,12 +120,18 @@ mechanically**: `.claude/hooks/no-push.sh` exists but is not wired into the shar
 and root `AGENTS.md` says why and how to enable it for yourself. Commit freely on a feature
 branch; stop at the push.
 
-**Delegated skills bring their own git habits, and none of them apply here.** gstack
-`document-release` and `document-generate` end by committing with a `Co-Authored-By: Claude`
-trailer, running a bare `git push`, and adding a section to the PR body with `gh pr edit`.
-gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`. Stop any of them before it commits,
-keep its edits, and commit them yourself per root `AGENTS.md`. On a colleague's PR, keep
-nothing and report.
+**Delegated skills bring their own git habits, and none of them apply here.**
+
+- gstack `document-release` and `document-generate` end with a step that commits with a
+  `Co-Authored-By: Claude` trailer, runs a bare `git push`, and adds a section to the PR body
+  with `gh pr edit`. It edits the body even when the run changed no file. Never run that
+  step. Commit what they wrote yourself, per root `AGENTS.md`.
+- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`. Let it: it needs a clean tree and
+  one commit per fix, so that it can `git revert HEAD` a fix that made things worse. Reword
+  those subjects to root `AGENTS.md` before anything is pushed.
+
+On a colleague's PR none of them commits anything: `qa-only` reports, and a doc pass keeps
+no edits.
 
 ## Which skill to reach for
 

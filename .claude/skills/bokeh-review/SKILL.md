@@ -125,16 +125,17 @@ Apply to this pass's scope, not the whole PR history.
 | **#3 Git history** | `git blame` and `git log` on scoped hunks — removed guards, reintroduced regressions | — |
 | **#4 Prior threads** | earlier comments on scoped files; never repeat a resolved item | — |
 | **#5 Docs style** | `docs/STYLE.md` for changes under `docs/explanation`, `how-to`, `reference` | — |
-| **#6 Docs drift** | public surface the PR changed that no page reflects — and pages that describe code this PR deleted | `document-release` on the PR's branch, stopped before it commits |
+| **#6 Docs drift** | public surface the PR changed that no page reflects — and pages that describe code this PR deleted | `document-release` on the PR's branch, analysis steps only |
 | **#7 Second model** | the same diff through a different model's eyes; its errors do not correlate with yours | `codex` in review mode — **high-risk PRs only** |
 
 Lens #6 exists because this repo shipped the failure it catches: `pipeline-explainer.md`
 documented a `_depth_track.py` and a "dynamic mode" for months after both were deleted. Read
 the **Documentation surface** section of the conventions file before running
 `document-release` — its own discovery step cannot see `docs/explanation/` or
-`docs/how-to/`, it must not touch the gitignored half of the vault, and its last step commits
-with an AI trailer, pushes and rewrites the PR body. **Pushing** in the same file says where
-to stop it.
+`docs/how-to/`, and it must not touch the gitignored half of the vault. Run only its
+analysis, up to the per-file audit: its later steps edit files, and its last one commits with
+an AI trailer, pushes and rewrites the PR body even when nothing changed. **Pushing** in the
+same file has the details. Step 9 fixes the drift it reports.
 
 A PR that changes a CLI flag, the on-disk dataset contract, or anything Pablo and Valery
 consume, and ships no documentation change and no named debt, is a **must-fix**. A PR that
@@ -194,8 +195,9 @@ Skip for docs-only, test-only or config-only diffs.
 | The user | **`qa`** — finds and fixes | their own branch; a small fix now beats a round trip |
 | Anyone else | **`qa-only`** — report only | never commit to a colleague's branch uninvited |
 
-`qa` commits each fix in its own notation. Stop it before it commits, per **Pushing** in the
-conventions file, and let step 9 commit the fixes.
+`qa` commits each fix as `fix(qa): ISSUE-NNN — …`, and it needs those commits to revert a fix
+that made things worse. Let it commit, then reword the subjects in step 9, per **Pushing** in
+the conventions file.
 
 What to actually run:
 
@@ -215,7 +217,7 @@ On the user's own PR, fix what the review found before publishing, so the review
 the final state:
 
 1. Fix every must-fix, and the drift `document-release` found, within this PR's scope.
-2. Commit per `AGENTS.md`, one logical fix per commit, `qa`'s fixes included.
+2. Commit per `AGENTS.md`, one logical fix per commit, and reword `qa`'s commits to match.
 3. Re-run the lenses that produced the findings, and the notation gate, on the new delta
    only.
 4. Repeat at most **three rounds**. A finding still open after the third goes to the user in
