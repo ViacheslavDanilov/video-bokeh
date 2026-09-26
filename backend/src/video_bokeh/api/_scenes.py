@@ -32,10 +32,14 @@ from video_bokeh.scenes.generate import sample_n_objects, write_sequence
 _ID_CHARS = 16
 _META = "scene.json"
 
-#: Streams a scene writes. ``alpha`` is multi-page TIFF and has no single-video form,
-#: so only the first two are servable as video.
+#: Streams a scene writes.
 STREAMS = ("all_in_focus", "alpha", "disparity")
-VIDEO_STREAMS = ("all_in_focus", "disparity")
+
+#: Servable as video, in the order a person reads them: the frame, who is in it, and
+#: how far away they are. `alpha` is multi-page TIFF with one page per object, which
+#: `preview` renders by colouring each object rather than flattening them into one
+#: silhouette.
+VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 
 
 class SceneUnsatisfiableError(RuntimeError):

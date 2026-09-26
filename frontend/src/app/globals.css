@@ -1,26 +1,148 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tokens from DESIGN.md — the Vercel style reference: a near-white canvas, black
+ * typography, hairline borders, and no decorative colour at all.
+ *
+ * Monochrome is the right call for this page rather than a fashion: every frame and
+ * depth map on screen is already saturated, so the only colour a viewer should have to
+ * read is the data's. The one place hue survives is the Spectral scale under the depth
+ * pane, which is a legend, not decoration.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* DESIGN.md: 6px on buttons, cards and inputs. */
+  --radius: 6px;
+
+  --background: #fafafa; /* Paper White */
+  --foreground: #171717; /* Obsidian */
+  --card: #ffffff; /* Pure White */
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+
+  /* The filled black button: the only element that reaches Obsidian. */
+  --primary: #171717;
+  --primary-foreground: #ffffff;
+
+  --secondary: #fafafa;
+  --secondary-foreground: #4d4d4d; /* Charcoal */
+  --muted: #ebebeb; /* Hairline */
+  --muted-foreground: #666666; /* Stone */
+  --accent: #ebebeb;
+  --accent-foreground: #171717;
+
+  /*
+   * DESIGN.md has no error colour — it describes a marketing site, which has no
+   * failure states. An interface needs one, so this is an extension of the reference,
+   * not a quotation from it: the least saturated red that still clears 4.5:1 on the
+   * canvas, used only for the rule beside a message.
+   */
+  --destructive: #b4231f;
+
+  --border: #ebebeb; /* Hairline */
+  --input: #ebebeb;
+  --ring: #171717; /* focus in Obsidian, since the system has no accent hue */
 }
 
+/*
+ * Tailwind needs every semantic variable mapped to a colour utility before
+ * `bg-background`, `border-border` and friends exist. Trimmed to what is used.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+
+  /*
+   * DESIGN.md: tight tracking at display sizes, normal at body sizes. Geist is drawn
+   * for this, and loosening it back at 14-16px is half the reason the system reads as
+   * precise rather than cramped.
+   */
+  h1 {
+    letter-spacing: -0.02em;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * The signature border of the system: a hairline that survives any background, made
+ * from an inset ring plus an outer ring in the canvas colour rather than a plain
+ * 1px border. Depth here comes from value, never from shadow.
+ */
+.hairline {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.08),
+    0 0 0 1px var(--background);
+}
+
+/* Mono labels: metadata and identifiers, at the tracking DESIGN.md specifies. */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.071em;
+}
+
+/*
+ * The one piece of motion nobody asked for: a sweep along the depth axis while a scene
+ * generates, on the same scale that afterwards explains the depth map's colours.
+ */
+@keyframes depth-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(110%);
+  }
+}
+
+.depth-sweep {
+  animation: depth-sweep 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .depth-sweep {
+    animation: none;
+    opacity: 0.5;
+  }
 }

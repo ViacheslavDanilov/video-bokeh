@@ -10,11 +10,14 @@ gets a job id and polling when `render` exists.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 from typing import Annotated, Self
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi import Path as PathParam
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 
@@ -31,23 +34,67 @@ from video_bokeh.api._settings import (
     load_settings,
     require_library,
 )
+from video_bokeh.preview._colormap import COLORMAPS
+from video_bokeh.preview._masks import object_color_hex
 from video_bokeh.preview.pack import encode_stream, list_stream_frames
 
 #: Matches the defaults of `video_bokeh.preview.pack`, so a stream looks the same
 #: whether it was packed on the command line or served from here.
 _FPS = 24
 _QUALITY = 10
-_COLORMAP = "spectral_r"
+DEFAULT_COLORMAP = "spectral_r"
 
 #: The endpoint blocks while it generates, so the request has to be bounded. 240
 #: frames is three times the 80 every measurement so far has used.
 _MAX_FRAMES = 240
 
-app = FastAPI(
-    title="Video Bokeh",
-    description="Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.js frontend.",
-    version="0.1.0",
-)
+#: Total pixels a single request may ask for, frames times area.
+#:
+#: Each limit alone is harmless and the product is not: `render_scene` holds every
+#: frame of the sequence in memory at once, so cost grows with the area and with the
+#: count together. Measured on an Apple M3 Pro against `data/library_dev`:
+#:
+#:     80 frames at 512   =  21.0 Mpx    2.6 to 3.3 s     modest
+#:     80 frames at 1024  =  83.9 Mpx   11.2 s            2.9 GB peak
+#:    240 frames at 1024  = 251.7 Mpx   97 s              9.7 GB peak, machine swaps
+#:
+#: The last one takes the whole machine down with it, which a synchronous endpoint
+#: must not let a caller do. The cap admits the second and refuses the third. Lifting
+#: it means making generation stream to disk instead of accumulating frames, which is
+#: a change to Stage B rather than to the API.
+_MAX_PIXELS = 96_000_000
+
+router = APIRouter()
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Build the application.
+
+    CORS is the one setting read here rather than per request, because middleware is
+    installed when the app object is built. Taking `settings` as an argument is what
+    makes that testable: patching `load_settings` after import cannot reach middleware
+    that was already installed, so a test that tried would pass or fail on whatever
+    happened to be in the environment at import time.
+    """
+    settings = settings or load_settings()
+    application = FastAPI(
+        title="Video Bokeh",
+        description=(
+            "Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend "
+            "and Next.js frontend."
+        ),
+        version="0.1.0",
+    )
+    # The page always runs on a different port from the API, so without a matching
+    # origin here the browser refuses every request before it reaches a route.
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["content-type"],
+    )
+    application.include_router(router)
+    return application
 
 
 class SceneParams(BaseModel):
@@ -63,6 +110,19 @@ class SceneParams(BaseModel):
             raise ValueError("n_objects_min must not exceed n_objects_max")
         return self
 
+    @model_validator(mode="after")
+    def _fits_in_memory(self) -> Self:
+        pixels = self.frames * self.size * self.size
+        if pixels > _MAX_PIXELS:
+            affordable = _MAX_PIXELS // (self.size * self.size)
+            raise ValueError(
+                f"{self.frames} frames at {self.size} px is "
+                f"{pixels / 1e6:.0f} megapixels, over the {_MAX_PIXELS / 1e6:.0f} "
+                f"a single request may hold in memory. At {self.size} px, ask for "
+                f"{affordable} frames or fewer, or drop the size.",
+            )
+        return self
+
 
 class LibraryResponse(BaseModel):
     id: str
@@ -72,6 +132,24 @@ class LibraryResponse(BaseModel):
     asset_size: int | None
 
 
+class StreamInfo(BaseModel):
+    """How one stream of a scene can be displayed.
+
+    The client renders whatever this manifest reports rather than knowing the stream
+    names itself, so a stream added later -- `bokeh`, once the render container
+    exists -- shows up in the interface without a frontend change.
+    """
+
+    url: str
+    #: Colormaps this stream accepts, empty when it is already RGB and the parameter
+    #: would do nothing.
+    colormaps: list[str]
+    #: Which of them the url above already renders. Named rather than left to the
+    #: order of `colormaps`, so adding one whose name sorts last cannot silently
+    #: change what a client shows.
+    default: str | None
+
+
 class SceneResponse(BaseModel):
     id: str
     cached: bool
@@ -79,7 +157,10 @@ class SceneResponse(BaseModel):
     frames: int
     size: int
     n_objects: int
-    streams: dict[str, str]
+    #: One hex colour per object, in the order the alpha pages carry them, so a legend
+    #: cannot drift from what the alpha video actually paints.
+    object_colors: list[str]
+    streams: dict[str, StreamInfo]
 
 
 def _mounted_library(settings: Settings) -> Path:
@@ -92,20 +173,20 @@ def _mounted_library(settings: Settings) -> Path:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@app.get("/health")
+@router.get("/health")
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy"}
 
 
-@app.get("/library")
+@router.get("/library")
 def read_library() -> LibraryResponse:
     settings = load_settings()
     summary = summarize(_mounted_library(settings))
     return LibraryResponse(**vars(summary))
 
 
-@app.post("/scenes")
+@router.post("/scenes")
 def create_scene(params: SceneParams) -> SceneResponse:
     """Generate a scene, or hand back the one this request already produced.
 
@@ -139,32 +220,51 @@ def create_scene(params: SceneParams) -> SceneResponse:
         frames=params.frames,
         size=params.size,
         n_objects=result.n_objects,
+        object_colors=[object_color_hex(i) for i in range(result.n_objects)],
         streams={
-            stream: f"/scenes/{result.id}/{stream}.mp4" for stream in VIDEO_STREAMS
+            stream: StreamInfo(
+                url=f"/scenes/{result.id}/{stream}.mp4",
+                colormaps=sorted(COLORMAPS) if stream == "disparity" else [],
+                default=DEFAULT_COLORMAP if stream == "disparity" else None,
+            )
+            for stream in VIDEO_STREAMS
         },
     )
 
 
-@app.get("/scenes/{scene_id}/{stream}.mp4")
+@router.get("/scenes/{scene_id}/{stream}.mp4")
 def read_scene_video(
     scene_id: Annotated[str, PathParam(pattern=r"^[0-9a-f]{16}$")],
     stream: str,
+    colormap: Annotated[str, Query(pattern=r"^[a-z_]+$")] = DEFAULT_COLORMAP,
 ) -> FileResponse:
     """Serve one stream as H.264.
 
     Encoded on the first request and kept next to the frames, so the second request
     is a file read. `scene_id` is constrained to the hash alphabet in the route
     itself, which is also what keeps it from naming a path outside `scenes/`.
+
+    `colormap` applies to `disparity` only -- it is 16-bit grey on disk and gets its
+    colour here. Every other stream is already RGB, so the parameter is dropped
+    rather than forking that stream's cache into identical copies.
     """
     if stream not in VIDEO_STREAMS:
         raise HTTPException(status_code=404, detail=f"no video for stream {stream!r}")
+    if colormap not in COLORMAPS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown colormap {colormap!r}. Known: {', '.join(sorted(COLORMAPS))}",
+        )
+    if stream != "disparity":
+        colormap = DEFAULT_COLORMAP
 
     settings = load_settings()
     scene_dir = settings.scenes / scene_id
     if not (scene_dir / "scene.json").is_file():
         raise HTTPException(status_code=404, detail=f"no scene {scene_id}")
 
-    video = scene_dir / f"{stream}.mp4"
+    suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
+    video = scene_dir / f"{stream}{suffix}.mp4"
     if not video.is_file():
         frames = list_stream_frames(scene_dir, stream)
         if not frames:
@@ -172,6 +272,25 @@ def read_scene_video(
                 status_code=404,
                 detail=f"scene {scene_id} has no {stream}",
             )
-        encode_stream(frames, video, _FPS, _QUALITY, stream, _COLORMAP)
+        # Encode beside the destination and rename, so a second request arriving
+        # mid-encode either waits for nothing or serves a complete file. Writing
+        # straight to `video` leaves a path that exists but is half-written, and
+        # `is_file()` cannot tell the difference. Two panes showing one stream, or a
+        # reload during the first encode, both reach this.
+        with tempfile.NamedTemporaryFile(
+            dir=scene_dir,
+            prefix=f".{stream}-",
+            suffix=".mp4",
+            delete=False,
+        ) as handle:
+            partial = Path(handle.name)
+        try:
+            encode_stream(frames, partial, _FPS, _QUALITY, stream, colormap)
+            os.replace(partial, video)
+        finally:
+            partial.unlink(missing_ok=True)
 
     return FileResponse(video, media_type="video/mp4")
+
+
+app = create_app()
