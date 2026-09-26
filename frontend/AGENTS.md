@@ -35,6 +35,7 @@ Next.js 16, React 19, TypeScript 5, Tailwind 4. Node.js 24, pnpm. ESLint + Prett
 | Format check     | `pnpm check`                     |
 | Format write     | `pnpm format`                    |
 | Production build | `pnpm build`                     |
+| Browser smoke    | `pnpm e2e`                       |
 | Add dep          | `pnpm add <pkg>`                 |
 | Add dev dep      | `pnpm add -D <pkg>`              |
 
@@ -82,3 +83,5 @@ the interface on its own, and that is the point.
 ## Verification before claiming done
 
 For any UI change, run `pnpm dev`, open the page in a browser, and exercise the feature path. Type-check and lint do not verify visual behavior. If you cannot test the UI in a browser, say so — don't claim success.
+
+`pnpm e2e` drives the main path for you: it starts the API against a tiny fixture library and a dev server on ports 8765 and 3765, then checks in Chromium that the library loads, a scene generates and every stream decodes. It needs the backend's `api` extra installed, and `pnpm exec playwright install chromium` once. It proves the wiring, not how the page looks — a visual change still needs your eyes.
