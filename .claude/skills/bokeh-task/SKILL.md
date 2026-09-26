@@ -253,13 +253,17 @@ only what this session actually ran.
 
 ## 9. Self-review in fresh context
 
-Invoke `two-axis-review` with `main` as the fixed point and the spec's path. Its two
-subagents see the diff and the spec, not this conversation, and that is the point: they read
-what you wrote rather than what you meant.
+Commit first, by step 10's rules, and do not push. `two-axis-review` diffs committed history,
+`main...HEAD`, so it cannot see uncommitted work and stops on an empty diff.
 
-Fix every hard standards violation and every spec gap. Fix a judgement-call smell when it is
-cheap, otherwise name it in the PR body. One round only — the full review is
-`/bokeh-review`'s job.
+Invoke `two-axis-review` with `main` as the fixed point and the spec's path, or, on a route
+that wrote no spec, the acceptance criteria confirmed in step 4. Its two subagents see the
+diff and the spec, not this conversation, and that is the point: they read what you wrote
+rather than what you meant.
+
+Fix every hard standards violation and every spec gap, each fix a further commit. Fix a
+judgement-call smell when it is cheap, otherwise name it in the PR body. One round only —
+the full review is `/bokeh-review`'s job.
 
 ## 10. Commit and open the PR
 
