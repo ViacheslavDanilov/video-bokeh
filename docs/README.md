@@ -26,7 +26,7 @@ documented code that had been deleted months earlier.
 | `meetings/transcripts/` | raw transcripts, same filename as the meeting they feed |
 | `reports/` | progress reports, the ones exported to Notion |
 | `specs/` | design specs for a change, written before the code |
-| `plans/` | implementation plans derived from a spec |
+| `plans/` | tickets that split a spec too big for one session. Older files are implementation plans |
 | `templates/` | Templater scaffolds for new notes |
 | `attachments/` | all media |
 | `deprecated/` | superseded pages, kept until reviewed and deleted by hand |
@@ -53,7 +53,7 @@ Prefer Obsidian wikilinks over markdown links: they survive renames.
 1. Drop a raw transcript into `meetings/transcripts/` using the `transcript.md` template.
 2. Digest it into `meetings/` under the same filename, using the `meeting.md` template. Pull out decisions and action items, link to `explanation/` rather than restating research.
 3. Roll a period's meetings and work into `reports/`.
-4. When a change needs designing, write the spec in `specs/`, then the plan in `plans/`.
+4. When a change needs designing, write the spec in `specs/`. When it will not fit one session, split it into tickets under `plans/`.
 5. When something in `explanation/`, `how-to/` or `reference/` goes stale, fix it in the same pull request as the code that made it stale. The `bokeh-review` skill runs `document-release` on every pull request before it merges for exactly this, and `backend/tests/test_docs_references.py` fails when a page names code that no longer exists.
 6. When a page is superseded rather than wrong, move it to `deprecated/` with a banner saying what replaced it. Nothing is deleted on your behalf.
 
