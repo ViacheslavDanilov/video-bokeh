@@ -117,7 +117,7 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 | Frontend browser smoke | `cd frontend && pnpm e2e` |
 | Docker build | `docker build -t video-bokeh-api ./backend` / `docker build -t video-bokeh-web ./frontend` |
 
-CI mirrors these in `.github/workflows/ci.yaml`. If a step passes locally but fails in CI, suspect tool-version drift first (e.g., pnpm `latest` may be newer than your local).
+`make check` runs the pre-commit, backend test, frontend lint and format check rows in one go, and `make help` lists the other shortcuts in the root `Makefile`. CI mirrors these in `.github/workflows/ci.yaml`. If a step passes locally but fails in CI, suspect tool-version drift first (e.g., pnpm `latest` may be newer than your local).
 
 ## Where things live
 
