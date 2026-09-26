@@ -85,7 +85,7 @@ work this out on its own:
 | `docs/how-to/` | runbooks — every command in one has to be a command someone ran |
 | `docs/reference/` | the on-disk contract and other lookup tables |
 
-Three adaptations this repo needs, none of which the stock skill knows:
+Four adaptations this repo needs, none of which the stock skill knows:
 
 1. **`document-release` discovers docs with `find . -maxdepth 2`, which cannot see
    `docs/explanation/` or `docs/how-to/`.** Hand it those paths explicitly or it will audit
@@ -96,6 +96,8 @@ Three adaptations this repo needs, none of which the stock skill knows:
 3. **The gitignored half of the vault is off limits**, and so are ADRs and `CONTEXT.md`,
    which belong to `domain-modeling`. A doc pass that "fixes" a meeting note has corrupted
    the record of what was actually said.
+4. **Both skills end by committing, pushing and editing the pull request.** Stop them before
+   that step, as **Pushing** below says.
 
 **Docs drift silently and this repo has already proved it.** `pipeline-explainer.md` spent
 months documenting a `_depth_track.py` and a "dynamic mode" that had been deleted, and
@@ -117,6 +119,13 @@ Never `git push` without an explicit ask in this session. **Nothing enforces thi
 mechanically**: `.claude/hooks/no-push.sh` exists but is not wired into the shared settings,
 and root `AGENTS.md` says why and how to enable it for yourself. Commit freely on a feature
 branch; stop at the push.
+
+**Delegated skills bring their own git habits, and none of them apply here.** gstack
+`document-release` and `document-generate` end by committing with a `Co-Authored-By: Claude`
+trailer, running a bare `git push`, and adding a section to the PR body with `gh pr edit`.
+gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`. Stop any of them before it commits,
+keep its edits, and commit them yourself per root `AGENTS.md`. On a colleague's PR, keep
+nothing and report.
 
 ## Which skill to reach for
 
