@@ -96,6 +96,77 @@ jobs:
     - name: Build
       run: pnpm build
 
+  # Lint and a build prove the page compiles, not that it works. This drives it in a
+  # browser against the real API and a tiny real library: the library loads, a scene
+  # generates, and every stream decodes.
+  browser-smoke:
+    runs-on: ubuntu-latest
+    name: "Frontend: Browser Smoke"
+    timeout-minutes: 15
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    # Only what the API needs. The fixture library has gradient depth and no model, so
+    # the torch-heavy extras would be minutes of download for nothing.
+    - name: Install API dependencies
+      working-directory: backend
+      run: uv sync --extra api
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        package_json_file: frontend/package.json
+        run_install: false
+
+    - name: Get pnpm store directory
+      id: pnpm-cache
+      shell: bash
+      working-directory: frontend
+      run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache pnpm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+        restore-keys: ${{ runner.os }}-pnpm-
+
+    - name: Install dependencies
+      working-directory: frontend
+      run: pnpm install --frozen-lockfile
+
+    - name: Install Chromium
+      working-directory: frontend
+      run: pnpm exec playwright install --with-deps chromium
+
+    - name: Run the smoke test
+      working-directory: frontend
+      run: pnpm e2e
+
+    - name: Keep the trace of a failed run
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-test-results
+        path: frontend/test-results/
+        retention-days: 7
+
   docker:
     runs-on: ubuntu-latest
     name: "Docker: Build Images"
