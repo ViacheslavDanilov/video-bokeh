@@ -1,42 +1,50 @@
 ---
 name: bokeh-task
 description: >-
-  Take a decision or action item from a meeting note and carry it to its end:
-  triage the route (feature / bug / investigate / docs / paper / literature),
-  derive and confirm acceptance criteria the transcript never spelled out,
-  implement via TDD, verify, sync the documentation to what actually shipped,
-  commit in the repo notation, open the PR, and tick the item back in the note.
-  Routes that write no code are first-class endings.
-  Use when the user says "сделай то, что решили на митинге", names an action
-  item, or invokes /bokeh-task.
+  Take a task to an open pull request: a decision or action item from a meeting
+  note, or a feature the user describes in chat. Triage the route (feature / bug /
+  investigate / docs / paper / literature), optionally push the scope with a CEO
+  review, grill out acceptance criteria and get them confirmed, write the spec,
+  implement test-first, self-review in fresh context, commit in the repo notation
+  and open the PR. Review, QA and the documentation pass run afterwards in
+  /bokeh-review, in its own session. Routes that write no code are first-class
+  endings. Use when the user says "сделай то, что решили на митинге", names an
+  action item or a feature, or invokes /bokeh-task.
 disable-model-invocation: false
 ---
 
 # Bokeh task
 
-One entry point for work that came out of a sync. **Read
+One entry point for work, whether it came out of a sync or out of the user's head. **Read
 [`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first** — it fixes the
-language policy, the vault map, the delegation table and the authorship trap, and this skill
-does not repeat them.
+language policy, the vault map, where specs live, the skill table and the authorship trap,
+and this skill does not repeat them.
 
-**Checkpoints are mandatory.** This project's requirements arrive as speech, transcribed
-imperfectly, and the record has already been wrong about concrete numbers. A question costs
-a minute; a wrong assumption costs a regenerated dataset.
+**Checkpoints are mandatory.** Requirements here arrive as speech, transcribed imperfectly,
+or as one line in chat, and the record has already been wrong about concrete numbers. A
+question costs a minute; a wrong assumption costs a regenerated dataset.
+
+**This session ends at the pull request.** Review, QA and the doc pass belong to
+`/bokeh-review`, run in a fresh session. The session that wrote the code knows what it meant,
+and so it is the worst-placed to see what it actually wrote.
 
 **No worktrees.** Work on a normal branch in the checkout the user has open.
 
-Make a TodoWrite list with one item per step you will run, then follow it in order.
+Make a todo list with one item per step you will run, then follow it in order.
+`docs/how-to/agent-lifecycle.md` has the whole flow as a diagram.
 
 ## 1. Resolve the source
 
-Accept a meeting note path or slug, a quoted action item, or a free-form ask ("сделай то,
-что решили про TIFF").
+Accept a meeting note path or slug, a quoted action item, or a free-form ask ("добавь экспорт
+в EXR"). A task no meeting produced is normal: the user's own product decision is a
+legitimate source.
 
-Read the note in `docs/meetings/` — **Action items**, **Decisions**, **Open questions** — and
-search `docs/specs/` and `docs/plans/` for an existing design on the topic. If several
-meetings touch it, read the newest and the one that first decided it.
+Either way, search `docs/specs/` and `docs/plans/` for an existing design on the topic, and
+`docs/meetings/` for any sync that touched it. For a meeting-sourced task, read the note's
+**Action items**, **Decisions** and **Open questions**; if several meetings touch it, read the
+newest and the one that first decided it.
 
-If nothing matches, ask once. Never infer scope from a slug.
+If the ask is ambiguous, ask once. Never infer scope from a slug.
 
 ## 2. Triage — two levels
 
@@ -65,12 +73,40 @@ Signals for **investigate** even when the ask sounds like a change: no reproduct
 проверить", a claim in the note that no one has checked against the code, or a request for
 an estimate. When feature and bug both fit, take **bug** — repro-first is stricter.
 
-## 3. Restate scope — checkpoint
+## 3. Product check — optional
 
-A meeting note has no acceptance criteria. **You derive them and get them confirmed.** Reply
-in Russian with:
+Offer `plan-ceo-review` on the **feature** route when the task did not come from a meeting
+decision, or when it opens a new direction: a new property of the dataset, a new view in the
+demo, something headed for the paper. Skip it for bugs, refactors, docs, and anything a
+meeting already scoped.
 
-- Источник: заметка и конкретный пункт или решение
+Run it in **SELECTIVE EXPANSION** mode, which holds the stated scope and lists expansions
+separately. Tell it up front what the product is, because it assumes a startup:
+
+- the product is the dataset, the paper and the demo;
+- the users are researchers who train on the dataset, Pablo and Valery, and the paper's
+  reviewers;
+- there is no market, no growth and no revenue.
+
+The user picks the expansions worth taking. One that changes the research direction — what
+the dataset contains, how it is measured, what the paper claims — needs Pablo and Valery
+first: draft the email, and do not build it until they agree.
+
+## 4. Pin down the requirements — checkpoint
+
+A request has no acceptance criteria. **You derive them and get them confirmed.**
+
+Invoke `grilling` together with `domain-modeling`. `grilling` asks in rounds, every question
+numbered with a recommended answer, and looks facts up itself instead of asking for them.
+`domain-modeling` records settled terms in `CONTEXT.md` as they land, and offers an ADR only
+for a decision that is hard to reverse.
+
+Scale it. When the meeting note already settles every question, skip the grilling and say
+so. A one-line bug gets none.
+
+Then reply in Russian with:
+
+- Источник: заметка и пункт, или «запрос в чате»
 - Маршрут и куда ляжет результат
 - Цель одним предложением, своими словами
 - Критерии приёмки чеклистом — выведенные вами, а не процитированные
@@ -79,72 +115,69 @@ in Russian with:
 
 **Wait for an explicit yes.**
 
-## 4. Reality check — before any code
+## 5. Reality check — before any code
 
-Verify the note's factual claims against the repo. The record has been wrong before: a
+Verify the source's factual claims against the repo. The record has been wrong before: a
 formula was written as its own reciprocal, and asset counts were stated inverted. Read the
 code path, the config, the actual files.
 
-If the note and the code disagree, **stop and say so.** That finding may be the whole task,
-and implementing against a wrong premise is the most expensive mistake available here.
+If the source and the code disagree, **stop and say so.** That finding may be the whole
+task, and implementing against a wrong premise is the most expensive mistake available here.
 
-## 5a. Route: feature
+## 6a. Route: feature
 
-1. `superpowers:brainstorming` — files to touch, data or format changes, CLI or API surface,
-   test strategy. No code yet.
-2. `superpowers:writing-plans` — plan to `docs/plans/YYYY-MM-DD-<slug>.md`, design to
-   `docs/specs/YYYY-MM-DD-<slug>-design.md`. **Both folders are gitignored — never commit
-   them.** (Older plans reference `docs/superpowers/specs/`; that path is stale.)
-3. If the plan changes the on-disk dataset contract or anything Pablo and Valery consume,
-   put it through `plan-eng-review` before writing code. A contract migration is the one
-   mistake here that costs a regenerated dataset.
-4. Branch, then step 6, driving the plan with `superpowers:executing-plans` rather than
-   working from memory of what you wrote.
+1. `to-spec` writes the spec to `docs/specs/YYYY-MM-DD-<slug>-design.md`, `<slug>` being the
+   branch slug. It confirms the test seams with the user, and that confirmation is the seam
+   agreement `tdd` needs later.
+2. `plan-eng-review` on the spec when it changes the on-disk dataset contract, the API the
+   frontend consumes, or render throughput. A contract migration is the one mistake here
+   that costs a regenerated dataset.
+3. `to-tickets` when the spec will not fit one session. Tickets land under
+   `docs/plans/YYYY-MM-DD-<slug>/`; work the frontier, one ticket per session if need be.
+4. Branch, then step 7.
 
 Reach further when the surface calls for it: `frontend-design` with `vercel:nextjs` and
-`vercel:react-best-practices` for UI, `fastapi` for API work, `dataviz` for figures,
-`diagram` for a schematic.
+`vercel:react-best-practices` for UI, `fastapi` for API work, `dataviz` for figures.
 
-## 5b. Route: bug
+## 6b. Route: bug
 
-**Reproduce before you fix.** A fix with no failing test in front of it is a guess.
+Invoke `diagnosing-bugs`. Its first phase is the rule this repo already had: **no command
+that goes red on this bug, no fix.** A fix with no failing test in front of it is a guess.
 
-1. Reproduce it — a failing test, or a command whose output you paste.
-2. If the cause is not obvious, invoke `superpowers:systematic-debugging`, or gstack
-   `investigate` for a genuine hunt.
-3. If you cannot reproduce it, stop, report in Russian what you tried, and offer the
-   investigate route. Do not fix a bug you have not seen.
-4. Branch, write the failing test, then step 6.
+If you cannot build that loop, stop, report in Russian what you tried, and offer the
+investigate route. Branch before the fix; the regression test lands with it. The PR names
+the hypothesis that turned out right, so the next person debugging learns from it.
 
-## 5c. Route: investigate
+## 6c. Route: investigate
 
 Read-only. **No branch, no code, no PR.** The deliverable is understanding.
 
 Gather evidence — code paths, `git log` and `git blame`, the generated artifacts, the
-documented behaviour in `docs/explanation/` and `docs/reference/`. Use gstack `investigate`
-for debugging hunts and `fact-checker` when a claim about the outside world is in dispute.
+documented behaviour in `docs/explanation/` and `docs/reference/`. For an unknown cause, run
+the first three phases of `diagnosing-bugs` and stop before the fix. `fact-checker` when a
+claim about the outside world is in dispute.
 
 Land on exactly one outcome:
 
 | Outcome | What you do |
 |---|---|
-| **Confirmed divergence or defect** | Name the cause and the fix you would make. Ask whether to switch to 5a/5b now or record a follow-up. Do not start fixing unasked. |
+| **Confirmed divergence or defect** | Name the cause and the fix you would make. Ask whether to switch to 6a/6b now or record a follow-up. Do not start fixing unasked. |
 | **No divergence** | Say what the system actually does, cite the file and line that settles it. "The note was mis-transcribed" is a legitimate, publishable answer. |
 | **Needs a decision from Pablo or Valery** | State both readings and what each costs. Draft the email; do not send it. |
 
 Write the finding to `docs/reports/YYYY-MM-DD-<slug>.md`, or append a clearly labelled
 section to the meeting note saying it was added later and checked against code. Then go to
-step 10. **A task that ends here with no code is a successful run.**
+step 11. **A task that ends here with no code is a successful run.**
 
-## 5d. Route: docs
+## 6d. Route: docs
 
 Tracked docs are a PR like any other. Match `docs/STYLE.md`, keep the runbooks executable —
 every command in `docs/how-to/` must be one you actually ran.
 
 `document-generate` (gstack) for a page from scratch; `editor` or `no-ai-slop` for a pass
-over prose that reads stiffly. Then step 6, with commit type `docs`.
+over prose that reads stiffly. Then step 7, with commit type `docs`.
 
-## 5e. Route: paper
+## 6e. Route: paper
 
 Check `paper_repo` in the conventions file. While it is unset, draft into
 `docs/reports/YYYY-MM-DD-<slug>.md` and say so — never create the repository unasked.
@@ -157,7 +190,7 @@ person wrote it. `make-pdf` to build a readable draft, `pptx` if the output is s
 Numbers in the manuscript are measured and traceable to a command or a file. Never carry a
 figure from a meeting note into the paper without re-deriving it.
 
-## 5f. Route: literature
+## 6f. Route: literature
 
 `academic-researcher` plus `deep-research`. The recurring question here is whether a prior
 synthetic dataset already covers this contribution — answer it with a comparison table:
@@ -170,12 +203,12 @@ contested. An unverifiable source is reported as unverifiable.
 Durable results belong in `docs/explanation/` — it is in git, so Pablo and Valery see it. A
 dated snapshot belongs in `docs/reports/`.
 
-## 5g. Route: out of scope
+## 6g. Route: out of scope
 
 Say plainly that it is not work for this repo, and stop. Draft an email for anything that
 needs Pablo or Valery, and leave sending to the user. Do not invent repo work to look busy.
 
-## 6. Branch and implement
+## 7. Branch and implement
 
 ```
 git checkout main
@@ -183,11 +216,11 @@ git pull                 # only if the user wants latest
 git checkout -b <type>/<short-kebab-slug>
 ```
 
-`<type>` matches the Conventional Commit type — `feat`, `fix`, `docs`. Slug ≤ 5 words.
-**Never commit to `main`.**
+`<type>` matches the Conventional Commit type — `feat`, `fix`, `docs`. Slug ≤ 5 words, and
+the same slug names the spec. **Never commit to `main`.**
 
-Invoke `superpowers:test-driven-development`. Per plan step: failing test → smallest change
-that passes → refactor only if it improves clarity.
+Invoke `tdd` at the seams the spec agreed: one failing test, the smallest change that passes
+it, next test. `codebase-design` when the shape of an interface is the open question.
 
 Stay surgical. Every changed line traces to the task. Do not improve adjacent code, do not
 delete pre-existing dead code — mention it instead.
@@ -195,7 +228,8 @@ delete pre-existing dead code — mention it instead.
 Module notes:
 
 - **`backend/`** — uv-managed. Run from `backend/`; `uv run pytest`, `uv run ruff check
-  src/`, `uv run ty check src/`. Data scripts live in `backend/src/data/`.
+  src/`, `uv run ty check src/`. Code lives under `backend/src/video_bokeh/`: `acquire`,
+  `library`, `scenes`, `core`, `preview`, `bridge`, `api`.
 - **`frontend/`** — **pnpm only**, never npm or yarn. Next.js 16 diverges from training
   data: read `node_modules/next/dist/docs/` before writing code, as `frontend/AGENTS.md`
   demands.
@@ -204,56 +238,34 @@ Module notes:
 
 If a folder's semantics changed, update the `AGENTS.md` in every folder you touched.
 
-## 7. Verify
+## 8. Verify
 
-Invoke `superpowers:verification-before-completion`, then run what the root `AGENTS.md`
-verification table lists for the layers you touched. For a UI change, start the dev server
-and use the feature in a browser — `qa` (gstack) drives it, `web-design-guidelines` checks
-it. For a pipeline change, the script is `docs/how-to/demo-unrestricted-trajectories.md`.
+Run what the root `AGENTS.md` verification table lists for the layers you touched, and
+report what the commands printed. Never claim done without output.
 
 Generation throughput is a published number here — `docs/how-to/` quotes seconds per scene —
 so when a change touches the render or I/O path, use `benchmark` and put the measured
 before/after in the PR. A format migration that quietly triples write time is a regression
 even though every test passes.
 
-Report what the commands printed. Never claim done without output.
+The browser pass and the doc pass happen in `/bokeh-review`. The PR's `## Verified` lists
+only what this session actually ran.
 
-## 8. Documentation sync — before the PR, not after
+## 9. Self-review in fresh context
 
-**The pipeline changes and the docs do not follow on their own.** This repo has already
-proved it: `docs/explanation/pipeline-explainer.md` documented a `_depth_track.py` and a
-"dynamic mode" for months after both were deleted. Nobody noticed, because nothing checked.
-This step is the check.
+Commit first, by step 10's rules, and do not push. `two-axis-review` diffs committed history,
+`main...HEAD`, so it cannot see uncommitted work and stops on an empty diff.
 
-Invoke **`document-release`**. It diffs the branch against the base, builds a coverage map of
-what shipped against what is documented, and flags diagram drift. Three things it cannot work
-out by itself, all of them in the conventions file's **Documentation surface** section — read
-it before starting:
+Invoke `two-axis-review` with `main` as the fixed point and the spec's path, or, on a route
+that wrote no spec, the acceptance criteria confirmed in step 4. Its two subagents see the
+diff and the spec, not this conversation, and that is the point: they read what you wrote
+rather than what you meant.
 
-- it discovers docs with `find . -maxdepth 2`, which **cannot see `docs/explanation/` or
-  `docs/how-to/`**. Hand it those paths or it will audit three READMEs and declare victory;
-- there is no `CHANGELOG`, no `VERSION` and no release cadence here — skip those steps rather
-  than creating the files;
-- **the gitignored half of the vault is off limits.** A pass that "fixes" a meeting note has
-  falsified the record of what was said.
+Fix every hard standards violation and every spec gap, each fix a further commit. Fix a
+judgement-call smell when it is cheap, otherwise name it in the PR body. One round only —
+the full review is `/bokeh-review`'s job.
 
-Scale it to the change. A PR that adds a CLI flag, changes the on-disk dataset contract, or
-renames anything Pablo and Valery consume gets the full pass. A one-line fix gets a look at
-whether any page names the thing you touched. A docs-only PR has already done this.
-
-Two follow-ons, when the pass turns them up:
-
-- a genuine coverage gap — a new capability no page describes — is `document-generate`, and
-  it writes into `docs/explanation/` or `docs/how-to/` per `docs/STYLE.md`;
-- a diagram the code has outgrown is `diagram`, with the result under
-  `docs/attachments/<slug>/` and embedded with `![[…]]`. `document-release` flags drift but
-  deliberately does not redraw, so this is yours to decide.
-
-Anything you choose not to fix is named in the PR body as known documentation debt, not left
-silent. Tracked docs changed here are part of this PR, so they follow the same commit rules —
-type `docs`, one logical change per commit.
-
-## 9. Commit and open the PR
+## 10. Commit and open the PR
 
 Commit per root `AGENTS.md`: Conventional Commits, one logical change per commit, no AI
 trailer anywhere. Run a plain `git commit` and read its exit code — pre-commit reformats and
@@ -261,19 +273,16 @@ aborts, and piping the command through `tail` or `&&` hides that.
 
 `git log main..HEAD --oneline` — do the commits read as one coherent change?
 
-Then `superpowers:requesting-code-review` over your own branch before anyone else sees it.
-Finding your own mistake costs a commit; finding it in `/bokeh-review` costs a round trip
-through a second session.
+**Stop before pushing and ask.** Nothing blocks a push mechanically, so the ask is the guard.
+After approval, `gh pr create` with a title that is a short imperative phrase, no `type:`
+prefix, ≈65 characters, and the `## What` / `## Why` / `## Verified` body from `AGENTS.md`.
+`Verified` carries measured numbers only, and names pre-existing failures as pre-existing.
+A judgement call left from step 9 goes in the body as a named follow-up.
 
-**Stop before pushing.** Ask; a hook blocks it anyway. After approval, `gh pr create` with a
-title that is a short imperative phrase, no `type:` prefix, ≈65 characters, and the
-`## What` / `## Why` / `## Verified` body from `AGENTS.md`. `Verified` carries measured
-numbers only, and names pre-existing failures as pre-existing. Documentation debt from step 8
-goes in the body too — under `## What` if you fixed it, as a named gap if you did not.
+## 11. Record the outcome
 
-## 10. Record the outcome
-
-This replaces the tracker this project does not have. In the source meeting note:
+This replaces the tracker this project does not have. When the task came from a meeting
+note:
 
 - tick the action item and append the PR link or the report path under it;
 - if the work answered an entry under **Open questions**, move the answer into
@@ -281,18 +290,21 @@ This replaces the tracker this project does not have. In the source meeting note
 
 Measurements worth keeping go to `docs/reports/`. None of this is committed.
 
-## 11. Hand off
+## 12. Hand off
 
 Reply in Russian: the route taken, the PR URL or the file written, branch and head SHA, how
-many files changed, what you verified, and anything you could not. **Do not merge** — that
-is a human decision, and review runs in its own session via `/bokeh-review`.
+many files changed, what you verified, and anything you could not. When there is a PR, end
+with the next step: **new session, `/bokeh-review <n>`.** **Do not merge** — that is a human
+decision.
 
 ## Red flags — stop and ask
 
-- The note's acceptance criteria are yours to invent and the user has not confirmed them.
-- The note contradicts the code, or contradicts an earlier meeting's decision.
+- The acceptance criteria are yours to invent and the user has not confirmed them.
+- The source contradicts the code, or contradicts an earlier meeting's decision.
 - The change alters the on-disk dataset contract — stream layout, bit depth, channel
-  count. Downstream readers like `prepare_any_to_bokeh.py` break silently.
+  count. Downstream readers like `bridge/any_to_bokeh.py` break silently.
+- An expansion from the CEO review changes the research direction, and Pablo and Valery
+  have not agreed to it.
 - The work needs a decision from Pablo or Valery that nobody has made.
 - The task would touch `backend/third_party/`.
 - A number in the note that nobody measured is about to become a constant in the code.

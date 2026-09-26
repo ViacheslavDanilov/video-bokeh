@@ -13,6 +13,7 @@ its rules here would only let the two drift apart.
 | Next.js, pnpm, eslint, prettier | `frontend/AGENTS.md` |
 | Vault layout, naming, wikilinks, workflow | `docs/README.md` |
 | Prose style for anything under `docs/` | `docs/STYLE.md` |
+| The lifecycle as a picture, and how to drive it | `docs/how-to/agent-lifecycle.md` |
 
 If this file and those disagree, **they win and this file gets fixed.** Never restate a
 commit or PR rule here — point at `AGENTS.md` instead.
@@ -21,7 +22,7 @@ commit or PR rule here — point at `AGENTS.md` instead.
 
 - **Chat with the user: Russian.** Checkpoints, questions, hand-offs, verdicts.
 - **Everything written down: English.** Commits, branches, PR text, GitHub reviews, code,
-  docs, vault notes, plans and specs.
+  docs, vault notes, specs and tickets.
 
 Never mix the two inside one artifact.
 
@@ -33,14 +34,43 @@ gitignored:
 | Path | In git | Used by these skills for |
 |---|---|---|
 | `docs/explanation/`, `docs/how-to/`, `docs/reference/` | **yes** | durable shared knowledge — a change here is a normal PR |
+| `docs/adr/` | **yes** | decisions that are hard to reverse, one file each — see **Domain docs** |
 | `docs/meetings/`, `docs/meetings/transcripts/` | no | meeting input; written by `bokeh-meeting` |
-| `docs/specs/`, `docs/plans/` | no | design and implementation plans from the feature route |
+| `docs/specs/`, `docs/plans/` | no | specs and tickets — see **Specs and tickets** |
 | `docs/reports/` | no | findings, measurements, investigation outcomes |
 | `docs/templates/` | no | Templater scaffolds — read them, do not edit them |
 
 **Never `git add` anything under the gitignored half.** A file there is a working note, not
 a deliverable. Never commit `backend/data/`, `backend/models/` or `backend/third_party/`
 either.
+
+## Specs and tickets
+
+This repo has no issue tracker. The vendored `to-spec`, `to-tickets` and `two-axis-review`
+were written for one, so read their wording through this table:
+
+| Upstream says | Here it means |
+|---|---|
+| publish a spec | write `docs/specs/YYYY-MM-DD-<slug>-design.md` |
+| publish tickets | one file per ticket at `docs/plans/YYYY-MM-DD-<slug>/NN-<slug>.md`, numbered from `01`, blockers first |
+| apply the `ready-for-agent` label | a `Status: ready-for-agent` line near the top of the file |
+| fetch the ticket | read the file the user or the calling skill names |
+| the originating issue | the meeting note in `docs/meetings/` the task came from, if there is one |
+
+`<slug>` is the branch slug, so `bokeh-review` finds the spec from the branch name alone.
+The spec links its meeting note with a wikilink when there is one. All of these files are
+gitignored — never commit them.
+
+## Domain docs
+
+- **`CONTEXT.md`** at the repo root is the glossary: what disparity, layer, scene or library
+  mean in this project. It carries no implementation detail.
+- **`docs/adr/`** holds a decision only when it is hard to reverse, surprising without
+  context, and the result of a real trade-off.
+
+`domain-modeling` creates both lazily, during grilling, and both are in git so Pablo and
+Valery see them. A meeting note stays the raw record of what was said; an ADR is the durable
+answer. A superseded decision gets a new ADR rather than an edit to the old one.
 
 ## Documentation surface
 
@@ -55,7 +85,7 @@ work this out on its own:
 | `docs/how-to/` | runbooks — every command in one has to be a command someone ran |
 | `docs/reference/` | the on-disk contract and other lookup tables |
 
-Three adaptations this repo needs, none of which the stock skill knows:
+Four adaptations this repo needs, none of which the stock skill knows:
 
 1. **`document-release` discovers docs with `find . -maxdepth 2`, which cannot see
    `docs/explanation/` or `docs/how-to/`.** Hand it those paths explicitly or it will audit
@@ -63,14 +93,17 @@ Three adaptations this repo needs, none of which the stock skill knows:
 2. **There is no `CHANGELOG`, no `VERSION`, no `ARCHITECTURE.md` and no release cadence.**
    Skip those steps rather than creating the files. The changelog here is `git log`, and the
    PR body's `## What` is the release note.
-3. **The gitignored half of the vault is off limits** — `docs/meetings/`, `docs/reports/`,
-   `docs/specs/`, `docs/plans/`, `docs/templates/`. Those are working notes, and a doc pass
-   that "fixes" a meeting note has corrupted the record of what was actually said.
+3. **The gitignored half of the vault is off limits**, and so are ADRs and `CONTEXT.md`,
+   which belong to `domain-modeling`. A doc pass that "fixes" a meeting note has corrupted
+   the record of what was actually said.
+4. **Both skills end with a step that commits, pushes and edits the pull request.** Never run
+   it, as **Pushing** below says.
 
 **Docs drift silently and this repo has already proved it.** `pipeline-explainer.md` spent
 months documenting a `_depth_track.py` and a "dynamic mode" that had been deleted, and
-`dataset-generation.md` still points at `_Z_NEAR`/`_Z_FAR` constants that do not exist.
-Nobody noticed because nothing checked. That is what the doc gate in `bokeh-task` is for.
+`dataset-generation.md` pointed at `_Z_NEAR`/`_Z_FAR` constants that did not exist.
+`backend/tests/test_docs_references.py` now catches a page naming code that is gone; the doc
+pass in `bokeh-review` catches the rest.
 
 ## The authorship trap
 
@@ -82,37 +115,55 @@ treats a surviving trailer as a merge blocker.
 
 ## Pushing
 
-Never `git push` without an explicit ask in this session — a `PreToolUse` hook in
-`.claude/settings.json` blocks it, and bypassing the hook is not an option. Commit freely on
-a feature branch; stop at the push.
+Never `git push` without an explicit ask in this session. **Nothing enforces this
+mechanically**: `.claude/hooks/no-push.sh` exists but is not wired into the shared settings,
+and root `AGENTS.md` says why and how to enable it for yourself. Commit freely on a feature
+branch; stop at the push.
+
+**Delegated skills bring their own git habits, and none of them apply here.**
+
+- gstack `document-release` and `document-generate` end with a step that commits with a
+  `Co-Authored-By: Claude` trailer, runs a bare `git push`, and adds a section to the PR body
+  with `gh pr edit`. It edits the body even when the run changed no file. Never run that
+  step. Commit what they wrote yourself, per root `AGENTS.md`.
+- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`. Let it: it needs a clean tree and
+  one commit per fix, so that it can `git revert HEAD` a fix that made things worse. Reword
+  those subjects to root `AGENTS.md` before anything is pushed.
+
+On a colleague's PR none of them commits anything: `qa-only` reports, and a doc pass keeps
+no edits.
 
 ## Which skill to reach for
 
 These three skills are rails and repo conventions. **The heavy lifting is delegated** — do
-not reimplement what an installed skill already does.
+not reimplement what an installed skill already does. `vendored` means a copy under
+`.claude/skills/`; `.claude/skills/VENDORED.md` says where each came from and what was
+changed.
 
 | Need | Skill | Source |
 |---|---|---|
-| Explore an idea before building | `superpowers:brainstorming` | superpowers |
-| Turn an approved design into a plan | `superpowers:writing-plans` | superpowers |
-| Drive a written plan to done, step by step | `superpowers:executing-plans` | superpowers |
-| Write code | `superpowers:test-driven-development` | superpowers |
-| Self-review a branch before opening the PR | `superpowers:requesting-code-review` | superpowers |
-| Prove a change did not cost runtime | `benchmark` | gstack |
-| Chase a bug's root cause | `superpowers:systematic-debugging`, `investigate` | superpowers, gstack |
-| Prove it works before claiming done | `superpowers:verification-before-completion` | superpowers |
+| Push a feature's scope beyond what anyone asked for | `plan-ceo-review`, SELECTIVE EXPANSION mode | gstack |
+| Pin down requirements before building | `grilling` together with `domain-modeling` | vendored |
+| Turn the agreed requirements into a spec | `to-spec` | vendored |
+| Review a plan that changes a contract | `plan-eng-review` | gstack |
+| Split a spec too big for one session | `to-tickets` | vendored |
+| Chase a bug or an unknown cause | `diagnosing-bugs` | vendored |
+| Write code | `tdd` | vendored |
+| Decide the shape of a module's interface | `codebase-design` | vendored |
+| Check a diff against the repo rules and the spec | `two-axis-review` | vendored |
 | Find bugs in a diff | `/code-review` | built-in |
-| Simplify and refactor a diff | `simplify` | built-in |
+| A second opinion from a different model | `codex` | gstack |
 | Click through a UI | `qa` (own branch, fixes) / `qa-only` (report only) | gstack |
+| Prove a change did not cost runtime | `benchmark` | gstack |
+| Sync the docs to what a branch actually shipped | `document-release` | gstack |
+| Write a doc page that does not exist yet | `document-generate` | gstack |
+| Auth, secrets or untrusted input touched | `security-review` | built-in |
 | Check UI against web standards and accessibility | `web-design-guidelines` | plugin |
 | Build a UI | `frontend-design`, `vercel:nextjs`, `vercel:react-best-practices` | plugin |
-| Auth, secrets or untrusted input touched | `security-review` | built-in |
 | Literature review, citations, scholarly writing | `academic-researcher`, `deep-research` | global |
 | Check a manuscript's argument holds | `scientific-clarity-checker` | global |
 | Polish a manuscript before submission | `manuscript-writing-review`, `no-ai-slop`, `editor` | global |
 | Verify a factual claim | `fact-checker` | global |
-| Sync the docs to what a branch actually shipped | `document-release` | gstack |
-| Write a doc page that does not exist yet | `document-generate` | gstack |
 | Charts and figures | `dataviz` | plugin |
 | Diagrams, and redrawing one the code outgrew | `diagram` | gstack |
 | Build a PDF from markdown | `make-pdf` | gstack |
@@ -123,9 +174,9 @@ not reimplement what an installed skill already does.
 **If a listed skill is not installed, say so out loud and continue by hand.** Never skip the
 step silently, and never pretend a delegated pass ran.
 
-**Do not confuse three similar names:** `review` (gstack, generic pre-landing review),
-`/code-review` (built-in, finds bugs in a diff) and `bokeh-review` (this repo's full
-pre-merge flow, which calls the other two).
+**Do not confuse four similar names:** `review` (gstack, generic pre-landing review, not
+used here), `/code-review` (built-in, finds bugs), `two-axis-review` (vendored, rules and
+spec) and `bokeh-review` (this repo's full pre-merge flow, which calls the middle two).
 
 ### When the table has no row for what you are facing
 
@@ -144,11 +195,24 @@ is worse than no ceremony.
 
 ### Considered and deliberately not wired in
 
-Recorded so nobody re-litigates it: `spec` (gstack) duplicates
-`brainstorming` + `writing-plans`, which are already the rails;
-`superpowers:finishing-a-development-branch` decides how to integrate a branch, which root
-`AGENTS.md` already settles (pull request, squash merge, a human merges);
-`data-analyst` is SQL and pandas, and this project has neither.
+Recorded so nobody re-litigates it:
+
+- **superpowers** — dropped on 2026-09-26 and disabled in `.claude/settings.json`. It covers
+  the same stages as the vendored skills, at more length, and its session hook forces a skill
+  before every reply, questions included.
+- **gstack `ship`** — bumps `VERSION`, writes a `CHANGELOG`, titles the PR `v<version>
+  type: …`, adds an AI co-author trailer and pushes unasked. Root `AGENTS.md` forbids all
+  four. `bokeh-task` opens the PR instead.
+- **gstack `land-and-deploy`, `canary`** — there is no deploy target, and merging is the
+  user's.
+- **gstack `autoplan`, `spec`** — scope comes from meetings and from the user, not from an
+  auto-decided chain of reviews; `to-spec` already writes the spec.
+- **Pocock `implement`, `grill-with-docs`, `grill-me`** — thin wrappers the model may not call.
+  `bokeh-task` calls what they wrap: `grilling`, `domain-modeling`, `tdd`, `two-axis-review`.
+- **Pocock `triage`, `wayfinder`** — built around an issue tracker this repo does not have.
+- **Graphify** — a code knowledge graph pays off on codebases ten times this size, and a
+  stale graph gives wrong answers the way stale docs did.
+- **`data-analyst`** — SQL and pandas, and this project has neither.
 
 ## Adding a skill to these rails
 

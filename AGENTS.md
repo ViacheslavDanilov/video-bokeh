@@ -123,8 +123,10 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 
 - `backend/src/video_bokeh/` — FastAPI runtime and dataset pipeline (run scripts from `backend/`)
 - `frontend/src/` — Next.js app
-- `docs/` — documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/` and `reference/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
+- `docs/` — documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/`, `reference/` and `adr/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
 - `scripts/` — repo-level setup scripts (`setup_third_party.sh`, etc.)
+- `CONTEXT.md` — the project glossary. Grilling adds a term to it once the term is settled
+- `.claude/skills/` — the agent lifecycle: `/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call. `docs/how-to/agent-lifecycle.md` shows how to drive it
 
 ## Working principles
 
