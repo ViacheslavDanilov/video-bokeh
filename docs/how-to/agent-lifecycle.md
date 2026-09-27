@@ -7,7 +7,7 @@ related: []
 
 # Drive a task from idea to merge with the agent
 
-Three slash commands cover the whole lifecycle. You answer questions, confirm the acceptance criteria, and merge — or hand a batch of pull requests over for the agent to merge. The agent picks which of the phases below a task needs and runs them.
+Three slash commands cover the whole lifecycle. You answer questions, confirm the acceptance criteria, and merge. You can also hand a batch over: tell the agent it may merge a set of pull requests you name, each under root `AGENTS.md` Git workflow rule 2. The agent picks which of the phases below a task needs and runs them.
 
 ## The three commands
 
