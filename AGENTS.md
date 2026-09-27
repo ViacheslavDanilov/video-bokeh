@@ -62,6 +62,7 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 - Pre-existing test failures belong in `Verified`, named as pre-existing, with the baseline they were compared against
 - Drop a section only when it would be empty. A docs-only change may have nothing under `Verified` beyond the pre-commit run
 - No screenshots of text, no checklists of process steps, no AI attribution (see "Authorship" above)
+- Assign every pull request to Viacheslav Danilov (`--assignee ViacheslavDanilov`) and label it by type: one label for each Conventional Commit type among its commits. `feat` is `enhancement`, `fix` is `bug`, `docs` is `documentation`, and `refactor`, `perf`, `test`, `ci`, `build` and `chore` carry their own names. `duplicate`, `invalid` and `wontfix` are for a pull request closed without merging
 
 ## Git workflow
 
