@@ -22,6 +22,10 @@ first** for the language policy, the skill table and the authorship trap.
 hand, or by a colleague gets the same review. Run it in a session that did not write the
 code: an author reads what they meant, a reviewer reads what is there.
 
+**Review in a worktree of your own, at the PR head.** Step 4 sets it up. The checkout the
+user or another session works in never switches branch, and every lens sees exactly what
+GitHub would merge.
+
 **The review is yours; passes are delegated.** Do not hand the verdict to a subagent. Named
 skills that spawn their own subagents — `two-axis-review`, `/code-review` — are the point.
 
@@ -110,7 +114,25 @@ Those are the acceptance criteria for everything after. Load them before deep di
 a comment-only or trivial pass, a one-line reminder is enough. A PR whose intent cannot be
 reconstructed from any of the three is itself a remark.
 
-## 4. Load the scope
+## 4. Load the scope, in a worktree at the PR head
+
+Every later step — the lenses, the QA pass, the fix loop — runs in a worktree at the pull
+request's head, not in the checkout you were started in.
+
+1. `git fetch origin`. From here on the PR's base is `origin/main`.
+2. `git worktree list`. If the PR's branch is already checked out anywhere, which usually
+   means another session is on it, **stop and ask the user.** Never work around it.
+3. Create the worktree in a fresh temporary directory, and keep its path for step 14:
+   - the user's own PR: `git worktree add "$WT" <branch>`, then
+     `git -C "$WT" merge --ff-only origin/<branch>`, so the fix loop commits onto the pushed
+     head. If the fast-forward fails, the local branch has diverged: stop and ask;
+   - a colleague's PR: `git fetch origin pull/<n>/head`, then
+     `git worktree add --detach "$WT" FETCH_HEAD`. Nothing is committed there.
+4. In the worktree, run `uv sync --all-extras --dev` before `ty` or pytest, so a missing
+   `fastapi` or `torch` is not taken for a regression. When the PR touches `frontend/`, also
+   run `pnpm install --frozen-lockfile` in `frontend/`.
+5. Run everything after this from `$WT`. `two-axis-review`, `/code-review`,
+   `document-release` and `qa` then see the PR head as `HEAD`.
 
 Always: head SHA, title, author, existing threads, and which of them are already addressed.
 Then per depth: comments only / delta diff and files / full diff at HEAD.
@@ -337,7 +359,11 @@ regeneration step — append it to the meeting note the PR came from, or write
 
 ## 14. Hand off
 
-Reply in Russian: the verdict (ready to merge or not), the event submitted, the must-fix
+Remove the worktree from step 4: `git worktree remove "$WT"`, run from the checkout you were
+started in. If it refuses because of uncommitted changes, report them rather than force the
+removal.
+
+Then reply in Russian: the verdict (ready to merge or not), the event submitted, the must-fix
 count, every fix committed and pushed, whether the notation gate passed, whether QA ran and
 what it printed, and where you recorded the outcome. **Do not merge** unless the user handed
 this pull request over, and then only once it is ready to merge (root `AGENTS.md` rule 2).
