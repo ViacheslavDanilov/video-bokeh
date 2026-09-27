@@ -83,11 +83,11 @@ The hexagons are yours. Everything else runs without you. Routes that build noth
 
 ## A worked example
 
-Say you want the demo to export a scene as EXR, and no meeting asked for it.
+Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 
 **Session 1**
 
-1. Type `/bokeh-task add EXR export to the scene viewer`.
+1. Type `/bokeh-task add EXR export to the sequence viewer`.
 2. The agent states the route in one line: feature, no meeting behind it. Correct it if it is wrong.
 3. It offers a CEO review, because nobody scoped this yet. Say yes, and it lists what would make the feature noticeably stronger, kept apart from what you asked for. Pick the ones worth taking. Anything that changes what the dataset contains or what the paper claims comes back as a draft email to Pablo and Valery, not as code.
 4. Grilling starts. Each round is a short numbered list of questions, every one with the agent's recommended answer. Reply with the numbers you disagree with. New terms land in `CONTEXT.md` as they are settled.

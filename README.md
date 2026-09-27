@@ -59,7 +59,7 @@ make web      # terminal 2: the page on :3000
 Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://localhost:8000/docs](http://localhost:8000/docs) (API docs).
 `make` alone lists every target, including `make check` and `make smoke`.
 
-The page sets the scene parameters, generates, and compares the streams side by side. It
+The page sets the sequence parameters, generates, and compares the streams side by side. It
 needs an artifact library behind it: `make api` serves `backend/data/library_dev` from the
 main checkout, and `make api LIBRARY=<path>` serves another. Building one with Stage A is in
 [backend/README.md](backend/README.md), the page is in
@@ -74,8 +74,8 @@ docker compose up api
 ```
 
 The containers are `video-bokeh-api` and `video-bokeh-web`. `api` mounts the library read-only
-at `/data/library` and writes scenes to `/data/scenes`; both come from
-`VIDEO_BOKEH_DATA_ROOT`, which defaults to `backend/data`. Generating a scene in the container
+at `/data/library` and writes sequences to `/data/sequences`; both come from
+`VIDEO_BOKEH_DATA_ROOT`, which defaults to `backend/data`. Generating a sequence in the container
 costs roughly half again what it costs natively — the numbers are in
 [docs/reference/api.md](docs/reference/api.md).
 

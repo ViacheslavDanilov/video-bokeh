@@ -90,9 +90,9 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 - Paint order is recomputed per frame, so a pair that swaps depth also swaps which one
   occludes the other. Expect to see it at three objects.
 
-Measured on this library, 12 scenes per count at 40 frames and size 256:
+Measured on this library, 12 sequences per count at 40 frames and size 256:
 
-| objects | slot width | skipped | mean rejections | sec/scene |
+| objects | slot width | skipped | mean rejections | sec/sequence |
 |---|---|---|---|---|
 | 1 | 0.950 | 0 | 0.00 | 0.08 |
 | 2 | 0.465 | 0 | 0.25 | 0.22 |

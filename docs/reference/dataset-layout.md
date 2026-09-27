@@ -104,10 +104,10 @@ There is no format ceiling any more. A multi-page TIFF takes as many masks as it
 `--n-objects-max` defaults to **5**.
 
 The limit is now the depth axis. Objects get disjoint slots above the background, so each
-extra object makes every slot narrower and collisions harder to avoid. Measured over 12 scenes
+extra object makes every slot narrower and collisions harder to avoid. Measured over 12 sequences
 of 40 frames:
 
-| objects | slot width | skipped | mean rejections | sec/scene |
+| objects | slot width | skipped | mean rejections | sec/sequence |
 |---|---|---|---|---|
 | 3 | 0.303 | 0 | 0.42 | 0.31 |
 | 4 | 0.222 | 0 | 0.83 | 0.45 |

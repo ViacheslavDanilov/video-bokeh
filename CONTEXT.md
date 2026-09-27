@@ -40,14 +40,20 @@ _Avoid_: core mask, valid region
 
 ## Sequences
 
+**Scene**:
+The sampled setup a sequence is rendered from: its background, its objects with their
+trajectories, the frame count and the size — everything the seed decides before a frame is
+drawn.
+_Avoid_: layout, plan
+
 **Sequence**:
-One generated clip — a background and its objects moving through every frame — rendered as
-streams and fully determined by its seed and the library.
-_Avoid_: scene, clip, video
+One generated clip: a scene rendered frame by frame into streams, fully determined by its
+seed and the library.
+_Avoid_: clip, video
 
 **Frame**:
 One time step of a sequence, across all of its streams.
-_Avoid_: scene, image
+_Avoid_: image
 
 **Object**:
 A foreground placed in a sequence, with its own trajectory and alpha mask.
