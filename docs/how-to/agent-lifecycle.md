@@ -47,7 +47,7 @@ flowchart TD
         DIAG --> TDD["tdd"]
         TDD --> VERIFY["Tests, lint, types,<br/>commit"]
         VERIFY --> SELF["two-axis-review<br/>fresh-context self-check"]
-        SELF --> PUSH["make check, push,<br/>open the pull request"]
+        SELF --> PUSH["Local checks, push,<br/>open the pull request"]
     end
 
     PUSH --> CI["CI: pre-commit, tests, frontend build,<br/>browser smoke, Docker"]
@@ -61,7 +61,7 @@ flowchart TD
         QA --> LEFT{"Must-fix left?"}
         LEFT -->|"yes, up to 3 rounds"| FIX["Fix and commit"]
         FIX --> LENSES
-        LEFT -->|"no"| PUSHFIX["make check,<br/>push the fixes"]
+        LEFT -->|"no"| PUSHFIX["Local checks,<br/>push the fixes"]
         PUSHFIX --> PUBLISH["Review on GitHub"]
     end
 
@@ -94,7 +94,7 @@ Say you want the demo to export a scene as EXR, and no meeting asked for it.
 5. The agent restates the goal and the acceptance criteria as a checklist. **This is the checkpoint that matters most**: a wrong criterion here costs a rebuilt feature later. Say yes, or fix the list.
 6. It writes the spec to `docs/specs/` and confirms where the tests will sit. Then it branches and builds test-first.
 7. A fresh-context self-check compares the diff against the repo rules and the spec, and the agent fixes what it finds.
-8. It runs `make check`, pushes the branch and opens the pull request, without asking.
+8. It runs the checks that the **Pushing** section of `.claude/skills/shared/bokeh-conventions.md` asks for before a push. For a frontend change like this one, they include the browser smoke test. Then it pushes the branch and opens the pull request, without asking.
 9. It ends by naming the next step: a new session, `/bokeh-review` with the PR number.
 
 **Session 2**
@@ -102,7 +102,7 @@ Say you want the demo to export a scene as EXR, and no meeting asked for it.
 1. Open a new session and type `/bokeh-review 15`.
 2. The agent reads the spec behind the branch, then the diff through each review lens.
 3. It runs the page in a browser and syncs any documentation the change made stale.
-4. On your own branch it fixes what it found, at most three rounds, runs `make check` and pushes the fixes.
+4. On your own branch it fixes what it found, at most three rounds. It runs the same checks, then pushes the fixes.
 5. It publishes one review on GitHub and tells you whether the PR is ready to merge.
 6. You merge — or the agent does, when you have handed this batch of pull requests over.
 
