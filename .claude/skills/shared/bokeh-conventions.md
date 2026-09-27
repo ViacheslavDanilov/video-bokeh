@@ -132,9 +132,21 @@ trip that a local run does not.
   `Co-Authored-By: Claude` trailer, runs a bare `git push`, and adds a section to the PR body
   with `gh pr edit`. It edits the body even when the run changed no file. Never run that
   step. Commit what they wrote yourself, per root `AGENTS.md`.
-- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`. Let it: it needs a clean tree and
-  one commit per fix, so that it can `git revert HEAD` a fix that made things worse. Reword
-  those subjects to root `AGENTS.md` before anything is pushed.
+- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`, its tests as `test(qa): …`, and
+  a fix it takes back as `Revert "…"`. Let it: it needs a clean tree and one commit per fix,
+  so that it can `git revert HEAD` a fix that made things worse. Before the push, bring each
+  of those subjects to root `AGENTS.md` notation; a revert becomes `fix:` too.
+  `git rebase -i` needs an editor this harness cannot drive, so do it non-interactively.
+  Write one line per commit to reword — its current subject, a tab, the new subject — then
+  replay only the commits after the pushed head:
+
+  ```bash
+  export REWORDS=/tmp/rewords.tsv
+  git rebase origin/<branch> --exec 'old=$(git log -1 --format=%s); new=$(awk -F"\t" -v s="$old" "\$1 == s { print \$2 }" "$REWORDS"); if [ -n "$new" ]; then git commit -q --amend -m "$new" -m "$(git log -1 --format=%b)"; fi'
+  ```
+
+  Commits already pushed are not replayed, so no force-push is needed, and each body stays
+  as it was.
 
 On a colleague's PR none of them commits anything: `qa-only` reports, and a doc pass keeps
 no edits.
