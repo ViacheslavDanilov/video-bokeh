@@ -2,16 +2,16 @@ import { expect, test } from "@playwright/test";
 
 /**
  * One path through the page, against the real API and a tiny real library: the library
- * loads, a scene generates, and every stream the server lists reaches the browser as
+ * loads, a sequence generates, and every stream the server lists reaches the browser as
  * video it can decode. This proves the wiring, not how the frames look.
  */
-test("generates a scene and decodes every stream", async ({ page }) => {
+test("generates a sequence and decodes every stream", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
 
-  await page.getByRole("button", { name: "Generate scene" }).click();
+  await page.getByRole("button", { name: "Generate sequence" }).click();
 
-  // all_in_focus, alpha and disparity: one pane per stream the scene has.
+  // all_in_focus, alpha and disparity: one pane per stream the sequence has.
   const videos = page.locator("video");
   await expect(videos).toHaveCount(3, { timeout: 60_000 });
 
@@ -28,7 +28,7 @@ test("generates a scene and decodes every stream", async ({ page }) => {
     )
     .toBeGreaterThanOrEqual(2);
 
-  // The library holds two foregrounds, so the scene places both, and the mask legend
+  // The library holds two foregrounds, so the sequence places both, and the mask legend
   // names each of them.
   await expect(page.getByText(/^Object \d+$/)).toHaveCount(2);
   // Scoped to <main>: Next.js adds an empty route announcer with the same role.

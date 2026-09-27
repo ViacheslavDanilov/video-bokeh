@@ -1,6 +1,6 @@
 "use client";
 
-import type { SceneParams } from "@/lib/api";
+import type { SequenceParams } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,14 +50,16 @@ export function Controls({
   busy,
   disabled,
 }: {
-  params: SceneParams;
-  onChange: (next: SceneParams) => void;
+  params: SequenceParams;
+  onChange: (next: SequenceParams) => void;
   onGenerate: () => void;
   busy: boolean;
   disabled: boolean;
 }) {
-  const set = <K extends keyof SceneParams>(key: K, value: SceneParams[K]) =>
-    onChange({ ...params, [key]: value });
+  const set = <K extends keyof SequenceParams>(
+    key: K,
+    value: SequenceParams[K],
+  ) => onChange({ ...params, [key]: value });
 
   return (
     <form
@@ -149,13 +151,13 @@ export function Controls({
           />
         </div>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          The seed picks a count in this range. Past five, scenes get harder to
-          place without overlap and some seeds are refused.
+          The seed picks a count in this range. Past five, the objects get
+          harder to place without overlap and some seeds are refused.
         </p>
       </div>
 
       <Button type="submit" disabled={busy || disabled}>
-        {busy ? "Generating" : "Generate scene"}
+        {busy ? "Generating" : "Generate sequence"}
       </Button>
     </form>
   );

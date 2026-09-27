@@ -1,6 +1,6 @@
 # Video Bokeh Frontend
 
-The scene browser: set the parameters, generate a scene from the mounted asset library, and
+The sequence browser: set the parameters, generate a sequence from the mounted asset library, and
 compare its streams side by side.
 
 Next.js 16, React 19, Tailwind 4, shadcn/ui on Radix primitives. **pnpm only** — never npm or
@@ -31,10 +31,10 @@ without rebuilding.
 
 ## What the page does
 
-- **Parameters** — seed, frames, size, and the range of objects a scene may contain. The seed
-  picks a count in that range, so the same five numbers always name the same scene.
+- **Parameters** — seed, frames, size, and the range of objects a sequence may contain. The seed
+  picks a count in that range, so the same five numbers always name the same sequence.
 - **Generate** — one call, and it blocks while it works: about 7 seconds for 80 frames at 512
-  px. Asking twice for the same scene returns it in milliseconds, because the scene id is a
+  px. Asking twice for the same sequence returns it in milliseconds, because the sequence id is a
   hash and the directory on disk is the cache.
 - **Compare** — up to three panes, each showing any stream, all driven by one transport so
   the frames line up. Disparity can be shown in Spectral or grey.
@@ -47,7 +47,7 @@ Bokeh is not here. It runs on a GPU in its own container, which does not exist y
 else under `src/components/` is ours. `src/lib/api.ts` is the only file that knows the API
 exists.
 
-Which streams a scene has comes from the server, not from constants in the components, so a
+Which streams a sequence has comes from the server, not from constants in the components, so a
 stream added to the API shows up here on its own.
 
 `AGENTS.md` in this directory has the rest: pnpm pinning, the build-script allowlist, and why

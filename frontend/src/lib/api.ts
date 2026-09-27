@@ -1,5 +1,5 @@
 /**
- * Client for the scene API.
+ * Client for the sequence API.
  *
  * Everything the interface knows about streams comes from the server's manifest
  * rather than from constants here, so a stream added later — bokeh, once the render
@@ -24,7 +24,7 @@ export type StreamInfo = {
   default: string | null;
 };
 
-export type Scene = {
+export type Sequence = {
   id: string;
   cached: boolean;
   seed: number;
@@ -37,7 +37,7 @@ export type Scene = {
   streams: Record<string, StreamInfo>;
 };
 
-export type SceneParams = {
+export type SequenceParams = {
   seed: number;
   frames: number;
   size: number;
@@ -94,13 +94,13 @@ export async function fetchLibrary(signal?: AbortSignal): Promise<LibraryInfo> {
   return response.json();
 }
 
-export async function createScene(
-  params: SceneParams,
+export async function createSequence(
+  params: SequenceParams,
   signal?: AbortSignal,
-): Promise<Scene> {
+): Promise<Sequence> {
   let response: Response;
   try {
-    response = await fetch(`${BASE}/scenes`, {
+    response = await fetch(`${BASE}/sequences`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(params),

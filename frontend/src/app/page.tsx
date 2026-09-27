@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { Controls } from "@/components/controls";
 import { Viewer } from "@/components/viewer";
-import type { LibraryInfo, Scene, SceneParams } from "@/lib/api";
-import { ApiError, createScene, fetchLibrary } from "@/lib/api";
+import type { LibraryInfo, Sequence, SequenceParams } from "@/lib/api";
+import { ApiError, createSequence, fetchLibrary } from "@/lib/api";
 
-const DEFAULTS: SceneParams = {
+const DEFAULTS: SequenceParams = {
   seed: 0,
   frames: 80,
   size: 512,
@@ -16,8 +16,8 @@ const DEFAULTS: SceneParams = {
 
 export default function Page() {
   const [library, setLibrary] = useState<LibraryInfo | null>(null);
-  const [params, setParams] = useState<SceneParams>(DEFAULTS);
-  const [scene, setScene] = useState<Scene | null>(null);
+  const [params, setParams] = useState<SequenceParams>(DEFAULTS);
+  const [sequence, setSequence] = useState<Sequence | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +37,7 @@ export default function Page() {
     setBusy(true);
     setError(null);
     try {
-      setScene(await createScene(params));
+      setSequence(await createSequence(params));
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : String(cause));
     } finally {
@@ -89,7 +89,7 @@ export default function Page() {
               {error}
             </p>
           )}
-          <Viewer scene={scene} generating={busy} />
+          <Viewer sequence={sequence} generating={busy} />
         </section>
       </main>
 

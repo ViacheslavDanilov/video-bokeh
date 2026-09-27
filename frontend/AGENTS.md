@@ -69,7 +69,7 @@ Check it by reading a variable rather than guessing — `getComputedStyle(docume
 variable it is read at build time, so a container built for one address cannot be pointed at
 another without rebuilding.
 
-**Which streams a scene has, and which of them take a colormap, come from the server's
+**Which streams a sequence has, and which of them take a colormap, come from the server's
 manifest.** Do not hardcode stream names in components — a stream added to the API appears in
 the interface on its own, and that is the point.
 
@@ -84,4 +84,4 @@ the interface on its own, and that is the point.
 
 For any UI change, run `pnpm dev`, open the page in a browser, and exercise the feature path. Type-check and lint do not verify visual behavior. If you cannot test the UI in a browser, say so — don't claim success.
 
-`pnpm e2e` drives the main path for you: it starts the API against a tiny fixture library and a dev server on ports 8765 and 3765, then checks in Chromium that the library loads, a scene generates and every stream decodes. It needs the backend's `api` extra installed, and `pnpm exec playwright install chromium` once. It proves the wiring, not how the page looks — a visual change still needs your eyes.
+`pnpm e2e` drives the main path for you: it starts the API against a tiny fixture library and a dev server on ports 8765 and 3765, then checks in Chromium that the library loads, a sequence generates and every stream decodes. It needs the backend's `api` extra installed, and `pnpm exec playwright install chromium` once. It proves the wiring, not how the page looks — a visual change still needs your eyes.
