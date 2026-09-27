@@ -114,7 +114,7 @@ This project has no ticket tracker. The equivalent is the decision that motivate
    `type/` prefix, and it matches any of:
    - a spec, `docs/specs/<date>-<branch-slug>-design.md`;
    - one ticket, `NN-<branch-slug>.md` in any folder under `docs/plans/`, which
-     `ls docs/plans/*/*-<branch-slug>.md` finds;
+     `ls docs/plans/*/[0-9][0-9]-<branch-slug>.md` finds;
    - a folder of tickets, `docs/plans/<date>-<branch-slug>/`.
 
    Specs, tickets and meeting notes are gitignored, so they exist only in the checkout you
