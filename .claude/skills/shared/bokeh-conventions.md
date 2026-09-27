@@ -121,6 +121,11 @@ ready to merge. Force-pushing a feature branch and amending a pushed commit stil
 explicit go-ahead. Root `AGENTS.md` rule 2 is the source, and nothing enforces it
 mechanically.
 
+**Before any push, run `make check`, plus `make smoke` when the change touches the
+frontend.** That holds for the push that opens a pull request and for the pushes at the end
+of `bokeh-review`'s fix loop alike. CI runs the same checks, but a red CI run costs a round
+trip that a local run does not.
+
 **Delegated skills bring their own git habits, and none of them apply here.**
 
 - gstack `document-release` and `document-generate` end with a step that commits with a
