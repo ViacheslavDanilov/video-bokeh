@@ -106,8 +106,15 @@ other paths are not checked, so a missing one is a finding: fix the list before 
 
 This project has no ticket tracker. The equivalent is the decision that motivated the PR:
 
-1. A spec at `docs/specs/<date>-<branch-slug>-design.md`, and tickets under
-   `docs/plans/<date>-<branch-slug>/`.
+1. A spec or a ticket named after the branch. `<branch-slug>` is the branch name without its
+   `type/` prefix, and it matches any of:
+   - a spec, `docs/specs/<date>-<branch-slug>-design.md`;
+   - one ticket, `NN-<branch-slug>.md` in any folder under `docs/plans/`, which
+     `ls docs/plans/*/*-<branch-slug>.md` finds;
+   - a folder of tickets, `docs/plans/<date>-<branch-slug>/`.
+
+   These files are gitignored, so they exist only in the checkout you were started in, not
+   in the worktree from step 4. Read them there.
 2. The newest note in `docs/meetings/` matching the topic — its **Decisions** and
    **Action items**.
 3. The PR body's `## Why`, when neither exists. A PR with no task behind it is normal.
