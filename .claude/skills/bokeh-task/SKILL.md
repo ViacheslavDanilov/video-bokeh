@@ -99,7 +99,9 @@ A request has no acceptance criteria. **You derive them and get them confirmed.*
 Invoke `grilling` together with `domain-modeling`. `grilling` asks in rounds, every question
 numbered with a recommended answer, and looks facts up itself instead of asking for them.
 `domain-modeling` records settled terms in `CONTEXT.md` as they land, and offers an ADR only
-for a decision that is hard to reverse.
+for a decision that is hard to reverse. On the investigate route it writes nothing: that
+route ends without a branch, so a glossary edit or an ADR would have nowhere to land.
+Proposed terms and decisions go into the written finding instead.
 
 Scale it. When the meeting note already settles every question, skip the grilling and say
 so. A one-line bug gets none.
