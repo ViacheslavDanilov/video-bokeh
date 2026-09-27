@@ -281,7 +281,8 @@ aborts, and piping the command through `tail` or `&&` hides that.
 Run the checks that **Pushing** in the conventions file asks for before any push. Then push
 and open the pull request without asking, per root `AGENTS.md` rule 2:
 `gh pr create` with a title that is a short imperative phrase, no `type:` prefix, ≈65
-characters, and the `## What` / `## Why` / `## Verified` body from `AGENTS.md`.
+characters, the `## What` / `## Why` / `## Verified` body from `AGENTS.md`, and the assignee
+and labels its **Pull requests** section asks for.
 `Verified` carries measured numbers only, and names pre-existing failures as pre-existing.
 A judgement call left from step 9 goes in the body as a named follow-up.
 
