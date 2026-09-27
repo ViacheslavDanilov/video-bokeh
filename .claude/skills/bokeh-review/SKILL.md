@@ -73,8 +73,14 @@ Prefer `git diff <baseline>..<head>` locally over `gh pr diff`, which is always 
   - `backend/src/video_bokeh/library/build.py`
   - `backend/src/video_bokeh/bridge/any_to_bokeh.py`
   - `docs/reference/dataset-layout.md`
-- the API the frontend consumes:
+- the API the frontend consumes, both ends of it:
   - `backend/src/video_bokeh/api/main.py`
+  - `backend/src/video_bokeh/api/_scenes.py`
+  - `backend/src/video_bokeh/api/_library.py`
+  - `backend/src/video_bokeh/preview/pack.py`
+  - `backend/src/video_bokeh/preview/_masks.py`
+  - `backend/src/video_bokeh/preview/_colormap.py`
+  - `frontend/src/lib/api.ts`
   - `docs/reference/api.md`
 - the build, CI and agent configuration:
   - `.github/workflows/`
