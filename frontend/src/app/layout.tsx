@@ -10,7 +10,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Video Bokeh",
   description:
-    "Generate a synthetic scene from the mounted asset library and compare its streams.",
+    "Generate a synthetic sequence from the mounted asset library and compare its streams.",
 };
 
 export default function RootLayout({

@@ -5,19 +5,19 @@ from pathlib import Path
 
 import pytest
 
-from video_bokeh.api._scenes import SceneRequest, ensure_scene, scene_id
+from video_bokeh.api._sequences import SequenceRequest, ensure_sequence, sequence_id
 
-BASE = SceneRequest(seed=0, frames=3, size=64, n_objects_min=1, n_objects_max=2)
+BASE = SequenceRequest(seed=0, frames=3, size=64, n_objects_min=1, n_objects_max=2)
 
 
 def test_id_is_short_enough_to_put_in_a_path() -> None:
-    sid = scene_id("libaaa", BASE)
+    sid = sequence_id("libaaa", BASE)
     assert len(sid) == 16
     assert all(c in "0123456789abcdef" for c in sid)
 
 
-def test_same_request_is_the_same_scene() -> None:
-    assert scene_id("libaaa", BASE) == scene_id("libaaa", BASE)
+def test_same_request_is_the_same_sequence() -> None:
+    assert sequence_id("libaaa", BASE) == sequence_id("libaaa", BASE)
 
 
 @pytest.mark.parametrize(
@@ -31,39 +31,39 @@ def test_same_request_is_the_same_scene() -> None:
     ],
 )
 def test_every_parameter_changes_the_id(field: str, value: int) -> None:
-    assert scene_id("libaaa", replace(BASE, **{field: value})) != scene_id(
+    assert sequence_id("libaaa", replace(BASE, **{field: value})) != sequence_id(
         "libaaa",
         BASE,
     )
 
 
-def test_a_different_library_is_a_different_scene() -> None:
-    """The whole point of decision 9: the same seed against new assets is a new scene."""
-    assert scene_id("libaaa", BASE) != scene_id("libbbb", BASE)
+def test_a_different_library_is_a_different_sequence() -> None:
+    """The whole point of decision 9: the same seed against new assets is a new sequence."""
+    assert sequence_id("libaaa", BASE) != sequence_id("libbbb", BASE)
 
 
 def test_writes_the_three_streams(library: Path, tmp_path: Path) -> None:
-    scenes = tmp_path / "scenes"
-    result = ensure_scene(library, "libaaa", scenes, BASE)
+    sequences = tmp_path / "sequences"
+    result = ensure_sequence(library, "libaaa", sequences, BASE)
 
     assert result.cached is False
-    assert result.path == scenes / result.id
+    assert result.path == sequences / result.id
     for stream in ("all_in_focus", "alpha", "disparity"):
         frames = sorted((result.path / stream).iterdir())
         assert len(frames) == BASE.frames, stream
 
 
 def test_reports_how_many_objects_it_placed(library: Path, tmp_path: Path) -> None:
-    result = ensure_scene(library, "libaaa", tmp_path / "scenes", BASE)
+    result = ensure_sequence(library, "libaaa", tmp_path / "sequences", BASE)
     assert BASE.n_objects_min <= result.n_objects <= BASE.n_objects_max
 
 
 def test_second_request_is_served_from_disk(library: Path, tmp_path: Path) -> None:
-    scenes = tmp_path / "scenes"
-    first = ensure_scene(library, "libaaa", scenes, BASE)
+    sequences = tmp_path / "sequences"
+    first = ensure_sequence(library, "libaaa", sequences, BASE)
     stamp = (first.path / "all_in_focus").stat().st_mtime_ns
 
-    second = ensure_scene(library, "libaaa", scenes, BASE)
+    second = ensure_sequence(library, "libaaa", sequences, BASE)
 
     assert second.cached is True
     assert second.id == first.id
@@ -71,17 +71,20 @@ def test_second_request_is_served_from_disk(library: Path, tmp_path: Path) -> No
 
 
 def test_leaves_no_temporary_directories_behind(library: Path, tmp_path: Path) -> None:
-    scenes = tmp_path / "scenes"
-    ensure_scene(library, "libaaa", scenes, BASE)
-    assert [p.name for p in scenes.iterdir() if p.name.startswith(".tmp-")] == []
+    sequences = tmp_path / "sequences"
+    ensure_sequence(library, "libaaa", sequences, BASE)
+    assert [p.name for p in sequences.iterdir() if p.name.startswith(".tmp-")] == []
 
 
-def test_a_half_written_scene_is_never_visible(library: Path, tmp_path: Path) -> None:
+def test_a_half_written_sequence_is_never_visible(
+    library: Path,
+    tmp_path: Path,
+) -> None:
     """A crash during generation must not leave a directory that later looks cached."""
-    scenes = tmp_path / "scenes"
+    sequences = tmp_path / "sequences"
     with pytest.raises(RuntimeError, match="boom"):
-        ensure_scene(library, "libaaa", scenes, BASE, _render=_explode)
-    assert list(scenes.iterdir()) == []
+        ensure_sequence(library, "libaaa", sequences, BASE, _render=_explode)
+    assert list(sequences.iterdir()) == []
 
 
 def _explode(*args: object, **kwargs: object) -> None:
@@ -92,14 +95,14 @@ def test_matches_what_the_cli_writes_for_the_same_seed(
     library: Path,
     tmp_path: Path,
 ) -> None:
-    """The API and video_bokeh.scenes.generate must not drift into different scenes.
+    """The API and video_bokeh.scenes.generate must not drift into different sequences.
 
     They share sample_n_objects for exactly this reason: a seed that means four
     objects on the command line has to mean four objects over HTTP.
     """
     from video_bokeh.scenes.generate import generate_dataset
 
-    api = ensure_scene(library, "libaaa", tmp_path / "scenes", BASE)
+    api = ensure_sequence(library, "libaaa", tmp_path / "sequences", BASE)
 
     cli_root = tmp_path / "cli"
     generate_dataset(

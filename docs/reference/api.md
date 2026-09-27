@@ -1,13 +1,13 @@
 ---
 type: reference
 status: active
-tags: [reference, api, http, scenes]
+tags: [reference, api, http, sequences]
 related: [cli, dataset-layout, generate-a-dataset]
 ---
 
 # HTTP API reference
 
-Four endpoints. They mount a library built by Stage A and generate Stage B scenes on demand.
+Four endpoints. They mount a library built by Stage A and generate Stage B sequences on demand.
 
 Bokeh rendering is not here. That runs on a GPU for minutes per sequence, so it gets its own
 container and its own asynchronous endpoints once that container exists.
@@ -74,9 +74,9 @@ Stage A oversizes them so the Stage B warp never samples past the edge.
 
 Answers 503 when there is no library at the configured path. The message names the path.
 
-## `POST /scenes`
+## `POST /sequences`
 
-Generates one scene and answers with its id.
+Generates one sequence and answers with its id.
 
 | Field | Default | Range |
 |---|---|---|
@@ -87,7 +87,7 @@ Generates one scene and answers with its id.
 | `n_objects_max` | `5` | 1 to 16, and not below `n_objects_min` |
 
 ```bash
-curl -X POST http://localhost:8000/scenes \
+curl -X POST http://localhost:8000/sequences \
   -H 'content-type: application/json' \
   -d '{"seed": 42, "frames": 80, "size": 512, "n_objects_min": 4, "n_objects_max": 5}'
 ```
@@ -102,17 +102,17 @@ curl -X POST http://localhost:8000/scenes \
   "n_objects": 4,
   "streams": {
     "all_in_focus": {
-      "url": "/scenes/f68bd7a7b87c8404/all_in_focus.mp4",
+      "url": "/sequences/f68bd7a7b87c8404/all_in_focus.mp4",
       "colormaps": [],
       "default": null
     },
     "alpha": {
-      "url": "/scenes/f68bd7a7b87c8404/alpha.mp4",
+      "url": "/sequences/f68bd7a7b87c8404/alpha.mp4",
       "colormaps": [],
       "default": null
     },
     "disparity": {
-      "url": "/scenes/f68bd7a7b87c8404/disparity.mp4",
+      "url": "/sequences/f68bd7a7b87c8404/disparity.mp4",
       "colormaps": ["grey", "spectral_r"],
       "default": "spectral_r"
     }
@@ -125,15 +125,15 @@ displayed, and `colormaps` is empty when the stream is already RGB. A client tha
 the manifest reports needs no change when a stream is added — `bokeh` will appear here once
 the render container exists.
 
-**The scene id is a hash of the five parameters and the library id.** Stage B is
-deterministic, so the same request always names the same scene. The cache is the directory
-`$VIDEO_BOKEH_DATA_ROOT/scenes/<id>/`, and there is no database.
+**The sequence id is a hash of the five parameters and the library id.** Stage B is
+deterministic, so the same request always names the same sequence. The cache is the directory
+`$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
 
-`cached` says whether this request generated the scene or found it. On a cache hit the call
+`cached` says whether this request generated the sequence or found it. On a cache hit the call
 returns in milliseconds.
 
 **The call blocks while it generates.** Measured against `data/library_dev` at size 512 with
-four to five objects per scene:
+four to five objects per sequence:
 
 | Where | 24 frames | 80 frames | cache hit |
 |---|---|---|---|
@@ -150,7 +150,7 @@ Anything driving this from a browser needs a spinner.
 Answers 422 when the parameters are out of range, when the object range is inverted, or when
 no collision-free scene could be sampled. Answers 503 when there is no library.
 
-## `GET /scenes/{id}/{stream}.mp4`
+## `GET /sequences/{id}/{stream}.mp4`
 
 Serves one stream as H.264. `stream` is `all_in_focus`, `alpha` or `disparity`.
 
@@ -165,7 +165,7 @@ nearer object hides. They are painted in page order, so where two overlap the hi
 number wins — that is identity order, not distance. The disparity pane beside it is where
 distance is read.
 
-`object_colors` in the scene response names the colour of each object, so a legend cannot
+`object_colors` in the sequence response names the colour of each object, so a legend cannot
 drift from what the video paints.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
@@ -178,14 +178,14 @@ writes) and `grey` are two renderings of one stream. Each is cached as its own f
 is dropped rather than forking that stream's cache into identical copies. An unknown name
 answers 422 and lists the ones that exist.
 
-Answers 404 for an unknown scene, an unknown stream, or an id that is not a 16-character hex
+Answers 404 for an unknown sequence, an unknown stream, or an id that is not a 16-character hex
 hash.
 
-## What a scene looks like on disk
+## What a sequence looks like on disk
 
 ```
-$VIDEO_BOKEH_DATA_ROOT/scenes/<id>/
-├── scene.json              the request, the library id and the object count
+$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
+├── sequence.json           the request, the library id and the object count
 ├── all_in_focus/           RGB uint8 PNG
 ├── alpha/                  multi-page uint8 TIFF, one page per object
 ├── disparity/              uint16 PNG
@@ -194,24 +194,24 @@ $VIDEO_BOKEH_DATA_ROOT/scenes/<id>/
 └── disparity.grey.mp4      written if grey is ever asked for
 ```
 
-The three stream directories are the layout in [[dataset-layout]], without the
-`sequences/<id>/` level around them — a scene is one sequence, not a dataset.
+The three stream directories are the layout in [[dataset-layout]], without the dataset's
+`sequences/<seq-id>/` level around them: the API serves one sequence, not a dataset.
 
-A scene appears atomically. Generation writes to a temporary directory beside the destination
-and renames it into place, so a scene on disk is either absent or complete, and a crashed or
+A sequence appears atomically. Generation writes to a temporary directory beside the destination
+and renames it into place, so a sequence on disk is either absent or complete, and a crashed or
 concurrent generation leaves nothing half-written behind.
 
 ## Limits
 
 Deliberate, and worth knowing before the library or the audience grows.
 
-**Nothing evicts `scenes/`.** It grows until someone deletes it. A scene of 80 frames at 512
+**Nothing evicts `sequences/`.** It grows until someone deletes it. A sequence of 80 frames at 512
 is about 44 MB, so a thousand of them is about 43 GB. Deleting the directory is safe: every
-scene is reproducible from its library and its seed, which is the same reason
+sequence is reproducible from its library and its seed, which is the same reason
 [[dataset-layout]] treats frames as disposable and the library as the thing to keep.
 
 **The library is re-read on every request.** Two directory listings, one small JSON and one
-image header, so that `/library` and `/scenes` always reflect what is mounted rather than what
+image header, so that `/library` and `/sequences` always reflect what is mounted rather than what
 was mounted at startup. Cheap against a library of tens. Against a library of thousands it is
 worth caching on the directory's modification time.
 

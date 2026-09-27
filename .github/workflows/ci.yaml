@@ -97,7 +97,7 @@ jobs:
       run: pnpm build
 
   # Lint and a build prove the page compiles, not that it works. This drives it in a
-  # browser against the real API and a tiny real library: the library loads, a scene
+  # browser against the real API and a tiny real library: the library loads, a sequence
   # generates, and every stream decodes.
   browser-smoke:
     runs-on: ubuntu-latest

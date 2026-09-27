@@ -1,6 +1,6 @@
 """Stage B must stay installable without a tensor library.
 
-The whole point of the extras split is that someone can generate scenes on a laptop.
+The whole point of the extras split is that someone can generate sequences on a laptop.
 This test fails the moment a torch-dependent import creeps into the base install.
 """
 

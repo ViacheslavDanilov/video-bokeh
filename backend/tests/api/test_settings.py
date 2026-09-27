@@ -14,13 +14,13 @@ def test_defaults_to_the_data_directory() -> None:
     settings = load_settings({})
     assert settings.data_root == Path("data")
     assert settings.library == Path("data/library")
-    assert settings.scenes == Path("data/scenes")
+    assert settings.sequences == Path("data/sequences")
 
 
-def test_data_root_moves_library_and_scenes_together() -> None:
+def test_data_root_moves_library_and_sequences_together() -> None:
     settings = load_settings({"VIDEO_BOKEH_DATA_ROOT": "/mnt/big"})
     assert settings.library == Path("/mnt/big/library")
-    assert settings.scenes == Path("/mnt/big/scenes")
+    assert settings.sequences == Path("/mnt/big/sequences")
 
 
 def test_library_can_be_named_independently() -> None:
@@ -32,7 +32,7 @@ def test_library_can_be_named_independently() -> None:
         },
     )
     assert settings.library == Path("/elsewhere/da2-large")
-    assert settings.scenes == Path("/mnt/big/scenes")
+    assert settings.sequences == Path("/mnt/big/sequences")
 
 
 def test_empty_variable_is_treated_as_unset() -> None:
@@ -48,14 +48,18 @@ def test_require_library_accepts_a_real_library(tmp_path: Path) -> None:
     settings = Settings(
         data_root=tmp_path,
         library=tmp_path,
-        scenes=tmp_path / "scenes",
+        sequences=tmp_path / "sequences",
     )
     assert require_library(settings) == tmp_path
 
 
 def test_require_library_names_the_path_it_could_not_use(tmp_path: Path) -> None:
     missing = tmp_path / "nothing-here"
-    settings = Settings(data_root=tmp_path, library=missing, scenes=tmp_path / "scenes")
+    settings = Settings(
+        data_root=tmp_path,
+        library=missing,
+        sequences=tmp_path / "sequences",
+    )
     with pytest.raises(LibraryUnavailableError) as excinfo:
         require_library(settings)
     assert str(missing) in str(excinfo.value)
@@ -69,7 +73,7 @@ def test_require_library_rejects_a_directory_that_is_not_a_library(
     settings = Settings(
         data_root=tmp_path,
         library=tmp_path,
-        scenes=tmp_path / "scenes",
+        sequences=tmp_path / "sequences",
     )
     with pytest.raises(LibraryUnavailableError) as excinfo:
         require_library(settings)

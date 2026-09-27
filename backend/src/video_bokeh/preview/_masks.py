@@ -1,6 +1,6 @@
 """Turn a frame's per-object alpha planes into one image a person can read.
 
-A scene's alpha stream is a multi-page TIFF with **one page per object, in a fixed
+A sequence's alpha stream is a multi-page TIFF with **one page per object, in a fixed
 order for the whole clip** — `scenes/_compositor.py` is explicit that the index is the
 object's identity and not its draw order, because paint order is recomputed every frame
 as objects move past each other in depth.
@@ -62,7 +62,7 @@ def render_object_masks(alphas: list[np.ndarray]) -> np.ndarray:
     than depth order.
     """
     if not alphas:
-        raise ValueError("no alpha pages: a scene frame always has at least one object")
+        raise ValueError("no alpha pages: a frame always has at least one object")
 
     height, width = alphas[0].shape
     out = np.zeros((height, width, 3), dtype=np.uint8)

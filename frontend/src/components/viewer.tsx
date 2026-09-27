@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { Scene } from "@/lib/api";
+import type { Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +46,7 @@ function label(name: string): string {
   return LABELS[name] ?? name.replaceAll("_", " ");
 }
 
-/** Open on everything the scene has, in the order the server lists it: the frame,
+/** Open on everything the sequence has, in the order the server lists it: the frame,
  *  who is in it, and how far away they are. */
 function initialPanes(streams: string[]): Pane[] {
   return streams
@@ -55,13 +55,13 @@ function initialPanes(streams: string[]): Pane[] {
 }
 
 export function Viewer({
-  scene,
+  sequence,
   generating,
 }: {
-  scene: Scene | null;
+  sequence: Sequence | null;
   generating: boolean;
 }) {
-  const names = scene ? Object.keys(scene.streams) : [];
+  const names = sequence ? Object.keys(sequence.streams) : [];
   const [panes, setPanes] = useState<Pane[]>([]);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -72,31 +72,31 @@ export function Viewer({
   // src, so state captured by closure would be stale.
   const timeRef = useRef(0);
   const playingRef = useRef(false);
-  // Which scene the refs above describe. Compared inside the load handler rather than
+  // Which sequence the refs above describe. Compared inside the load handler rather than
   // reset during render, because writing a ref while rendering is not allowed.
-  const restoredScene = useRef<string | null>(null);
+  const restoredSequence = useRef<string | null>(null);
 
-  // A new scene rewinds the transport. Adjusting state during render rather than in an
+  // A new sequence rewinds the transport. Adjusting state during render rather than in an
   // effect is React's own recommendation for state that has to follow a prop: an effect
   // would paint the old position once before correcting it.
-  const [shownScene, setShownScene] = useState(scene?.id ?? null);
-  if ((scene?.id ?? null) !== shownScene) {
-    setShownScene(scene?.id ?? null);
+  const [shownSequence, setShownSequence] = useState(sequence?.id ?? null);
+  if ((sequence?.id ?? null) !== shownSequence) {
+    setShownSequence(sequence?.id ?? null);
     setPlaying(false);
     setTime(0);
     setDuration(0);
   }
 
-  // Mounting happens before any scene exists, so there are no stream names to lay out
+  // Mounting happens before any sequence exists, so there are no stream names to lay out
   // until the first one arrives.
   if (panes.length === 0 && names.length > 0) {
     setPanes(initialPanes(names));
   }
 
-  // A pane naming a stream this scene does not have falls back to the first one. Derived
+  // A pane naming a stream this sequence does not have falls back to the first one. Derived
   // rather than stored, so no state has to be repaired when the manifest changes.
   const streamFor = (pane: Pane) =>
-    scene && pane.stream in scene.streams
+    sequence && pane.stream in sequence.streams
       ? pane.stream
       : (names[0] ?? pane.stream);
 
@@ -144,7 +144,7 @@ export function Viewer({
     [],
   );
 
-  if (!scene) {
+  if (!sequence) {
     return (
       <div className="border-border bg-card flex flex-1 flex-col items-center justify-center gap-5 rounded-lg border p-12">
         <div className="w-64">
@@ -153,7 +153,7 @@ export function Viewer({
         <p className="text-muted-foreground max-w-xs text-center text-sm">
           {generating
             ? "Sampling trajectories, then rendering every frame."
-            : "No scene yet. Set the parameters and generate one."}
+            : "No sequence yet. Set the parameters and generate one."}
         </p>
       </div>
     );
@@ -178,12 +178,12 @@ export function Viewer({
   // lands on fractions the browser then rounds back, so arrow keys stalled after two
   // presses -- and a screen reader read out seconds when the interesting number is the
   // frame. Integers fix both.
-  const lastFrame = Math.max(scene.frames - 1, 0);
+  const lastFrame = Math.max(sequence.frames - 1, 0);
   const frameIndex = duration
-    ? Math.min(Math.round((time / duration) * scene.frames), lastFrame)
+    ? Math.min(Math.round((time / duration) * sequence.frames), lastFrame)
     : 0;
   const seekToFrame = (frame: number) =>
-    seek(duration ? (frame / scene.frames) * duration : 0);
+    seek(duration ? (frame / sequence.frames) * duration : 0);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -191,7 +191,7 @@ export function Viewer({
         <div className="grid min-w-0 flex-1 auto-cols-fr grid-flow-col items-start gap-4 max-lg:w-full max-lg:grid-flow-row">
           {panes.map((pane) => {
             const stream = streamFor(pane);
-            const info = scene.streams[stream];
+            const info = sequence.streams[stream];
             // The server names its default. Deriving it from the order of `colormaps`
             // would make adding one whose name sorts last change this silently.
             const colormap = pane.colormap || info.default || "";
@@ -273,7 +273,7 @@ export function Viewer({
 
                 <div className="border-border bg-card aspect-square overflow-hidden rounded-lg border">
                   <video
-                    key={scene.id}
+                    key={sequence.id}
                     ref={(el) => registerVideo(pane.key, el)}
                     className="h-full w-full object-contain"
                     src={streamUrl(info, colormap || undefined)}
@@ -283,10 +283,10 @@ export function Viewer({
                     preload="metadata"
                     onLoadedMetadata={(e) => {
                       setDuration(e.currentTarget.duration);
-                      if (restoredScene.current !== scene.id) {
-                        // First load of a new scene: the transport is at the start and
+                      if (restoredSequence.current !== sequence.id) {
+                        // First load of a new sequence: the transport is at the start and
                         // nothing should resume on its own.
-                        restoredScene.current = scene.id;
+                        restoredSequence.current = sequence.id;
                         timeRef.current = 0;
                         playingRef.current = false;
                         return;
@@ -321,7 +321,7 @@ export function Viewer({
                   <SpectralScale colormap={colormap} />
                 )}
                 {stream === "alpha" && (
-                  <ObjectLegend colors={scene.object_colors} />
+                  <ObjectLegend colors={sequence.object_colors} />
                 )}
               </figure>
             );
@@ -351,7 +351,7 @@ export function Viewer({
         </Button>
         <Slider
           aria-label="Position"
-          aria-valuetext={`Frame ${frameIndex + 1} of ${scene.frames}`}
+          aria-valuetext={`Frame ${frameIndex + 1} of ${sequence.frames}`}
           className="flex-1"
           min={0}
           max={lastFrame}
@@ -360,30 +360,30 @@ export function Viewer({
           onValueChange={([f]) => seekToFrame(f)}
         />
         <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
-          {frameIndex + 1} / {scene.frames}
+          {frameIndex + 1} / {sequence.frames}
         </span>
       </div>
 
       <dl className="text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
         <div className="flex gap-2">
-          <dt>scene</dt>
-          <dd className="text-foreground font-mono">{scene.id}</dd>
+          <dt>sequence</dt>
+          <dd className="text-foreground font-mono">{sequence.id}</dd>
         </div>
         <div className="flex gap-2">
           <dt>objects</dt>
-          <dd className="text-foreground font-mono">{scene.n_objects}</dd>
+          <dd className="text-foreground font-mono">{sequence.n_objects}</dd>
         </div>
         <div className="flex gap-2">
           <dt>size</dt>
           <dd className="text-foreground font-mono">
-            {scene.size}&times;{scene.size}
+            {sequence.size}&times;{sequence.size}
           </dd>
         </div>
         <div className="flex gap-2">
           <dt>seed</dt>
-          <dd className="text-foreground font-mono">{scene.seed}</dd>
+          <dd className="text-foreground font-mono">{sequence.seed}</dd>
         </div>
-        {scene.cached && <div className="text-far">served from cache</div>}
+        {sequence.cached && <div className="text-far">served from cache</div>}
       </dl>
     </div>
   );

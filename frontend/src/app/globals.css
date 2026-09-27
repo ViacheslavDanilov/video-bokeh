@@ -124,7 +124,7 @@
 }
 
 /*
- * The one piece of motion nobody asked for: a sweep along the depth axis while a scene
+ * The one piece of motion nobody asked for: a sweep along the depth axis while a sequence
  * generates, on the same scale that afterwards explains the depth map's colours.
  */
 @keyframes depth-sweep {

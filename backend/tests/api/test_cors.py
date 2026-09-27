@@ -13,7 +13,7 @@ def _settings(tmp_path: Path, origins: tuple[str, ...] | None = None) -> Setting
     return Settings(
         data_root=tmp_path,
         library=tmp_path / "library",
-        scenes=tmp_path / "scenes",
+        sequences=tmp_path / "sequences",
         **kwargs,
     )
 
@@ -50,10 +50,10 @@ def test_every_configured_origin_is_allowed(tmp_path: Path) -> None:
 
 
 def test_the_preflight_a_browser_sends_is_answered(tmp_path: Path) -> None:
-    """POST /scenes carries a JSON content type, so a browser preflights it."""
+    """POST /sequences carries a JSON content type, so a browser preflights it."""
     client = _client(tmp_path, ("http://localhost:3000",))
     response = client.options(
-        "/scenes",
+        "/sequences",
         headers={
             "Origin": "http://localhost:3000",
             "Access-Control-Request-Method": "POST",

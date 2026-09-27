@@ -7,7 +7,7 @@ related: [cli, dataset-layout, generate-a-dataset, demo-unrestricted-trajectorie
 
 # Demo: four and five objects, colour disparity, multi-page alpha
 
-This pipeline generates scenes with four and five objects, renders disparity as a red-near,
+This pipeline generates sequences with four and five objects, renders disparity as a red-near,
 blue-far colour video instead of grey, and stores alpha as one TIFF page per object. This
 recipe reproduces all three from a clean checkout, with every artifact written under
 `backend/data/demo/`, gitignored (`backend/data/*/`) so nothing generated here gets committed.
@@ -46,7 +46,7 @@ recipe uses `da2-small` because the demo is about the colormap and the object co
 fidelity, and a fast Stage A is what makes the recipe reproducible on a fresh clone in under a
 minute rather than several.
 
-## 2. Generate four- and five-object scenes (Stage B)
+## 2. Generate four- and five-object sequences (Stage B)
 
 The scene sampler rejects layouts where two objects overlap on screen while their depth ranges
 overlap, and retries. More objects means more retries, so the number that matters here is not
@@ -75,8 +75,8 @@ Measured:
 | 4 | 30 | 30 | 6.72 |
 | 5 | 30 | 30 | 9.05 |
 
-**Every one of the 60 requested sequences came out; none were skipped.** Five-object scenes
-cost 35 % more wall-clock time per sequence than four-object scenes (9.05 s against 6.72 s),
+**Every one of the 60 requested sequences came out; none were skipped.** Five-object sequences
+cost 35 % more wall-clock time per sequence than four-object ones (9.05 s against 6.72 s),
 which matches the collision validator needing more retries as the depth slots narrow, but on
 this library (12 foregrounds, 20 backgrounds) that extra cost never became a dropped sequence.
 This is measured on the small tracked dev pool; a bigger asset library changes the retry

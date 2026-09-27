@@ -246,7 +246,7 @@ If a folder's semantics changed, update the `AGENTS.md` in every folder you touc
 Run what the root `AGENTS.md` verification table lists for the layers you touched, and
 report what the commands printed. Never claim done without output.
 
-Generation throughput is a published number here — `docs/how-to/` quotes seconds per scene —
+Generation throughput is a published number here — `docs/how-to/` quotes seconds per sequence —
 so when a change touches the render or I/O path, use `benchmark` and put the measured
 before/after in the PR. A format migration that quietly triples write time is a regression
 even though every test passes.

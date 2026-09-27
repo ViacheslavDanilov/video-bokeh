@@ -1,8 +1,8 @@
-"""What the mounted library is, and the id every scene hash is keyed on.
+"""What the mounted library is, and the id every sequence hash is keyed on.
 
 Decision 9 of the 2026-09-18 design makes a library immutable and names the reason:
-the scene id is hashed over the parameters *and* the library, so a library that
-changes under a fixed name silently invalidates every cached scene while every hash
+the sequence id is hashed over the parameters *and* the library, so a library that
+changes under a fixed name silently invalidates every cached sequence while every hash
 still matches. A directory name therefore cannot be the id.
 """
 
@@ -62,7 +62,7 @@ def summarize(library_root: Path) -> LibrarySummary:
 
     The id covers the asset ids and the estimator. It moves when assets are added or
     removed and when the depth model changes, and it does not move when the same
-    library is mounted at a different path -- scenes cached against it stay valid.
+    library is mounted at a different path -- sequences cached against it stay valid.
 
     **It does not cover pixel content.** The same ids and the same estimator over
     different images produce the same id. Hashing a full library's pixels at every

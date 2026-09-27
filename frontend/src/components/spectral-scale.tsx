@@ -6,7 +6,7 @@
  * uses them — red is near, violet is far — so the bar and the depth map beside it are
  * the same scale.
  *
- * While a scene generates it sweeps along that axis instead of showing a spinner: the
+ * While a sequence generates it sweeps along that axis instead of showing a spinner: the
  * wait is the pipeline walking the depth axis, and the bar says so.
  */
 
