@@ -226,8 +226,9 @@ What to actually run:
 - **Backend or pipeline:** the verification table in root `AGENTS.md`, then the runbook in
   `docs/how-to/` that covers the changed stage. Regenerating a couple of sequences and
   looking at them beats trusting the unit tests for anything touching output format.
-- **Frontend:** `pnpm lint`, `pnpm check`, `pnpm build`, then the dev server in a browser —
-  `AGENTS.md` requires it. Add `web-design-guidelines` for the UI itself.
+- **Frontend:** the frontend rows of the verification table in root `AGENTS.md`, the browser
+  smoke test included, then the dev server in a browser — `AGENTS.md` requires it. Add
+  `web-design-guidelines` for the UI itself.
 
 If the app or pipeline could not be run, say so plainly instead of implying it passed.
 
