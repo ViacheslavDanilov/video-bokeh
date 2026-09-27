@@ -145,7 +145,8 @@ trip that a local run does not.
   ```
 
   Commits already pushed are not replayed, so no force-push is needed, and each body stays
-  as it was.
+  as it was. A revert's body still names the SHA it reverted, which the replay changed; if
+  the fix and its revert both stay, correct that line by hand.
 
 On a colleague's PR none of them commits anything: `qa-only` reports, and a doc pass keeps
 no edits.

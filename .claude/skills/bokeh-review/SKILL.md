@@ -253,8 +253,10 @@ Report as **must-fix**:
 - A `Verified` section claiming a result nobody measured, or listing a step that was not
   run. Estimated numbers are a must-fix, not a nitpick.
 
-One compact remark naming the offending commits, with the fix: `git rebase -i` to reword,
-`gh pr edit` for title and body.
+One compact remark naming the offending commits, with the fix: the reword recipe in
+**Pushing** in the conventions file for commits not yet pushed, `gh pr edit` for title and
+body. Rewording a commit that is already pushed rewrites published history and needs a
+force-push, so ask the user first, per root `AGENTS.md` rules 3 and 5.
 
 ## 8. QA pass
 
