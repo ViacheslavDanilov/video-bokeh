@@ -66,7 +66,7 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 ## Git workflow
 
 1. **Never commit directly to `main`.** Branch, commit there, then open a pull request.
-2. **Push feature branches, open pull requests and edit their title and body without asking. Merging into `main` is the user's decision.** They may hand a batch of pull requests over explicitly; the agent then merges each one only once CI is green and its review says it is ready to merge. Nothing enforces either rule mechanically. `.claude/hooks/no-push.sh` is still here and blocks every push from an agent's shell if you want a guard back; it is deliberately not wired up in the shared settings, because a stateless hook cannot tell a wanted push from an unwanted one and blocks both. To enable it for yourself, add it to `.claude/settings.local.json`, which is gitignored:
+2. **Push feature branches, open pull requests and edit their title and body without asking. Merging into `main` is the user's decision.** They may hand a batch of pull requests over explicitly; the agent then merges each one only once CI is green on its current head and a review that covers every commit of its own says it is ready to merge. Updating the branch from `main` alone needs no new review. Nothing enforces either rule mechanically. `.claude/hooks/no-push.sh` is still here and blocks every push from an agent's shell if you want a guard back; it is deliberately not wired up in the shared settings, because a stateless hook cannot tell a wanted push from an unwanted one and blocks both. To enable it for yourself, add it to `.claude/settings.local.json`, which is gitignored:
 
    ```json
    {
