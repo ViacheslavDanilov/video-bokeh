@@ -100,7 +100,7 @@ Say you want the demo to export a scene as EXR, and no meeting asked for it.
 **Session 2**
 
 1. Open a new session and type `/bokeh-review 15`.
-2. The agent reads the spec behind the branch, then the diff through each review lens.
+2. The agent reads the spec behind the branch. Then it opens the pull request's head in a git worktree, a temporary second checkout that it removes at the end, and reads the diff there through each review lens. Your own checkout never switches branch.
 3. It runs the page in a browser and syncs any documentation the change made stale.
 4. On your own branch it fixes what it found, at most three rounds. It runs the same checks, then pushes the fixes.
 5. It publishes one review on GitHub and tells you whether the PR is ready to merge.
