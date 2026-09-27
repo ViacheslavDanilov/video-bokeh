@@ -1,11 +1,11 @@
-"""Generate a scene, or recognise that it already exists.
+"""Generate a sequence, or recognise that it already exists.
 
-Decision 7: the scene id is a hash of the request parameters together with the id of
+Decision 7: the sequence id is a hash of the request parameters together with the id of
 the mounted library. Stage B is deterministic, so the same request always produces the
-same scene, the cache is the directory ``scenes/<id>/``, and there is no database.
+same sequence, the cache is the directory ``sequences/<id>/``, and there is no database.
 
-A scene is one sequence, not a dataset, so the three streams sit directly under
-``scenes/<id>/`` rather than under ``sequences/0001/``.
+The API serves one sequence at a time, not a dataset, so the three streams sit directly
+under ``sequences/<id>/`` rather than under a dataset's ``sequences/0001/``.
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ from video_bokeh.scenes._compositor import (
 from video_bokeh.scenes.generate import sample_n_objects, write_sequence
 
 _ID_CHARS = 16
-_META = "scene.json"
+_META = "sequence.json"
 
-#: Streams a scene writes.
+#: Streams a sequence writes.
 STREAMS = ("all_in_focus", "alpha", "disparity")
 
 #: Servable as video, in the order a person reads them: the frame, who is in it, and
@@ -42,12 +42,12 @@ STREAMS = ("all_in_focus", "alpha", "disparity")
 VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 
 
-class SceneUnsatisfiableError(RuntimeError):
+class SequenceUnsatisfiableError(RuntimeError):
     """The request is valid but no collision-free scene could be sampled for it."""
 
 
 @dataclass(frozen=True)
-class SceneRequest:
+class SequenceRequest:
     seed: int
     frames: int
     size: int
@@ -56,15 +56,15 @@ class SceneRequest:
 
 
 @dataclass(frozen=True)
-class SceneResult:
+class SequenceResult:
     id: str
     path: Path
     cached: bool
     n_objects: int
 
 
-def scene_id(library_id: str, request: SceneRequest) -> str:
-    """A scene is fully determined by the library and these five numbers."""
+def sequence_id(library_id: str, request: SequenceRequest) -> str:
+    """A sequence is fully determined by the library and these five numbers."""
     parts = (
         library_id,
         request.seed,
@@ -77,25 +77,30 @@ def scene_id(library_id: str, request: SceneRequest) -> str:
     return hashlib.sha256(payload).hexdigest()[:_ID_CHARS]
 
 
-def _read_cached(dest: Path, sid: str) -> SceneResult | None:
-    """A scene counts as present only once its metadata is there.
+def _read_cached(dest: Path, sid: str) -> SequenceResult | None:
+    """A sequence counts as present only once its metadata is there.
 
     The directory appears atomically, so this is belt and braces rather than the
     mechanism -- but it also means a directory left behind by an older, interrupted
-    layout is not mistaken for a finished scene.
+    layout is not mistaken for a finished sequence.
     """
     meta_path = dest / _META
     if not meta_path.is_file():
         return None
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    return SceneResult(id=sid, path=dest, cached=True, n_objects=int(meta["n_objects"]))
+    return SequenceResult(
+        id=sid,
+        path=dest,
+        cached=True,
+        n_objects=int(meta["n_objects"]),
+    )
 
 
 def _generate_into(
     work_dir: Path,
     library_root: Path,
     library_id: str,
-    request: SceneRequest,
+    request: SequenceRequest,
     render: Callable[[Scene], list[RenderedFrame]],
 ) -> int:
     n_objects = sample_n_objects(
@@ -112,7 +117,7 @@ def _generate_into(
             n_objects=n_objects,
         )
     except CollisionRetriesExhausted as exc:
-        raise SceneUnsatisfiableError(str(exc)) from exc
+        raise SequenceUnsatisfiableError(str(exc)) from exc
 
     write_sequence(work_dir, render(scene))
     placed = len(scene.objects)
@@ -132,29 +137,29 @@ def _generate_into(
     return placed
 
 
-def ensure_scene(
+def ensure_sequence(
     library_root: Path,
     library_id: str,
-    scenes_root: Path,
-    request: SceneRequest,
+    sequences_root: Path,
+    request: SequenceRequest,
     *,
     _render: Callable[[Scene], list[RenderedFrame]] | None = None,
-) -> SceneResult:
-    """Return the scene for this request, generating it if it is not on disk yet.
+) -> SequenceResult:
+    """Return the sequence for this request, generating it if it is not on disk yet.
 
     Generation writes to a temporary directory beside the destination and renames it
-    into place, so a scene is either absent or complete. That is what makes a crashed
+    into place, so a sequence is either absent or complete. That is what makes a crashed
     or concurrent generation harmless: there is no window in which a half-written
     directory looks like a cache hit.
     """
-    sid = scene_id(library_id, request)
-    dest = scenes_root / sid
+    sid = sequence_id(library_id, request)
+    dest = sequences_root / sid
     cached = _read_cached(dest, sid)
     if cached is not None:
         return cached
 
-    scenes_root.mkdir(parents=True, exist_ok=True)
-    work_dir = Path(tempfile.mkdtemp(prefix=".tmp-", dir=scenes_root))
+    sequences_root.mkdir(parents=True, exist_ok=True)
+    work_dir = Path(tempfile.mkdtemp(prefix=".tmp-", dir=sequences_root))
     try:
         n_objects = _generate_into(
             work_dir,
@@ -168,13 +173,13 @@ def ensure_scene(
         except OSError:
             # Another request finished the same id while this one worked. Its output
             # is equivalent -- the id is a hash of everything that determines the
-            # scene -- so discard ours rather than overwrite a directory someone may
+            # sequence -- so discard ours rather than overwrite a directory someone may
             # be reading.
             winner = _read_cached(dest, sid)
             if winner is None:
                 raise
             return winner
-        return SceneResult(id=sid, path=dest, cached=False, n_objects=n_objects)
+        return SequenceResult(id=sid, path=dest, cached=False, n_objects=n_objects)
     finally:
         # A no-op after a successful rename, since the directory has moved.
         shutil.rmtree(work_dir, ignore_errors=True)

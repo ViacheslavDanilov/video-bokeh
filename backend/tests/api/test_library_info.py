@@ -20,7 +20,7 @@ def test_id_is_stable_across_calls(library: Path) -> None:
 
 
 def test_id_moves_when_an_asset_is_added(make_library: Callable[..., Path]) -> None:
-    """Decision 9: a library that changes must not keep the id every cached scene hashes."""
+    """Decision 9: a library that changes must not keep the id every cached sequence hashes."""
     small = make_library("small", ("fg_a",), ("bg_a",))
     large = make_library("large", ("fg_a", "fg_b"), ("bg_a",))
     assert summarize(small).id != summarize(large).id
@@ -39,7 +39,7 @@ def test_id_moves_when_the_depth_model_changes(
 
 
 def test_id_ignores_where_the_library_sits(make_library: Callable[..., Path]) -> None:
-    """The same assets under a different path are the same library, so scenes stay cached."""
+    """The same assets under a different path are the same library, so sequences stay cached."""
     here = make_library("here", ("fg_a",), ("bg_a",))
     there = make_library("there", ("fg_a",), ("bg_a",))
     assert summarize(here).id == summarize(there).id

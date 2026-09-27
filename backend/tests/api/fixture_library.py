@@ -1,6 +1,6 @@
 """A tiny library of real assets, for the API tests and the browser smoke test.
 
-Real files rather than a mock: scene generation reads them through the same loaders the
+Real files rather than a mock: sequence generation reads them through the same loaders the
 pipeline uses, so a fake would only prove the fake behaves like the fake. No depth model
 is involved -- the depth maps are gradients -- so building one takes milliseconds.
 

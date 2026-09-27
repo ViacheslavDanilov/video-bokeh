@@ -1,7 +1,7 @@
-"""The HTTP surface: what library is mounted, and scenes generated on demand.
+"""The HTTP surface: what library is mounted, and sequences generated on demand.
 
 Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B is
-CPU work measured in seconds, and the scene id is a hash of the request and the
+CPU work measured in seconds, and the sequence id is a hash of the request and the
 library, so the cache is the directory on disk and there is no database.
 
 Rendering bokeh is not here. That is minutes of GPU work in its own container, so it
@@ -22,11 +22,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 
 from video_bokeh.api._library import summarize
-from video_bokeh.api._scenes import (
+from video_bokeh.api._sequences import (
     VIDEO_STREAMS,
-    SceneRequest,
-    SceneUnsatisfiableError,
-    ensure_scene,
+    SequenceRequest,
+    SequenceUnsatisfiableError,
+    ensure_sequence,
 )
 from video_bokeh.api._settings import (
     LibraryUnavailableError,
@@ -97,7 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return application
 
 
-class SceneParams(BaseModel):
+class SequenceParams(BaseModel):
     seed: int = 0
     frames: int = Field(default=80, ge=1, le=_MAX_FRAMES)
     size: int = Field(default=512, ge=64, le=2048)
@@ -133,7 +133,7 @@ class LibraryResponse(BaseModel):
 
 
 class StreamInfo(BaseModel):
-    """How one stream of a scene can be displayed.
+    """How one stream of a sequence can be displayed.
 
     The client renders whatever this manifest reports rather than knowing the stream
     names itself, so a stream added later -- `bokeh`, once the render container
@@ -150,7 +150,7 @@ class StreamInfo(BaseModel):
     default: str | None
 
 
-class SceneResponse(BaseModel):
+class SequenceResponse(BaseModel):
     id: str
     cached: bool
     seed: int
@@ -186,9 +186,9 @@ def read_library() -> LibraryResponse:
     return LibraryResponse(**vars(summary))
 
 
-@router.post("/scenes")
-def create_scene(params: SceneParams) -> SceneResponse:
-    """Generate a scene, or hand back the one this request already produced.
+@router.post("/sequences")
+def create_sequence(params: SequenceParams) -> SequenceResponse:
+    """Generate a sequence, or hand back the one this request already produced.
 
     Plain `def`, not `async def`: generation is seconds of CPU work, and FastAPI runs
     a sync endpoint in a threadpool instead of blocking the event loop with it.
@@ -198,11 +198,11 @@ def create_scene(params: SceneParams) -> SceneResponse:
     summary = summarize(library)
 
     try:
-        result = ensure_scene(
+        result = ensure_sequence(
             library,
             summary.id,
-            settings.scenes,
-            SceneRequest(
+            settings.sequences,
+            SequenceRequest(
                 seed=params.seed,
                 frames=params.frames,
                 size=params.size,
@@ -210,10 +210,10 @@ def create_scene(params: SceneParams) -> SceneResponse:
                 n_objects_max=params.n_objects_max,
             ),
         )
-    except SceneUnsatisfiableError as exc:
+    except SequenceUnsatisfiableError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    return SceneResponse(
+    return SequenceResponse(
         id=result.id,
         cached=result.cached,
         seed=params.seed,
@@ -223,7 +223,7 @@ def create_scene(params: SceneParams) -> SceneResponse:
         object_colors=[object_color_hex(i) for i in range(result.n_objects)],
         streams={
             stream: StreamInfo(
-                url=f"/scenes/{result.id}/{stream}.mp4",
+                url=f"/sequences/{result.id}/{stream}.mp4",
                 colormaps=sorted(COLORMAPS) if stream == "disparity" else [],
                 default=DEFAULT_COLORMAP if stream == "disparity" else None,
             )
@@ -232,17 +232,17 @@ def create_scene(params: SceneParams) -> SceneResponse:
     )
 
 
-@router.get("/scenes/{scene_id}/{stream}.mp4")
-def read_scene_video(
-    scene_id: Annotated[str, PathParam(pattern=r"^[0-9a-f]{16}$")],
+@router.get("/sequences/{sequence_id}/{stream}.mp4")
+def read_sequence_video(
+    sequence_id: Annotated[str, PathParam(pattern=r"^[0-9a-f]{16}$")],
     stream: str,
     colormap: Annotated[str, Query(pattern=r"^[a-z_]+$")] = DEFAULT_COLORMAP,
 ) -> FileResponse:
     """Serve one stream as H.264.
 
     Encoded on the first request and kept next to the frames, so the second request
-    is a file read. `scene_id` is constrained to the hash alphabet in the route
-    itself, which is also what keeps it from naming a path outside `scenes/`.
+    is a file read. `sequence_id` is constrained to the hash alphabet in the route
+    itself, which is also what keeps it from naming a path outside `sequences/`.
 
     `colormap` applies to `disparity` only -- it is 16-bit grey on disk and gets its
     colour here. Every other stream is already RGB, so the parameter is dropped
@@ -259,18 +259,18 @@ def read_scene_video(
         colormap = DEFAULT_COLORMAP
 
     settings = load_settings()
-    scene_dir = settings.scenes / scene_id
-    if not (scene_dir / "scene.json").is_file():
-        raise HTTPException(status_code=404, detail=f"no scene {scene_id}")
+    sequence_dir = settings.sequences / sequence_id
+    if not (sequence_dir / "sequence.json").is_file():
+        raise HTTPException(status_code=404, detail=f"no sequence {sequence_id}")
 
     suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
-    video = scene_dir / f"{stream}{suffix}.mp4"
+    video = sequence_dir / f"{stream}{suffix}.mp4"
     if not video.is_file():
-        frames = list_stream_frames(scene_dir, stream)
+        frames = list_stream_frames(sequence_dir, stream)
         if not frames:
             raise HTTPException(
                 status_code=404,
-                detail=f"scene {scene_id} has no {stream}",
+                detail=f"sequence {sequence_id} has no {stream}",
             )
         # Encode beside the destination and rename, so a second request arriving
         # mid-encode either waits for nothing or serves a complete file. Writing
@@ -278,7 +278,7 @@ def read_scene_video(
         # `is_file()` cannot tell the difference. Two panes showing one stream, or a
         # reload during the first encode, both reach this.
         with tempfile.NamedTemporaryFile(
-            dir=scene_dir,
+            dir=sequence_dir,
             prefix=f".{stream}-",
             suffix=".mp4",
             delete=False,

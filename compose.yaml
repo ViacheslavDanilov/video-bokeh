@@ -26,4 +26,4 @@ services:
     # the container it always lands at /data/library, which is where the api looks by
     # default, so VIDEO_BOKEH_LIBRARY is a host-side setting only.
     - ${VIDEO_BOKEH_LIBRARY:-${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/library}:/data/library:ro
-    - ${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/scenes:/data/scenes
+    - ${VIDEO_BOKEH_DATA_ROOT:-./backend/data}/sequences:/data/sequences
