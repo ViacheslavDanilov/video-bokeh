@@ -254,9 +254,10 @@ only what this session actually ran.
 ## 9. Self-review in fresh context
 
 Commit first, by step 10's rules, and do not push. `two-axis-review` diffs committed history,
-`main...HEAD`, so it cannot see uncommitted work and stops on an empty diff.
+`origin/main...HEAD`, so it cannot see uncommitted work and stops on an empty diff.
 
-Invoke `two-axis-review` with `main` as the fixed point and the spec's path, or, on a route
+Run `git fetch origin`, then invoke `two-axis-review` with `origin/main` as the fixed point
+and the spec's path, or, on a route
 that wrote no spec, the acceptance criteria confirmed in step 4. Its two subagents see the
 diff and the spec, not this conversation, and that is the point: they read what you wrote
 rather than what you meant.
@@ -271,7 +272,7 @@ Commit per root `AGENTS.md`: Conventional Commits, one logical change per commit
 trailer anywhere. Run a plain `git commit` and read its exit code — pre-commit reformats and
 aborts, and piping the command through `tail` or `&&` hides that.
 
-`git log main..HEAD --oneline` — do the commits read as one coherent change?
+`git log origin/main..HEAD --oneline` — do the commits read as one coherent change?
 
 Run `make check`, plus `make smoke` when the change touches the frontend. Then push and open
 the pull request without asking, per root `AGENTS.md` rule 2:

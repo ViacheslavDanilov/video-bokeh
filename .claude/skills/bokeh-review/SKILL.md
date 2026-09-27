@@ -51,8 +51,10 @@ Skip a closed or draft PR. If the head SHA matches your last submitted review:
 
 ## 2. Depth triage
 
-Baseline is the latest of: your last review's `commitID`, the newest review by anyone at the
-current head, or the PR base — which makes it a **full** first review. Count delta lines and
+Run `git fetch origin` first. The PR base is `origin/main`, never a local `main`: one that
+is a merged PR behind puts that PR's files into this one's diff. It once showed 55 files for
+a 24-file PR. Baseline is the latest of: your last review's `commitID`, the newest review by
+anyone at the current head, or the PR base — which makes it a **full** first review. Count delta lines and
 files, excluding renames and metadata.
 
 | Mode | When | Scope |
@@ -119,7 +121,7 @@ reconstructed from any of the three is itself a remark.
 Every later step — the lenses, the QA pass, the fix loop — runs in a worktree at the pull
 request's head, not in the checkout you were started in.
 
-1. `git fetch origin`. From here on the PR's base is `origin/main`.
+1. The PR's base is `origin/main`, fetched in step 2.
 2. `git worktree list`. If the PR's branch is already checked out anywhere, which usually
    means another session is on it, **stop and ask the user.** Never work around it.
 3. Create the worktree in a fresh temporary directory, and keep its path for step 14:
@@ -204,7 +206,7 @@ more here than it looks: merges are squashed, so these subjects are what a reade
 `main`.
 
 ```bash
-git log main..<head> --format='%H%n%s%n%b%n--'
+git log origin/main..<head> --format='%H%n%s%n%b%n--'
 gh pr view <n> --json title,body
 ```
 
