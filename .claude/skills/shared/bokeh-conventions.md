@@ -114,10 +114,16 @@ treats a surviving trailer as a merge blocker.
 
 ## Pushing
 
-Never `git push` without an explicit ask in this session. **Nothing enforces this
-mechanically**: `.claude/hooks/no-push.sh` exists but is not wired into the shared settings,
-and root `AGENTS.md` says why and how to enable it for yourself. Commit freely on a feature
-branch; stop at the push.
+Push feature branches, open the pull request and edit its title and body without asking.
+**Merging into `main` is the user's decision.** When they hand a batch of pull requests over,
+root `AGENTS.md` rule 2 says when each one may be merged; the conditions live there alone.
+Force-pushing a feature branch and amending a pushed commit still need an explicit go-ahead,
+per rules 3 and 5. Nothing enforces any of this mechanically.
+
+**Before any push, run `make check`, plus `make smoke` when the change touches the
+frontend.** That holds for the push that opens a pull request and for the pushes at the end
+of `bokeh-review`'s fix loop alike. CI runs the same checks, but a red CI run costs a round
+trip that a local run does not.
 
 **Delegated skills bring their own git habits, and none of them apply here.**
 
@@ -125,12 +131,40 @@ branch; stop at the push.
   `Co-Authored-By: Claude` trailer, runs a bare `git push`, and adds a section to the PR body
   with `gh pr edit`. It edits the body even when the run changed no file. Never run that
   step. Commit what they wrote yourself, per root `AGENTS.md`.
-- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`. Let it: it needs a clean tree and
-  one commit per fix, so that it can `git revert HEAD` a fix that made things worse. Reword
-  those subjects to root `AGENTS.md` before anything is pushed.
+- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`, its tests as `test(qa): …`, and
+  a fix it takes back as `Revert "…"`. Let it: it needs a clean tree and one commit per fix,
+  so that it can `git revert HEAD` a fix that made things worse. Before the push, bring each
+  of those subjects to root `AGENTS.md` notation; a revert becomes `fix:` too.
+  `git rebase -i` needs an editor this harness cannot drive, so do it non-interactively.
+  Write one line per commit to reword — its current subject, a tab, the new subject — then
+  replay only the commits after the pushed head:
+
+  ```bash
+  export REWORDS=/tmp/rewords.tsv
+  git rebase origin/<branch> --exec 'old=$(git log -1 --format=%s); new=$(awk -F"\t" -v s="$old" "\$1 == s { print \$2 }" "$REWORDS"); if [ -n "$new" ]; then git commit -q --amend -m "$new" -m "$(git log -1 --format=%b)"; fi'
+  ```
+
+  Commits already pushed are not replayed, so no force-push is needed, and each body stays
+  as it was. A revert's body still names the SHA it reverted, which the replay changed; if
+  the fix and its revert both stay, correct that line by hand.
 
 On a colleague's PR none of them commits anything: `qa-only` reports, and a doc pass keeps
 no edits.
+
+## Delegating
+
+Every prompt to a delegated skill or a subagent states the same limits in the prompt itself.
+A skill's own preamble does not know this repo's rules, so the prompt is where they have to
+arrive:
+
+- read-only and no commits, unless the calling step owns the edits, as the fix loop owns
+  `qa`'s;
+- never push;
+- never upgrade gstack or any other tool, whatever its preamble offers;
+- never touch `CLAUDE.md` or add routing rules to it.
+
+During the PR #15 review both gstack preambles offered an upgrade and a commit to
+`CLAUDE.md`. The delegated agents declined only because their prompts said so.
 
 ## Which skill to reach for
 
@@ -199,9 +233,9 @@ Recorded so nobody re-litigates it:
 - **superpowers** — dropped on 2026-09-26 and disabled in `.claude/settings.json`. It covers
   the same stages as the vendored skills, at more length, and its session hook forces a skill
   before every reply, questions included.
-- **gstack `ship`** — bumps `VERSION`, writes a `CHANGELOG`, titles the PR `v<version>
-  type: …`, adds an AI co-author trailer and pushes unasked. Root `AGENTS.md` forbids all
-  four. `bokeh-task` opens the PR instead.
+- **gstack `ship`** — bumps `VERSION` and writes a `CHANGELOG`, which this repo does not
+  keep, titles the PR `v<version> type: …`, and adds an AI co-author trailer. Root
+  `AGENTS.md` forbids the last two. `bokeh-task` opens the PR instead.
 - **gstack `land-and-deploy`, `canary`** — there is no deploy target, and merging is the
   user's.
 - **gstack `autoplan`, `spec`** — scope comes from meetings and from the user, not from an

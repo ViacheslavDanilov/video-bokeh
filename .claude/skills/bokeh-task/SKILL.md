@@ -99,7 +99,10 @@ A request has no acceptance criteria. **You derive them and get them confirmed.*
 Invoke `grilling` together with `domain-modeling`. `grilling` asks in rounds, every question
 numbered with a recommended answer, and looks facts up itself instead of asking for them.
 `domain-modeling` records settled terms in `CONTEXT.md` as they land, and offers an ADR only
-for a decision that is hard to reverse.
+for a decision that is hard to reverse. On a route that ends without a branch it writes
+nothing, because a glossary edit or an ADR would have nowhere to land: investigate, out of
+scope, and paper or literature when the result goes to `docs/reports/`. Proposed terms and
+decisions go into that route's written output instead.
 
 Scale it. When the meeting note already settles every question, skip the grilling and say
 so. A one-line bug gets none.
@@ -254,12 +257,14 @@ only what this session actually ran.
 ## 9. Self-review in fresh context
 
 Commit first, by step 10's rules, and do not push. `two-axis-review` diffs committed history,
-`main...HEAD`, so it cannot see uncommitted work and stops on an empty diff.
+`origin/main...HEAD`, so it cannot see uncommitted work and stops on an empty diff.
 
-Invoke `two-axis-review` with `main` as the fixed point and the spec's path, or, on a route
+Run `git fetch origin`, then invoke `two-axis-review` with `origin/main` as the fixed point
+and the spec's path, or, on a route
 that wrote no spec, the acceptance criteria confirmed in step 4. Its two subagents see the
 diff and the spec, not this conversation, and that is the point: they read what you wrote
-rather than what you meant.
+rather than what you meant. Like every delegation, the prompt carries the limits in
+**Delegating** in the conventions file.
 
 Fix every hard standards violation and every spec gap, each fix a further commit. Fix a
 judgement-call smell when it is cheap, otherwise name it in the PR body. One round only —
@@ -271,11 +276,12 @@ Commit per root `AGENTS.md`: Conventional Commits, one logical change per commit
 trailer anywhere. Run a plain `git commit` and read its exit code — pre-commit reformats and
 aborts, and piping the command through `tail` or `&&` hides that.
 
-`git log main..HEAD --oneline` — do the commits read as one coherent change?
+`git log origin/main..HEAD --oneline` — do the commits read as one coherent change?
 
-**Stop before pushing and ask.** Nothing blocks a push mechanically, so the ask is the guard.
-After approval, `gh pr create` with a title that is a short imperative phrase, no `type:`
-prefix, ≈65 characters, and the `## What` / `## Why` / `## Verified` body from `AGENTS.md`.
+Run the checks that **Pushing** in the conventions file asks for before any push. Then push
+and open the pull request without asking, per root `AGENTS.md` rule 2:
+`gh pr create` with a title that is a short imperative phrase, no `type:` prefix, ≈65
+characters, and the `## What` / `## Why` / `## Verified` body from `AGENTS.md`.
 `Verified` carries measured numbers only, and names pre-existing failures as pre-existing.
 A judgement call left from step 9 goes in the body as a named follow-up.
 
@@ -294,8 +300,9 @@ Measurements worth keeping go to `docs/reports/`. None of this is committed.
 
 Reply in Russian: the route taken, the PR URL or the file written, branch and head SHA, how
 many files changed, what you verified, and anything you could not. When there is a PR, end
-with the next step: **new session, `/bokeh-review <n>`.** **Do not merge** — that is a human
-decision.
+with the next step: **new session, `/bokeh-review <n>`.** **Do not merge**: merging is the
+user's, and a pull request they hand over is merged only under root `AGENTS.md` rule 2, after
+its review.
 
 ## Red flags — stop and ask
 
