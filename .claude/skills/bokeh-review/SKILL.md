@@ -150,8 +150,11 @@ with the worktree.
    pushes from it with `git push origin HEAD:<branch>`.
 4. In the worktree, run `make setup`. `ty`, pytest and `make check` need the backend extras
    and the frontend packages even on a backend-only PR.
-5. Run everything after this from `$WT`. `two-axis-review`, `/code-review`,
-   `document-release` and `qa` then see the PR head as `HEAD`.
+5. Run everything after this from `$WT`. A subagent's shell starts in the checkout you were
+   started in, not in `$WT`, so every delegated prompt names `$WT` by its absolute path, says
+   to run git there with `git -C "$WT"`, and names step 3's source, a spec, a ticket or a
+   meeting note, by its absolute path in the starting checkout. `two-axis-review`,
+   `/code-review`, `document-release` and `qa` then see the PR head as `HEAD`.
 
 If the review stops anywhere after this step, remove the worktree first, as step 14 does.
 
