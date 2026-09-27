@@ -276,8 +276,8 @@ aborts, and piping the command through `tail` or `&&` hides that.
 
 `git log origin/main..HEAD --oneline` — do the commits read as one coherent change?
 
-Run `make check`, plus `make smoke` when the change touches the frontend. Then push and open
-the pull request without asking, per root `AGENTS.md` rule 2:
+Run the checks that **Pushing** in the conventions file asks for before any push. Then push
+and open the pull request without asking, per root `AGENTS.md` rule 2:
 `gh pr create` with a title that is a short imperative phrase, no `type:` prefix, ≈65
 characters, and the `## What` / `## Why` / `## Verified` body from `AGENTS.md`.
 `Verified` carries measured numbers only, and names pre-existing failures as pre-existing.

@@ -294,8 +294,9 @@ the final state:
    only.
 4. Repeat at most **three rounds**. A finding still open after the third goes to the user in
    Russian, with what was tried — do not keep going.
-5. Run `make check`, plus `make smoke` when a fix touches the frontend: re-running the lenses
-   does not re-run the tests. Then push the fixes with `git push origin HEAD:<branch>`, per
+5. Run the checks that **Pushing** in the conventions file asks for before any push:
+   re-running the lenses does not re-run the tests. Then push the fixes with
+   `git push origin HEAD:<branch>`, per
    root `AGENTS.md` rule 2. The review is
    always published against the pushed head, so its verdict describes what GitHub would
    merge.
