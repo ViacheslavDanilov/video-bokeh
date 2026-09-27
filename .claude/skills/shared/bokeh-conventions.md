@@ -99,12 +99,10 @@ Four adaptations this repo needs, none of which the stock skill knows:
 4. **Both skills end with a step that commits, pushes and edits the pull request.** Never run
    it, as **Pushing** below says.
 
-**Docs drift silently and this repo has already proved it.** For months `pipeline-explainer.md`
-documented a depth-tracking module and a "dynamic mode" that had both been deleted, and
-`dataset-generation.md` cited two constants that never existed. The docstring of
-`backend/tests/test_docs_references.py` names them. That test now fails when a tracked page
-or one of these skills names code that is gone; the doc pass in `bokeh-review` catches the
-rest.
+**Docs drift silently and this repo has already proved it.** The docstring of
+`backend/tests/test_docs_references.py` records the case: vault pages that named deleted code
+for months. That test now fails when a tracked page or one of these skills names code that is
+gone; the doc pass in `bokeh-review` catches the rest.
 
 ## The authorship trap
 

@@ -152,7 +152,7 @@ Apply to this pass's scope, not the whole PR history.
 | **#7 Second model** | the same diff through a different model's eyes; its errors do not correlate with yours | `codex` in review mode — **high-risk PRs only** |
 
 Lens #6 exists because this repo shipped the failure it catches, as the **Documentation
-surface** section of the conventions file tells. Read that section before running
+surface** section of the conventions file describes. Read that section before running
 `document-release` — its own discovery step cannot see `docs/explanation/` or
 `docs/how-to/`, and it must not touch the gitignored half of the vault. Run only its
 analysis, up to the per-file audit: its later steps edit files, and its last one commits with
