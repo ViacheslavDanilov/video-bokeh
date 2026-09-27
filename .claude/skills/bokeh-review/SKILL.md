@@ -143,7 +143,9 @@ with the worktree.
 3. Create the worktree in a fresh temporary directory, detached at the pushed head, and keep
    its path for step 14:
    - the user's own PR: `git worktree add --detach "$WT" origin/<branch>`;
-   - a colleague's PR: `git worktree add --detach "$WT" FETCH_HEAD`, from the fetch in step 2.
+   - a colleague's PR: `git worktree add --detach "$WT" <sha>`, where `<sha>` is the
+     `headRefOid` from `gh pr view <n>`, brought in by the fetch in step 2. Not `FETCH_HEAD`:
+     the next fetch in the same checkout, from this session or another, overwrites it.
      Nothing is committed there.
 
    A detached worktree cannot collide with the branch being open elsewhere. The fix loop
