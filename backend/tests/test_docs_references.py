@@ -6,6 +6,9 @@ Nothing caught either, because nothing was looking. This is the thing that looks
 
 Only the tracked half of the vault is checked. `meetings/`, `reports/`, `specs/` and `plans/`
 record a moment in time and are allowed to name code that has since changed.
+
+The lifecycle skills this repo owns are checked too. Their lists of high-risk modules went
+stale once already, after the namespace move, and nothing noticed then either.
 """
 
 from __future__ import annotations
@@ -31,6 +34,12 @@ _DOC_FILES = (
     "backend/AGENTS.md",
     "backend/README.md",
     "scripts/README.md",
+    # The skills this repo wrote. The vendored ones are left out: their examples name code
+    # from other projects, which is not ours to keep in step.
+    ".claude/skills/bokeh-meeting/SKILL.md",
+    ".claude/skills/bokeh-task/SKILL.md",
+    ".claude/skills/bokeh-review/SKILL.md",
+    ".claude/skills/shared/bokeh-conventions.md",
 )
 
 # Any Python module the docs name: `src/video_bokeh/foo.py`, `backend/src/...`, or a bare `foo.py`.
@@ -73,7 +82,11 @@ def _sources() -> str:
     return "\n".join(p.read_text(encoding="utf-8") for p in _SRC.rglob("*.py"))
 
 
-@pytest.mark.parametrize("doc", _tracked_docs(), ids=lambda p: str(p.name))
+@pytest.mark.parametrize(
+    "doc",
+    _tracked_docs(),
+    ids=lambda p: str(p.relative_to(_REPO)),
+)
 def test_doc_names_only_code_that_exists(doc: Path) -> None:
     text = doc.read_text(encoding="utf-8")
     rel = doc.relative_to(_REPO)
