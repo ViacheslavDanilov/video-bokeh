@@ -62,16 +62,39 @@ Prefer `git diff <baseline>..<head>` locally over `gh pr diff`, which is always 
 
 **High-risk, never trivial, always at least delta:**
 
-- the on-disk dataset contract — under `backend/src/video_bokeh/`: `core/_streams.py`,
-  `core/_seq_io.py`, `core/_metadata.py`, `core/_library.py`, `core/_trajectory.py`,
-  `scenes/generate.py`, `scenes/_compositor.py`, `library/build.py`,
-  `bridge/any_to_bokeh.py`, and `docs/reference/dataset-layout.md`;
-- the API the frontend consumes — `api/main.py` and `docs/reference/api.md`;
-- `.github/workflows/`, `.pre-commit-config.yaml`, `.claude/hooks/`, `.claude/settings.json`,
-  Dockerfiles, and `.gitignore`.
+- the on-disk dataset contract:
+  - `backend/src/video_bokeh/core/_streams.py`
+  - `backend/src/video_bokeh/core/_seq_io.py`
+  - `backend/src/video_bokeh/core/_metadata.py`
+  - `backend/src/video_bokeh/core/_library.py`
+  - `backend/src/video_bokeh/core/_trajectory.py`
+  - `backend/src/video_bokeh/scenes/generate.py`
+  - `backend/src/video_bokeh/scenes/_compositor.py`
+  - `backend/src/video_bokeh/library/build.py`
+  - `backend/src/video_bokeh/bridge/any_to_bokeh.py`
+  - `docs/reference/dataset-layout.md`
+- the API the frontend consumes, both ends of it:
+  - `backend/src/video_bokeh/api/main.py`
+  - `backend/src/video_bokeh/api/_scenes.py`
+  - `backend/src/video_bokeh/api/_library.py`
+  - `backend/src/video_bokeh/preview/pack.py`
+  - `backend/src/video_bokeh/preview/_masks.py`
+  - `backend/src/video_bokeh/preview/_colormap.py`
+  - `frontend/src/lib/api.ts`
+  - `docs/reference/api.md`
+- the build, CI and agent configuration:
+  - `.github/workflows/`
+  - `.pre-commit-config.yaml`
+  - `.claude/hooks/`
+  - `.claude/settings.json`
+  - `backend/Dockerfile`
+  - `frontend/Dockerfile`
+  - `.gitignore`
 
-A path in this list that no longer exists is itself a finding: fix the list in this file
-before going on. It went stale once already, after the namespace move.
+Every Python module is named by its full path, because
+`backend/tests/test_docs_references.py` checks this file and fails CI on a path that no longer
+exists. A bare file name would slip through: it still matches after its directory moves. The
+other paths are not checked, so a missing one is a finding: fix the list before going on.
 
 ## 3. Context first
 
@@ -128,9 +151,8 @@ Apply to this pass's scope, not the whole PR history.
 | **#6 Docs drift** | public surface the PR changed that no page reflects — and pages that describe code this PR deleted | `document-release` on the PR's branch, analysis steps only |
 | **#7 Second model** | the same diff through a different model's eyes; its errors do not correlate with yours | `codex` in review mode — **high-risk PRs only** |
 
-Lens #6 exists because this repo shipped the failure it catches: `pipeline-explainer.md`
-documented a `_depth_track.py` and a "dynamic mode" for months after both were deleted. Read
-the **Documentation surface** section of the conventions file before running
+Lens #6 exists because this repo shipped the failure it catches, as the **Documentation
+surface** section of the conventions file describes. Read that section before running
 `document-release` — its own discovery step cannot see `docs/explanation/` or
 `docs/how-to/`, and it must not touch the gitignored half of the vault. Run only its
 analysis, up to the per-file audit: its later steps edit files, and its last one commits with
@@ -204,8 +226,9 @@ What to actually run:
 - **Backend or pipeline:** the verification table in root `AGENTS.md`, then the runbook in
   `docs/how-to/` that covers the changed stage. Regenerating a couple of sequences and
   looking at them beats trusting the unit tests for anything touching output format.
-- **Frontend:** `pnpm lint`, `pnpm check`, `pnpm build`, then the dev server in a browser —
-  `AGENTS.md` requires it. Add `web-design-guidelines` for the UI itself.
+- **Frontend:** the frontend rows of the verification table in root `AGENTS.md`, the browser
+  smoke test included, then the dev server in a browser — `AGENTS.md` requires it. Add
+  `web-design-guidelines` for the UI itself.
 
 If the app or pipeline could not be run, say so plainly instead of implying it passed.
 

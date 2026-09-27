@@ -302,7 +302,8 @@ decision.
 - The acceptance criteria are yours to invent and the user has not confirmed them.
 - The source contradicts the code, or contradicts an earlier meeting's decision.
 - The change alters the on-disk dataset contract — stream layout, bit depth, channel
-  count. Downstream readers like `bridge/any_to_bokeh.py` break silently.
+  count. Downstream readers like `backend/src/video_bokeh/bridge/any_to_bokeh.py` break
+  silently.
 - An expansion from the CEO review changes the research direction, and Pablo and Valery
   have not agreed to it.
 - The work needs a decision from Pablo or Valery that nobody has made.
