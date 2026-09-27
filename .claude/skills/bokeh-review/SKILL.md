@@ -245,8 +245,8 @@ the final state:
    only.
 4. Repeat at most **three rounds**. A finding still open after the third goes to the user in
    Russian, with what was tried — do not keep going.
-5. Ask to push the fixes, per `AGENTS.md`. The review is published against the pushed head;
-   if the user declines, publish against the remote head and list the unpushed fixes.
+5. Push the fixes, per root `AGENTS.md` rule 2. The review is always published against the
+   pushed head, so its verdict describes what GitHub would merge.
 
 Re-read the head SHA for the published `commitID`, and name every fix in the body. A reader
 must never discover from a diff that the reviewer changed the branch.
@@ -336,6 +336,6 @@ regeneration step — append it to the meeting note the PR came from, or write
 ## 14. Hand off
 
 Reply in Russian: the verdict (ready to merge or not), the event submitted, the must-fix
-count, fixes committed and whether they still need a push, whether the notation gate
-passed, whether QA ran and what it printed, and where you recorded the outcome.
-**Do not merge.**
+count, every fix committed and pushed, whether the notation gate passed, whether QA ran and
+what it printed, and where you recorded the outcome. **Do not merge** unless the user handed
+this pull request over, and then only once it is ready to merge (root `AGENTS.md` rule 2).

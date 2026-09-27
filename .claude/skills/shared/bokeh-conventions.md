@@ -114,10 +114,12 @@ treats a surviving trailer as a merge blocker.
 
 ## Pushing
 
-Never `git push` without an explicit ask in this session. **Nothing enforces this
-mechanically**: `.claude/hooks/no-push.sh` exists but is not wired into the shared settings,
-and root `AGENTS.md` says why and how to enable it for yourself. Commit freely on a feature
-branch; stop at the push.
+Push feature branches, open the pull request and edit its title and body without asking.
+**Merging into `main` is the user's decision**, unless they have explicitly handed a batch of
+pull requests over; then merge each one only once CI is green and its review says it is
+ready to merge. Force-pushing a feature branch and amending a pushed commit still need an
+explicit go-ahead. Root `AGENTS.md` rule 2 is the source, and nothing enforces it
+mechanically.
 
 **Delegated skills bring their own git habits, and none of them apply here.**
 

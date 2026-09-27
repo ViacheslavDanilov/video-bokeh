@@ -273,9 +273,9 @@ aborts, and piping the command through `tail` or `&&` hides that.
 
 `git log main..HEAD --oneline` — do the commits read as one coherent change?
 
-**Stop before pushing and ask.** Nothing blocks a push mechanically, so the ask is the guard.
-After approval, `gh pr create` with a title that is a short imperative phrase, no `type:`
-prefix, ≈65 characters, and the `## What` / `## Why` / `## Verified` body from `AGENTS.md`.
+Then push and open the pull request without asking, per root `AGENTS.md` rule 2:
+`gh pr create` with a title that is a short imperative phrase, no `type:` prefix, ≈65
+characters, and the `## What` / `## Why` / `## Verified` body from `AGENTS.md`.
 `Verified` carries measured numbers only, and names pre-existing failures as pre-existing.
 A judgement call left from step 9 goes in the body as a named follow-up.
 
@@ -294,8 +294,8 @@ Measurements worth keeping go to `docs/reports/`. None of this is committed.
 
 Reply in Russian: the route taken, the PR URL or the file written, branch and head SHA, how
 many files changed, what you verified, and anything you could not. When there is a PR, end
-with the next step: **new session, `/bokeh-review <n>`.** **Do not merge** — that is a human
-decision.
+with the next step: **new session, `/bokeh-review <n>`.** **Do not merge** unless the user has
+handed this pull request over: merging is theirs by default, per root `AGENTS.md` rule 2.
 
 ## Red flags — stop and ask
 
