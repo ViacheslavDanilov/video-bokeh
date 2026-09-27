@@ -116,8 +116,8 @@ This project has no ticket tracker. The equivalent is the decision that motivate
      `ls docs/plans/*/*-<branch-slug>.md` finds;
    - a folder of tickets, `docs/plans/<date>-<branch-slug>/`.
 
-   These files are gitignored, so they exist only in the checkout you were started in, not
-   in the worktree from step 4. Read them there.
+   Specs, tickets and meeting notes are gitignored, so they exist only in the checkout you
+   were started in, never in the worktree from step 4.
 2. The newest note in `docs/meetings/` matching the topic — its **Decisions** and
    **Action items**.
 3. The PR body's `## Why`, when neither exists. A PR with no task behind it is normal.
@@ -129,22 +129,30 @@ reconstructed from any of the three is itself a remark.
 ## 4. Load the scope, in a worktree at the PR head
 
 Every later step — the lenses, the QA pass, the fix loop — runs in a worktree at the pull
-request's head, not in the checkout you were started in.
+request's head, not in the checkout you were started in. The exception is the vault's
+gitignored folders, `docs/specs/`, `docs/plans/`, `docs/meetings/` and `docs/reports/`. They
+exist only in the checkout you were started in, so read and write them there, or they vanish
+with the worktree.
 
 1. The PR's base is `origin/main`, fetched in step 2.
-2. `git worktree list`. If the PR's branch is already checked out anywhere, which usually
-   means another session is on it, **stop and ask the user.** Never work around it.
-3. Create the worktree in a fresh temporary directory, and keep its path for step 14:
-   - the user's own PR: `git worktree add "$WT" <branch>`, then
-     `git -C "$WT" merge --ff-only origin/<branch>`, so the fix loop commits onto the pushed
-     head. If the fast-forward fails, the local branch has diverged: stop and ask;
-   - a colleague's PR: `git fetch origin pull/<n>/head`, then
-     `git worktree add --detach "$WT" FETCH_HEAD`. Nothing is committed there.
-4. In the worktree, run `uv sync --all-extras --dev` before `ty` or pytest, so a missing
-   `fastapi` or `torch` is not taken for a regression. When the PR touches `frontend/`, also
-   run `pnpm install --frozen-lockfile` in `frontend/`.
+2. `git worktree list`. If the PR's branch is checked out in any worktree other than the one
+   you were started in, another session is probably on it: **stop and ask the user.** Never
+   work around it. The branch being open in your own checkout is the normal case after
+   `/bokeh-task`, and needs nothing.
+3. Create the worktree in a fresh temporary directory, detached at the pushed head, and keep
+   its path for step 14:
+   - the user's own PR: `git worktree add --detach "$WT" origin/<branch>`;
+   - a colleague's PR: `git worktree add --detach "$WT" FETCH_HEAD`, from the fetch in step 2.
+     Nothing is committed there.
+
+   A detached worktree cannot collide with the branch being open elsewhere. The fix loop
+   pushes from it with `git push origin HEAD:<branch>`.
+4. In the worktree, run `make setup`. `ty`, pytest and `make check` need the backend extras
+   and the frontend packages even on a backend-only PR.
 5. Run everything after this from `$WT`. `two-axis-review`, `/code-review`,
    `document-release` and `qa` then see the PR head as `HEAD`.
+
+If the review stops anywhere after this step, remove the worktree first, as step 14 does.
 
 Always: head SHA, title, author, existing threads, and which of them are already addressed.
 Then per depth: comments only / delta diff and files / full diff at HEAD.
@@ -287,7 +295,8 @@ the final state:
 4. Repeat at most **three rounds**. A finding still open after the third goes to the user in
    Russian, with what was tried — do not keep going.
 5. Run `make check`, plus `make smoke` when a fix touches the frontend: re-running the lenses
-   does not re-run the tests. Then push the fixes, per root `AGENTS.md` rule 2. The review is
+   does not re-run the tests. Then push the fixes with `git push origin HEAD:<branch>`, per
+   root `AGENTS.md` rule 2. The review is
    always published against the pushed head, so its verdict describes what GitHub would
    merge.
 
@@ -374,13 +383,16 @@ pointers only.
 No tracker here, so close the loop in the vault instead. When the review produced something
 worth keeping — a qa-focus scenario, a regression risk beyond the tests, a migration or a
 regeneration step — append it to the meeting note the PR came from, or write
-`docs/reports/YYYY-MM-DD-<slug>.md`. Skip for a routine approve. Nothing here is committed.
+`docs/reports/YYYY-MM-DD-<slug>.md`, in the checkout you were started in. Skip for a routine
+approve. Nothing here is committed.
 
 ## 14. Hand off
 
 Remove the worktree from step 4: `git worktree remove "$WT"`, run from the checkout you were
 started in. If it refuses because of uncommitted changes, report them rather than force the
-removal.
+removal. If that checkout has the PR's branch open with a clean tree and the fix loop pushed
+anything, bring it up to date with `git merge --ff-only origin/<branch>`; otherwise tell the
+user it is behind.
 
 Then reply in Russian: the verdict (ready to merge or not), the event submitted, the must-fix
 count, every fix committed and pushed, whether the notation gate passed, whether QA ran and
