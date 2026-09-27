@@ -1,6 +1,13 @@
+---
+type: how-to
+status: active
+tags: [how-to, agents, lifecycle, runbook]
+related: []
+---
+
 # Drive a task from idea to merge with the agent
 
-Three slash commands cover the whole lifecycle. You answer questions, confirm the acceptance criteria, approve each push, and merge. The agent picks which of the phases below a task needs and runs them.
+Three slash commands cover the whole lifecycle. You answer questions, confirm the acceptance criteria, and merge — or hand a batch of pull requests over for the agent to merge. The agent picks which of the phases below a task needs and runs them.
 
 ## The three commands
 
@@ -40,10 +47,10 @@ flowchart TD
         DIAG --> TDD["tdd"]
         TDD --> VERIFY["Tests, lint, types,<br/>commit"]
         VERIFY --> SELF["two-axis-review<br/>fresh-context self-check"]
-        SELF --> OK2{{"You approve the push"}}
+        SELF --> PUSH["make check, push,<br/>open the pull request"]
     end
 
-    OK2 --> CI["CI: pre-commit, tests,<br/>frontend build, Docker"]
+    PUSH --> CI["CI: pre-commit, tests, frontend build,<br/>browser smoke, Docker"]
 
     subgraph S2 ["Session 2: /bokeh-review"]
         LENSES["two-axis-review + /code-review<br/>history, threads, docs style,<br/>document-release"] --> HIGH{"High-risk?"}
@@ -54,13 +61,13 @@ flowchart TD
         QA --> LEFT{"Must-fix left?"}
         LEFT -->|"yes, up to 3 rounds"| FIX["Fix and commit"]
         FIX --> LENSES
-        LEFT -->|"no"| OK3{{"You approve pushing<br/>the fixes"}}
-        OK3 --> PUBLISH["Review on GitHub"]
+        LEFT -->|"no"| PUSHFIX["make check,<br/>push the fixes"]
+        PUSHFIX --> PUBLISH["Review on GitHub"]
     end
 
     CI --> LENSES
 
-    PUBLISH --> MERGE{{"You merge"}}
+    PUBLISH --> MERGE{{"You merge, or hand<br/>the batch over"}}
 ```
 
 The hexagons are yours. Everything else runs without you. Routes that build nothing, such as an investigation or a literature search, end with a written finding once you confirm the criteria, and never reach a branch.
@@ -87,7 +94,7 @@ Say you want the demo to export a scene as EXR, and no meeting asked for it.
 5. The agent restates the goal and the acceptance criteria as a checklist. **This is the checkpoint that matters most**: a wrong criterion here costs a rebuilt feature later. Say yes, or fix the list.
 6. It writes the spec to `docs/specs/` and confirms where the tests will sit. Then it branches and builds test-first.
 7. A fresh-context self-check compares the diff against the repo rules and the spec, and the agent fixes what it finds.
-8. It shows the commits and asks to push. Say yes, and it opens the pull request.
+8. It runs `make check`, pushes the branch and opens the pull request, without asking.
 9. It ends by naming the next step: a new session, `/bokeh-review` with the PR number.
 
 **Session 2**
@@ -95,9 +102,9 @@ Say you want the demo to export a scene as EXR, and no meeting asked for it.
 1. Open a new session and type `/bokeh-review 15`.
 2. The agent reads the spec behind the branch, then the diff through each review lens.
 3. It runs the page in a browser and syncs any documentation the change made stale.
-4. On your own branch it fixes what it found, at most three rounds, and asks before pushing the fixes.
+4. On your own branch it fixes what it found, at most three rounds, runs `make check` and pushes the fixes.
 5. It publishes one review on GitHub and tells you whether the PR is ready to merge.
-6. You merge.
+6. You merge — or the agent does, when you have handed this batch of pull requests over.
 
 ## Where things end up
 
