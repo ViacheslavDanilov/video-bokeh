@@ -151,6 +151,21 @@ trip that a local run does not.
 On a colleague's PR none of them commits anything: `qa-only` reports, and a doc pass keeps
 no edits.
 
+## Delegating
+
+Every prompt to a delegated skill or a subagent states the same limits in the prompt itself.
+A skill's own preamble does not know this repo's rules, so the prompt is where they have to
+arrive:
+
+- read-only and no commits, unless the calling step owns the edits, as the fix loop owns
+  `qa`'s;
+- never push;
+- never upgrade gstack or any other tool, whatever its preamble offers;
+- never touch `CLAUDE.md` or add routing rules to it.
+
+During the PR #15 review both gstack preambles offered an upgrade and a commit to
+`CLAUDE.md`. The delegated agents declined only because their prompts said so.
+
 ## Which skill to reach for
 
 These three skills are rails and repo conventions. **The heavy lifting is delegated** — do
