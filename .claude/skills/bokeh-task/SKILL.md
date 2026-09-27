@@ -263,7 +263,8 @@ Run `git fetch origin`, then invoke `two-axis-review` with `origin/main` as the 
 and the spec's path, or, on a route
 that wrote no spec, the acceptance criteria confirmed in step 4. Its two subagents see the
 diff and the spec, not this conversation, and that is the point: they read what you wrote
-rather than what you meant.
+rather than what you meant. Like every delegation, the prompt carries the limits in
+**Delegating** in the conventions file.
 
 Fix every hard standards violation and every spec gap, each fix a further commit. Fix a
 judgement-call smell when it is cheap, otherwise name it in the PR body. One round only —
