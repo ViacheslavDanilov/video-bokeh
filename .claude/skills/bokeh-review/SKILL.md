@@ -62,16 +62,33 @@ Prefer `git diff <baseline>..<head>` locally over `gh pr diff`, which is always 
 
 **High-risk, never trivial, always at least delta:**
 
-- the on-disk dataset contract — under `backend/src/video_bokeh/`: `core/_streams.py`,
-  `core/_seq_io.py`, `core/_metadata.py`, `core/_library.py`, `core/_trajectory.py`,
-  `scenes/generate.py`, `scenes/_compositor.py`, `library/build.py`,
-  `bridge/any_to_bokeh.py`, and `docs/reference/dataset-layout.md`;
-- the API the frontend consumes — `api/main.py` and `docs/reference/api.md`;
-- `.github/workflows/`, `.pre-commit-config.yaml`, `.claude/hooks/`, `.claude/settings.json`,
-  Dockerfiles, and `.gitignore`.
+- the on-disk dataset contract:
+  - `backend/src/video_bokeh/core/_streams.py`
+  - `backend/src/video_bokeh/core/_seq_io.py`
+  - `backend/src/video_bokeh/core/_metadata.py`
+  - `backend/src/video_bokeh/core/_library.py`
+  - `backend/src/video_bokeh/core/_trajectory.py`
+  - `backend/src/video_bokeh/scenes/generate.py`
+  - `backend/src/video_bokeh/scenes/_compositor.py`
+  - `backend/src/video_bokeh/library/build.py`
+  - `backend/src/video_bokeh/bridge/any_to_bokeh.py`
+  - `docs/reference/dataset-layout.md`
+- the API the frontend consumes:
+  - `backend/src/video_bokeh/api/main.py`
+  - `docs/reference/api.md`
+- the build, CI and agent configuration:
+  - `.github/workflows/`
+  - `.pre-commit-config.yaml`
+  - `.claude/hooks/`
+  - `.claude/settings.json`
+  - `backend/Dockerfile`
+  - `frontend/Dockerfile`
+  - `.gitignore`
 
-A path in this list that no longer exists is itself a finding: fix the list in this file
-before going on. It went stale once already, after the namespace move.
+Every Python module is named by its full path, because
+`backend/tests/test_docs_references.py` checks this file and fails CI on a path that no longer
+exists. A bare file name would slip through: it still matches after its directory moves. The
+other paths are not checked, so a missing one is a finding: fix the list before going on.
 
 ## 3. Context first
 
