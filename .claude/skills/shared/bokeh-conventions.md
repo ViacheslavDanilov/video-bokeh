@@ -233,9 +233,9 @@ Recorded so nobody re-litigates it:
 - **superpowers** — dropped on 2026-09-26 and disabled in `.claude/settings.json`. It covers
   the same stages as the vendored skills, at more length, and its session hook forces a skill
   before every reply, questions included.
-- **gstack `ship`** — bumps `VERSION`, writes a `CHANGELOG`, titles the PR `v<version>
-  type: …`, adds an AI co-author trailer and pushes unasked. Root `AGENTS.md` forbids all
-  four. `bokeh-task` opens the PR instead.
+- **gstack `ship`** — bumps `VERSION` and writes a `CHANGELOG`, which this repo does not
+  keep, titles the PR `v<version> type: …`, and adds an AI co-author trailer. Root
+  `AGENTS.md` forbids the last two. `bokeh-task` opens the PR instead.
 - **gstack `land-and-deploy`, `canary`** — there is no deploy target, and merging is the
   user's.
 - **gstack `autoplan`, `spec`** — scope comes from meetings and from the user, not from an
