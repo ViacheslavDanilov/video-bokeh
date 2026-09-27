@@ -396,5 +396,5 @@ user it is behind.
 
 Then reply in Russian: the verdict (ready to merge or not), the event submitted, the must-fix
 count, every fix committed and pushed, whether the notation gate passed, whether QA ran and
-what it printed, and where you recorded the outcome. **Do not merge** unless the user handed
-this pull request over, and then only once it is ready to merge (root `AGENTS.md` rule 2).
+what it printed, and where you recorded the outcome. **Do not merge**, except a pull request
+the user has handed over, and then only under the conditions of root `AGENTS.md` rule 2.
