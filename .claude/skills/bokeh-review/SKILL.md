@@ -51,7 +51,8 @@ Skip a closed or draft PR. If the head SHA matches your last submitted review:
 
 ## 2. Depth triage
 
-Run `git fetch origin` first. The PR base is `origin/main`, never a local `main`: one that
+Run `git fetch origin` first, and on a colleague's PR also `git fetch origin pull/<n>/head`,
+which is where a fork's head lives. The PR base is `origin/main`, never a local `main`: one that
 is a merged PR behind puts that PR's files into this one's diff. It once showed 55 files for
 a 24-file PR. Baseline is the latest of: your last review's `commitID`, the newest review by
 anyone at the current head, or the PR base — which makes it a **full** first review. Count delta lines and
@@ -64,7 +65,9 @@ files, excluding renames and metadata.
 | **delta** | new commits, larger than trivial, not a first review | delta diff and delta files |
 | **full** | first review, large refactor, many files, or asked for | whole PR at HEAD, all lenses |
 
-Prefer `git diff <baseline>..<head>` locally over `gh pr diff`, which is always the full PR.
+Prefer `git diff <baseline>...<head>` locally over `gh pr diff`, which is always the full PR.
+Three dots measure from the merge base: two would show every commit `main` gained since the
+branch was cut, reversed, as if this PR had undone it.
 
 **High-risk, never trivial, always at least delta:**
 
@@ -191,7 +194,7 @@ an AI trailer, pushes and rewrites the PR body even when nothing changed. **Push
 same file has the details. Step 9 fixes the drift it reports.
 
 Run lens #7 as `codex exec -s read-only` from the worktree. Its prompt names the diff
-command, `git diff <baseline>..HEAD`, the high-risk files the diff touches, and what to look
+command, `git diff <baseline>...HEAD`, the high-risk files the diff touches, and what to look
 for there. gstack's `codex review --base` takes no custom instructions, so it cannot be
 pointed at the risk. The gstack `codex` skill also keeps codex out of `.claude/skills/` by
 default; when the PR changes those files, the prompt says codex may read them.
