@@ -162,5 +162,5 @@ _Avoid_: manifest
 One stream shown in the viewer.
 
 **Transport**:
-The single play and position control that keeps every pane on the same frame.
+The single play, speed and position control that keeps every pane on the same frame.
 _Avoid_: player, scrubber

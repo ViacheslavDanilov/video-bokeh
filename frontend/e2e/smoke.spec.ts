@@ -34,3 +34,33 @@ test("generates a sequence and decodes every stream", async ({ page }) => {
   // Scoped to <main>: Next.js adds an empty route announcer with the same role.
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
+
+/**
+ * The speed belongs to the viewer, not to one element: every pane plays at it, and a pane
+ * whose source is swapped keeps it, although loading a new source resets an element's rate.
+ */
+test("sets every pane to the chosen speed", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+
+  const rates = () =>
+    videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).playbackRate),
+    );
+
+  await page.getByRole("combobox", { name: "Playback speed" }).click();
+  await page.getByRole("option", { name: "0.5×" }).click();
+  await expect.poll(rates).toEqual([0.5, 0.5, 0.5]);
+
+  await page.getByRole("combobox", { name: "Stream" }).first().click();
+  await page.getByRole("option", { name: "Disparity" }).click();
+  await expect
+    .poll(() =>
+      videos.first().evaluate((el) => (el as HTMLVideoElement).currentSrc),
+    )
+    .toContain("disparity");
+  await expect.poll(rates).toEqual([0.5, 0.5, 0.5]);
+});

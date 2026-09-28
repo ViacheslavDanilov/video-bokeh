@@ -36,8 +36,9 @@ without rebuilding.
 - **Generate** — one call, and it blocks while it works: about 7 seconds for 80 frames at 512
   px. Asking twice for the same sequence returns it in milliseconds, because the sequence id is a
   hash and the directory on disk is the cache.
-- **Compare** — up to three panes, each showing any stream, all driven by one transport so
-  the frames line up. Disparity can be shown in Spectral or grey.
+- **Compare** — up to four panes, each showing any stream, all driven by one transport so
+  the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
+  at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.
 
 Bokeh is not here. It runs on a GPU in its own container, which does not exist yet.
 

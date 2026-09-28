@@ -25,6 +25,10 @@ const MAX_PANES = 4;
 // The tolerance matters: seeking on every tick would stutter.
 const SYNC_TOLERANCE_SECONDS = 1 / 24;
 
+// The steps a video player offers. Slower is the useful direction here: an 80-frame clip is
+// over in a few seconds, and the depth ordering changes inside it.
+const SPEEDS = [0.25, 0.5, 1, 2];
+
 type Pane = {
   key: number;
   stream: string;
@@ -66,6 +70,8 @@ export function Viewer({
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  // A viewer setting rather than part of the sequence, so a new sequence keeps it.
+  const [speed, setSpeed] = useState(1);
 
   const videos = useRef(new Map<number, HTMLVideoElement>());
   // Read inside onLoadedMetadata, which fires long after the render that set the
@@ -75,6 +81,9 @@ export function Viewer({
   // Which sequence the refs above describe. Compared inside the load handler rather than
   // reset during render, because writing a ref while rendering is not allowed.
   const restoredSequence = useRef<string | null>(null);
+  // Read when an element attaches, which happens on React's schedule rather than inside
+  // the render that chose the speed.
+  const speedRef = useRef(1);
 
   // A new sequence rewinds the transport. Adjusting state during render rather than in an
   // effect is React's own recommendation for state that has to follow a prop: an effect
@@ -136,12 +145,33 @@ export function Viewer({
     [eachVideo],
   );
 
+  // Loading a new src resets an element's rate to its default rate, so both are set: a
+  // stream or colormap switch then keeps the speed without any handler of its own.
+  const applySpeed = useCallback((v: HTMLVideoElement) => {
+    v.defaultPlaybackRate = speedRef.current;
+    v.playbackRate = speedRef.current;
+  }, []);
+
+  const changeSpeed = useCallback(
+    (to: number) => {
+      speedRef.current = to;
+      setSpeed(to);
+      eachVideo(applySpeed);
+    },
+    [eachVideo, applySpeed],
+  );
+
   const registerVideo = useCallback(
     (key: number, el: HTMLVideoElement | null) => {
-      if (el) videos.current.set(key, el);
-      else videos.current.delete(key);
+      if (el) {
+        // A pane added later, or remounted for a new sequence, starts at the chosen speed.
+        applySpeed(el);
+        videos.current.set(key, el);
+      } else {
+        videos.current.delete(key);
+      }
     },
-    [],
+    [applySpeed],
   );
 
   if (!sequence) {
@@ -340,7 +370,9 @@ export function Viewer({
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* Wraps on a narrow screen, where Play and the speed would otherwise leave the
+          position slider a few pixels wide. The slider and its counter wrap together. */}
+      <div className="flex flex-wrap items-center gap-4">
         <Button
           type="button"
           variant="outline"
@@ -349,19 +381,36 @@ export function Viewer({
         >
           {playing ? "Pause" : "Play"}
         </Button>
-        <Slider
-          aria-label="Position"
-          aria-valuetext={`Frame ${frameIndex + 1} of ${sequence.frames}`}
-          className="flex-1"
-          min={0}
-          max={lastFrame}
-          step={1}
-          value={[frameIndex]}
-          onValueChange={([f]) => seekToFrame(f)}
-        />
-        <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
-          {frameIndex + 1} / {sequence.frames}
-        </span>
+        <Select
+          value={String(speed)}
+          onValueChange={(v) => changeSpeed(Number(v))}
+        >
+          <SelectTrigger aria-label="Playback speed" className="w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SPEEDS.map((s) => (
+              <SelectItem key={s} value={String(s)}>
+                {s}&times;
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex min-w-60 flex-1 items-center gap-4">
+          <Slider
+            aria-label="Position"
+            aria-valuetext={`Frame ${frameIndex + 1} of ${sequence.frames}`}
+            className="flex-1"
+            min={0}
+            max={lastFrame}
+            step={1}
+            value={[frameIndex]}
+            onValueChange={([f]) => seekToFrame(f)}
+          />
+          <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
+            {frameIndex + 1} / {sequence.frames}
+          </span>
+        </div>
       </div>
 
       <dl className="text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
