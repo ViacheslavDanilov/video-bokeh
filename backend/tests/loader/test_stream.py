@@ -55,19 +55,21 @@ def test_object_alphas_past_the_count_are_zero(library: Path) -> None:
 def test_matches_what_the_dataset_writer_writes(library: Path, tmp_path: Path) -> None:
     # One worker yields seeds seed, seed+1, ... -- the scenes scenes.generate writes for
     # --seed, so the stream and a written dataset are one distribution. The writer runs
-    # for real here, so a drift in either one fails this test.
+    # for real here, so a drift in either one fails this test. Seed 1 places both
+    # foregrounds, so the page order of the mattes is compared too.
     generate_dataset(
         library,
         tmp_path / "out",
         1,
         FRAMES,
         SIZE,
-        seed=7,
+        seed=1,
         n_objects_max=2,
     )
     seq = tmp_path / "out" / "sequences" / "0001"
-    item = next(iter(_stream(library, seed=7)))
-    assert item["seed"] == 7
+    item = next(iter(_stream(library, seed=1)))
+    assert item["seed"] == 1
+    assert item["n_objects"] == 2
 
     written_rgb = np.stack(
         [np.asarray(Image.open(p)) for p in sorted((seq / "all_in_focus").iterdir())],
