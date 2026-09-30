@@ -68,7 +68,7 @@ def test_transformers_infer_returns_correct_shape_and_dtype(monkeypatch, key) ->
         def eval(self):
             return self
 
-        def to(self, _device: torch.device):
+        def to(self, *_args, **_kwargs):
             return self
 
     monkeypatch.setattr(
@@ -90,3 +90,45 @@ def test_transformers_infer_returns_correct_shape_and_dtype(monkeypatch, key) ->
     assert out[0].shape == (64, 64)
     assert out[1].shape == (24, 32)
     assert out[0].dtype == np.float32
+
+
+def test_transformers_float16_checkpoint_keeps_float32_precision(monkeypatch) -> None:
+    # Depth Pro's checkpoint is float16, and transformers 5 loads a checkpoint in its
+    # own dtype. Run that way, disparity keeps about a thousand levels per octave,
+    # far coarser than the uint16 the library stores.
+    from video_bokeh.library.depth import _transformers as mod
+
+    class _Inputs(dict):
+        def to(self, _device: torch.device) -> _Inputs:
+            return self
+
+    class _Float16Model(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.scale = torch.nn.Parameter(torch.ones((), dtype=torch.float16))
+
+        def forward(self, **_kwargs):
+            ramp = torch.linspace(1.0, 2.0, 64 * 64).reshape(1, 64, 64)
+            return type("O", (), {"predicted_depth": ramp.to(self.scale.dtype)})()
+
+    monkeypatch.setattr(
+        mod,
+        "AutoImageProcessor",
+        type(
+            "M",
+            (),
+            {"from_pretrained": staticmethod(lambda _id: lambda **_: _Inputs())},
+        ),
+    )
+    monkeypatch.setattr(
+        mod,
+        "AutoModelForDepthEstimation",
+        type("M", (), {"from_pretrained": staticmethod(lambda _id: _Float16Model())}),
+    )
+
+    est = ESTIMATORS["depth-pro"]()
+    est.load(torch.device("cpu"))
+    [disp] = est.infer([Image.new("RGB", (64, 64))])
+
+    # float16 holds 1024 values in [1, 2); float32 keeps every step of the ramp.
+    assert np.unique(disp).size > 2048

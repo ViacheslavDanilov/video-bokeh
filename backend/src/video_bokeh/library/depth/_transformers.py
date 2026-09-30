@@ -43,7 +43,9 @@ class TransformersDepthEstimator:
         _ensure_transformers_loaded()
         self._processor = AutoImageProcessor.from_pretrained(self.hf_model_id)
         self._model = AutoModelForDepthEstimation.from_pretrained(self.hf_model_id)
-        self._model = self._model.to(device).eval()
+        # transformers 5 keeps a checkpoint's own dtype, float16 for Depth Pro, which
+        # leaves disparity far coarser than the uint16 the library stores.
+        self._model = self._model.to(device=device, dtype=torch.float32).eval()
         self._device = device
 
     def infer(self, images: list[Image.Image]) -> list[np.ndarray]:
