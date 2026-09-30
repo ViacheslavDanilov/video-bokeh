@@ -133,6 +133,11 @@ _Avoid_: preprocessing
 Generating sequences from the library; it never runs the depth estimator.
 _Avoid_: rendering
 
+**Sequence stream**:
+Sequences Stage B generates in memory for a training loop and never writes — the on-the-fly
+counterpart of the dataset. `loader` is its role word in code, as `library` is Stage A's.
+_Avoid_: online dataset
+
 **Stage C**:
 Rendering bokeh for each sequence with a bokeh renderer; it never reads the library.
 _Avoid_: post-processing

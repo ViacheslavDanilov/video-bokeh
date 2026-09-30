@@ -13,6 +13,7 @@ backend/src/video_bokeh/
 ├── core/           _collision.py  _fusion.py  _library.py  _metadata.py
 │                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py  _worker.py
 ├── library/        build.py  _device.py  _neutral_bg.py  _propagation.py  depth/
+├── loader/         _stream.py                        — on-the-fly training data
 ├── preview/        pack.py                           — streams a human looks at
 └── scenes/         generate.py  _compositor.py       — Stage B
 ```
@@ -25,6 +26,7 @@ backend/src/video_bokeh/
 | build a library yourself | `uv sync --no-dev --extra library` |
 | download the source pools | `uv sync --no-dev --extra acquire` |
 | run the API | `uv sync --no-dev --extra api` |
+| train on sequences generated on the fly | `uv sync --no-dev --extra loader` |
 | develop on the repository | `uv sync --all-extras --dev` |
 
 Drop `--no-dev` and uv adds the `dev` group — pytest, ruff, ty, pre-commit — on top, which
@@ -65,7 +67,9 @@ touching Stage A. `--size` must match between the two stages.
 Full recipes — building a library, downloading the source pools — are in
 [`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md). Every flag is in
 [`docs/reference/cli.md`](../docs/reference/cli.md). The on-disk contract each stage writes is
-in [`docs/reference/dataset-layout.md`](../docs/reference/dataset-layout.md).
+in [`docs/reference/dataset-layout.md`](../docs/reference/dataset-layout.md). Training straight
+from a library, with nothing written, is in
+[`docs/reference/loader.md`](../docs/reference/loader.md).
 
 **`--extra acquire` is not a light install.** It pulls in `open-clip-torch`, which pulls in
 `torch`, despite what "acquire" suggests. The runnable download commands live in `AGENTS.md`;

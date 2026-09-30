@@ -30,6 +30,9 @@ acquire = [
 preview = [
     "imageio[ffmpeg]>=2.34.0",
 ]
+loader = [
+    "torch>=2.5.0",
+]
 api = [
     "video-bokeh[preview]",
     "fastapi>=0.115.0",
