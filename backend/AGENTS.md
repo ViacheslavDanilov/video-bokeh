@@ -5,6 +5,7 @@ FastAPI on Python 3.13, managed with `uv`. Type checker: `ty` (astral). Linter/f
 ## Toolchain
 
 - **Python 3.13 only.** `requires-python = ">=3.13"` in `pyproject.toml`. Don't downgrade syntax for older versions.
+  - One exception: `src/video_bokeh/library/depth/_da3_worker.py` runs under Depth Anything 3's own Python 3.12, so it stays 3.12-compatible. `pyproject.toml` gives ruff a `py312` target for that file alone.
 - **`uv` is the package manager** — not pip, not poetry, not conda. Lockfile is `../uv.lock` (at repo root because this is a uv workspace; `[tool.uv.workspace] members = ["backend"]`).
 - **All Python commands go through `uv run ...`** so they use the locked environment.
 
@@ -39,6 +40,7 @@ backend/
 ├── tests/             # pytest tests
 ├── models/            # Trained model artifacts (gitignored)
 ├── data/              # Datasets (gitignored)
+├── envs/              # Venvs for models that cannot share ours, built by ../scripts/ (gitignored)
 ├── third_party/       # Git submodules — DO NOT MODIFY
 └── pyproject.toml
 ```
