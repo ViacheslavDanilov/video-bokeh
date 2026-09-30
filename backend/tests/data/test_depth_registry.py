@@ -36,7 +36,7 @@ def test_da2_variants_carry_correct_hf_id(key: str, hf_id: str) -> None:
 
 
 def test_da2_infer_returns_correct_shape_and_dtype(monkeypatch) -> None:
-    from video_bokeh.library.depth import depth_anything_v2 as mod
+    from video_bokeh.library.depth import _transformers as mod
 
     class _Inputs(dict):
         def to(self, _device: torch.device) -> _Inputs:
