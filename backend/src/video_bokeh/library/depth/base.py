@@ -15,7 +15,7 @@ class DepthEstimator(Protocol):
 
     Every model behind this interface returns the same thing, so Stage B never needs to
     know which one built the library. A model that predicts depth, far larger than near,
-    converts inside `infer`; nothing downstream does.
+    converts inside ``infer``; nothing downstream does.
     """
 
     name: ClassVar[str]

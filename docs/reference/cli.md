@@ -53,23 +53,21 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da2-large` | `depth-anything/Depth-Anything-V2-Large-hf` | CC BY-NC 4.0 |
 | `depth-pro` | `apple/DepthPro-hf` | research only |
 
-Licences as checked on 2026-09-30. Non-commercial weights are fine for a research dataset, and
-the assets they produce carry the same restriction.
+Licences as checked on 2026-09-30. Non-commercial weights are fine for a research dataset.
 
 ### Your own model
 
 Pass `--model my_package.my_module:MyEstimator`. The class needs no registration and no change
 to this repository:
 
-1. Give it a class attribute `name`, a short id for logs.
-2. `load(self, device)` puts the weights on a `torch.device`. It is called once.
-3. `infer(self, images)` takes a list of RGB `PIL.Image` and returns one float32 NumPy array per
+1. `load(self, device)` puts the weights on a `torch.device`. It is called once.
+2. `infer(self, images)` takes a list of RGB `PIL.Image` and returns one float32 NumPy array per
    image, the image's own height and width, with near larger than far. Scale and offset do not
    matter. A model that predicts depth returns its reciprocal.
 
 `my_package` has to be importable from the environment `uv run` uses. A missing module, a
-missing class, or a class without `name`, `load` and `infer` stops the command before any
-weights load. The interface is `video_bokeh.library.depth.base.DepthEstimator`.
+missing class, or a class without `load` and `infer` stops the command before any weights
+load. The interface is `video_bokeh.library.depth.base.DepthEstimator`.
 
 ## `video_bokeh.scenes.generate` — Stage B
 

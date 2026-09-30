@@ -24,11 +24,11 @@ def _ensure_transformers_loaded() -> None:
 
 
 class TransformersDepthEstimator:
-    """A transformers depth model whose raw `predicted_depth` is already disparity.
+    """A transformers depth model whose raw ``predicted_depth`` is already disparity.
 
-    A subclass names its checkpoint. It says in its docstring why the model's raw output
-    is near-larger-than-far, because that is the one thing the contract cannot check.
-    A model that predicts depth needs its own `infer` instead of this one.
+    A subclass names its checkpoint. The subclass, or the module defining it, says why the
+    model's raw output is near-larger-than-far, because that is the one thing the contract
+    cannot check. A model that predicts depth needs its own ``infer`` instead of this one.
     """
 
     name: ClassVar[str] = ""

@@ -145,8 +145,7 @@ exist yet.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
-Any model behind Stage C's interface that writes a sequence's bokeh stream — any-to-bokeh so
-far.
+A model that writes a sequence's bokeh stream in Stage C — any-to-bokeh so far.
 _Avoid_: bokeh model
 
 **any-to-bokeh**:
