@@ -42,9 +42,11 @@ class SequenceStream(IterableDataset):
     cannot be placed without colliding is skipped, as the writer skips it.
 
     Every new iterator starts again at ``seed``, so a loop that re-creates its iterator
-    each epoch sees the same sequences again; change ``seed`` between runs. Assets are
-    read from disk for every item. That is the first thing to cache if the stream cannot
-    keep a training loop fed.
+    each epoch sees the same sequences again. Seeds are consecutive, so ``seed=1``
+    repeats ``seed=0`` one item later: streams that must not overlap, one per rank or
+    per epoch, need seeds further apart than either one uses, such as
+    ``rank * 10**9``. Assets are read from disk for every item. That is the first thing
+    to cache if the stream cannot keep a training loop fed.
     """
 
     def __init__(

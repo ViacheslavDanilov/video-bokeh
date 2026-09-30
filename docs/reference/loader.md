@@ -70,8 +70,17 @@ Worker `w` of `W` takes seeds `seed + w`, `seed + w + W`, `seed + w + 2W`, and s
   the scenes of seeds `seed`, `seed + 1`, ... — the ones `video_bokeh.scenes.generate --seed`
   writes. Only the pixels differ: the files on disk are quantized to 8-bit RGB, 8-bit mattes
   and 16-bit disparity, and the stream is not.
+- **Nearby seeds give almost the same stream.** Across its workers, one stream uses every
+  seed from `seed` upward, so `seed=1` yields what `seed=0` yields, one item later. Two
+  streams share no sequence only when their seeds are further apart than the number of
+  seeds either one uses. Space them far apart, for example `seed=rank * 10**9`.
+- **A written dataset holds seeds too.** `--seed s --count n` writes seeds `s` to
+  `s + n - 1`. Keep a training stream's seeds clear of a dataset kept for validation.
 - **Every new iterator starts again at `seed`.** A loop that re-creates its iterator each
-  epoch sees the same sequences each epoch. Keep one iterator, or change `seed`.
+  epoch sees the same sequences each epoch. Keep one iterator for the whole run, or move
+  `seed` far from its last value before each epoch. With `persistent_workers=True`, moving it
+  does nothing: each worker keeps the copy of the stream it started with, so build a new
+  `DataLoader` instead.
 
 A seed whose objects cannot be placed without colliding is skipped, as the writer skips it.
 With `seed` of 0 and one worker, the first item is therefore not always seed 0. After 100
@@ -84,6 +93,7 @@ the only way out.
   job, run over written sequences.
 - **CPU only.** Each worker generates on the CPU. Use `num_workers` to scale.
 - **No split across distributed ranks.** Every process with the same `seed` yields the same
-  stream. Give each rank its own `seed`.
+  stream, and nearby seeds overlap, as above. Give each rank a seed far from the others', for
+  example `seed=rank * 10**9`.
 - **Assets are read from disk for every item.** That is the first thing to cache if the
   stream cannot keep a training loop fed.
