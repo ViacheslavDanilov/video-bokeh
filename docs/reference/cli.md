@@ -41,7 +41,7 @@ Estimates depth once per asset and writes the artifact library.
 | `--styles` | list | `photo, render` | CLIP style classes kept |
 | `--subject-thr` | float | `0.5` | minimum CLIP score to keep an asset |
 
-### Depth models
+### Depth estimators
 
 Every model returns disparity, near larger than far, so a library built with any of them works
 the same in Stage B. The library records the `--model` string in each foreground's metadata.
