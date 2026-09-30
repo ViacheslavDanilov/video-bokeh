@@ -13,8 +13,6 @@ _REQUIRED = ["--fg-data-root", "fg", "--bg-data-root", "bg", "--output", "out"]
 
 _CUSTOM = """
 class MyEstimator:
-    name = "my-model"
-
     def load(self, device):
         pass
 
@@ -24,6 +22,9 @@ class MyEstimator:
 
 class NotAnEstimator:
     name = "nope"
+
+    def load(self, device):
+        pass
 """
 
 
@@ -42,7 +43,6 @@ def test_registered_name_resolves_to_its_class() -> None:
 def test_import_path_resolves_to_a_custom_class(custom_module: str) -> None:
     cls = resolve_estimator(f"{custom_module}:MyEstimator")
     assert cls.__name__ == "MyEstimator"
-    assert cls.name == "my-model"
 
 
 def test_unknown_name_lists_the_registered_ones() -> None:
@@ -61,7 +61,7 @@ def test_missing_class_is_named(custom_module: str) -> None:
 
 
 def test_class_without_the_interface_is_refused(custom_module: str) -> None:
-    with pytest.raises(ValueError, match="load"):
+    with pytest.raises(ValueError, match="infer"):
         resolve_estimator(f"{custom_module}:NotAnEstimator")
 
 
@@ -73,8 +73,22 @@ def test_cli_keeps_the_string_it_was_given(custom_module: str) -> None:
     assert args.model == spec
 
 
-def test_cli_rejects_an_unknown_model(capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize(
+    ("spec", "named"),
+    [
+        ("da2-huge", "da2-huge"),
+        ("no_such_module:Estimator", "no_such_module"),
+        ("my_estimators:Missing", "Missing"),
+        ("my_estimators:NotAnEstimator", "infer"),
+    ],
+)
+def test_cli_rejects_a_bad_model_with_a_usage_error(
+    custom_module: str,
+    capsys: pytest.CaptureFixture[str],
+    spec: str,
+    named: str,
+) -> None:
     with pytest.raises(SystemExit) as exc:
-        _build_parser().parse_args([*_REQUIRED, "--model", "da2-huge"])
+        _build_parser().parse_args([*_REQUIRED, "--model", spec])
     assert exc.value.code == 2
-    assert "da2-huge" in capsys.readouterr().err
+    assert named in capsys.readouterr().err

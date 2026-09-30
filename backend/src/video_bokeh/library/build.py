@@ -80,8 +80,8 @@ def _list_background_refs(bg_root: Path) -> list[str]:
     return sorted(refs)
 
 
-def _model_spec(spec: str) -> str:
-    """Validate `--model` at parse time but keep the string, which the metadata records."""
+def _validated_model(spec: str) -> str:
+    # Checked at parse time, but the string is kept: the metadata records it.
     try:
         resolve_estimator(spec)
     except ValueError as exc:
@@ -97,7 +97,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--size", type=int, default=1024)
     parser.add_argument(
         "--model",
-        type=_model_spec,
+        type=_validated_model,
         default="da2-large",
         help=f"one of {', '.join(sorted(ESTIMATORS))}, or package.module:ClassName "
         "for a model of your own (default: da2-large).",

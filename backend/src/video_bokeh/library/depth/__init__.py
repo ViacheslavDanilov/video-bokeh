@@ -20,8 +20,13 @@ ESTIMATORS: dict[str, type[DepthEstimator]] = {
 }
 
 
+def missing_methods(cls: type) -> list[str]:
+    """The methods of the estimator interface that ``cls`` does not provide."""
+    return [m for m in ("load", "infer") if not callable(getattr(cls, m, None))]
+
+
 def resolve_estimator(spec: str) -> type[DepthEstimator]:
-    """A registered name, or `package.module:ClassName` for a model outside this package.
+    """A registered name, or ``package.module:ClassName`` for a model outside this package.
 
     The import path is how someone plugs in their own model without editing this
     repository. Raises ValueError naming what is wrong, which argparse reports as a usage
@@ -43,11 +48,8 @@ def resolve_estimator(spec: str) -> type[DepthEstimator]:
     cls = getattr(module, class_name, None)
     if not isinstance(cls, type):
         raise ValueError(f"module {module_name!r} has no class {class_name!r}")
-    missing = [
-        attr for attr in ("load", "infer") if not callable(getattr(cls, attr, None))
-    ]
-    if not isinstance(getattr(cls, "name", None), str):
-        missing.insert(0, "name")
+    # ``name`` is not asked for: only the registry reads it, and this class is not in it.
+    missing = missing_methods(cls)
     if missing:
         raise ValueError(
             f"{spec} is not a depth estimator: it lacks {', '.join(missing)}",
