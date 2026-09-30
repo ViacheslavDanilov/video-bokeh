@@ -29,8 +29,8 @@ The main backend env (used by every command in the sections below) is separate �
 
 ## Build a synthetic dataset
 
-`build_dataset.py` runs the two stages of the pipeline in order and stops. Bokeh is a
-separate pipeline and is not part of it.
+`build_dataset.py` runs Stages A and B of the pipeline in order and stops. Stage C, which
+renders bokeh, is not part of it.
 
 1. **Stage A** — estimate depth once per asset and write the artifact library. The slow one.
 2. **Stage B** — sample scenes from that library and write sequences. Fast, and repeatable
