@@ -29,3 +29,14 @@ class DepthEstimator(Protocol):
         Each map has its image's own height and width. Scale and offset are free: the
         library min/max-normalizes every map when it writes it.
         """
+
+
+def resize_map(disparity: torch.Tensor, height: int, width: int) -> np.ndarray:
+    """A model's (H, W) map at its working size, resized bicubically to the image's."""
+    resized = torch.nn.functional.interpolate(
+        disparity[None, None],
+        size=(height, width),
+        mode="bicubic",
+        align_corners=False,
+    ).squeeze()
+    return resized.detach().cpu().numpy().astype(np.float32)

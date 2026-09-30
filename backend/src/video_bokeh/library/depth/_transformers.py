@@ -8,6 +8,8 @@ import numpy as np
 import torch
 from PIL import Image
 
+from video_bokeh.library.depth.base import resize_map
+
 AutoImageProcessor: Any = None
 AutoModelForDepthEstimation: Any = None
 
@@ -58,13 +60,7 @@ class TransformersDepthEstimator:
             outputs = self._model(**inputs)
 
         disparity = outputs.predicted_depth
-        out: list[np.ndarray] = []
-        for j, (height, width) in enumerate(sizes):
-            disp = torch.nn.functional.interpolate(
-                disparity[j : j + 1].unsqueeze(1),
-                size=(height, width),
-                mode="bicubic",
-                align_corners=False,
-            ).squeeze()
-            out.append(disp.detach().cpu().numpy().astype(np.float32))
-        return out
+        return [
+            resize_map(disparity[j], height, width)
+            for j, (height, width) in enumerate(sizes)
+        ]
