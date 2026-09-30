@@ -102,8 +102,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         default="da2-small",
-        choices=("da2-small", "da2-base", "da2-large"),
-        help="depth model for stage A. da2-large is slower and better.",
+        help="depth model for stage A: anything video_bokeh.library.build --model "
+        "takes, including package.module:ClassName. da2-large is slower and better.",
     )
     parser.add_argument(
         "--rebuild-library",
