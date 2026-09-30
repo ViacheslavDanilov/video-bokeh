@@ -18,6 +18,15 @@ def test_protocol_has_required_methods() -> None:
     assert hasattr(DepthEstimator, "infer")
 
 
+@pytest.mark.parametrize(("key", "cls"), sorted(ESTIMATORS.items()))
+def test_every_registered_estimator_conforms(key: str, cls: type) -> None:
+    # A model added to the registry without the interface would only fail once Stage A
+    # had loaded its weights; this catches it for free.
+    assert cls.name == key
+    assert callable(getattr(cls, "load", None))
+    assert callable(getattr(cls, "infer", None))
+
+
 @pytest.mark.parametrize("key", ["da2-small", "da2-base", "da2-large"])
 def test_da2_variants_are_registered(key: str) -> None:
     assert key in ESTIMATORS
@@ -29,13 +38,15 @@ def test_da2_variants_are_registered(key: str) -> None:
         ("da2-small", "depth-anything/Depth-Anything-V2-Small-hf"),
         ("da2-base", "depth-anything/Depth-Anything-V2-Base-hf"),
         ("da2-large", "depth-anything/Depth-Anything-V2-Large-hf"),
+        ("depth-pro", "apple/DepthPro-hf"),
     ],
 )
-def test_da2_variants_carry_correct_hf_id(key: str, hf_id: str) -> None:
+def test_transformers_models_carry_correct_hf_id(key: str, hf_id: str) -> None:
     assert ESTIMATORS[key].hf_model_id == hf_id
 
 
-def test_da2_infer_returns_correct_shape_and_dtype(monkeypatch) -> None:
+@pytest.mark.parametrize("key", ["da2-small", "depth-pro"])
+def test_transformers_infer_returns_correct_shape_and_dtype(monkeypatch, key) -> None:
     from video_bokeh.library.depth import _transformers as mod
 
     class _Inputs(dict):
@@ -72,7 +83,7 @@ def test_da2_infer_returns_correct_shape_and_dtype(monkeypatch) -> None:
         type("M", (), {"from_pretrained": staticmethod(lambda _id: _StubModel())}),
     )
 
-    est = ESTIMATORS["da2-small"]()
+    est = ESTIMATORS[key]()
     est.load(torch.device("cpu"))
     out = est.infer([Image.new("RGB", (64, 64)), Image.new("RGB", (32, 24))])
 
