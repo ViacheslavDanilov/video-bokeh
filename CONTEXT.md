@@ -29,8 +29,9 @@ Every asset with its disparity map, computed once by Stage A and read by every s
 _Avoid_: artifact library, asset store, cache
 
 **Depth estimator**:
-The neural model Stage A runs to get one disparity map per asset — Depth Anything V2. The only
-term in this project where the word "depth" survives.
+Any model behind Stage A's interface that turns an asset into one disparity map — Depth
+Anything V2 by default, Depth Pro, or one of the user's own. The only term in this project
+where the word "depth" survives.
 _Avoid_: depth model
 
 **Trusted core**:
@@ -132,6 +133,10 @@ _Avoid_: preprocessing
 Generating sequences from the library; it never runs the depth estimator.
 _Avoid_: rendering
 
+**Stage C**:
+Rendering bokeh for each sequence with a bokeh renderer; it never reads the library.
+_Avoid_: post-processing
+
 ## Rendering and the demo
 
 **Bokeh**:
@@ -139,8 +144,13 @@ The disparity-dependent blur the trained model is meant to produce; a stream tha
 exist yet.
 _Avoid_: blur, defocus
 
+**Bokeh renderer**:
+A model that writes a sequence's bokeh stream in Stage C — any-to-bokeh so far.
+_Avoid_: bokeh model
+
 **any-to-bokeh**:
-The external renderer that turns an all-in-focus stream and its disparity into bokeh.
+The first bokeh renderer: external code that turns an all-in-focus stream and its disparity
+into bokeh.
 
 **Focus disparity**:
 The disparity that stays sharp in a bokeh render.

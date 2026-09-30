@@ -28,7 +28,7 @@ Estimates depth once per asset and writes the artifact library.
 | `--bg-data-root` | path | **required** | BG-20k-style background pool |
 | `--output` | path | **required** | library root to write |
 | `--size` | int | `1024` | square side for foreground assets |
-| `--model` | str | `da2-large` | `da2-small`, `da2-base`, `da2-large` |
+| `--model` | str | `da2-large` | a model below, or `package.module:ClassName` for your own |
 | `--device` | str | `auto` | `auto`, `cuda`, `mps`, `cpu` |
 | `--neutral-bg-seed` | int | `0` | seed for the synthetic neutral backdrop |
 | `--bg-margin` | float | `0.25` | padding around the object on that backdrop |
@@ -40,6 +40,34 @@ Estimates depth once per asset and writes the artifact library.
 | `--subjects` | list | `person, animal, plant, food, object` | CLIP subject classes kept |
 | `--styles` | list | `photo, render` | CLIP style classes kept |
 | `--subject-thr` | float | `0.5` | minimum CLIP score to keep an asset |
+
+### Depth estimators
+
+Every model returns disparity, near larger than far, so a library built with any of them works
+the same in Stage B. The library records the `--model` string in each foreground's metadata.
+
+| `--model` | checkpoint | weights licence |
+|---|---|---|
+| `da2-small` | `depth-anything/Depth-Anything-V2-Small-hf` | Apache-2.0 |
+| `da2-base` | `depth-anything/Depth-Anything-V2-Base-hf` | CC BY-NC 4.0 |
+| `da2-large` | `depth-anything/Depth-Anything-V2-Large-hf` | CC BY-NC 4.0 |
+| `depth-pro` | `apple/DepthPro-hf` | research only |
+
+Licences as checked on 2026-09-30. Non-commercial weights are fine for a research dataset.
+
+### Your own model
+
+Pass `--model my_package.my_module:MyEstimator`. The class needs no registration and no change
+to this repository. Stage A creates it with no arguments, then calls two methods:
+
+1. `load(self, device)` puts the weights on a `torch.device`. It is called once.
+2. `infer(self, images)` takes a list of RGB `PIL.Image` and returns one float32 NumPy array per
+   image, the image's own height and width, with near larger than far. Scale and offset do not
+   matter. A model that predicts depth returns its reciprocal.
+
+`my_package` has to be importable from the environment `uv run` uses. A missing module, a
+missing class, or a class without `load` and `infer` stops the command before any weights
+load. The interface is `video_bokeh.library.depth.base.DepthEstimator`.
 
 ## `video_bokeh.scenes.generate` — Stage B
 

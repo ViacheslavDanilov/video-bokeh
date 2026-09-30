@@ -5,7 +5,7 @@ import pytest
 import torch
 from PIL import Image
 
-from video_bokeh.library.depth import ESTIMATORS
+from video_bokeh.library.depth import ESTIMATORS, missing_methods
 from video_bokeh.library.depth.base import DepthEstimator
 
 
@@ -16,6 +16,14 @@ def test_estimators_is_a_dict() -> None:
 def test_protocol_has_required_methods() -> None:
     assert hasattr(DepthEstimator, "load")
     assert hasattr(DepthEstimator, "infer")
+
+
+@pytest.mark.parametrize(("key", "cls"), sorted(ESTIMATORS.items()))
+def test_every_registered_estimator_conforms(key: str, cls: type) -> None:
+    # A model added to the registry without the interface would only fail once Stage A
+    # had loaded its weights; this catches it for free.
+    assert cls.name == key
+    assert missing_methods(cls) == []
 
 
 @pytest.mark.parametrize("key", ["da2-small", "da2-base", "da2-large"])
@@ -29,14 +37,16 @@ def test_da2_variants_are_registered(key: str) -> None:
         ("da2-small", "depth-anything/Depth-Anything-V2-Small-hf"),
         ("da2-base", "depth-anything/Depth-Anything-V2-Base-hf"),
         ("da2-large", "depth-anything/Depth-Anything-V2-Large-hf"),
+        ("depth-pro", "apple/DepthPro-hf"),
     ],
 )
-def test_da2_variants_carry_correct_hf_id(key: str, hf_id: str) -> None:
+def test_transformers_models_carry_correct_hf_id(key: str, hf_id: str) -> None:
     assert ESTIMATORS[key].hf_model_id == hf_id
 
 
-def test_da2_infer_returns_correct_shape_and_dtype(monkeypatch) -> None:
-    from video_bokeh.library.depth import depth_anything_v2 as mod
+@pytest.mark.parametrize("key", ["da2-small", "depth-pro"])
+def test_transformers_infer_returns_correct_shape_and_dtype(monkeypatch, key) -> None:
+    from video_bokeh.library.depth import _transformers as mod
 
     class _Inputs(dict):
         def to(self, _device: torch.device) -> _Inputs:
@@ -58,7 +68,7 @@ def test_da2_infer_returns_correct_shape_and_dtype(monkeypatch) -> None:
         def eval(self):
             return self
 
-        def to(self, _device: torch.device):
+        def to(self, *_args, **_kwargs):
             return self
 
     monkeypatch.setattr(
@@ -72,7 +82,7 @@ def test_da2_infer_returns_correct_shape_and_dtype(monkeypatch) -> None:
         type("M", (), {"from_pretrained": staticmethod(lambda _id: _StubModel())}),
     )
 
-    est = ESTIMATORS["da2-small"]()
+    est = ESTIMATORS[key]()
     est.load(torch.device("cpu"))
     out = est.infer([Image.new("RGB", (64, 64)), Image.new("RGB", (32, 24))])
 
@@ -80,3 +90,45 @@ def test_da2_infer_returns_correct_shape_and_dtype(monkeypatch) -> None:
     assert out[0].shape == (64, 64)
     assert out[1].shape == (24, 32)
     assert out[0].dtype == np.float32
+
+
+def test_transformers_float16_checkpoint_keeps_float32_precision(monkeypatch) -> None:
+    # Depth Pro's checkpoint is float16, and transformers 5 loads a checkpoint in its
+    # own dtype. Run that way, disparity keeps about a thousand levels per octave,
+    # far coarser than the uint16 the library stores.
+    from video_bokeh.library.depth import _transformers as mod
+
+    class _Inputs(dict):
+        def to(self, _device: torch.device) -> _Inputs:
+            return self
+
+    class _Float16Model(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.scale = torch.nn.Parameter(torch.ones((), dtype=torch.float16))
+
+        def forward(self, **_kwargs):
+            ramp = torch.linspace(1.0, 2.0, 64 * 64).reshape(1, 64, 64)
+            return type("O", (), {"predicted_depth": ramp.to(self.scale.dtype)})()
+
+    monkeypatch.setattr(
+        mod,
+        "AutoImageProcessor",
+        type(
+            "M",
+            (),
+            {"from_pretrained": staticmethod(lambda _id: lambda **_: _Inputs())},
+        ),
+    )
+    monkeypatch.setattr(
+        mod,
+        "AutoModelForDepthEstimation",
+        type("M", (), {"from_pretrained": staticmethod(lambda _id: _Float16Model())}),
+    )
+
+    est = ESTIMATORS["depth-pro"]()
+    est.load(torch.device("cpu"))
+    [disp] = est.infer([Image.new("RGB", (64, 64))])
+
+    # float16 holds 1024 values in [1, 2); float32 keeps every step of the ramp.
+    assert np.unique(disp).size > 2048

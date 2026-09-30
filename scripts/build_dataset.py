@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Build a synthetic dataset end to end, in one command.
 
-Two stages, in order. Stage A estimates depth once per asset and writes the artifact
-library; Stage B samples scenes from that library and writes sequences. Bokeh is a
-separate pipeline and is not run here.
+Stages A and B, in order. Stage A estimates depth once per asset and writes the artifact
+library; Stage B samples scenes from that library and writes sequences. Stage C, which
+renders bokeh, is not run here.
 
 A fresh clone has everything this needs: `backend/data/magick_dev` (20 foregrounds) and
 `backend/data/bg-20k_dev` (20 backgrounds) are tracked on purpose, so there is nothing to
@@ -102,8 +102,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         default="da2-small",
-        choices=("da2-small", "da2-base", "da2-large"),
-        help="depth model for stage A. da2-large is slower and better.",
+        help="depth model for stage A: anything video_bokeh.library.build --model "
+        "takes, including package.module:ClassName. da2-large is slower and better.",
     )
     parser.add_argument(
         "--rebuild-library",

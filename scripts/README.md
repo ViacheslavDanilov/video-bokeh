@@ -29,8 +29,8 @@ The main backend env (used by every command in the sections below) is separate �
 
 ## Build a synthetic dataset
 
-`build_dataset.py` runs the two stages of the pipeline in order and stops. Bokeh is a
-separate pipeline and is not part of it.
+`build_dataset.py` runs Stages A and B of the pipeline in order and stops. Stage C, which
+renders bokeh, is not part of it.
 
 1. **Stage A** — estimate depth once per asset and write the artifact library. The slow one.
 2. **Stage B** — sample scenes from that library and write sequences. Fast, and repeatable
@@ -68,7 +68,7 @@ uv run python scripts/build_dataset.py --rebuild-library --model da2-large --siz
 | `--frames` | `24` | frames per sequence |
 | `--size` | `512` | square frame side. Must match between the two stages, and the script enforces that by passing it to both |
 | `--n-objects-min` / `--n-objects-max` | `1` / `5` | objects per scene. Past five the depth axis starts refusing scenes — see `docs/reference/dataset-layout.md` |
-| `--model` | `da2-small` | `da2-large` is slower and better |
+| `--model` | `da2-small` | a depth estimator from `docs/reference/cli.md`, or `package.module:ClassName` for your own. `da2-large` is slower and better |
 | `--rebuild-library` | off | rerun Stage A |
 | `--seed` | `0` | sequence `i` comes from `seed + i` |
 

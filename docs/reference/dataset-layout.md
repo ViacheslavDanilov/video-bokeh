@@ -41,9 +41,9 @@ carry it without visible banding.
 
 `depth_raw.png` is optional. Libraries built before it existed load with `raw_depth=None`.
 
-`meta.json` records the estimator name, the propagation parameters, and raw-depth statistics
-such as `core_frac` — the fraction of the object the trusted core covered. Stage B never reads
-it; it exists so a bad depth map can be diagnosed without re-running Stage A.
+`meta.json` records the `--model` string Stage A ran with, the propagation parameters, and
+raw-depth statistics such as `core_frac` — the fraction of the object the trusted core covered.
+Stage B never reads it; it exists so a bad depth map can be diagnosed without re-running Stage A.
 
 `depth_input.png` is the image the estimator was actually given: the cut-out composited onto
 the neutral texture, because a depth model cannot read a transparent cut-out. Statistics alone

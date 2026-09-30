@@ -29,7 +29,7 @@ from video_bokeh.core._sequence_geometry import prepare_background, prepare_fore
 from video_bokeh.library._device import select_device
 from video_bokeh.library._neutral_bg import composite_on_neutral, make_textured_bg
 from video_bokeh.library._propagation import propagate_disparity, trusted_core
-from video_bokeh.library.depth import ESTIMATORS
+from video_bokeh.library.depth import ESTIMATORS, resolve_estimator
 
 DEFAULT_KEEP_SUBJECTS = ("person", "animal", "plant", "food", "object")
 DEFAULT_KEEP_STYLES = ("photo", "render")
@@ -80,13 +80,28 @@ def _list_background_refs(bg_root: Path) -> list[str]:
     return sorted(refs)
 
 
+def _validated_model(spec: str) -> str:
+    # Checked at parse time, but the string is kept: the metadata records it.
+    try:
+        resolve_estimator(spec)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+    return spec
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fg-data-root", type=Path, required=True)
     parser.add_argument("--bg-data-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--size", type=int, default=1024)
-    parser.add_argument("--model", choices=sorted(ESTIMATORS), default="da2-large")
+    parser.add_argument(
+        "--model",
+        type=_validated_model,
+        default="da2-large",
+        help=f"one of {', '.join(sorted(ESTIMATORS))}, or package.module:ClassName "
+        "for a model of your own (default: da2-large).",
+    )
     parser.add_argument(
         "--device",
         choices=("auto", "cuda", "mps", "cpu"),
@@ -148,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
 
     device = select_device(args.device)
     print(f"Loading estimator {args.model!r} on {device}")
-    estimator = ESTIMATORS[args.model]()
+    estimator = resolve_estimator(args.model)()
     estimator.load(device)
 
     neutral = Image.fromarray(

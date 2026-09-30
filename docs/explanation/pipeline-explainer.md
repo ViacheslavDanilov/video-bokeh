@@ -7,7 +7,7 @@ related: [dataset-layout, generate-a-dataset, datasets]
 
 # How the pipeline works
 
-A plain-language walkthrough of the two-stage synthetic data pipeline: what each stage
+A plain-language walkthrough of the two stages that make the synthetic data: what each stage
 computes and why it is built this way.
 
 No commands here. To run it, see [[generate-a-dataset]]. For what it writes, see
@@ -22,7 +22,8 @@ training data where the distance of every pixel is known exactly. Real video doe
 with that, so we build synthetic video instead: cut-out objects composited onto backgrounds,
 each with a depth we assigned and therefore know.
 
-The pipeline has two stages, split by cost.
+Two stages make the data, split by cost. A third, Stage C, renders bokeh from the finished
+sequences, and [[run-any-to-bokeh-inference]] covers it.
 
 ```
 Stage A  →  library/     one depth map per asset, computed once
