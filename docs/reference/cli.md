@@ -52,8 +52,30 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da2-base` | `depth-anything/Depth-Anything-V2-Base-hf` | CC BY-NC 4.0 |
 | `da2-large` | `depth-anything/Depth-Anything-V2-Large-hf` | CC BY-NC 4.0 |
 | `depth-pro` | `apple/DepthPro-hf` | research only |
+| `da3-mono-large` | `depth-anything/DA3MONO-LARGE` | Apache-2.0 |
 
 Licences as checked on 2026-09-30. Non-commercial weights are fine for a research dataset.
+`da3-mono-large` needs an environment of its own first, as the next section says.
+
+### Depth Anything 3's own environment
+
+`da3-mono-large` cannot run in the backend environment: Depth Anything 3 pins `numpy<2`, its
+Python range stops before 3.13.1, and it depends on `xformers`, which has no macOS wheel. It runs
+in a Python 3.12 venv of its own instead, as a worker process that Stage A starts and talks to.
+Build that venv once:
+
+```bash
+scripts/setup_depth_anything_3.sh
+```
+
+Run it from the repository root. It puts the venv at `backend/envs/depth-anything-3/.venv`,
+which git ignores. It leaves out `xformers`, which inference does not need, and `pycolmap`,
+whose own OpenMP runtime clashes with torch's. To use a venv somewhere else, set
+`VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, `--model da3-mono-large` stops
+before any asset is processed and names the script.
+
+The weights, 1.34 GB, download on first use. After that, 3 foregrounds and 1 background at
+size 512 took 8.2 s on an Apple M3 Pro.
 
 ### Your own model
 
