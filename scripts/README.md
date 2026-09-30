@@ -68,7 +68,7 @@ uv run python scripts/build_dataset.py --rebuild-library --model da2-large --siz
 | `--frames` | `24` | frames per sequence |
 | `--size` | `512` | square frame side. Must match between the two stages, and the script enforces that by passing it to both |
 | `--n-objects-min` / `--n-objects-max` | `1` / `5` | objects per scene. Past five the depth axis starts refusing scenes — see `docs/reference/dataset-layout.md` |
-| `--model` | `da2-small` | `da2-large` is slower and better |
+| `--model` | `da2-small` | a depth estimator from `docs/reference/cli.md`, or `package.module:ClassName` for your own. `da2-large` is slower and better |
 | `--rebuild-library` | off | rerun Stage A |
 | `--seed` | `0` | sequence `i` comes from `seed + i` |
 
