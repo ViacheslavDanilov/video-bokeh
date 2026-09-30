@@ -11,7 +11,7 @@ backend/src/video_bokeh/
 ├── acquire/        magick.py  bg20k.py  classify.py  — source pools
 ├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
 ├── core/           _collision.py  _fusion.py  _library.py  _metadata.py
-│                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py
+│                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py  _worker.py
 ├── library/        build.py  _device.py  _neutral_bg.py  _propagation.py  depth/
 ├── preview/        pack.py                           — streams a human looks at
 └── scenes/         generate.py  _compositor.py       — Stage B
