@@ -58,7 +58,7 @@ Licences as checked on 2026-09-30. Non-commercial weights are fine for a researc
 ### Your own model
 
 Pass `--model my_package.my_module:MyEstimator`. The class needs no registration and no change
-to this repository:
+to this repository. Stage A creates it with no arguments, then calls two methods:
 
 1. `load(self, device)` puts the weights on a `torch.device`. It is called once.
 2. `infer(self, images)` takes a list of RGB `PIL.Image` and returns one float32 NumPy array per
