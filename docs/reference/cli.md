@@ -201,6 +201,10 @@ any-to-bokeh focuses on the objects by default: each frame's in-focus disparity 
 under the union of the object mattes. `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point
 at another checkout or interpreter.
 
+**any-to-bokeh needs nine frames or more per sequence.** It groups frames eight at a time, and
+its dataset cannot group a sequence of eight or fewer. One such sequence would fail the whole
+batch after the model has loaded, so the renderer refuses the batch first and names it.
+
 ### Your own renderer
 
 Pass `--renderer my_package.my_module:MyRenderer`. Stage C creates the class with no arguments
