@@ -91,6 +91,77 @@ to this repository. Stage A creates it with no arguments, then calls two methods
 missing class, or a class without `load` and `infer` stops the command before any weights
 load. The interface is `video_bokeh.library.depth.base.DepthEstimator`.
 
+Three optional parts let `video_bokeh.library.check`, below, say more about the class.
+Without them it still checks the class, and reports what it cannot know as unknown:
+
+- `hf_model_id`, a class attribute naming the Hugging Face checkpoint, or a local checkpoint
+  directory, so it can count the weights.
+- `environment_problem(cls)`, a class method that returns why the estimator cannot run here,
+  or `None`.
+- `peak_memory(self)`, for an estimator that keeps its weights in another process: the bytes
+  that process has used on its device.
+
+## `video_bokeh.library.check` — will it run here?
+
+Asks, before a library build, whether each depth estimator can run on this machine. Needs
+`--extra library`, like Stage A.
+
+```bash
+uv run --extra library python -m video_bokeh.library.check
+uv run --extra library python -m video_bokeh.library.check --measure
+```
+
+| flag | type | default | meaning |
+|---|---|---|---|
+| `--model` | str, repeatable | every registered estimator | a `--model` name from the table above, or `package.module:ClassName` |
+| `--device` | `auto`, `cuda`, `mps`, `cpu` | `auto` | the device to judge against, chosen the way Stage A chooses it |
+| `--measure` | flag | off | run one image through each ready estimator and report what it took |
+
+It prints the device first: what `--device` resolves to and its memory, VRAM on CUDA and
+system memory on MPS and the CPU, which MPS shares. When the requested device is not there, the
+check says so; Stage A would fall back to the CPU without a word. Then three things for each
+estimator:
+
+1. **Environment.** Whether what it needs beyond the `library` extra is in place. Only
+   `da3-mono-large` needs anything: its own venv. The reason is printed under the table.
+2. **Weights.** The parameter count times four bytes, because every built-in runs in float32.
+   It is read from the header of the cached checkpoint, and from the Hub only when nothing is
+   cached, so it works offline once the weights are downloaded. `not downloaded` means the
+   first build will download them first.
+3. **Verdict.** `ready`, `environment missing` or `weights exceed memory`, against the
+   device's memory.
+
+**`ready` is necessary, not sufficient.** Inference also needs memory for activations, the
+intermediate results of a forward pass, and the check does not estimate them. `--measure` is how
+to find out: it runs one warm-up and one timed 1024 px image through each ready estimator, each
+in a fresh process. When the weights were not cached before the run, the load time is marked
+`(download)`, because it includes fetching them. An estimator that fails, running out of memory
+for instance, gets `failed` and the reason under the table; the others are still measured.
+
+Measured on an Apple M3 Pro on 2026-10-01:
+
+```
+Device: mps, 36.0 GiB of system memory, shared with the CPU
+
+depth estimator  environment  weights, float32  verdict  load   per image  memory
+da2-base         in place     0.4 GiB, cached   ready    3.4 s  0.18 s     1.5 GiB
+da2-large        in place     1.2 GiB, cached   ready    4.5 s  0.51 s     2.3 GiB
+da2-small        in place     0.1 GiB, cached   ready    3.3 s  0.08 s     1.2 GiB
+da3-mono-large   in place     1.2 GiB, cached   ready    5.2 s  0.37 s     2.1 GiB
+depth-pro        in place     3.5 GiB, cached   ready    4.5 s  5.98 s     20.5 GiB
+```
+
+**Depth Pro's memory is six times its weights.** That gap is what the verdict cannot see.
+
+**The memory column means a different thing on each device**, as well as each backend can say
+it. CUDA keeps a true peak allocation. MPS keeps none, so this is what its driver still holds
+after the run. On the CPU it is the peak resident set, the most RAM the process ever held, which
+counts nothing an MPS tensor holds. `da3-mono-large` reports its worker process, which holds the
+weights.
+
+The command exits 1 when any estimator it checked is not `ready`, or failed to measure. A
+`--model` that names no estimator is a usage error, before anything is checked.
+
 ## `video_bokeh.scenes.generate` — Stage B
 
 Samples scenes from the library and writes the sequence tree in [[dataset-layout]].

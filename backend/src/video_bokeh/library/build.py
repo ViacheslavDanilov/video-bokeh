@@ -38,6 +38,8 @@ DEFAULT_KEEP_STYLES = ("photo", "render")
 # 40 bg-pose seeds needs >= 0.20 to stay hole-free with the default motion ranges;
 # 0.25 leaves headroom. Raise it if you widen bg_pan / bg_zoom in SampleConfig.
 DEFAULT_BG_MARGIN = 0.25
+#: The frame side Stage A builds for; ``video_bokeh.library.check`` measures at it.
+DEFAULT_SIZE = 1024
 
 
 def _ref_to_id(ref: str) -> str:
@@ -94,7 +96,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fg-data-root", type=Path, required=True)
     parser.add_argument("--bg-data-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--size", type=int, default=1024)
+    parser.add_argument("--size", type=int, default=DEFAULT_SIZE)
     parser.add_argument(
         "--model",
         type=_validated_model,

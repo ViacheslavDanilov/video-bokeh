@@ -3,11 +3,13 @@
 Started by ``depth_anything_v3.DepthAnything3MonoLarge`` as
 ``python _da3_worker.py <model id> <device>``, it speaks the protocol in
 ``video_bokeh.core._worker``: one request per image, ``{"image": path, "output": path}``,
-and writes the model's depth map to ``output`` as a float32 ``.npy``.
+and writes the model's depth map to ``output`` as a float32 ``.npy``. A request
+``{"memory": true}`` answers with the bytes this process has used on its device.
 """
 
 import json
 import os
+import resource
 import sys
 import types
 
@@ -34,6 +36,25 @@ from depth_anything_3.api import (  # noqa: E402  # ty: ignore[unresolved-import
 )
 
 
+def _peak_memory(device: str) -> int:
+    """The figure ``video_bokeh.library._measure.peak_memory`` reports, for this process.
+
+    Repeated rather than imported: this file runs in Depth Anything 3's own environment,
+    where video_bokeh is not installed.
+    """
+    if device.startswith("cuda"):
+        import torch
+
+        return int(torch.cuda.max_memory_allocated(device))
+    if device == "mps":
+        import torch
+
+        return int(torch.mps.driver_allocated_memory())
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # Bytes on macOS, kibibytes on Linux.
+    return int(rss if sys.platform == "darwin" else rss * 1024)
+
+
 def _send(message: dict) -> None:
     reply.write(json.dumps(message) + "\n")
     reply.flush()
@@ -45,6 +66,9 @@ def main() -> None:
     _send({"ready": True})
     for line in sys.stdin:
         request = json.loads(line)
+        if request.get("memory"):
+            _send({"memory": _peak_memory(device)})
+            continue
         try:
             prediction = model.inference([request["image"]])
             np.save(request["output"], np.asarray(prediction.depth[0], np.float32))
