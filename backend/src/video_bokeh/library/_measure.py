@@ -1,13 +1,14 @@
-"""Measure one depth estimator in a process of its own, for ``video_bokeh.library.check``.
+"""Measure one depth estimator in a process of its own, for ``library.check``.
 
-``python -m video_bokeh.library._measure <estimator> <device> <sys.path as JSON>`` puts the
-caller's import path in front of its own, loads the estimator, runs one
-warm-up and one timed image at Stage A's default size, and prints one JSON line on stdout:
+    python -m video_bokeh.library._measure <estimator> <device> <sys.path as JSON>
+
+puts the caller's import path in front of its own, loads the estimator, runs one warm-up
+and one timed image at Stage A's default size, and prints one JSON line on stdout:
 ``{"load_s": ..., "per_image_s": ..., "memory": ...}``.
 
-A process of its own because none of the memory figures can be reset inside one: the peak
-resident set never falls, MPS keeps no peak at all, and whatever an earlier estimator
-imported and allocated would be charged to the next.
+A process of its own because none of the memory figures can be reset inside one: the
+peak resident set never falls, MPS keeps no peak at all, and whatever an earlier
+estimator imported and allocated would be charged to the next.
 """
 
 from __future__ import annotations

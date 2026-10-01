@@ -12,7 +12,8 @@ backend/src/video_bokeh/
 ├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
 ├── core/           _collision.py  _fusion.py  _library.py  _metadata.py  _plugins.py
 │                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py  _worker.py
-├── library/        build.py  _device.py  _neutral_bg.py  _propagation.py  depth/
+├── library/        build.py  check.py  _device.py  _measure.py  _neutral_bg.py
+│                   _propagation.py  depth/
 ├── loader/         _stream.py                        — on-the-fly training data
 ├── preview/        pack.py                           — streams a human looks at
 ├── render/         run.py  any_to_bokeh.py  base.py  — Stage C

@@ -1,11 +1,11 @@
-"""Will a depth estimator run on this machine? Ask before a library build, not during one.
+"""Will a depth estimator run on this machine? Ask before a library build, not in one.
 
     python -m video_bokeh.library.check [--model NAME ...] [--device auto] [--measure]
 
-For each depth estimator: whether its environment is in place, how much memory its weights
-take, and a verdict against the memory of the device Stage A would use. ``--measure`` runs
-one image through each ready estimator, each in a process of its own, and reports what it
-actually took.
+For each depth estimator: whether its environment is in place, how much memory its
+weights take, and a verdict against the memory of the device Stage A would use.
+``--measure`` runs one image through each ready estimator, each in a process of its
+own, and reports what it actually took.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ from video_bokeh.library.build import DEFAULT_SIZE
 from video_bokeh.library.depth import ESTIMATORS, DepthEstimator, resolve_estimator
 
 #: Every built-in estimator holds its weights in float32, whatever dtype its checkpoint
-#: ships in: the transformers ones are cast on load, and Depth Anything 3's checkpoint is
-#: float32 already. Its autocast lowers the precision of activations, not of weights.
+#: ships in: the transformers ones are cast on load, and Depth Anything 3's checkpoint
+#: is float32 already. Its autocast lowers the precision of activations, not weights.
 _FLOAT32_BYTES = 4
 #: Binary, the unit a machine's memory is sold in: a "36 GB" Mac holds 36 GiB.
 _GIB = 2**30
@@ -94,7 +94,17 @@ def _header_params(path: Path) -> int:
 
 
 def _cached(repo: str, filename: str) -> Path | None:
-    found = huggingface_hub.try_to_load_from_cache(repo, filename)
+    """A checkpoint file on disk: in a local checkpoint directory, which transformers
+    accepts in place of a Hub id, or in the Hugging Face cache.
+    """
+    local = Path(repo)
+    if local.is_dir():
+        return local / filename if (local / filename).is_file() else None
+    try:
+        found = huggingface_hub.try_to_load_from_cache(repo, filename)
+    except Exception:
+        # A name the Hub would refuse is no checkpoint the cache can hold.
+        return None
     return Path(found) if isinstance(found, str) else None
 
 
@@ -114,7 +124,7 @@ def _cached_params(repo: str) -> int | None:
 
 
 def _hub_params(repo: str) -> int | None:
-    """Parameters the Hub reports for a checkpoint, or None offline or when it has none."""
+    """Parameters the Hub reports for a checkpoint; None offline or when it has none."""
     try:
         metadata = huggingface_hub.get_safetensors_metadata(repo)
     except Exception:
@@ -178,8 +188,8 @@ class MeasurementFailed(RuntimeError):
 def measure(spec: str, device: torch.device) -> Measurement:
     """Run ``spec`` once in a fresh process and read back what it took."""
     # The child sees the modules this process sees, a user's own estimator included. An
-    # argument rather than PYTHONPATH, which would reach Depth Anything 3's worker too and
-    # put this Python's standard library in front of its own.
+    # argument rather than PYTHONPATH, which would reach Depth Anything 3's worker too
+    # and put this Python's standard library in front of its own.
     result = subprocess.run(
         [
             sys.executable,
@@ -200,7 +210,12 @@ def measure(spec: str, device: torch.device) -> Measurement:
             f"{result.stderr.strip()[-2000:]}",
         )
     # The last line: an estimator may print to stdout on its own account.
-    figures = json.loads(lines[-1])
+    try:
+        figures = json.loads(lines[-1])
+    except json.JSONDecodeError:
+        raise MeasurementFailed(
+            f"measuring ended without its figures; stdout ended with: {lines[-1]!r}",
+        ) from None
     return Measurement(
         load_s=figures["load_s"],
         per_image_s=figures["per_image_s"],
@@ -254,22 +269,33 @@ def _table(rows: list[list[str]]) -> str:
 
 _CAVEAT = (
     "`ready` means the environment is in place and the weights fit in the device's\n"
-    f"memory. That is necessary, not sufficient: inference at {DEFAULT_SIZE} px needs memory\n"
-    "for activations, the intermediate results of a forward pass, on top, which nothing\n"
-    "here estimates. --measure runs one image through each ready estimator and reports\n"
-    "what it took."
+    "memory. That is necessary, not sufficient: inference at "
+    f"{DEFAULT_SIZE} px also needs\n"
+    "memory for activations, the intermediate results of a forward pass, which\n"
+    "nothing here estimates. --measure runs one image through each ready estimator\n"
+    "and reports what it took."
 )
+
+
+def _model_spec(spec: str) -> str:
+    """A ``--model`` value, refused at parse time the way Stage A refuses it."""
+    try:
+        resolve_estimator(spec)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+    return spec
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
-        # The docstring's usage line and paragraphs are laid out for reading as they are.
+        # The docstring's usage line and paragraphs are laid out to be read as they are.
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--model",
         action="append",
+        type=_model_spec,
         help="a registered estimator or package.module:ClassName, repeatable "
         "(default: every registered estimator)",
     )

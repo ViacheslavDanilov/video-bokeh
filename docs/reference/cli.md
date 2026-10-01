@@ -91,11 +91,11 @@ to this repository. Stage A creates it with no arguments, then calls two methods
 missing class, or a class without `load` and `infer` stops the command before any weights
 load. The interface is `video_bokeh.library.depth.base.DepthEstimator`.
 
-Three optional parts let `video_bokeh.library.check`, below, say more about the class. Without them it still checks it, and reports what it cannot know as
-unknown:
+Three optional parts let `video_bokeh.library.check`, below, say more about the class.
+Without them it still checks the class, and reports what it cannot know as unknown:
 
-- `hf_model_id`, a class attribute naming the Hugging Face checkpoint, so it can count the
-  weights.
+- `hf_model_id`, a class attribute naming the Hugging Face checkpoint, or a local checkpoint
+  directory, so it can count the weights.
 - `environment_problem(cls)`, a class method that returns why the estimator cannot run here,
   or `None`.
 - `peak_memory(self)`, for an estimator that keeps its weights in another process: the bytes
@@ -117,7 +117,7 @@ uv run --extra library python -m video_bokeh.library.check --measure
 | `--device` | `auto`, `cuda`, `mps`, `cpu` | `auto` | the device to judge against, chosen the way Stage A chooses it |
 | `--measure` | flag | off | run one image through each ready estimator and report what it took |
 
-For each estimator it prints four things:
+It prints the device once, then four things for each estimator:
 
 1. **Environment.** Whether what it needs beyond the `library` extra is in place. Only
    `da3-mono-large` needs anything: its own venv. The reason is printed under the table.
@@ -158,7 +158,8 @@ after the run. On the CPU it is the peak resident set, the most RAM the process 
 counts nothing an MPS tensor holds. `da3-mono-large` reports its worker process, which holds the
 weights.
 
-The command exits 1 when any estimator it checked is not `ready`.
+The command exits 1 when any estimator it checked is not `ready`, or failed to measure. A
+`--model` that names no estimator is a usage error, before anything is checked.
 
 ## `video_bokeh.scenes.generate` — Stage B
 

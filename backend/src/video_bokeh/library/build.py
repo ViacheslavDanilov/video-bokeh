@@ -38,7 +38,7 @@ DEFAULT_KEEP_STYLES = ("photo", "render")
 # 40 bg-pose seeds needs >= 0.20 to stay hole-free with the default motion ranges;
 # 0.25 leaves headroom. Raise it if you widen bg_pan / bg_zoom in SampleConfig.
 DEFAULT_BG_MARGIN = 0.25
-#: The square side assets are stored at, which ``video_bokeh.library.check`` measures at.
+#: The frame side Stage A builds for; ``video_bokeh.library.check`` measures at it.
 DEFAULT_SIZE = 1024
 
 

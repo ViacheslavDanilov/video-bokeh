@@ -308,3 +308,30 @@ def test_an_estimator_that_fails_to_measure_leaves_the_others_reported(
     assert "failed" in crashed
     assert " s " in ready
     assert "MemoryError" in out
+
+
+def test_a_mistyped_estimator_is_a_usage_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Refused before anything is checked, the way Stage A refuses it."""
+    with pytest.raises(SystemExit) as excinfo:
+        check.main(["--model", "da2-huge", "--device", "cpu"])
+    assert excinfo.value.code == 2
+    err = capsys.readouterr().err
+    assert "da2-huge" in err
+    assert "da2-large" in err
+
+
+@pytest.mark.usefixtures("fake_cache", "hub")
+def test_a_local_checkpoint_directory_is_counted(tmp_path: Path) -> None:
+    """transformers takes a directory in place of a Hub id, so a plugin may too."""
+    local = tmp_path / "my-checkpoint"
+    _write_safetensors_header(local / "model.safetensors", {"w": [3, 3]})
+    estimator = type("Local", (), {"hf_model_id": str(local)})
+    assert check.weights_of(estimator) == check.Weights(params=9, cached=True)
+
+
+@pytest.mark.usefixtures("fake_cache", "hub")
+def test_an_id_the_hub_would_refuse_reads_as_unknown_weights() -> None:
+    estimator = type("Odd", (), {"hf_model_id": "not a/valid/repo id"})
+    assert check.weights_of(estimator) is None
