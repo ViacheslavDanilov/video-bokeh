@@ -5,7 +5,8 @@ import pytest
 import torch
 from PIL import Image
 
-from video_bokeh.library.depth import ESTIMATORS, missing_methods
+from video_bokeh.core._plugins import missing_methods
+from video_bokeh.library.depth import ESTIMATOR_METHODS, ESTIMATORS
 from video_bokeh.library.depth.base import DepthEstimator
 
 
@@ -23,7 +24,7 @@ def test_every_registered_estimator_conforms(key: str, cls: type) -> None:
     # A model added to the registry without the interface would only fail once Stage A
     # had loaded its weights; this catches it for free.
     assert cls.name == key
-    assert missing_methods(cls) == []
+    assert missing_methods(cls, ESTIMATOR_METHODS) == []
 
 
 @pytest.mark.parametrize("key", ["da2-small", "da2-base", "da2-large"])
