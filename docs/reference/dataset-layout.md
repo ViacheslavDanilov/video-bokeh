@@ -108,8 +108,10 @@ occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live a
 | `bokeh` | PNG, RGB | uint8 | the frame as the bokeh renderer blurred it |
 
 - **One file per `all_in_focus` frame, named like it**, at the sequence's own size.
-- **It appears complete or not at all.** The renderer writes into `.bokeh-tmp/` beside it and
-  renames the folder only when every frame is in place.
+- **It appears complete or not at all.** The renderer writes into a hidden folder beside it,
+  `.bokeh-` and a random suffix, a new one per run. It renames that folder to `bokeh/` only
+  when every frame is in place. A run that was killed can leave one behind, and deleting it
+  loses nothing.
 - **It is optional.** A sequence without it is still a complete Stage B sequence. Nothing in
   Stage B or the demo reads it yet.
 - **With any-to-bokeh it is lossy.** The vendored script writes an mp4 at 1024 × 576, which is
