@@ -47,9 +47,16 @@ def _read_pool(pool: Path) -> list[tuple[str, str]]:
 
 def _write_pool(pool: Path, rows: list[tuple[str, str]]) -> None:
     with (pool / "metadata.csv").open("w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
+        # LF, the endings the tracked pool is committed with.
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow(["filename", "split"])
         writer.writerows(rows)
+
+
+def _not_found(exc: Exception) -> bool:
+    """Whether a download failed because the path is not in the upload: HTTP 404."""
+    response = getattr(exc, "response", None)
+    return getattr(response, "status_code", None) == 404
 
 
 def _fetch_background(
@@ -61,9 +68,11 @@ def _fetch_background(
     for shard in _SHARDS:
         try:
             return download(f"{shard}/BG-20k/{split}/{name}", scratch)
-        except Exception:
-            # Not in this shard: the download refuses a path the upload does not have.
-            continue
+        except Exception as exc:
+            # Only "not in this shard" moves on. A lost connection or a refused login
+            # must stop the run, or the sample would change without a word.
+            if not _not_found(exc):
+                raise
     return None
 
 

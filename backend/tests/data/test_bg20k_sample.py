@@ -34,6 +34,14 @@ def kaggle(tmp_path: Path) -> tuple[Path, list[str]]:
     return root, asked
 
 
+class _HTTPError(Exception):
+    """What kagglehub raises for a path the upload does not have: requests' HTTPError."""
+
+    def __init__(self, status: int) -> None:
+        super().__init__(f"{status} Client Error")
+        self.response = type("Response", (), {"status_code": status})()
+
+
 def _download(kaggle: tuple[Path, list[str]]):
     root, asked = kaggle
 
@@ -41,7 +49,7 @@ def _download(kaggle: tuple[Path, list[str]]):
         asked.append(path)
         source = root / path
         if not source.is_file():
-            raise FileNotFoundError(path)
+            raise _HTTPError(404)
         dest = Path(output_dir) / path
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(source, dest)
@@ -103,3 +111,30 @@ def test_a_larger_count_extends_the_same_order(tmp_path: Path, kaggle) -> None:
     bg20k.sample_pool(grown, count=6, seed=11, download=_download(kaggle))
     bg20k.sample_pool(direct, count=6, seed=11, download=_download(kaggle))
     assert _rows(grown) == _rows(direct)
+
+
+def test_a_failed_download_stops_rather_than_changing_the_sample(
+    tmp_path: Path,
+    kaggle,
+) -> None:
+    """Anything but a 404 is not "in another shard", and skipping it would quietly draw
+    a different background.
+    """
+    pool = tmp_path / "pool"
+    bg20k.sample_pool(pool, count=2, seed=11, download=_download(kaggle))
+    fetch = _download(kaggle)
+
+    def _offline(path: str, output_dir: str) -> str:
+        if path.endswith(".txt"):
+            return fetch(path, output_dir)
+        raise ConnectionError("network is unreachable")
+
+    with pytest.raises(ConnectionError):
+        bg20k.sample_pool(pool, count=4, seed=11, download=_offline)
+    assert len(_rows(pool)) == 2
+
+
+def test_the_pool_metadata_has_lf_line_endings(tmp_path: Path, kaggle) -> None:
+    pool = tmp_path / "pool"
+    bg20k.sample_pool(pool, count=2, seed=11, download=_download(kaggle))
+    assert b"\r" not in (pool / "metadata.csv").read_bytes()
