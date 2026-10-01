@@ -48,8 +48,8 @@ def _depth_estimator(library_root: Path, foreground_ids: list[str]) -> str | Non
     meta = read_asset_metadata(library_root / FOREGROUNDS / foreground_ids[0])
     if meta is None:
         return None
-    model = meta.get("estimator")
-    return str(model) if model is not None else None
+    estimator = meta.get("estimator")
+    return str(estimator) if estimator is not None else None
 
 
 def _asset_size(library_root: Path, foreground_ids: list[str]) -> int | None:
