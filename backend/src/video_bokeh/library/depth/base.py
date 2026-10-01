@@ -16,6 +16,13 @@ class DepthEstimator(Protocol):
     Every model behind this interface returns the same thing, so Stage B never needs to
     know which one built the library. A model that predicts depth, far larger than near,
     converts inside ``infer``; nothing downstream does.
+
+    ``video_bokeh.library.check`` reads three optional parts when a class has them, and
+    reports what it cannot know as unknown when it does not: ``hf_model_id``, the
+    checkpoint whose weights it counts; ``environment_problem()``, a class method saying
+    why the estimator cannot run here, or None; and ``peak_memory()``, the bytes used on
+    its device by the process holding the weights, for an estimator that keeps them in
+    another.
     """
 
     name: ClassVar[str]

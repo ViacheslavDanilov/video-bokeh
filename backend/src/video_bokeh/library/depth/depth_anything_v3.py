@@ -32,6 +32,14 @@ _DEFAULT_PYTHON = (
 )
 
 
+def _python() -> Path:
+    return interpreter(
+        "VIDEO_BOKEH_DA3_PYTHON",
+        _DEFAULT_PYTHON,
+        "scripts/setup_depth_anything_3.sh",
+    )
+
+
 class DepthAnything3MonoLarge:
     name: ClassVar[str] = "da3-mono-large"
     hf_model_id: ClassVar[str] = "depth-anything/DA3MONO-LARGE"
@@ -39,16 +47,20 @@ class DepthAnything3MonoLarge:
     def __init__(self) -> None:
         self._worker: WorkerProcess | None = None
 
+    @classmethod
+    def environment_problem(cls) -> str | None:
+        """Why this estimator cannot run here, or None: its venv is all it needs."""
+        try:
+            _python()
+        except RuntimeError as exc:
+            return str(exc)
+        return None
+
     def load(self, device: torch.device) -> None:
         if self._worker is not None:
             return
-        python = interpreter(
-            "VIDEO_BOKEH_DA3_PYTHON",
-            _DEFAULT_PYTHON,
-            "scripts/setup_depth_anything_3.sh",
-        )
         self._worker = WorkerProcess(
-            [str(python), str(_WORKER), self.hf_model_id, str(device)],
+            [str(_python()), str(_WORKER), self.hf_model_id, str(device)],
         )
 
     def infer(self, images: list[Image.Image]) -> list[np.ndarray]:
@@ -68,6 +80,12 @@ class DepthAnything3MonoLarge:
                 depth = torch.from_numpy(np.load(depth_path))
                 out.append(resize_map(1.0 / depth, img.height, img.width))
         return out
+
+    def peak_memory(self) -> int | None:
+        """Bytes the worker, which holds the weights, has used on its device."""
+        if self._worker is None:
+            return None
+        return int(self._worker.request({"memory": True})["memory"])
 
     def close(self) -> None:
         if self._worker is not None:

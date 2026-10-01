@@ -86,3 +86,33 @@ def test_missing_environment_names_the_setup_script(
 def test_infer_before_load_is_refused() -> None:
     with pytest.raises(RuntimeError, match="load"):
         mod.DepthAnything3MonoLarge().infer([Image.new("RGB", (8, 8))])
+
+
+@pytest.mark.usefixtures("fake_worker")
+def test_reports_the_memory_of_the_process_holding_the_weights() -> None:
+    est = mod.DepthAnything3MonoLarge()
+    est.load(torch.device("cpu"))
+    try:
+        est.infer([Image.new("RGB", (16, 16))])
+        memory = est.peak_memory()
+    finally:
+        est.close()
+    assert memory is not None
+    assert memory > 0
+
+
+def test_environment_names_the_setup_script_when_the_venv_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIDEO_BOKEH_DA3_PYTHON", str(tmp_path / "no" / "python"))
+    problem = mod.DepthAnything3MonoLarge.environment_problem()
+    assert problem is not None
+    assert "setup_depth_anything_3.sh" in problem
+
+
+def test_environment_is_ready_once_the_interpreter_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIDEO_BOKEH_DA3_PYTHON", sys.executable)
+    assert mod.DepthAnything3MonoLarge.environment_problem() is None
