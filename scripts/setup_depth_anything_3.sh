@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Set up the environment the da3-mono-large depth estimator runs in.
+# Set up the environment the da3-* depth estimators run in.
 #
 # Depth Anything 3 cannot share the backend environment: it pins numpy<2, its
 # requires-python stops before Python 3.13.1, and it depends on xformers, which has no

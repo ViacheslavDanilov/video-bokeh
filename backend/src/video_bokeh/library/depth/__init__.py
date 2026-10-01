@@ -9,7 +9,13 @@ from video_bokeh.library.depth.depth_anything_v2 import (
     DepthAnythingV2Large,
     DepthAnythingV2Small,
 )
-from video_bokeh.library.depth.depth_anything_v3 import DepthAnything3MonoLarge
+from video_bokeh.library.depth.depth_anything_v3 import (
+    DepthAnything3Base,
+    DepthAnything3Large,
+    DepthAnything3MetricLarge,
+    DepthAnything3MonoLarge,
+    DepthAnything3Small,
+)
 from video_bokeh.library.depth.depth_pro import DepthPro
 
 ESTIMATORS: dict[str, type[DepthEstimator]] = {
@@ -18,6 +24,10 @@ ESTIMATORS: dict[str, type[DepthEstimator]] = {
     DepthAnythingV2Large.name: DepthAnythingV2Large,
     DepthPro.name: DepthPro,
     DepthAnything3MonoLarge.name: DepthAnything3MonoLarge,
+    DepthAnything3Small.name: DepthAnything3Small,
+    DepthAnything3Base.name: DepthAnything3Base,
+    DepthAnything3Large.name: DepthAnything3Large,
+    DepthAnything3MetricLarge.name: DepthAnything3MetricLarge,
 }
 
 

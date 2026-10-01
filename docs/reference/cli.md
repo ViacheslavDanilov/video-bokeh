@@ -53,13 +53,25 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da2-large` | `depth-anything/Depth-Anything-V2-Large-hf` | CC BY-NC 4.0 |
 | `depth-pro` | `apple/DepthPro-hf` | research only |
 | `da3-mono-large` | `depth-anything/DA3MONO-LARGE` | Apache-2.0 |
+| `da3-small` | `depth-anything/DA3-SMALL` | Apache-2.0 |
+| `da3-base` | `depth-anything/DA3-BASE` | Apache-2.0 |
+| `da3-large` | `depth-anything/DA3-LARGE-1.1` | Apache-2.0 |
+| `da3-metric-large` | `depth-anything/DA3METRIC-LARGE` | Apache-2.0 |
 
-Licences as checked on 2026-09-30. Non-commercial weights are fine for a research dataset.
-`da3-mono-large` needs an environment of its own first, as the next section says.
+Licences as checked on 2026-09-30, and on 2026-10-01 for the last four. Non-commercial weights
+are fine for a research dataset. Depth Anything 3's Large 1.0 and Giant are CC BY-NC 4.0 and
+are not registered. Every `da3-*` needs an environment of its own first, as the next section
+says.
+
+**`da3-small` and `da3-base` have run on the dev pools; `da3-large` and `da3-metric-large` have
+not.** Small and Base are multi-view models given one view at a time. On backgrounds they rank
+disparity much as `da2-large` does, with median rank correlations of 0.75 and 0.81. On
+foregrounds they agree less, 0.52 and 0.49, and less than `da3-mono-large` does. The other two
+are for the lab machine.
 
 ### Depth Anything 3's own environment
 
-`da3-mono-large` cannot run in the backend environment: Depth Anything 3 pins `numpy<2`, its
+No `da3-*` estimator can run in the backend environment: Depth Anything 3 pins `numpy<2`, its
 Python range stops before 3.13.1, and it depends on `xformers`, which has no macOS wheel. It runs
 in a Python 3.12 venv of its own instead, as a worker process that Stage A starts and talks to.
 Build that venv once:
@@ -71,8 +83,8 @@ scripts/setup_depth_anything_3.sh
 Run it from the repository root. It puts the venv at `backend/envs/depth-anything-3/.venv`,
 which git ignores. It leaves out `xformers`, which inference does not need, and `pycolmap`,
 whose own OpenMP runtime clashes with torch's. To use a venv somewhere else, set
-`VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, `--model da3-mono-large` stops
-before any asset is processed and names the script.
+`VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, a `--model da3-*` stops before any
+asset is processed and names the script.
 
 The weights, 1.34 GB, download on first use. After that, 3 foregrounds and 1 background at
 size 512 took 8.2 s on an Apple M3 Pro.
@@ -123,7 +135,7 @@ check says so; Stage A would fall back to the CPU without a word. Then three thi
 estimator:
 
 1. **Environment.** Whether what it needs beyond the `library` extra is in place. Only
-   `da3-mono-large` needs anything: its own venv. The reason is printed under the table.
+   the `da3-*` estimators need anything: their own venv. The reason is printed under the table.
 2. **Weights.** The parameter count times four bytes, because every built-in runs in float32.
    It is read from the header of the cached checkpoint, and from the Hub only when nothing is
    cached, so it works offline once the weights are downloaded. `not downloaded` means the
@@ -137,6 +149,9 @@ to find out: it runs one warm-up and one timed 1024 px image through each ready 
 in a fresh process. When the weights were not cached before the run, the load time is marked
 `(download)`, because it includes fetching them. An estimator that fails, running out of memory
 for instance, gets `failed` and the reason under the table; the others are still measured.
+Without `--model`, `--measure` loads every registered estimator and so downloads whatever is not
+cached: 8.1 GiB of checkpoints from scratch, by the Hub's metadata on 2026-10-01. On a machine
+short of disk or memory, name the ones to measure.
 
 Measured on an Apple M3 Pro on 2026-10-01:
 

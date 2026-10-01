@@ -13,6 +13,11 @@ from PIL import Image
 from video_bokeh.library.depth import ESTIMATORS
 from video_bokeh.library.depth import depth_anything_v3 as mod
 
+# Every Depth Anything 3 checkpoint the registry knows, each through the same worker.
+_DA3 = [
+    cls for cls in ESTIMATORS.values() if issubclass(cls, mod.DepthAnything3Estimator)
+]
+
 # Stands in for the depth_anything_3 package, so the real worker script runs in CI with
 # no weights: depth, far larger, at a 504 px working size whatever the input was, far on
 # the right. It also asserts one image per call, which the worker promises.
@@ -30,7 +35,7 @@ class _Prediction:
 class DepthAnything3:
     @classmethod
     def from_pretrained(cls, model_id):
-        assert model_id == "depth-anything/DA3MONO-LARGE", model_id
+        assert model_id == os.environ["FAKE_DA3_MODEL_ID"], model_id
         return cls()
 
     def to(self, device):
@@ -53,6 +58,7 @@ def fake_worker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (package / "api.py").write_text(_FAKE_API, encoding="utf-8")
     monkeypatch.setenv("PYTHONPATH", str(tmp_path))
     monkeypatch.setenv("VIDEO_BOKEH_DA3_PYTHON", sys.executable)
+    monkeypatch.setenv("FAKE_DA3_MODEL_ID", mod.DepthAnything3MonoLarge.hf_model_id)
 
 
 def test_registered() -> None:
@@ -116,3 +122,32 @@ def test_environment_is_ready_once_the_interpreter_exists(
 ) -> None:
     monkeypatch.setenv("VIDEO_BOKEH_DA3_PYTHON", sys.executable)
     assert mod.DepthAnything3MonoLarge.environment_problem() is None
+
+
+def test_every_checkpoint_is_registered_under_its_own_name() -> None:
+    names = {cls.name for cls in _DA3}
+    assert names == {
+        "da3-mono-large",
+        "da3-small",
+        "da3-base",
+        "da3-large",
+        "da3-metric-large",
+    }
+    assert len({cls.hf_model_id for cls in _DA3}) == len(_DA3)
+
+
+@pytest.mark.parametrize("estimator", _DA3, ids=lambda cls: cls.name)
+@pytest.mark.usefixtures("fake_worker")
+def test_each_checkpoint_loads_its_own_weights(
+    estimator: type[mod.DepthAnything3Estimator],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fake refuses any id but the one set here, so a wrong id fails the test."""
+    monkeypatch.setenv("FAKE_DA3_MODEL_ID", estimator.hf_model_id)
+    est = estimator()
+    est.load(torch.device("cpu"))
+    try:
+        [out] = est.infer([Image.new("RGB", (40, 30))])
+    finally:
+        est.close()
+    assert out.shape == (30, 40)

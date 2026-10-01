@@ -1,10 +1,11 @@
-"""Depth Anything 3 Mono-Large, run in its own environment.
+"""Depth Anything 3 checkpoints, run in their own environment.
 
-Depth Anything 3 cannot share ours; ``docs/reference/cli.md`` says why and how to build its
-venv. This class drives that venv through a worker process, ``_da3_worker.py``.
+Depth Anything 3 cannot share ours; ``docs/reference/cli.md`` says why and how to build
+its venv. These classes drive that venv through a worker process, ``_da3_worker.py``.
 
-The model predicts depth, far larger than near, at a 504 px working size, so ``infer``
-takes the reciprocal and resizes back to each image's own size. Licence: Apache-2.0.
+Every checkpoint predicts depth, far larger than near, at a 504 px working size, so
+``infer`` takes the reciprocal and resizes back to each image's own size. All five here
+are Apache-2.0; Large 1.0 and Giant are CC BY-NC 4.0 and are left out.
 """
 
 from __future__ import annotations
@@ -40,9 +41,11 @@ def _python() -> Path:
     )
 
 
-class DepthAnything3MonoLarge:
-    name: ClassVar[str] = "da3-mono-large"
-    hf_model_id: ClassVar[str] = "depth-anything/DA3MONO-LARGE"
+class DepthAnything3Estimator:
+    """One Depth Anything 3 checkpoint; a subclass names it."""
+
+    name: ClassVar[str] = ""
+    hf_model_id: ClassVar[str] = ""
 
     def __init__(self) -> None:
         self._worker: WorkerProcess | None = None
@@ -91,3 +94,38 @@ class DepthAnything3MonoLarge:
         if self._worker is not None:
             self._worker.close()
             self._worker = None
+
+
+class DepthAnything3MonoLarge(DepthAnything3Estimator):
+    """Trained for single images, which is all Stage A gives it."""
+
+    name: ClassVar[str] = "da3-mono-large"
+    hf_model_id: ClassVar[str] = "depth-anything/DA3MONO-LARGE"
+
+
+class DepthAnything3Small(DepthAnything3Estimator):
+    """A multi-view model, given one view at a time."""
+
+    name: ClassVar[str] = "da3-small"
+    hf_model_id: ClassVar[str] = "depth-anything/DA3-SMALL"
+
+
+class DepthAnything3Base(DepthAnything3Estimator):
+    """A multi-view model, given one view at a time."""
+
+    name: ClassVar[str] = "da3-base"
+    hf_model_id: ClassVar[str] = "depth-anything/DA3-BASE"
+
+
+class DepthAnything3Large(DepthAnything3Estimator):
+    """Version 1.1, the Large under Apache-2.0. Multi-view, one view at a time."""
+
+    name: ClassVar[str] = "da3-large"
+    hf_model_id: ClassVar[str] = "depth-anything/DA3-LARGE-1.1"
+
+
+class DepthAnything3MetricLarge(DepthAnything3Estimator):
+    """Predicts metric depth; the reciprocal is disparity all the same."""
+
+    name: ClassVar[str] = "da3-metric-large"
+    hf_model_id: ClassVar[str] = "depth-anything/DA3METRIC-LARGE"
