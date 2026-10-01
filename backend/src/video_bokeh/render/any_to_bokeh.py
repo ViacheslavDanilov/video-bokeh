@@ -29,10 +29,13 @@ from video_bokeh.core._worker import interpreter, run_script
 _DEFAULT_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "any-to-bokeh"
 _SETUP = "scripts/setup_third_party.sh"
 
-#: The demo groups frames eight at a time, and its dataset cannot group a sequence of
-#: eight or fewer: the batch fails after the model has loaded. Checked on 2026-10-01 by
-#: running that dataset class on sequences of 7 to 80 frames.
-_MIN_FRAMES = 9
+#: The demo groups frames eight at a time, four overlapping. Its dataset cannot group a
+#: sequence of eight frames or fewer, and nine to twelve make exactly two groups, which
+#: its pipeline decodes in one call that drops the trailing frames, so the reshape after
+#: it fails. Both fail after the model has loaded. Checked on 2026-10-01: the dataset
+#: class on generated sequences, and the pipeline's ``decode_latents`` over 9 to 200
+#: frames with a pass-through VAE, which failed at 9 to 12 and nowhere else.
+_MIN_FRAMES = 13
 
 
 class AnyToBokeh:
@@ -118,7 +121,8 @@ def _refuse_short(sequence_dirs: list[Path]) -> None:
     if short:
         raise ValueError(
             f"any-to-bokeh needs at least {_MIN_FRAMES} frames per sequence: "
-            f"{'; '.join(short)}. Regenerate them with --frames {_MIN_FRAMES} or more.",
+            f"{'; '.join(short)}. Regenerate them with video_bokeh.scenes.generate "
+            f"--frames {_MIN_FRAMES} or more.",
         )
 
 
