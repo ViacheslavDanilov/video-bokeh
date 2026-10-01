@@ -38,12 +38,13 @@ uv run python -m video_bokeh.library.build \
   --output data/library_dev --size 1024 --model da2-large
 ```
 
-**`--size` must match Stage B.** Stage B warps the library's images into the frame, so they
-have to start at the frame resolution. A mismatch corrupts the output rather than failing.
+**`--size` need not match Stage B.** Stage B maps each asset onto the frame whatever its
+size. A library smaller than the frame is only upscaled, and looks softer for it.
 
 **The CLIP filter drops assets.** Stage A keeps only foregrounds whose predicted subject and
 style clear `--subject-thr`, so 20 inputs may yield about 12 in the library. Pass
-`--subjects ""` to turn it off.
+`--subjects "" --styles "" --subject-thr 0` to turn it off; any one of them alone leaves the
+other two filtering.
 
 A fast check with no large download — 3 foregrounds, 2 backgrounds, the small model, **6.7 s**
 on an M-series Mac using `mps`:
@@ -140,13 +141,17 @@ A fuller set of checks on the trajectory model is in [[demo-unrestricted-traject
 
 ---
 
-## 5. Hand it to the renderer
+## 5. Render bokeh
+
+Stage C writes each sequence's `bokeh/` stream. It needs an NVIDIA card, and
+[[run-any-to-bokeh-inference]] has the command and says how far it has been run.
+
+To look at what any-to-bokeh would receive without rendering anything, the bridge converts the
+sequences on any machine:
 
 ```bash
 uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ```
-
-See [[run-any-to-bokeh-inference]].
 
 ---
 

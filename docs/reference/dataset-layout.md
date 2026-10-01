@@ -138,8 +138,8 @@ of 40 frames:
 Five places every scene. Six starts losing them, and eight loses 11 of 12 — its low rejection
 count is an artifact of scenes hitting the retry cap and being skipped rather than counted.
 
-Above five, raise `bg_band_top`, the slot `gap`, or `_ACTIVE_WIDTH` rather than expecting the
-writer to refuse.
+Above five, give each object more room rather than expecting the writer to refuse: lower the
+slot `gap`, `bg_band_top` or `_ACTIVE_WIDTH`. Raising any of them leaves less.
 
 ### `manifest.csv`
 
@@ -177,12 +177,8 @@ expects.
 the frame's alpha mask; `--focus-disparity` pins one value for the whole clip instead, which
 is what you want when comparing frames rather than chasing the subject.
 
-The bridge also reads legacy float32 `.tif` disparity, preferring `.png` when both exist.
-
-**Known defect: disparity is quantized twice.** Stage B writes uint8, and
-`_to_uint8_disparities` quantizes again on the way in. Harmless while the input is already
-8-bit. The moment disparity gains precision, this silently throws it away, and no test covers
-it.
+The bridge reads the 16-bit disparity PNGs and quantizes them to the 8 bits any-to-bokeh
+reads, once.
 
 ---
 
@@ -193,10 +189,11 @@ Real sequences, 1024 × 1024, three objects.
 | stream | KB per frame | GB at 80 000 frames |
 |---|---|---|
 | `all_in_focus` | 900–1360 | 68–104 |
-| `disparity` (uint8) | 52 | 4.0 |
+| `disparity` (uint8, before the move to 16-bit) | 52 | 4.0 |
 | `alpha` | 50 | 3.8 |
 
 A 1000-sequence, 80-frame dataset is roughly **75–113 GB**, and `all_in_focus` is 92 % of it.
+These sizes predate 16-bit disparity, which has not been re-measured here.
 Anything that shrinks the dataset meaningfully has to address that stream.
 
 ---

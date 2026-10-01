@@ -25,6 +25,9 @@ Activate the venv before running any-to-bokeh:
 source backend/third_party/any-to-bokeh/.venv/bin/activate
 ```
 
+`video_bokeh.render.run` uses this venv on its own. Activating it is only for running
+any-to-bokeh's scripts by hand.
+
 The main backend env (used by every command in the sections below) is separate — managed by `uv sync --extra library` from the repo root.
 
 `setup_depth_anything_3.sh` builds the venv that `--model da3-mono-large` runs in. Only that model needs it. It is a Python 3.12 venv under `backend/envs/depth-anything-3/.venv`, and unlike `setup_third_party.sh` it runs on a Mac. The command, and what the script leaves out and why, are in `docs/reference/cli.md`, section "Depth Anything 3's own environment".
@@ -68,7 +71,7 @@ uv run python scripts/build_dataset.py --rebuild-library --model da2-large --siz
 |---|---|---|
 | `--count` | `4` | sequences to generate |
 | `--frames` | `24` | frames per sequence |
-| `--size` | `512` | square frame side. Must match between the two stages, and the script enforces that by passing it to both |
+| `--size` | `512` | square frame side, passed to both stages when the script builds the library. A reused library keeps its own size, which Stage B upscales or downscales |
 | `--n-objects-min` / `--n-objects-max` | `1` / `5` | objects per scene. Past five the depth axis starts refusing scenes — see `docs/reference/dataset-layout.md` |
 | `--model` | `da2-small` | a depth estimator from `docs/reference/cli.md`, or `package.module:ClassName` for your own. `da2-large` is slower and better |
 | `--rebuild-library` | off | rerun Stage A |
@@ -77,13 +80,11 @@ uv run python scripts/build_dataset.py --rebuild-library --model da2-large --siz
 For what lands on disk, read `docs/reference/dataset-layout.md`. For the stages one at a
 time, `docs/how-to/generate-a-dataset.md`.
 
-### Run any-to-bokeh after the pipeline finishes
+### Render bokeh after the pipeline finishes
 
-a2b has its own Python env under `backend/third_party/any-to-bokeh/`. Make sure that env is installed first.
-
-```bash
-cd backend/third_party/any-to-bokeh && python test/inference_demo.py --val_csv_path csv_file/demo.csv
-```
+Stage C writes each sequence's `bokeh/` stream through any-to-bokeh, on a machine with an NVIDIA
+card and after `setup_third_party.sh`. The command, and how far it has been run, are in
+`docs/how-to/run-any-to-bokeh-inference.md`.
 
 ## Measure any-to-bokeh inference
 
@@ -119,7 +120,7 @@ An object that grows on screen must get brighter in the disparity pane. Disparit
 
 **There is no alpha pane.** Alpha is a multi-page TIFF with one page per object, and `vpv` renders only a TIFF's first page, so it would show object 0 and silently hide the rest. Read alpha with `video_bokeh.core._streams.read_alpha_tiff` instead. The layout is in `docs/reference/dataset-layout.md`.
 
-**There is no bokeh pane yet.** `any-to-bokeh` writes whole MP4s into its own `output/` directory, not per-frame PNGs into our sequence tree, so an end-to-end pane arrives when the render container does.
+**Bokeh appears once Stage C has run.** It writes `bokeh/<frame>.png` into each sequence, so a `"*/bokeh/*.png"` argument to `vpv` adds the pane.
 
 ## Notes
 

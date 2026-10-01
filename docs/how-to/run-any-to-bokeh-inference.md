@@ -114,10 +114,10 @@ Nobody has measured it. The submodule has never been run, so every figure quoted
 past a few seconds cannot be a synchronous HTTP request, so the shape of the render API hangs
 off the answer.
 
-`scripts/measure_a2b.sh` produces the number. It takes no arguments.
+`../scripts/measure_a2b.sh` produces the number. It takes no arguments.
 
 ```bash
-scripts/measure_a2b.sh
+../scripts/measure_a2b.sh
 ```
 
 Prerequisite: `scripts/setup_third_party.sh` has been run once on the machine. Without the

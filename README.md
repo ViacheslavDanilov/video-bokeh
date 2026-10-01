@@ -23,13 +23,14 @@ Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.
 
 ## Features
 
-- **Depth-aware bokeh** – Apply DSLR-style shallow-focus blur guided by estimated depth maps.
-- **Modular pipeline** – Separate components for depth prediction, blur synthesis, and temporal consistency.
-- **Web UI** – Next.js frontend for uploading clips, tuning parameters, and previewing results.
+- **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity.
+- **Three swappable stages** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own), sequence generation, and bokeh (any-to-bokeh or your own).
+- **Training on the fly** – A PyTorch stream that generates a new sequence for every item.
+- **Web demo** – Generate a sequence and compare its streams side by side.
 
 ## How It Works
 
-The backend estimates per-frame depth, applies a controllable blur kernel modulated by depth, and returns the composited frames. The frontend exposes parameters (focal plane, blur strength) and streams the rendered output.
+Stage A estimates depth once per asset and stores it as a library. Stage B samples objects, a background and depth trajectories from that library and writes sequences. Stage C renders bokeh from each sequence. The web demo generates sequences on request. [docs/explanation/pipeline-explainer.md](docs/explanation/pipeline-explainer.md) walks through all of it.
 
 ## Tech Stack
 
@@ -38,6 +39,7 @@ The backend estimates per-frame depth, applies a controllable blur kernel modula
 | Backend | Python 3.13, FastAPI, Uvicorn |
 | Frontend | TypeScript, Next.js, React, Tailwind CSS |
 | Data | NumPy, Pillow, tifffile, matplotlib |
+| Models | PyTorch and Hugging Face transformers for depth (Stage A), any-to-bokeh for bokeh (Stage C) |
 | Package Management | uv (backend), pnpm (frontend) |
 | Build & CI | Docker, Docker Compose, GitHub Actions |
 
