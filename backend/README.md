@@ -10,7 +10,7 @@ backend/src/video_bokeh/
 ├── api/            main.py  _library.py  _sequences.py  _settings.py  — HTTP surface
 ├── acquire/        magick.py  bg20k.py  classify.py  — source pools
 ├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
-├── core/           _collision.py  _fusion.py  _library.py  _metadata.py
+├── core/           _collision.py  _fusion.py  _library.py  _metadata.py  _plugins.py
 │                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py  _worker.py
 ├── library/        build.py  _device.py  _neutral_bg.py  _propagation.py  depth/
 ├── loader/         _stream.py                        — on-the-fly training data
