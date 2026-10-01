@@ -39,7 +39,7 @@ def _numeric_stem(path: Path) -> int:
     return int(path.stem.split("_", maxsplit=1)[0])
 
 
-def _list_png_frames(path: Path) -> list[Path]:
+def list_png_frames(path: Path) -> list[Path]:
     if not path.exists():
         raise FileNotFoundError(f"frame directory missing: {path}")
     return sorted(path.glob("*.png"), key=_numeric_stem)
@@ -121,8 +121,8 @@ def _write_sequence(
     use_alpha_focus: bool,
     focus_disparity: float | None = None,
 ) -> int:
-    image_paths = _list_png_frames(seq_dir / "all_in_focus")
-    disparity_paths = _list_png_frames(seq_dir / "disparity")
+    image_paths = list_png_frames(seq_dir / "all_in_focus")
+    disparity_paths = list_png_frames(seq_dir / "disparity")
     alpha_paths = (
         _list_tif_frames(seq_dir / "alpha") if (seq_dir / "alpha").exists() else []
     )
@@ -169,6 +169,58 @@ def _write_sequence(
         )
 
     return len(image_paths)
+
+
+def write_inputs(
+    seq_dirs: list[Path],
+    videos_root: Path,
+    disp_root: Path,
+    csv_path: Path,
+    k: str,
+    use_alpha_focus: bool,
+    focus_disparity: float | None = None,
+    relative_to: Path | None = None,
+) -> list[int]:
+    """Write any-to-bokeh's inputs for ``seq_dirs``, and the CSV that lists them.
+
+    CSV paths are relative to ``relative_to`` when it is given, which is how the vendored
+    demo lays them out, and absolute otherwise, so the inputs can live outside the
+    submodule. Returns each sequence's frame count, in order.
+    """
+    rows: list[list[str]] = []
+    counts: list[int] = []
+    for seq_dir in seq_dirs:
+        out_video_dir = videos_root / seq_dir.name
+        out_disp_dir = disp_root / seq_dir.name
+        counts.append(
+            _write_sequence(
+                seq_dir=seq_dir,
+                out_video_dir=out_video_dir,
+                out_disp_dir=out_disp_dir,
+                use_alpha_focus=use_alpha_focus,
+                focus_disparity=focus_disparity,
+            ),
+        )
+        rows.append(
+            [
+                _csv_entry(out_video_dir, relative_to),
+                _csv_entry(out_disp_dir, relative_to),
+                k,
+            ],
+        )
+
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    with csv_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["aif_folder", "disp_folder", "k"])
+        writer.writerows(rows)
+    return counts
+
+
+def _csv_entry(path: Path, relative_to: Path | None) -> str:
+    if relative_to is None:
+        return str(path.resolve())
+    return _relative_to_a2b(path, relative_to)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -221,10 +273,7 @@ def main(argv: list[str] | None = None) -> int:
     dataset_name = args.dataset_name or args.data_root.name
     a2b_root = args.a2b_root
     out_root = a2b_root / "demo_dataset" / dataset_name
-    videos_root = out_root / "videos"
-    disp_root = out_root / "disp"
     csv_path = a2b_root / "csv_file" / f"{dataset_name}.csv"
-    csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     seq_dirs = list_sequences(args.data_root, args.seqs)
     if not seq_dirs:
@@ -232,30 +281,18 @@ def main(argv: list[str] | None = None) -> int:
             f"no sequences to process under {args.data_root / 'sequences'}",
         )
 
-    rows: list[list[str]] = []
-    for seq_dir in seq_dirs:
-        out_video_dir = videos_root / seq_dir.name
-        out_disp_dir = disp_root / seq_dir.name
-        count = _write_sequence(
-            seq_dir=seq_dir,
-            out_video_dir=out_video_dir,
-            out_disp_dir=out_disp_dir,
-            use_alpha_focus=args.focus == "alpha" and args.focus_disparity is None,
-            focus_disparity=args.focus_disparity,
-        )
-        rows.append(
-            [
-                _relative_to_a2b(out_video_dir, a2b_root),
-                _relative_to_a2b(out_disp_dir, a2b_root),
-                str(args.k),
-            ],
-        )
+    counts = write_inputs(
+        seq_dirs,
+        videos_root=out_root / "videos",
+        disp_root=out_root / "disp",
+        csv_path=csv_path,
+        k=str(args.k),
+        use_alpha_focus=args.focus == "alpha" and args.focus_disparity is None,
+        focus_disparity=args.focus_disparity,
+        relative_to=a2b_root,
+    )
+    for seq_dir, count in zip(seq_dirs, counts, strict=True):
         print(f"  {seq_dir.name}: wrote {count} frame(s)")
-
-    with csv_path.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["aif_folder", "disp_folder", "k"])
-        writer.writerows(rows)
 
     print(f"\nDone. CSV: {csv_path}")
     print(f"Inference working directory: {a2b_root}")

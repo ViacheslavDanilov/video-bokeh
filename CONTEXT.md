@@ -61,7 +61,8 @@ A foreground placed in a sequence, with its own trajectory and alpha mask.
 _Avoid_: foreground (for the placed instance), layer, actor
 
 **Stream**:
-One per-frame output of a sequence: all-in-focus, alpha, disparity, and later bokeh.
+One per-frame output of a sequence: all-in-focus, alpha, disparity, and bokeh once Stage C
+has run.
 _Avoid_: channel, modality
 
 **All-in-focus**:
@@ -145,8 +146,8 @@ _Avoid_: post-processing
 ## Rendering and the demo
 
 **Bokeh**:
-The disparity-dependent blur the trained model is meant to produce; a stream that does not
-exist yet.
+The disparity-dependent blur the trained model is meant to produce, and the sequence stream
+Stage C writes with it.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:

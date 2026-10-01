@@ -15,6 +15,31 @@ step itself, which needs the model checkpoints.
 
 ---
 
+## One command
+
+On the machine with the NVIDIA card, after `scripts/setup_third_party.sh`, Stage C does the
+conversion and the inference in one go and writes each sequence's `bokeh/` stream:
+
+```bash
+uv run --extra render python -m video_bokeh.render.run --data-root data/demo
+```
+
+It keeps its inputs and the script's `output/` in a temporary directory, so the submodule stays
+clean, and it checks that every sequence got back as many frames as it sent. Flags are in
+[[cli]]. The stream is in [[dataset-layout]].
+
+**This has not run to completion yet.** On a machine without the any-to-bokeh venv it stops
+before converting anything:
+
+```
+RuntimeError: no interpreter at .../third_party/any-to-bokeh/.venv/bin/python: run scripts/setup_third_party.sh, or set VIDEO_BOKEH_A2B_PYTHON
+```
+
+The sections below are what it does by hand, which is still the way to look at the inputs any-to-bokeh
+receives.
+
+---
+
 ## 1. Convert the sequences
 
 ```bash

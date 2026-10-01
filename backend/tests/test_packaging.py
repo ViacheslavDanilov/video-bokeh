@@ -38,7 +38,7 @@ def test_base_install_can_write_the_dataset_formats() -> None:
 def test_every_role_has_an_extra() -> None:
     data = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
     extras = set(data["project"].get("optional-dependencies", {}))
-    assert {"library", "acquire", "preview", "api", "loader"} <= extras
+    assert {"library", "acquire", "preview", "api", "loader", "render"} <= extras
 
 
 def test_dockerfile_installs_the_api_extra() -> None:

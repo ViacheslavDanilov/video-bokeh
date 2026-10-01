@@ -6,6 +6,9 @@ per line: the worker announces ``{"ready": true}`` once its model is loaded, the
 each request with one reply, or with ``{"error": "..."}``. When stdin closes, the worker
 exits.
 
+A model that cannot be driven that way, such as a vendored demo script, runs to completion
+instead, through ``run_script``.
+
 A worker keeps file descriptor 1 for the protocol alone. It duplicates fd 1 for its
 replies and points fd 1 at stderr, so that nothing else can write there: not a model's
 logging, not native code, not a child process.
@@ -16,17 +19,21 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
+from collections import deque
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 #: Enough of the worker's stderr to show why it failed, not a whole model load.
 _STDERR_TAIL = 4000
+#: The same, counted in lines, for a script whose output is streamed as it runs.
+_SCRIPT_TAIL_LINES = 60
 
 
 class WorkerError(RuntimeError):
-    """The worker refused a request, or exited, with its reason."""
+    """A worker refused a request or exited, or a script failed, with the reason."""
 
 
 def interpreter(env_var: str, default: Path, setup: str) -> Path:
@@ -35,12 +42,42 @@ def interpreter(env_var: str, default: Path, setup: str) -> Path:
     Raises before anything starts when it is missing, naming ``setup``, the script that
     builds that environment.
     """
-    python = Path(os.environ.get(env_var, default))
+    # Absolute but not resolved: a venv's python is a symlink, and following it would
+    # leave the venv. Absolute, because a worker may run from another directory.
+    python = Path(os.environ.get(env_var, default)).absolute()
     if not python.exists():
         raise RuntimeError(
             f"no interpreter at {python}: run {setup}, or set {env_var}",
         )
     return python
+
+
+def run_script(argv: list[str], cwd: Path) -> None:
+    """Run a program to completion, showing its output as it goes.
+
+    Its stdout and stderr are forwarded to ours line by line, because a model run can take
+    minutes and silence looks like a hang. Raises WorkerError with the last lines if it
+    exits non-zero.
+    """
+    tail: deque[str] = deque(maxlen=_SCRIPT_TAIL_LINES)
+    with subprocess.Popen(
+        argv,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    ) as proc:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            sys.stderr.write(line)
+            tail.append(line)
+    if proc.returncode != 0:
+        raise WorkerError(
+            f"{' '.join(argv[:2])} exited with code {proc.returncode}:\n"
+            f"{''.join(tail).strip()}",
+        )
 
 
 class WorkerProcess:

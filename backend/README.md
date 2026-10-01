@@ -10,11 +10,12 @@ backend/src/video_bokeh/
 ├── api/            main.py  _library.py  _sequences.py  _settings.py  — HTTP surface
 ├── acquire/        magick.py  bg20k.py  classify.py  — source pools
 ├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
-├── core/           _collision.py  _fusion.py  _library.py  _metadata.py
+├── core/           _collision.py  _fusion.py  _library.py  _metadata.py  _plugins.py
 │                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py  _worker.py
 ├── library/        build.py  _device.py  _neutral_bg.py  _propagation.py  depth/
 ├── loader/         _stream.py                        — on-the-fly training data
 ├── preview/        pack.py                           — streams a human looks at
+├── render/         run.py  any_to_bokeh.py  base.py  — Stage C
 └── scenes/         generate.py  _compositor.py       — Stage B
 ```
 
@@ -27,6 +28,7 @@ backend/src/video_bokeh/
 | download the source pools | `uv sync --no-dev --extra acquire` |
 | run the API | `uv sync --no-dev --extra api` |
 | train on sequences generated on the fly | `uv sync --no-dev --extra loader` |
+| render bokeh for written sequences (Stage C) | `uv sync --no-dev --extra render` |
 | develop on the repository | `uv sync --all-extras --dev` |
 
 Drop `--no-dev` and uv adds the `dev` group — pytest, ruff, ty, pre-commit — on top, which
