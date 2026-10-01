@@ -2008,6 +2008,7 @@ api = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 library = [
+    { name = "huggingface-hub" },
     { name = "pandas" },
     { name = "scipy" },
     { name = "torch" },
@@ -2039,6 +2040,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.115.0" },
     { name = "httpx", marker = "extra == 'acquire'", specifier = ">=0.28.0" },
+    { name = "huggingface-hub", marker = "extra == 'library'", specifier = ">=0.26" },
     { name = "imagecodecs", specifier = ">=2026.1.1" },
     { name = "imageio", extras = ["ffmpeg"], marker = "extra == 'preview'", specifier = ">=2.34.0" },
     { name = "imageio", extras = ["ffmpeg"], marker = "extra == 'render'", specifier = ">=2.34.0" },
