@@ -99,7 +99,7 @@ Without `VIDEO_BOKEH_LIBRARY` it looks for `$VIDEO_BOKEH_DATA_ROOT/library`, and
 repository root, writes one library per depth estimator, so after it the API needs no variable
 at all. Sequences are written under `$VIDEO_BOKEH_DATA_ROOT/sequences/`.
 
-Generate one and watch it:
+Against that one library, generate a sequence and watch it:
 
 ```bash
 curl -X POST http://localhost:8000/sequences \
@@ -111,6 +111,9 @@ That takes about 7 seconds on an Apple M3 Pro and answers with a sequence id. Th
 again returns the same id in 0.02 s — the id is a hash of the parameters and the library, so
 the directory on disk is the cache. Then open
 `http://localhost:8000/sequences/<id>/disparity.mp4`.
+
+With several libraries mounted, the request has to name one: add `"library": "<id>"` with an
+id from `GET /libraries`. Without it the API answers 422 and lists the ids.
 
 Timings for other frame counts, and for the container, are in `docs/reference/api.md`.
 

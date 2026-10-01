@@ -86,8 +86,10 @@ estimator and when the library is rebuilt at another size, and it does not move 
 library is mounted somewhere else.
 
 It does not cover pixel content. The same asset ids, estimator and size over different images
-produce the same id, so rebuild a changed library under a new directory name rather than
-editing one in place.
+produce the same id, wherever the library sits. So a library rebuilt in place keeps its id, and
+the sequences cached against the old one are served as its own: delete
+`$VIDEO_BOKEH_DATA_ROOT/sequences/` after a rebuild, which is safe because every sequence
+regenerates. A rebuild mounted next to the original is refused, as the next paragraph says.
 
 **Two mounted libraries with one id are refused.** Both this endpoint and `POST /sequences`
 answer 503 and name the two directories. A request names its library by id, and the cache is

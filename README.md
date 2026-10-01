@@ -53,10 +53,11 @@ Stage A estimates depth once per asset and stores it as a library. Stage B sampl
 ### Installation & Running
 
 ```bash
-make setup      # every backend extra, the frontend packages, Chromium for the smoke test
-make libraries  # once: one library per depth estimator
-make api        # terminal 1: the API on :8000
-make web        # terminal 2: the page on :3000
+make setup                          # every backend extra, the frontend, Chromium for the smoke test
+scripts/setup_depth_anything_3.sh   # once: the venv Depth Anything 3 runs in
+make libraries                      # once: one library per depth estimator
+make api                            # terminal 1: the API on :8000
+make web                            # terminal 2: the page on :3000
 ```
 
 Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://localhost:8000/docs](http://localhost:8000/docs) (API docs).
