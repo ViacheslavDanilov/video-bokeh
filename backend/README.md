@@ -83,8 +83,8 @@ CLI, not this repository's script, and the BG-20k Kaggle download lands as uploa
 
 ### Run the API
 
-The API mounts a library and generates sequences from it on demand, so point it at one. Every
-library on disk is flat, so name it directly:
+The API mounts libraries and generates sequences from the one a request names, on demand. Point
+it at one library, or at a directory with one library per subdirectory:
 
 ```bash
 VIDEO_BOKEH_LIBRARY=data/library_dev \

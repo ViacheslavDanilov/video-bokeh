@@ -10,9 +10,11 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type LibraryInfo = {
   id: string;
+  /** The library's directory. Two libraries built by one estimator differ only here. */
+  name: string;
   n_foregrounds: number;
   n_backgrounds: number;
-  depth_model: string | null;
+  depth_estimator: string | null;
   asset_size: number | null;
 };
 
@@ -26,6 +28,8 @@ export type StreamInfo = {
 
 export type Sequence = {
   id: string;
+  /** The id of the library it came from, which the picker may since have left. */
+  library: string;
   cached: boolean;
   seed: number;
   frames: number;
@@ -38,6 +42,8 @@ export type Sequence = {
 };
 
 export type SequenceParams = {
+  /** A library id from `fetchLibraries`. */
+  library: string;
   seed: number;
   frames: number;
   size: number;
@@ -81,10 +87,19 @@ function unreachable(cause: unknown): never {
   );
 }
 
-export async function fetchLibrary(signal?: AbortSignal): Promise<LibraryInfo> {
+/** A library's depth estimator, readable even when Stage A recorded none or the library
+ *  is no longer mounted. */
+export function estimatorName(library: LibraryInfo | null): string {
+  return library?.depth_estimator ?? "unknown estimator";
+}
+
+/** Every mounted library, in the order the picker lists them. */
+export async function fetchLibraries(
+  signal?: AbortSignal,
+): Promise<LibraryInfo[]> {
   let response: Response;
   try {
-    response = await fetch(`${BASE}/library`, { signal });
+    response = await fetch(`${BASE}/libraries`, { signal });
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError")
       throw cause;

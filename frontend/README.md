@@ -1,7 +1,7 @@
 # Video Bokeh Frontend
 
-The sequence browser: set the parameters, generate a sequence from the mounted asset library, and
-compare its streams side by side.
+The sequence browser: pick a depth estimator, set the parameters, generate a sequence from that
+estimator's library, and compare its streams side by side.
 
 Next.js 16, React 19, Tailwind 4, shadcn/ui on Radix primitives. **pnpm only** — never npm or
 yarn.

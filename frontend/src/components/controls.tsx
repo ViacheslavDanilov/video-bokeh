@@ -1,6 +1,7 @@
 "use client";
 
-import type { SequenceParams } from "@/lib/api";
+import type { LibraryInfo, SequenceParams } from "@/lib/api";
+import { estimatorName } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,12 +45,14 @@ function CountSelect({
 }
 
 export function Controls({
+  libraries,
   params,
   onChange,
   onGenerate,
   busy,
   disabled,
 }: {
+  libraries: LibraryInfo[];
   params: SequenceParams;
   onChange: (next: SequenceParams) => void;
   onGenerate: () => void;
@@ -69,6 +72,36 @@ export function Controls({
         onGenerate();
       }}
     >
+      <div className="space-y-2">
+        <Label htmlFor="library">Depth estimator</Label>
+        <Select
+          value={params.library}
+          // The list and the first selection arrive in one render, before Radix's hidden
+          // native select holds the new options, and it reports "" back. Taking that
+          // would clear the selection the page has just made.
+          onValueChange={(v) => v && set("library", v)}
+        >
+          <SelectTrigger id="library" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {libraries.map((lib) => {
+              const estimator = estimatorName(lib);
+              return (
+                <SelectItem key={lib.id} value={lib.id}>
+                  {estimator}
+                  {/* Only when it adds something: a directory is often named
+                      after its estimator. */}
+                  {lib.name !== estimator && (
+                    <span className="text-muted-foreground">{lib.name}</span>
+                  )}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="seed">Seed</Label>
         <Input

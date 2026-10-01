@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from pathlib import Path
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from video_bokeh.api import main as api_main
 from video_bokeh.api._settings import Settings
+from video_bokeh.core._streams import read_alpha_tiff
 
 SEQUENCE_BODY = {
     "seed": 0,
@@ -19,33 +23,42 @@ SEQUENCE_BODY = {
 
 
 @pytest.fixture
-def client(
-    library: Path,
+def client_of(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-) -> Iterator[TestClient]:
-    """A client pointed at the fixture library, through the same seam compose uses."""
-    settings = Settings(
-        data_root=tmp_path,
-        library=library,
-        sequences=tmp_path / "sequences",
-    )
-    monkeypatch.setattr(api_main, "load_settings", lambda: settings)
-    with TestClient(api_main.app) as c:
-        yield c
+) -> Iterator[Callable[[Path], TestClient]]:
+    """A client pointed at a library path, through the same seam compose uses."""
+    with ExitStack() as stack:
+
+        def _client(library: Path) -> TestClient:
+            settings = Settings(
+                data_root=tmp_path,
+                library=library,
+                sequences=tmp_path / "sequences",
+            )
+            monkeypatch.setattr(api_main, "load_settings", lambda: settings)
+            return stack.enter_context(TestClient(api_main.app))
+
+        yield _client
 
 
 @pytest.fixture
-def clientless(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+def client(client_of: Callable[[Path], TestClient], library: Path) -> TestClient:
+    return client_of(library)
+
+
+@pytest.fixture
+def clientless(client_of: Callable[[Path], TestClient], tmp_path: Path) -> TestClient:
     """A client whose library volume was never populated."""
-    settings = Settings(
-        data_root=tmp_path,
-        library=tmp_path / "absent",
-        sequences=tmp_path / "sequences",
-    )
-    monkeypatch.setattr(api_main, "load_settings", lambda: settings)
-    with TestClient(api_main.app) as c:
-        yield c
+    return client_of(tmp_path / "absent")
+
+
+@pytest.fixture
+def libraries_dir(make_library: Callable[..., Path], tmp_path: Path) -> Path:
+    """A directory of two libraries built from the same assets by two estimators."""
+    make_library("library/da2-small")
+    make_library("library/depth-pro", estimator="depth-pro")
+    return tmp_path / "library"
 
 
 # --- health ---------------------------------------------------------------- #
@@ -56,22 +69,83 @@ def test_health_does_not_need_a_library(clientless: TestClient) -> None:
     assert clientless.get("/health").json() == {"status": "healthy"}
 
 
-# --- library --------------------------------------------------------------- #
+# --- libraries ------------------------------------------------------------- #
 
 
-def test_library_reports_what_is_mounted(client: TestClient, facts) -> None:
-    body = client.get("/library").json()
+def test_libraries_report_what_is_mounted(client: TestClient, facts) -> None:
+    [body] = client.get("/libraries").json()
+    assert body["name"] == "library"
     assert body["n_foregrounds"] == 2
     assert body["n_backgrounds"] == 2
-    assert body["depth_model"] == facts.estimator
+    assert body["depth_estimator"] == facts.estimator
     assert body["asset_size"] == facts.fg_size
     assert len(body["id"]) == 12
 
 
-def test_library_is_unavailable_rather_than_broken(clientless: TestClient) -> None:
-    response = clientless.get("/library")
+def test_a_directory_of_libraries_lists_each_in_name_order(
+    client_of: Callable[[Path], TestClient],
+    libraries_dir: Path,
+) -> None:
+    body = client_of(libraries_dir).get("/libraries").json()
+    assert [(b["name"], b["depth_estimator"]) for b in body] == [
+        ("da2-small", "da2-small"),
+        ("depth-pro", "depth-pro"),
+    ]
+    assert body[0]["id"] != body[1]["id"]
+
+
+def test_libraries_are_unavailable_rather_than_broken(clientless: TestClient) -> None:
+    response = clientless.get("/libraries")
     assert response.status_code == 503
     assert "absent" in response.json()["detail"]
+
+
+def test_two_libraries_that_cannot_be_told_apart_are_refused(
+    client_of: Callable[[Path], TestClient],
+    make_library: Callable[..., Path],
+    tmp_path: Path,
+) -> None:
+    """Every library endpoint refuses, so neither one is served in the other's place."""
+    one = make_library("library/one")
+    two = make_library("library/two")
+    c = client_of(tmp_path / "library")
+    for response in (
+        c.get("/libraries"),
+        c.post("/sequences", json=SEQUENCE_BODY),
+    ):
+        assert response.status_code == 503
+        assert str(one) in response.json()["detail"]
+        assert str(two) in response.json()["detail"]
+
+
+def test_a_build_in_progress_is_not_listed(
+    client_of: Callable[[Path], TestClient],
+    libraries_dir: Path,
+    make_library: Callable[..., Path],
+) -> None:
+    make_library("library/.da3-mono-large", estimator="da3-mono-large")
+    names = [b["name"] for b in client_of(libraries_dir).get("/libraries").json()]
+    assert names == ["da2-small", "depth-pro"]
+
+
+def test_a_half_library_names_what_it_is_missing(
+    client_of: Callable[[Path], TestClient],
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "half" / "foregrounds").mkdir(parents=True)
+    response = client_of(tmp_path / "half").get("/libraries")
+    assert response.status_code == 503
+    assert "backgrounds" in response.json()["detail"]
+
+
+def test_a_directory_with_no_library_in_it_is_unavailable(
+    client_of: Callable[[Path], TestClient],
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "empty" / "notes").mkdir(parents=True)
+    response = client_of(tmp_path / "empty").get("/libraries")
+    assert response.status_code == 503
+    assert str(tmp_path / "empty") in response.json()["detail"]
 
 
 # --- sequences ---------------------------------------------------------------- #
@@ -138,6 +212,68 @@ def test_rejects_a_frame_count_past_the_cap(client: TestClient) -> None:
 
 def test_sequences_need_a_library(clientless: TestClient) -> None:
     assert clientless.post("/sequences", json=SEQUENCE_BODY).status_code == 503
+
+
+def test_one_library_needs_no_name(client: TestClient) -> None:
+    library = client.get("/libraries").json()[0]["id"]
+    body = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert body["library"] == library
+
+
+def test_several_libraries_need_one_named(
+    client_of: Callable[[Path], TestClient],
+    libraries_dir: Path,
+) -> None:
+    c = client_of(libraries_dir)
+    ids = [b["id"] for b in c.get("/libraries").json()]
+    response = c.post("/sequences", json=SEQUENCE_BODY)
+    assert response.status_code == 422
+    assert all(i in response.json()["detail"] for i in ids)
+
+
+def test_an_unknown_library_is_refused_with_the_known_ones(
+    client_of: Callable[[Path], TestClient],
+    libraries_dir: Path,
+) -> None:
+    c = client_of(libraries_dir)
+    ids = [b["id"] for b in c.get("/libraries").json()]
+    response = c.post("/sequences", json={**SEQUENCE_BODY, "library": "0" * 12})
+    assert response.status_code == 422
+    assert all(i in response.json()["detail"] for i in ids)
+
+
+def test_each_library_gives_its_own_sequence_of_the_same_scene(
+    client_of: Callable[[Path], TestClient],
+    libraries_dir: Path,
+    tmp_path: Path,
+) -> None:
+    """Same seed, same assets, two estimators: the objects move the same way, so only
+    their disparity differs -- which is the comparison the picker exists for.
+    """
+    c = client_of(libraries_dir)
+    da2, depth_pro = (b["id"] for b in c.get("/libraries").json())
+    a = c.post("/sequences", json={**SEQUENCE_BODY, "library": da2}).json()
+    b = c.post("/sequences", json={**SEQUENCE_BODY, "library": depth_pro}).json()
+
+    assert a["id"] != b["id"]
+    assert (a["library"], b["library"]) == (da2, depth_pro)
+
+    def frames(sequence: dict, stream: str) -> list[Path]:
+        return sorted((tmp_path / "sequences" / sequence["id"] / stream).iterdir())
+
+    for fa, fb in zip(frames(a, "alpha"), frames(b, "alpha"), strict=True):
+        assert all(
+            np.array_equal(pa, pb)
+            for pa, pb in zip(read_alpha_tiff(fa), read_alpha_tiff(fb), strict=True)
+        )
+    assert any(
+        not np.array_equal(np.asarray(Image.open(fa)), np.asarray(Image.open(fb)))
+        for fa, fb in zip(
+            frames(a, "disparity"),
+            frames(b, "disparity"),
+            strict=True,
+        )
+    )
 
 
 # --- videos ---------------------------------------------------------------- #

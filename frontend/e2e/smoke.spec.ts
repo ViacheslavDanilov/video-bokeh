@@ -64,3 +64,29 @@ test("sets every pane to the chosen speed", async ({ page }) => {
     .toContain("disparity");
   await expect.poll(rates).toEqual([0.5, 0.5, 0.5]);
 });
+
+/**
+ * The picker chooses the library a sequence comes from, and the sequence keeps naming its
+ * own estimator after the picker moves on, so what is playing is never mislabelled.
+ */
+test("generates from the depth estimator picked", async ({ page }) => {
+  await page.goto("/");
+  const header = page.getByRole("banner");
+  await expect(header.getByText("da2-small")).toBeVisible();
+
+  const picker = page.getByRole("combobox", { name: "Depth estimator" });
+  await picker.click();
+  await expect(page.getByRole("option")).toHaveText(["da2-small", "depth-pro"]);
+  await page.getByRole("option", { name: "depth-pro" }).click();
+  await expect(header.getByText("depth-pro")).toBeVisible();
+
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(page.locator("video")).toHaveCount(3, { timeout: 60_000 });
+  const shown = page.getByRole("definition").filter({ hasText: "depth-pro" });
+  await expect(shown).toBeVisible();
+
+  await picker.click();
+  await page.getByRole("option", { name: "da2-small" }).click();
+  await expect(header.getByText("da2-small")).toBeVisible();
+  await expect(shown).toBeVisible();
+});

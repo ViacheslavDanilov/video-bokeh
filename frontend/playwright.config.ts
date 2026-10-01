@@ -20,10 +20,12 @@ export default defineConfig({
   },
   webServer: [
     {
-      // A fresh tiny library every run: real files, gradient depth, no model.
+      // Two fresh tiny libraries every run, one per depth estimator: real files, gradient
+      // depth, no model.
       command: [
         `rm -rf "${DATA_ROOT}"`,
-        `uv run --directory ../backend --extra api python tests/api/fixture_library.py "${LIBRARY}"`,
+        `uv run --directory ../backend --extra api python tests/api/fixture_library.py "${LIBRARY}/da2-small"`,
+        `uv run --directory ../backend --extra api python tests/api/fixture_library.py "${LIBRARY}/depth-pro" depth-pro`,
         `uv run --directory ../backend --extra api uvicorn video_bokeh.api.main:app --host 127.0.0.1 --port ${API_PORT}`,
       ].join(" && "),
       url: `http://127.0.0.1:${API_PORT}/health`,
