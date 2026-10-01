@@ -228,6 +228,20 @@ def read_predictions(predictions_csv: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def prediction_fieldnames() -> list[str]:
+    """The columns of ``predictions.csv``, in order."""
+    return [
+        "page_id",
+        "top_subject",
+        "top_subject_score",
+        "top_style",
+        "top_style_score",
+        *[f"score_subject_{k}" for k in SUBJECT_TAXONOMY],
+        *[f"score_style_{k}" for k in STYLE_TAXONOMY],
+        "prompt",
+    ]
+
+
 def unclassified(
     rows: list[dict[str, str]],
     kept: list[dict[str, str]],
@@ -294,6 +308,16 @@ def main() -> int:
     kept: list[dict[str, str]] = []
     if args.keep_existing and output_csv.is_file():
         kept = read_predictions(output_csv)
+        # Checked before the CLIP run, not when the file is rewritten after it: a header
+        # that no longer matches the taxonomy would fail the write with the kept
+        # predictions already truncated away.
+        if kept and list(kept[0]) != prediction_fieldnames():
+            print(
+                f"{output_csv} has other columns than this classifier writes; "
+                f"classify afresh without --keep-existing",
+                file=sys.stderr,
+            )
+            return 1
         rows = unclassified(rows, kept)
         print(f"  Keeping {len(kept)} predictions; {len(rows)} images to classify")
         if not rows:
@@ -395,16 +419,7 @@ def main() -> int:
                 )
             print(f"  processed {len(predictions)}/{len(rows)}")
 
-    fieldnames = [
-        "page_id",
-        "top_subject",
-        "top_subject_score",
-        "top_style",
-        "top_style_score",
-        *[f"score_subject_{k}" for k in subject_labels],
-        *[f"score_style_{k}" for k in style_labels],
-        "prompt",
-    ]
+    fieldnames = prediction_fieldnames()
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     with output_csv.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
