@@ -31,10 +31,10 @@ Estimates depth once per asset and writes the artifact library.
 | `--model` | str | `da2-large` | a model below, or `package.module:ClassName` for your own |
 | `--device` | str | `auto` | `auto`, `cuda`, `mps`, `cpu` |
 | `--neutral-bg-seed` | int | `0` | seed for the synthetic neutral backdrop |
-| `--bg-margin` | float | `0.25` | padding around the object on that backdrop |
+| `--bg-margin` | float | `0.25` | oversize each background by this fraction per side, so Stage B's warp never shows its edge |
 | `--nb-pixels-remove` | int | `5` | edge pixels trimmed before depth propagation |
 | `--alpha-threshold` | float | `0.04` | alpha below this is treated as background |
-| `--low-pct` | float | `2.0` | low percentile clipped when normalizing depth |
+| `--low-pct` | float | `2.0` | drop trusted-core pixels below this percentile as depth holes; `0` turns the cleanup off |
 | `--limit-fg` | int | all | cap on foregrounds processed |
 | `--limit-bg` | int | all | cap on backgrounds processed |
 | `--subjects` | list | `person, animal, plant, food, object` | CLIP subject classes kept |

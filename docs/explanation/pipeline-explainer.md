@@ -2,13 +2,13 @@
 type: topic
 status: active
 tags: [topic, pipeline, depth, disparity, trajectories]
-related: [dataset-layout, generate-a-dataset, datasets]
+related: [dataset-layout, generate-a-dataset, datasets, cli, loader]
 ---
 
 # How the pipeline works
 
-A plain-language walkthrough of the two stages that make the synthetic data: what each stage
-computes and why it is built this way.
+A plain-language walkthrough of the three stages that make the synthetic data and its bokeh:
+what each stage computes and why it is built this way.
 
 No commands here. To run it, see [[generate-a-dataset]]. For what it writes, see
 [[dataset-layout]].
@@ -22,15 +22,28 @@ training data where the distance of every pixel is known exactly. Real video doe
 with that, so we build synthetic video instead: cut-out objects composited onto backgrounds,
 each with a depth we assigned and therefore know.
 
-Two stages make the data, split by cost. A third, Stage C, renders bokeh from the finished
-sequences, and [[run-any-to-bokeh-inference]] covers it.
+Three stages, split by cost. Stage A computes depth once per asset. Stage B turns those assets
+into as many videos as you want. Stage C blurs each video by its depth.
 
-```
-Stage A  →  library/     one depth map per asset, computed once
-Stage B  →  sequences/   many videos sampled from that library
+```mermaid
+flowchart LR
+  pools["Source images<br/>MAGICK, BG-20K"] --> A["Stage A<br/>build the library"]
+  A --> lib[("library/<br/>colour, matte, disparity")]
+  lib --> B["Stage B<br/>generate sequences"]
+  B --> seq[("sequences/<br/>all_in_focus, alpha, disparity")]
+  seq --> C["Stage C<br/>render bokeh"]
+  C --> bokeh[("bokeh/<br/>in each sequence")]
+  B -.-> stream["Sequence stream<br/>inside a training loop"]
+  B -.-> api["Demo API"]
 ```
 
-Stage A is slow because it runs a neural depth estimator. Stage B never calls it.
+- **Stages A and C take their model from a flag.** Stage A takes a depth estimator, Stage C a
+  bokeh renderer, and either can be a class of your own. [[cli]] lists both.
+- **The stages meet only through the files on disk.** That is what lets a model that cannot
+  share our Python environment run in one of its own. [[0001-on-disk-formats-join-the-stages]]
+  records why.
+- **Cost rises at both ends.** Stage A runs a neural depth estimator and Stage B never does.
+  Stage C runs a diffusion model and needs an NVIDIA card.
 
 ---
 
@@ -50,6 +63,9 @@ a bad depth map later can be traced to the model or to the compositing rather th
 
 The model returns a disparity map — brighter means closer. This is saved untouched as
 `depth_raw.png`, for diagnosis only.
+
+Which model runs is a flag: Depth Anything V2 by default, Depth Pro, Depth Anything 3, or one
+of your own. Every model hands back disparity, so nothing after this step knows which one ran.
 
 ### 3. Clean the trusted core
 
@@ -80,8 +96,8 @@ saved directly.
 
 ## Stage B — generate sequences
 
-Pick a background and one to three objects, give each a motion path and a depth trajectory,
-check nothing collides, render every frame.
+Pick a background and some objects, one to five by default, give each a motion path and a
+depth trajectory, check nothing collides, render every frame.
 
 ### The disparity axis
 
@@ -94,10 +110,9 @@ objects into disjoint **slots**, separated by small gaps:
 
 ```
 Background:  [0.00 — 0.05]
-Gap:                       0.02
-Object 1:    [0.07 ————————————— 0.49]
-Gap:                                   0.02
-Object 2:    [0.51 ————————————— 0.93]
+Object 1:          [0.05 ————————————— 0.515]
+Gap:                                          0.02
+Object 2:                                     [0.535 ————————————— 1.00]
 ```
 
 An object never fills its slot. It occupies a narrow **active band**, 0.08 wide by default,
@@ -166,7 +181,19 @@ can be partly transparent at the same pixel.
 
 ---
 
-## How the two stages connect
+## Stage C — render bokeh
+
+A bokeh renderer reads a finished sequence and writes what a camera with a shallow focus would
+have recorded: the `bokeh` stream, one frame for every `all_in_focus` frame.
+
+any-to-bokeh is the first renderer. It is a diffusion model with its own Python environment, so
+Stage C runs it as a separate program and reads its result back. By default each frame focuses
+on the objects: the in-focus disparity is the mean under their mattes. Stage C has not yet run
+end to end on a GPU, and [[run-any-to-bokeh-inference]] says where it stands.
+
+---
+
+## How the stages connect
 
 Stage B never calls the depth model. It reads the library's precomputed maps and warps them
 with the same homography as the colour. Three things follow:
@@ -178,14 +205,21 @@ with the same homography as the colour. Three things follow:
 - **Temporal consistency is free.** One depth map per asset, warped per frame, cannot flicker
   the way per-frame estimation would.
 
-A sequence is also reproducible from its seed alone: the manifest records it, and sampling is
-deterministic. The library plus a list of seeds regenerates the dataset exactly.
+A sequence is also reproducible. Sampling is deterministic, so the library, the seed and the
+run's settings — frame count, size, the object range and the sampling configuration —
+regenerate it exactly. The manifest records the seed, the frame count and the size.
+
+**Stage B also runs inside training.** The sequence stream, [[loader]], calls the same Stage B
+for every item a training loop asks for and writes nothing. A model can then train on as many
+sequences as it likes, from the same distribution as the written dataset.
 
 ---
 
 ## Related
 
 - [[dataset-layout]] — the on-disk contract, with formats and bit depths
-- [[generate-a-dataset]] — how to run both stages
+- [[generate-a-dataset]] — how to run Stages A and B
+- [[run-any-to-bokeh-inference]] — how to run Stage C
+- [[loader]] — the sequence stream, for training on the fly
 - [[demo-unrestricted-trajectories]] — how to judge the result by eye
 - [[meetings/2026-06-26-unrestricted-pipeline-algorithm]] — where the unrestricted design was agreed

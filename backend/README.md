@@ -27,6 +27,7 @@ backend/src/video_bokeh/
 | build a library yourself | `uv sync --no-dev --extra library` |
 | download the source pools | `uv sync --no-dev --extra acquire` |
 | run the API | `uv sync --no-dev --extra api` |
+| encode streams as MP4 to watch them | `uv sync --no-dev --extra preview` |
 | train on sequences generated on the fly | `uv sync --no-dev --extra loader` |
 | render bokeh for written sequences (Stage C) | `uv sync --no-dev --extra render` |
 | develop on the repository | `uv sync --all-extras --dev` |
@@ -64,7 +65,8 @@ uv run python -m video_bokeh.scenes.generate \
 ```
 
 **17 s** for 4 sequences of 80 frames. Rerun it with a different `--seed` or `--count` without
-touching Stage A. `--size` must match between the two stages.
+touching Stage A. `--size` need not match the library's: Stage B maps each asset onto the
+frame, so a smaller library is only upscaled.
 
 Full recipes — building a library, downloading the source pools — are in
 [`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md). Every flag is in
