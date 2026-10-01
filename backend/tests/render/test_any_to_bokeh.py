@@ -16,11 +16,13 @@ from video_bokeh.render import RENDERERS
 from video_bokeh.render import run as cli
 from video_bokeh.render.any_to_bokeh import AnyToBokeh
 
-FRAMES, SIZE = 3, 32
+# Thirteen: the real demo fails on twelve or fewer, so a shorter fixture would test a
+# fake that accepts what the real script rejects.
+FRAMES, SIZE = 13, 32
 
 # Reads the CSV the way the real demo does and writes one mp4 per row into output/ in its
 # working directory, at the demo's fixed 1024x576. Frame t of row i is grey level
-# 40 + 60 * i + 20 * t, so a test can tell which output went where. It records what it
+# 40 + 100 * i + 8 * t, so a test can tell which output went where. It records what it
 # was given in $FAKE_LOG.
 _FAKE_DEMO = """
 import argparse, csv, json, os
@@ -41,7 +43,7 @@ for i, row in enumerate(rows):
     short = drop_last and i == len(rows) - 1
     writer = imageio.get_writer(f"output/{i}.mp4", fps=20, codec="libx264", quality=8)
     for t in range(len(frames) - short):
-        writer.append_data(np.full((576, 1024, 3), 40 + 60 * i + 20 * t, np.uint8))
+        writer.append_data(np.full((576, 1024, 3), 40 + 100 * i + 8 * t, np.uint8))
     writer.close()
 log = {"rows": rows, "disp": [sorted(os.listdir(r["disp_folder"])) for r in rows]}
 json.dump(log, open(os.environ["FAKE_LOG"], "w"))
@@ -50,8 +52,8 @@ if os.environ.get("FAKE_FAIL"):
 """
 
 
-def _write_sequence(seq: Path) -> None:
-    for t in range(1, FRAMES + 1):
+def _write_sequence(seq: Path, frames: int = FRAMES) -> None:
+    for t in range(1, frames + 1):
         stem = f"{t:02d}"
         (seq / "all_in_focus").mkdir(parents=True, exist_ok=True)
         Image.new("RGB", (SIZE, SIZE), (100, 120, 140)).save(
@@ -107,7 +109,7 @@ def test_writes_a_bokeh_frame_per_frame_at_the_sequence_size(dataset: Path) -> N
             assert img.mode == "RGB"
             assert img.size == (SIZE, SIZE)
             # Each sequence gets its own row's output, frame by frame; the mp4 is lossy.
-            assert abs(np.asarray(img).mean() - (40 + 60 * i + 20 * t)) < 6
+            assert abs(np.asarray(img).mean() - (40 + 100 * i + 8 * t)) < 4
 
 
 @pytest.mark.usefixtures("fake_a2b")
@@ -140,7 +142,7 @@ def test_a_frame_count_mismatch_writes_nothing(
     # Only the last sequence comes back short, so the first would already be written by
     # a renderer that checked and wrote one sequence at a time.
     monkeypatch.setenv("FAKE_DROP_LAST", "1")
-    with pytest.raises(RuntimeError, match="2 frames for 3 in 0002"):
+    with pytest.raises(RuntimeError, match=f"{FRAMES - 1} frames for {FRAMES} in 0002"):
         AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
     for seq in _sequences(dataset):
         assert not (seq / "bokeh").exists()
@@ -184,3 +186,18 @@ def test_relative_paths_in_the_environment_still_work(
     monkeypatch.setenv("VIDEO_BOKEH_A2B_ROOT", fake_a2b.name)
     AnyToBokeh().render(_sequences(dataset)[:1], strength=16, focus_disparity=None)
     assert (_sequences(dataset)[0] / "bokeh").is_dir()
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_a_sequence_too_short_to_group_is_refused_before_the_model_runs(
+    dataset: Path,
+    tmp_path: Path,
+) -> None:
+    """any-to-bokeh fails on twelve frames or fewer, after the model has loaded, and
+    takes the whole batch down with it.
+    """
+    _write_sequence(dataset / "sequences" / "0003", frames=12)
+    with pytest.raises(ValueError, match=r"at least 13 frames.*0003 has 12 frames"):
+        AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+    assert not (tmp_path / "fake_log.json").exists(), "the demo must not have started"
+    assert not any((seq / "bokeh").exists() for seq in _sequences(dataset))

@@ -29,6 +29,14 @@ from video_bokeh.core._worker import interpreter, run_script
 _DEFAULT_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "any-to-bokeh"
 _SETUP = "scripts/setup_third_party.sh"
 
+#: The demo groups frames eight at a time, four overlapping. Its dataset cannot group a
+#: sequence of eight frames or fewer, and nine to twelve make exactly two groups, which
+#: its pipeline decodes in one call that drops the trailing frames, so the reshape after
+#: it fails. Both fail after the model has loaded. Checked on 2026-10-01: the dataset
+#: class on generated sequences, and the pipeline's ``decode_latents`` over 9 to 200
+#: frames with a pass-through VAE, which failed at 9 to 12 and nowhere else.
+_MIN_FRAMES = 13
+
 
 class AnyToBokeh:
     """any-to-bokeh, with ``strength`` passed through as its ``k``.
@@ -45,6 +53,7 @@ class AnyToBokeh:
         strength: float,
         focus_disparity: float | None,
     ) -> None:
+        _refuse_short(sequence_dirs)
         # Absolute, because the demo runs from a temporary directory.
         root = Path(os.environ.get("VIDEO_BOKEH_A2B_ROOT", _DEFAULT_ROOT)).absolute()
         python = interpreter(
@@ -96,6 +105,25 @@ class AnyToBokeh:
 
 def _frame_names(seq: Path) -> list[str]:
     return [p.name for p in list_png_frames(seq / "all_in_focus")]
+
+
+def _refuse_short(sequence_dirs: list[Path]) -> None:
+    """Refuse the batch up front if any sequence is too short for the demo to group.
+
+    One short sequence fails the whole batch inside the demo, minutes in, so it is named
+    here instead, before the model loads.
+    """
+    short = [
+        f"{seq.name} has {n} frames"
+        for seq in sequence_dirs
+        if (n := len(_frame_names(seq))) < _MIN_FRAMES
+    ]
+    if short:
+        raise ValueError(
+            f"any-to-bokeh needs at least {_MIN_FRAMES} frames per sequence: "
+            f"{'; '.join(short)}. Regenerate them with video_bokeh.scenes.generate "
+            f"--frames {_MIN_FRAMES} or more.",
+        )
 
 
 def _check_length(video: Path, seq: Path) -> None:
