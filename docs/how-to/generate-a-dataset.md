@@ -23,6 +23,8 @@ pipeline is shaped this way, see [[pipeline-explainer]].
 1. Foregrounds in `data/magick_dev` — see [[magick]].
 2. Backgrounds in `data/bg-20k_dev` — see [[datasets]].
 3. Dependencies: `uv sync --extra library` from the repo root.
+4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says
+   whether each depth estimator can run there, before a build finds out. See [[cli]].
 
 If `data/library_dev/` already holds `foregrounds/` and `backgrounds/`, Stage A is done and
 you can skip to Stage B. The current `library_dev` has 12 foregrounds and 20 backgrounds,
