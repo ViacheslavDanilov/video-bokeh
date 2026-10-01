@@ -95,8 +95,9 @@ VIDEO_BOKEH_LIBRARY=data/library_dev \
 - Docs: http://localhost:8000/docs
 
 Without `VIDEO_BOKEH_LIBRARY` it looks for `$VIDEO_BOKEH_DATA_ROOT/library`, and
-`VIDEO_BOKEH_DATA_ROOT` itself defaults to `data`. Sequences are written under
-`$VIDEO_BOKEH_DATA_ROOT/sequences/`.
+`VIDEO_BOKEH_DATA_ROOT` itself defaults to `data`. That is where `make libraries`, from the
+repository root, writes one library per depth estimator, so after it the API needs no variable
+at all. Sequences are written under `$VIDEO_BOKEH_DATA_ROOT/sequences/`.
 
 Generate one and watch it:
 

@@ -34,7 +34,8 @@ VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --p
 ```
 
 Any other directory is read one level down, and every subdirectory holding both is a library.
-One library per depth estimator, in the default `data/library/`, looks like this:
+That is the layout `make libraries` writes, one library per depth estimator, into
+`data/library/`, the default, so the API serves all of them with nothing set:
 
 ```
 data/library/

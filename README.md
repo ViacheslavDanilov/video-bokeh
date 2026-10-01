@@ -53,30 +53,34 @@ Stage A estimates depth once per asset and stores it as a library. Stage B sampl
 ### Installation & Running
 
 ```bash
-make setup    # every backend extra, the frontend packages, Chromium for the smoke test
-make api      # terminal 1: the API on :8000
-make web      # terminal 2: the page on :3000
+make setup      # every backend extra, the frontend packages, Chromium for the smoke test
+make libraries  # once: one library per depth estimator
+make api        # terminal 1: the API on :8000
+make web        # terminal 2: the page on :3000
 ```
 
 Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://localhost:8000/docs](http://localhost:8000/docs) (API docs).
 `make` alone lists every target, including `make check` and `make smoke`.
 
-The page sets the sequence parameters, generates, and compares the streams side by side. It
-needs an artifact library behind it: `make api` serves `backend/data/library_dev` from the
-main checkout, and `make api LIBRARY=<path>` serves another. Building one with Stage A is in
-[backend/README.md](backend/README.md), the page is in
+The page picks a depth estimator, sets the sequence parameters, generates, and compares the
+streams side by side. It needs libraries behind it, one per depth estimator: `make libraries`
+builds them with Depth Anything V2 Large, Depth Anything 3 Mono-Large and Depth Pro into the
+main checkout's `backend/data/library/`, and `make api` serves them. Depth Anything 3 runs in
+a venv of its own, which `scripts/setup_depth_anything_3.sh` builds once. `make api
+LIBRARY=<path>` serves something else: one library, or a directory of them. Building a library
+by hand with Stage A is in [backend/README.md](backend/README.md), the page is in
 [frontend/README.md](frontend/README.md), and the endpoints are in
 [docs/reference/api.md](docs/reference/api.md).
 
 ### With Docker
 
 ```bash
-cp .env.example .env          # then point VIDEO_BOKEH_LIBRARY at a library you built
+cp .env.example .env          # only to serve something other than backend/data/library
 docker compose up api
 ```
 
-The containers are `video-bokeh-api` and `video-bokeh-web`. `api` mounts the library read-only
-at `/data/library` and writes sequences to `/data/sequences`; both come from
+The containers are `video-bokeh-api` and `video-bokeh-web`. `api` mounts the libraries
+read-only at `/data/library` and writes sequences to `/data/sequences`; both come from
 `VIDEO_BOKEH_DATA_ROOT`, which defaults to `backend/data`. Generating a sequence in the container
 costs roughly half again what it costs natively — the numbers are in
 [docs/reference/api.md](docs/reference/api.md).

@@ -3,21 +3,38 @@
 # frontend/AGENTS.md. `make` alone lists the targets.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup api web smoke test check
+.PHONY: help setup libraries api web smoke test check
 
-# The library lives under backend/data/, which is not in git, so a second worktree has
-# none of its own. Resolve it against the main checkout, which every worktree shares.
+# The libraries live under backend/data/, which is not in git, so a second worktree has
+# none of its own. Resolve them against the main checkout, which every worktree shares.
 MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolute --git-common-dir))
-LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library_dev
+# One library, or a directory of them: `make libraries` fills it with one library per
+# depth estimator, which is what the page's picker chooses between.
+LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library
+ESTIMATORS := da2-large da3-mono-large depth-pro
 
 help: ## List the targets
-	@awk 'BEGIN {FS = ":.*## "} /^[a-z]+:.*## / {printf "  make %-6s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-z]+:.*## / {printf "  make %-9s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 setup: ## Install every backend extra, the frontend and the smoke test's Chromium
 	uv sync --all-extras --dev
 	cd frontend && pnpm install --frozen-lockfile && pnpm exec playwright install chromium
 
-api: ## Serve the API on :8000 from LIBRARY (default: the main checkout's library_dev)
+# Each build writes under a dot-prefixed name the API does not list, and is renamed into
+# place only once it succeeds, so an interrupted build is never served and a re-run builds
+# only what is missing. An existing library is skipped rather than rebuilt in place: its id
+# would stay the same while its pixels changed, and cached sequences would go stale.
+libraries: ## Build one library per depth estimator into LIBRARY (da3 needs scripts/setup_depth_anything_3.sh)
+	@out="$(abspath $(LIBRARY))"; for estimator in $(ESTIMATORS); do \
+	  if [ -d "$$out/$$estimator" ]; then echo "$$estimator: exists, skipped"; continue; fi; \
+	  rm -rf "$$out/.$$estimator" && \
+	  (cd backend && uv run --extra library python -m video_bokeh.library.build \
+	    --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
+	    --output "$$out/.$$estimator" --model $$estimator) && \
+	  mv "$$out/.$$estimator" "$$out/$$estimator" || exit 1; \
+	done
+
+api: ## Serve the API on :8000 from LIBRARY (default: the main checkout's libraries)
 	cd backend && VIDEO_BOKEH_LIBRARY="$(LIBRARY)" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 
 web: ## Serve the page on :3000
