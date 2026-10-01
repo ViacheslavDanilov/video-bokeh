@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from video_bokeh.core._worker import WorkerError, WorkerProcess
+from video_bokeh.core._worker import WorkerError, WorkerProcess, run_script
 
 # What a real worker does: keeps fd 1 for the protocol, so that the model's own output,
 # even native code writing straight to fd 1, lands on stderr.
@@ -105,3 +105,23 @@ def test_close_ends_the_process(tmp_path: Path) -> None:
     worker = WorkerProcess(_script(tmp_path, _ECHO))
     worker.close()
     assert worker.returncode == 0
+
+
+def test_a_script_that_succeeds_shows_its_output(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    script = tmp_path / "ok.py"
+    script.write_text("import os; print('progress', os.getcwd())", encoding="utf-8")
+    run_script([sys.executable, str(script)], cwd=tmp_path)
+    assert f"progress {tmp_path}" in capsys.readouterr().err
+
+
+def test_a_script_that_fails_says_why(tmp_path: Path) -> None:
+    script = tmp_path / "fail.py"
+    script.write_text(
+        "import sys; print('CUDA not available'); sys.exit(2)",
+        encoding="utf-8",
+    )
+    with pytest.raises(WorkerError, match="CUDA not available"):
+        run_script([sys.executable, str(script)], cwd=tmp_path)
