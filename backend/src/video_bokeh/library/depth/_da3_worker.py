@@ -37,7 +37,7 @@ from depth_anything_3.api import (  # noqa: E402  # ty: ignore[unresolved-import
 
 
 def _peak_memory(device: str) -> int:
-    """The figure ``video_bokeh.library._measure.peak_memory`` reports, for this process.
+    """The figure ``library._measure.peak_memory`` reports, for this process.
 
     Repeated rather than imported: this file runs in Depth Anything 3's own environment,
     where video_bokeh is not installed.
