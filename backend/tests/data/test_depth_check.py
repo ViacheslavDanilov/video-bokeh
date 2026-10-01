@@ -1,4 +1,4 @@
-"""`video_bokeh.library.check` says whether a depth estimator will run on this machine."""
+"""`video_bokeh.library.check` says whether a depth estimator will run here."""
 
 from __future__ import annotations
 
@@ -121,14 +121,20 @@ def fake_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (sharded / "model.safetensors.index.json").write_text(
         json.dumps(
             {
+                # Two tensors in the first shard, so a shard named twice in the map
+                # must still be counted once.
                 "weight_map": {
                     "a": "model-00001-of-00002.safetensors",
+                    "c": "model-00001-of-00002.safetensors",
                     "b": "model-00002-of-00002.safetensors",
                 },
             },
         ),
     )
-    _write_safetensors_header(sharded / "model-00001-of-00002.safetensors", {"a": [7]})
+    _write_safetensors_header(
+        sharded / "model-00001-of-00002.safetensors",
+        {"a": [7], "c": [3]},
+    )
     _write_safetensors_header(sharded / "model-00002-of-00002.safetensors", {"b": [5]})
 
     # Four tebibytes of float32, more than any machine this runs on has.
@@ -171,7 +177,7 @@ def test_weights_come_from_the_cached_checkpoint(plugins: str, hub: list[str]) -
 @pytest.mark.usefixtures("fake_cache", "hub")
 def test_a_sharded_checkpoint_counts_every_shard(plugins: str) -> None:
     report = check.assess(f"{plugins}:Sharded", check.describe_device("cpu"))
-    assert report.weights == check.Weights(params=12, cached=True)
+    assert report.weights == check.Weights(params=15, cached=True)
 
 
 @pytest.mark.usefixtures("fake_cache")
@@ -349,3 +355,42 @@ def test_an_id_the_hub_would_refuse_reads_as_unknown_weights() -> None:
 def test_an_estimator_that_prints_is_still_measured(plugins: str) -> None:
     measured = check.measure(f"{plugins}:Chatty", CPU)
     assert measured.per_image_s > 0
+
+
+@pytest.mark.usefixtures("fake_cache", "hub")
+def test_the_command_succeeds_when_every_estimator_is_ready(plugins: str) -> None:
+    code = check.main(
+        [
+            "--model",
+            f"{plugins}:Ready",
+            "--model",
+            f"{plugins}:Unknown",
+            "--device",
+            "cpu",
+        ],
+    )
+    assert code == 0
+
+
+@pytest.mark.usefixtures("fake_cache", "hub")
+def test_a_load_that_had_weights_to_fetch_is_labelled(
+    plugins: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Its load time includes the download, which a reader must not take for loading."""
+    check.main(
+        [
+            "--model",
+            f"{plugins}:OnTheHub",
+            "--model",
+            f"{plugins}:Ready",
+            "--device",
+            "cpu",
+            "--measure",
+        ],
+    )
+    lines = capsys.readouterr().out.splitlines()
+    on_the_hub = next(line for line in lines if "OnTheHub" in line)
+    cached = next(line for line in lines if line.startswith(f"{plugins}:Ready"))
+    assert "(download)" in on_the_hub
+    assert "(download)" not in cached

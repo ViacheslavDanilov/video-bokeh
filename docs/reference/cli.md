@@ -53,13 +53,24 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da2-large` | `depth-anything/Depth-Anything-V2-Large-hf` | CC BY-NC 4.0 |
 | `depth-pro` | `apple/DepthPro-hf` | research only |
 | `da3-mono-large` | `depth-anything/DA3MONO-LARGE` | Apache-2.0 |
+| `da3-metric-large` | `depth-anything/DA3METRIC-LARGE` | Apache-2.0 |
 
-Licences as checked on 2026-09-30. Non-commercial weights are fine for a research dataset.
-`da3-mono-large` needs an environment of its own first, as the next section says.
+Licences as checked on 2026-09-30, and on 2026-10-01 for `da3-metric-large`. Non-commercial
+weights are fine for a research dataset. Both `da3-*` need an environment of its own first, as
+the next section says. `da3-metric-large` has not run yet; the lab machine runs it first.
+
+**Depth Anything 3's other checkpoints are left out on purpose.** Small, Base and Large are
+multi-view models, which estimate depth from several views of one scene at once. Their output
+has no sky estimate, so the package never sets a sky to the far end, and where a sky lands is
+up to the image. Small and Base, run on the 20 dev backgrounds on 2026-10-01, agreed with
+`da2-large` at medians of 0.75 and 0.81, but on `testval__h_7b2a0862`, a background with sky,
+at 0.10 and 0.02, where `da3-mono-large` holds 0.96. A dataset cannot leave its skies to the
+image. Large 1.0 and Giant are
+CC BY-NC 4.0 besides.
 
 ### Depth Anything 3's own environment
 
-`da3-mono-large` cannot run in the backend environment: Depth Anything 3 pins `numpy<2`, its
+No `da3-*` estimator can run in the backend environment: Depth Anything 3 pins `numpy<2`, its
 Python range stops before 3.13.1, and it depends on `xformers`, which has no macOS wheel. It runs
 in a Python 3.12 venv of its own instead, as a worker process that Stage A starts and talks to.
 Build that venv once:
@@ -71,11 +82,12 @@ scripts/setup_depth_anything_3.sh
 Run it from the repository root. It puts the venv at `backend/envs/depth-anything-3/.venv`,
 which git ignores. It leaves out `xformers`, which inference does not need, and `pycolmap`,
 whose own OpenMP runtime clashes with torch's. To use a venv somewhere else, set
-`VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, `--model da3-mono-large` stops
-before any asset is processed and names the script.
+`VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, a `--model da3-*` stops before any
+asset is processed and names the script.
 
-The weights, 1.34 GB, download on first use. After that, 3 foregrounds and 1 background at
-size 512 took 8.2 s on an Apple M3 Pro.
+Mono-Large's weights, 1.34 GB, download on first use, and Metric-Large's are the same size.
+After that, Mono-Large took 8.2 s for 3 foregrounds and 1 background at size 512 on an Apple
+M3 Pro.
 
 ### Your own model
 
@@ -123,7 +135,7 @@ check says so; Stage A would fall back to the CPU without a word. Then three thi
 estimator:
 
 1. **Environment.** Whether what it needs beyond the `library` extra is in place. Only
-   `da3-mono-large` needs anything: its own venv. The reason is printed under the table.
+   the `da3-*` estimators need anything: their own venv. The reason is printed under the table.
 2. **Weights.** The parameter count times four bytes, because every built-in runs in float32.
    It is read from the header of the cached checkpoint, and from the Hub only when nothing is
    cached, so it works offline once the weights are downloaded. `not downloaded` means the
@@ -137,6 +149,9 @@ to find out: it runs one warm-up and one timed 1024 px image through each ready 
 in a fresh process. When the weights were not cached before the run, the load time is marked
 `(download)`, because it includes fetching them. An estimator that fails, running out of memory
 for instance, gets `failed` and the reason under the table; the others are still measured.
+Without `--model`, `--measure` loads every registered estimator and so downloads whatever is not
+cached: 5.97 GiB of checkpoints from scratch, by the Hub's metadata on 2026-10-01. On a machine
+short of disk or memory, name the ones to measure.
 
 Measured on an Apple M3 Pro on 2026-10-01:
 
