@@ -26,6 +26,8 @@ _Avoid_: mask, alpha mask
 
 **Library**:
 Every asset with its disparity map, computed once by Stage A and read by every sequence.
+A library is built by exactly one depth estimator, so comparing depth estimators means
+comparing libraries.
 _Avoid_: artifact library, asset store, cache
 
 **Depth estimator**:
