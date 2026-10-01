@@ -388,7 +388,9 @@ def main() -> int:
                         "top_style_score": style_row[top_style],
                         **{f"score_subject_{k}": v for k, v in subject_row.items()},
                         **{f"score_style_{k}": v for k, v in style_row.items()},
-                        "prompt": row.get("prompt", ""),
+                        # The full MAGICK metadata names its caption `subject`;
+                        # pools sampled from an older copy name it `prompt`.
+                        "prompt": row.get("prompt") or row.get("subject", ""),
                     },
                 )
             print(f"  processed {len(predictions)}/{len(rows)}")
