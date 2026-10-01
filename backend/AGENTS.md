@@ -19,6 +19,7 @@ Run from `backend/` unless noted.
 | Install Stage B only | `uv sync --no-dev` (from repo root) |
 | Install Stage A | `uv sync --no-dev --extra library` |
 | Install the training loader | `uv sync --no-dev --extra loader` |
+| Install Stage C | `uv sync --no-dev --extra render` |
 | Run API (reload) | `VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
 | Tests | `uv run pytest` |
 | Type check | `uv run ty check src/` |
@@ -83,7 +84,11 @@ uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/synth_dev \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5
 
-# 4. Bridge to any-to-bokeh inference
+# 4. Stage C — render bokeh into each sequence's bokeh/ (NVIDIA only;
+#    needs scripts/setup_third_party.sh first; not yet run to completion on a GPU)
+uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
+
+# Or only convert for any-to-bokeh, to inspect its inputs
 uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/synth_dev
 ```
 

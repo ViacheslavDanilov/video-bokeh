@@ -108,6 +108,36 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
 
+## `video_bokeh.render.run` — Stage C
+
+Renders bokeh for written sequences and writes each one's `bokeh/` stream, as
+[[dataset-layout]] describes. It needs the `render` extra, and [[run-any-to-bokeh-inference]]
+has the command. It has not run to completion on a GPU yet.
+
+| flag | type | default | meaning |
+|---|---|---|---|
+| `--data-root` | path | **required** | dataset root containing `sequences/` |
+| `--seqs` | list | all | comma-separated sequence ids, e.g. `0001,0003` |
+| `--renderer` | str | `any-to-bokeh` | a renderer below, or `package.module:ClassName` for your own |
+| `--strength` | float | `16` | blur strength, any-to-bokeh's `k` |
+| `--focus-disparity` | float | the renderer's choice | one in-focus disparity in `[0, 1]` for every frame |
+
+| `--renderer` | runs in | setup |
+|---|---|---|
+| `any-to-bokeh` | its own Python 3.10 venv, NVIDIA only | `scripts/setup_third_party.sh` |
+
+any-to-bokeh focuses on the objects by default: each frame's in-focus disparity is the mean
+under the union of the object mattes. `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point
+at another checkout or interpreter.
+
+### Your own renderer
+
+Pass `--renderer my_package.my_module:MyRenderer`. Stage C creates the class with no arguments
+and calls `render(self, sequence_dirs, strength, focus_disparity)` once, with every sequence.
+It must write `<sequence>/bokeh/<frame>.png` for each one: RGB uint8, the sequence's own size,
+named like the `all_in_focus` frames. The interface is
+`video_bokeh.render.base.BokehRenderer`.
+
 ## `video_bokeh.bridge.any_to_bokeh` — the inference bridge
 
 | flag | type | default | meaning |

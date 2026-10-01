@@ -63,7 +63,8 @@ Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_boke
 └── sequences/<seq-id>/
     ├── all_in_focus/<frame>.png   RGB    uint8   the sharp composite
     ├── alpha/<frame>.tif          multi-page uint8, one page per object
-    └── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
+    ├── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
+    └── bokeh/<frame>.png          RGB    uint8   optional, written by Stage C
 ```
 
 - `<seq-id>` is 4 digits, 1-based: `0001`, `0002`.
@@ -97,6 +98,23 @@ represent them.
 
 **Disparity, not depth.** Larger means closer, throughout the pipeline. The background
 occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live above it.
+
+### The bokeh stream — Stage C
+
+`bokeh/` holds the rendered bokeh, written by `video_bokeh.render.run` after Stage B.
+
+| stream | format | dtype | what a pixel means |
+|---|---|---|---|
+| `bokeh` | PNG, RGB | uint8 | the frame as the bokeh renderer blurred it |
+
+- **One file per `all_in_focus` frame, named like it**, at the sequence's own size.
+- **It appears complete or not at all.** The renderer writes into `.bokeh-tmp/` beside it and
+  renames the folder only when every frame is in place.
+- **It is optional.** A sequence without it is still a complete Stage B sequence. Nothing in
+  Stage B or the demo reads it yet.
+- **With any-to-bokeh it is lossy.** The vendored script writes an mp4 at 1024 × 576, which is
+  decoded and resized back to the sequence's size. A lossless path waits for a GPU run that
+  can check it.
 
 ### How many objects a scene can hold
 
