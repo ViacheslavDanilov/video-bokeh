@@ -33,6 +33,9 @@ preview = [
 loader = [
     "torch>=2.5.0",
 ]
+render = [
+    "imageio[ffmpeg]>=2.34.0",
+]
 api = [
     "video-bokeh[preview]",
     "fastapi>=0.115.0",

@@ -1,0 +1,178 @@
+"""Stage C through any-to-bokeh, with a fake standing in for its CUDA-only demo script."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
+from video_bokeh.core._worker import WorkerError
+from video_bokeh.render import RENDERERS
+from video_bokeh.render import run as cli
+from video_bokeh.render.any_to_bokeh import AnyToBokeh
+
+FRAMES, SIZE = 3, 32
+
+# Reads the CSV the way the real demo does and writes one mp4 per row into output/ in its
+# working directory, at the demo's fixed 1024x576. Frame t of row i is grey level
+# 40 + 60 * i + 20 * t, so a test can tell which output went where. It records what it
+# was given in $FAKE_LOG.
+_FAKE_DEMO = """
+import argparse, csv, json, os
+import imageio.v2 as imageio
+import numpy as np
+
+p = argparse.ArgumentParser()
+p.add_argument("--val_csv_path")
+p.add_argument("--unet_path")
+p.add_argument("--vae_path")
+a = p.parse_args()
+assert os.path.isdir(a.unet_path) and os.path.isdir(a.vae_path), (a.unet_path, a.vae_path)
+rows = list(csv.DictReader(open(a.val_csv_path)))
+drop_last = os.environ.get("FAKE_DROP_LAST") == "1"
+os.makedirs("output", exist_ok=True)
+for i, row in enumerate(rows):
+    frames = sorted(os.listdir(row["aif_folder"]))
+    short = drop_last and i == len(rows) - 1
+    writer = imageio.get_writer(f"output/{i}.mp4", fps=20, codec="libx264", quality=8)
+    for t in range(len(frames) - short):
+        writer.append_data(np.full((576, 1024, 3), 40 + 60 * i + 20 * t, np.uint8))
+    writer.close()
+log = {"rows": rows, "disp": [sorted(os.listdir(r["disp_folder"])) for r in rows]}
+json.dump(log, open(os.environ["FAKE_LOG"], "w"))
+if os.environ.get("FAKE_FAIL"):
+    raise SystemExit("CUDA error: no kernel image is available")
+"""
+
+
+def _write_sequence(seq: Path) -> None:
+    for t in range(1, FRAMES + 1):
+        stem = f"{t:02d}"
+        (seq / "all_in_focus").mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (SIZE, SIZE), (100, 120, 140)).save(
+            seq / "all_in_focus" / f"{stem}.png",
+        )
+        mask = np.zeros((SIZE, SIZE), np.float32)
+        mask[8:24, 8:24] = 1.0
+        (seq / "alpha").mkdir(exist_ok=True)
+        write_alpha_tiff(seq / "alpha" / f"{stem}.tif", [mask])
+        (seq / "disparity").mkdir(exist_ok=True)
+        disparity = np.tile(np.linspace(0.0, 1.0, SIZE, dtype=np.float32), (SIZE, 1))
+        write_disparity_png(seq / "disparity" / f"{stem}.png", disparity)
+
+
+@pytest.fixture
+def dataset(tmp_path: Path) -> Path:
+    root = tmp_path / "dataset"
+    for name in ("0001", "0002"):
+        _write_sequence(root / "sequences" / name)
+    return root
+
+
+@pytest.fixture
+def fake_a2b(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    root = tmp_path / "any-to-bokeh"
+    (root / "test").mkdir(parents=True)
+    (root / "test" / "inference_demo.py").write_text(_FAKE_DEMO, encoding="utf-8")
+    for sub in ("unet", "vae"):
+        (root / "checkpoints" / sub).mkdir(parents=True)
+    monkeypatch.setenv("VIDEO_BOKEH_A2B_ROOT", str(root))
+    monkeypatch.setenv("VIDEO_BOKEH_A2B_PYTHON", sys.executable)
+    monkeypatch.setenv("FAKE_LOG", str(tmp_path / "fake_log.json"))
+    return root
+
+
+def _sequences(dataset: Path) -> list[Path]:
+    return sorted((dataset / "sequences").iterdir())
+
+
+def test_registered() -> None:
+    assert RENDERERS["any-to-bokeh"] is AnyToBokeh
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_writes_a_bokeh_frame_per_frame_at_the_sequence_size(dataset: Path) -> None:
+    AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+
+    for i, seq in enumerate(_sequences(dataset)):
+        names = sorted(p.name for p in (seq / "bokeh").iterdir())
+        assert names == sorted(p.name for p in (seq / "all_in_focus").iterdir())
+        for t, name in enumerate(names):
+            img = Image.open(seq / "bokeh" / name)
+            assert img.mode == "RGB"
+            assert img.size == (SIZE, SIZE)
+            # Each sequence gets its own row's output, frame by frame; the mp4 is lossy.
+            assert abs(np.asarray(img).mean() - (40 + 60 * i + 20 * t)) < 6
+
+
+def test_leaves_the_submodule_untouched(dataset: Path, fake_a2b: Path) -> None:
+    before = sorted(p.relative_to(fake_a2b) for p in fake_a2b.rglob("*"))
+    AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+    assert sorted(p.relative_to(fake_a2b) for p in fake_a2b.rglob("*")) == before
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_passes_strength_and_a_fixed_focus(dataset: Path, tmp_path: Path) -> None:
+    AnyToBokeh().render(_sequences(dataset)[:1], strength=24, focus_disparity=0.5)
+    log = json.loads((tmp_path / "fake_log.json").read_text())
+    assert log["rows"][0]["k"] == "24"
+    assert all("_zf_0.500000" in name for name in log["disp"][0])
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_a_frame_count_mismatch_writes_nothing(
+    dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Only the last sequence comes back short, so the first would already be written by
+    # a renderer that checked and wrote one sequence at a time.
+    monkeypatch.setenv("FAKE_DROP_LAST", "1")
+    with pytest.raises(RuntimeError, match="2 frames for 3 in 0002"):
+        AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+    for seq in _sequences(dataset):
+        assert not (seq / "bokeh").exists()
+        assert not list(seq.glob(".bokeh-*"))
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_a_failed_inference_says_why(
+    dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FAKE_FAIL", "1")
+    with pytest.raises(WorkerError, match="CUDA error"):
+        AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+
+
+def test_missing_checkpoints_name_the_setup_script(
+    dataset: Path,
+    fake_a2b: Path,
+) -> None:
+    (fake_a2b / "checkpoints" / "vae").rmdir()
+    with pytest.raises(RuntimeError, match="setup_third_party.sh"):
+        AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_the_command_renders_the_chosen_sequences(dataset: Path) -> None:
+    assert cli.main(["--data-root", str(dataset), "--seqs", "0002"]) == 0
+    assert (dataset / "sequences" / "0002" / "bokeh").is_dir()
+    assert not (dataset / "sequences" / "0001" / "bokeh").exists()
+
+
+def test_relative_paths_in_the_environment_still_work(
+    dataset: Path,
+    fake_a2b: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The demo runs from a temporary directory, so a relative root must not be read
+    # from there.
+    monkeypatch.chdir(fake_a2b.parent)
+    monkeypatch.setenv("VIDEO_BOKEH_A2B_ROOT", fake_a2b.name)
+    AnyToBokeh().render(_sequences(dataset)[:1], strength=16, focus_disparity=None)
+    assert (_sequences(dataset)[0] / "bokeh").is_dir()
