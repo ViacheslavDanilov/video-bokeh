@@ -30,7 +30,7 @@ any-to-bokeh's scripts by hand.
 
 The main backend env (used by every command in the sections below) is separate — managed by `uv sync --extra library` from the repo root.
 
-`setup_depth_anything_3.sh` builds the venv that `--model da3-mono-large` runs in. Only that model needs it. It is a Python 3.12 venv under `backend/envs/depth-anything-3/.venv`, and unlike `setup_third_party.sh` it runs on a Mac. The command, and what the script leaves out and why, are in `docs/reference/cli.md`, section "Depth Anything 3's own environment".
+`setup_depth_anything_3.sh` builds the venv that `--model da3-mono-large` and `--model da3-metric-large` run in. Only those two need it. It is a Python 3.12 venv under `backend/envs/depth-anything-3/.venv`, and unlike `setup_third_party.sh` it runs on a Mac. The command, and what the script leaves out and why, are in `docs/reference/cli.md`, section "Depth Anything 3's own environment".
 
 ## Build a synthetic dataset
 

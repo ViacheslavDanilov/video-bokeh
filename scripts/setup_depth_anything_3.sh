@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Set up the environment the da3-mono-large depth estimator runs in.
+# Set up the environment the da3-* depth estimators run in.
 #
 # Depth Anything 3 cannot share the backend environment: it pins numpy<2, its
 # requires-python stops before Python 3.13.1, and it depends on xformers, which has no
@@ -17,8 +17,8 @@
 #      torchvision to the versions this was tested with, 2.14.0 and 0.29.0.
 #   3. Installs depth-anything-3 0.1.1 itself with --no-deps, and checks it imports.
 #
-# The weights (depth-anything/DA3MONO-LARGE, 1.34 GB) download from Hugging Face on
-# first use, into $HF_HOME.
+# The weights download from Hugging Face on first use, into $HF_HOME: 1.34 GB for
+# depth-anything/DA3MONO-LARGE, and as much again for DA3METRIC-LARGE.
 #
 # Usage: scripts/setup_depth_anything_3.sh   (idempotent)
 

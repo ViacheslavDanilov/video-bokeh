@@ -1,6 +1,6 @@
 """Depth Anything 3 worker: runs under its own environment, never imported by video_bokeh.
 
-Started by ``depth_anything_v3.DepthAnything3MonoLarge`` as
+Started by a ``depth_anything_v3.DepthAnything3Estimator`` as
 ``python _da3_worker.py <model id> <device>``, it speaks the protocol in
 ``video_bokeh.core._worker``: one request per image, ``{"image": path, "output": path}``,
 and writes the model's depth map to ``output`` as a float32 ``.npy``. A request
@@ -37,7 +37,7 @@ from depth_anything_3.api import (  # noqa: E402  # ty: ignore[unresolved-import
 
 
 def _peak_memory(device: str) -> int:
-    """The figure ``video_bokeh.library._measure.peak_memory`` reports, for this process.
+    """The figure ``library._measure.peak_memory`` reports, for this process.
 
     Repeated rather than imported: this file runs in Depth Anything 3's own environment,
     where video_bokeh is not installed.

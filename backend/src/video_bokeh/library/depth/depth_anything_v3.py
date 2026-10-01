@@ -1,10 +1,15 @@
-"""Depth Anything 3 Mono-Large, run in its own environment.
+"""Depth Anything 3 checkpoints, run in their own environment.
 
-Depth Anything 3 cannot share ours; ``docs/reference/cli.md`` says why and how to build its
-venv. This class drives that venv through a worker process, ``_da3_worker.py``.
+Depth Anything 3 cannot share ours; ``docs/reference/cli.md`` says why and how to build
+its venv. These classes drive that venv through a worker process, ``_da3_worker.py``.
 
-The model predicts depth, far larger than near, at a 504 px working size, so ``infer``
-takes the reciprocal and resizes back to each image's own size. Licence: Apache-2.0.
+Both checkpoints predict depth, far larger than near, at a 504 px working size, so
+``infer`` takes the reciprocal and resizes back to each image's own size. Both are
+Apache-2.0.
+
+The multi-view checkpoints, Small, Base and Large, are left out on purpose. Their head has
+no sky output, so the package cannot push a sky to the far end, and on a background with
+sky their disparity stops agreeing with every other estimator's: checked on 2026-10-01.
 """
 
 from __future__ import annotations
@@ -40,9 +45,11 @@ def _python() -> Path:
     )
 
 
-class DepthAnything3MonoLarge:
-    name: ClassVar[str] = "da3-mono-large"
-    hf_model_id: ClassVar[str] = "depth-anything/DA3MONO-LARGE"
+class DepthAnything3Estimator:
+    """One Depth Anything 3 checkpoint; a subclass names it."""
+
+    name: ClassVar[str] = ""
+    hf_model_id: ClassVar[str] = ""
 
     def __init__(self) -> None:
         self._worker: WorkerProcess | None = None
@@ -91,3 +98,19 @@ class DepthAnything3MonoLarge:
         if self._worker is not None:
             self._worker.close()
             self._worker = None
+
+
+class DepthAnything3MonoLarge(DepthAnything3Estimator):
+    """Trained for single images, which is all Stage A gives it."""
+
+    name: ClassVar[str] = "da3-mono-large"
+    hf_model_id: ClassVar[str] = "depth-anything/DA3MONO-LARGE"
+
+
+class DepthAnything3MetricLarge(DepthAnything3Estimator):
+    """Predicts depth scaled by the focal length, a factor per image that the library's
+    min/max normalisation removes, so the reciprocal is disparity all the same.
+    """
+
+    name: ClassVar[str] = "da3-metric-large"
+    hf_model_id: ClassVar[str] = "depth-anything/DA3METRIC-LARGE"
