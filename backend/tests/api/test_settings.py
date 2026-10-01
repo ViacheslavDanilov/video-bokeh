@@ -5,8 +5,8 @@ import pytest
 from video_bokeh.api._settings import (
     LibraryUnavailableError,
     Settings,
+    find_libraries,
     load_settings,
-    require_library,
 )
 
 
@@ -42,39 +42,66 @@ def test_empty_variable_is_treated_as_unset() -> None:
     assert settings.library == Path("data/library")
 
 
-def test_require_library_accepts_a_real_library(tmp_path: Path) -> None:
-    (tmp_path / "foregrounds").mkdir()
-    (tmp_path / "backgrounds").mkdir()
-    settings = Settings(
-        data_root=tmp_path,
-        library=tmp_path,
-        sequences=tmp_path / "sequences",
+def _settings(library: Path) -> Settings:
+    return Settings(
+        data_root=library.parent,
+        library=library,
+        sequences=library.parent / "sequences",
     )
-    assert require_library(settings) == tmp_path
 
 
-def test_require_library_names_the_path_it_could_not_use(tmp_path: Path) -> None:
+def _library(root: Path) -> Path:
+    (root / "foregrounds").mkdir(parents=True)
+    (root / "backgrounds").mkdir()
+    return root
+
+
+def test_a_flat_library_is_the_one_library(tmp_path: Path) -> None:
+    library = _library(tmp_path / "library_dev")
+    assert find_libraries(_settings(library)) == [library]
+
+
+def test_a_directory_of_libraries_lists_each_in_name_order(tmp_path: Path) -> None:
+    root = tmp_path / "library"
+    depth_pro = _library(root / "depth-pro")
+    da2 = _library(root / "da2-large")
+    assert find_libraries(_settings(root)) == [da2, depth_pro]
+
+
+def test_a_build_in_progress_is_not_a_library(tmp_path: Path) -> None:
+    """A build still in progress sits under a dot-prefixed name until it is renamed."""
+    root = tmp_path / "library"
+    da2 = _library(root / "da2-large")
+    _library(root / ".depth-pro")
+    assert find_libraries(_settings(root)) == [da2]
+
+
+def test_entries_that_are_not_libraries_are_skipped(tmp_path: Path) -> None:
+    root = tmp_path / "library"
+    da2 = _library(root / "da2-large")
+    (root / "notes").mkdir()
+    (root / "README").write_text("not a library")
+    assert find_libraries(_settings(root)) == [da2]
+
+
+def test_names_the_path_it_could_not_use(tmp_path: Path) -> None:
     missing = tmp_path / "nothing-here"
-    settings = Settings(
-        data_root=tmp_path,
-        library=missing,
-        sequences=tmp_path / "sequences",
-    )
     with pytest.raises(LibraryUnavailableError) as excinfo:
-        require_library(settings)
+        find_libraries(_settings(missing))
     assert str(missing) in str(excinfo.value)
 
 
-def test_require_library_rejects_a_directory_that_is_not_a_library(
-    tmp_path: Path,
-) -> None:
-    """A path that exists but holds no assets is a configuration error, not an empty library."""
-    (tmp_path / "foregrounds").mkdir()
-    settings = Settings(
-        data_root=tmp_path,
-        library=tmp_path,
-        sequences=tmp_path / "sequences",
-    )
+def test_a_directory_with_no_library_in_it_is_refused(tmp_path: Path) -> None:
+    root = tmp_path / "library"
+    (root / "notes").mkdir(parents=True)
     with pytest.raises(LibraryUnavailableError) as excinfo:
-        require_library(settings)
+        find_libraries(_settings(root))
+    assert str(root) in str(excinfo.value)
+
+
+def test_a_half_library_names_what_it_is_missing(tmp_path: Path) -> None:
+    """A path holding foregrounds/ alone is a broken library, not a directory of them."""
+    (tmp_path / "foregrounds").mkdir()
+    with pytest.raises(LibraryUnavailableError) as excinfo:
+        find_libraries(_settings(tmp_path))
     assert "backgrounds" in str(excinfo.value)

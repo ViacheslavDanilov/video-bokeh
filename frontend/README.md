@@ -1,7 +1,7 @@
 # Video Bokeh Frontend
 
-The sequence browser: set the parameters, generate a sequence from the mounted asset library, and
-compare its streams side by side.
+The sequence browser: pick a depth estimator, set the parameters, generate a sequence from that
+estimator's library, and compare its streams side by side.
 
 Next.js 16, React 19, Tailwind 4, shadcn/ui on Radix primitives. **pnpm only** — never npm or
 yarn.
@@ -31,8 +31,12 @@ without rebuilding.
 
 ## What the page does
 
+- **Depth estimator** — which library the sequence comes from, one library per depth
+  estimator. The same seed through two estimators gives the same objects on the same paths;
+  only the disparity differs.
 - **Parameters** — seed, frames, size, and the range of objects a sequence may contain. The seed
-  picks a count in that range, so the same five numbers always name the same sequence.
+  picks a count in that range, so the same five numbers from the same library always name the
+  same sequence.
 - **Generate** — one call, and it blocks while it works: about 7 seconds for 80 frames at 512
   px. Asking twice for the same sequence returns it in milliseconds, because the sequence id is a
   hash and the directory on disk is the cache.

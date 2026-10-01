@@ -7,7 +7,8 @@ related: [cli, dataset-layout, generate-a-dataset]
 
 # HTTP API reference
 
-Four endpoints. They mount a library built by Stage A and generate Stage B sequences on demand.
+Four endpoints. They mount the libraries Stage A built and generate Stage B sequences on demand,
+from whichever library a request names.
 
 Bokeh rendering is not here. That runs on a GPU for minutes per sequence, so it gets its own
 container and its own asynchronous endpoints once that container exists.
@@ -21,16 +22,31 @@ Three environment variables, all optional.
 | Variable | Default | Names |
 |---|---|---|
 | `VIDEO_BOKEH_DATA_ROOT` | `data` | the directory everything generated lives under |
-| `VIDEO_BOKEH_LIBRARY` | `$VIDEO_BOKEH_DATA_ROOT/library` | the library directory itself |
+| `VIDEO_BOKEH_LIBRARY` | `$VIDEO_BOKEH_DATA_ROOT/library` | one library, or a directory of them |
 | `CORS_ORIGINS` | `http://localhost:3000` | comma-separated origins a browser may call from |
 
-Set the second one when the library is not called `library`. Every library on disk today is
-flat — `data/library_dev` holds `foregrounds/` and `backgrounds/` directly — so pointing at it
-is what makes an existing checkout work without moving anything:
+**The second one names a library or a directory of libraries.** A directory holding
+`foregrounds/` and `backgrounds/` is one library, which is what makes an existing checkout work
+without moving anything:
 
 ```bash
 VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --port 8000
 ```
+
+Any other directory is read one level down, and every subdirectory holding both is a library.
+That is the layout `make libraries` writes, one library per depth estimator, into
+`data/library/`, the default, so the API serves all of them with nothing set:
+
+```
+data/library/
+├── da2-large/
+├── da3-mono-large/
+└── depth-pro/
+```
+
+A subdirectory whose name starts with a dot is skipped, which is how a build still in progress
+stays out of view. A directory holding only one of `foregrounds/` and `backgrounds/` is a
+broken library, and the API says which half is missing.
 
 The two paths are read per request, not at startup: the container starts before the library
 volume is populated, and `/health` answers either way.
@@ -47,27 +63,40 @@ Always 200. Does not touch the library.
 {"status": "healthy"}
 ```
 
-## `GET /library`
+## `GET /libraries`
 
-What is mounted.
+What is mounted, in directory-name order.
 
 ```json
-{
-  "id": "6016e7d35807",
-  "n_foregrounds": 12,
-  "n_backgrounds": 20,
-  "depth_model": "da2-large",
-  "asset_size": 1024
-}
+[
+  {
+    "id": "747c2380d504",
+    "name": "da2-large",
+    "n_foregrounds": 12,
+    "n_backgrounds": 20,
+    "depth_estimator": "da2-large",
+    "asset_size": 1024
+  }
+]
 ```
 
-**`id` is a digest of the asset ids and the depth model**, not the directory name. It moves
-when assets are added or removed and when Stage A is re-run with a different estimator, and it
-does not move when the same library is mounted somewhere else.
+**`id` is a digest of the asset ids, the depth estimator and the asset size**, not the directory
+name. It moves when assets are added or removed, when Stage A is re-run with a different
+estimator and when the library is rebuilt at another size, and it does not move when the same
+library is mounted somewhere else.
 
-It does not cover pixel content. The same asset ids and the same estimator over different
-images produce the same id, so rebuild a changed library under a new directory name rather
-than editing one in place.
+It does not cover pixel content. The same asset ids, estimator and size over different images
+produce the same id, wherever the library sits. So a library rebuilt in place keeps its id, and
+the sequences cached against the old one are served as its own: delete
+`$VIDEO_BOKEH_DATA_ROOT/sequences/` after a rebuild, which is safe because every sequence
+regenerates. A rebuild mounted next to the original is refused, as the next paragraph says.
+
+**Two mounted libraries with one id are refused.** Both this endpoint and `POST /sequences`
+answer 503 and name the two directories. A request names its library by id, and the cache is
+keyed on that id, so either library would serve the other's sequences.
+
+`name` is the directory's own name. Under compose a single library is always called `library`,
+because that is where compose mounts it.
 
 `asset_size` is the side Stage A stored foregrounds at. Backgrounds are deliberately larger —
 Stage A oversizes them so the Stage B warp never samples past the edge.
@@ -80,6 +109,7 @@ Generates one sequence and answers with its id.
 
 | Field | Default | Range |
 |---|---|---|
+| `library` | the only one mounted | a library `id` from `GET /libraries` |
 | `seed` | `0` | any integer |
 | `frames` | `80` | 1 to 240 |
 | `size` | `512` | 64 to 2048 |
@@ -89,12 +119,14 @@ Generates one sequence and answers with its id.
 ```bash
 curl -X POST http://localhost:8000/sequences \
   -H 'content-type: application/json' \
-  -d '{"seed": 42, "frames": 80, "size": 512, "n_objects_min": 4, "n_objects_max": 5}'
+  -d '{"library": "747c2380d504", "seed": 42, "frames": 80, "size": 512,
+       "n_objects_min": 4, "n_objects_max": 5}'
 ```
 
 ```json
 {
-  "id": "f68bd7a7b87c8404",
+  "id": "499a2ad706800460",
+  "library": "747c2380d504",
   "cached": false,
   "seed": 42,
   "frames": 80,
@@ -102,17 +134,17 @@ curl -X POST http://localhost:8000/sequences \
   "n_objects": 4,
   "streams": {
     "all_in_focus": {
-      "url": "/sequences/f68bd7a7b87c8404/all_in_focus.mp4",
+      "url": "/sequences/499a2ad706800460/all_in_focus.mp4",
       "colormaps": [],
       "default": null
     },
     "alpha": {
-      "url": "/sequences/f68bd7a7b87c8404/alpha.mp4",
+      "url": "/sequences/499a2ad706800460/alpha.mp4",
       "colormaps": [],
       "default": null
     },
     "disparity": {
-      "url": "/sequences/f68bd7a7b87c8404/disparity.mp4",
+      "url": "/sequences/499a2ad706800460/disparity.mp4",
       "colormaps": ["grey", "spectral_r"],
       "default": "spectral_r"
     }
@@ -124,6 +156,14 @@ curl -X POST http://localhost:8000/sequences \
 displayed, and `colormaps` is empty when the stream is already RGB. A client that renders what
 the manifest reports needs no change when a stream is added — `bokeh` will appear here once
 the render container exists.
+
+**`library` may be left out only while one library is mounted.** With several, leaving it out
+answers 422 and lists the ids. An id that is not mounted answers the same way. The API never
+picks a library for you. The response's `library` names the one the sequence came from.
+
+The same parameters against two libraries built from the same assets give the same scene —
+the objects, their paths and their masks — and differ only in disparity. That is what
+comparing depth estimators means here.
 
 **The sequence id is a hash of the five parameters and the library id.** Stage B is
 deterministic, so the same request always names the same sequence. The cache is the directory
@@ -147,8 +187,10 @@ running Linux in a virtual machine on macOS costs.
 
 Anything driving this from a browser needs a spinner.
 
-Answers 422 when the parameters are out of range, when the object range is inverted, or when
-no collision-free scene could be sampled. Answers 503 when there is no library.
+Answers 422 when the parameters are out of range, when the object range is inverted, when no
+library is named while several are mounted, when the named one is unknown, or when no
+collision-free scene could be sampled. Answers 503
+when there is no library, or when two cannot be told apart.
 
 ## `GET /sequences/{id}/{stream}.mp4`
 
@@ -210,14 +252,14 @@ is about 44 MB, so a thousand of them is about 43 GB. Deleting the directory is 
 sequence is reproducible from its library and its seed, which is the same reason
 [[dataset-layout]] treats frames as disposable and the library as the thing to keep.
 
-**The library is re-read on every request.** Two directory listings, one small JSON and one
-image header, so that `/library` and `/sequences` always reflect what is mounted rather than what
-was mounted at startup. Cheap against a library of tens. Against a library of thousands it is
-worth caching on the directory's modification time.
+**The libraries are re-read on every request.** Per library, two directory listings, one small
+JSON and one image header, so that `/libraries` and `/sequences` always reflect what is mounted
+rather than what was mounted at startup. Cheap against a few libraries of tens. Against
+libraries of thousands it is worth caching on the directories' modification times.
 
 **Two identical requests arriving together both generate.** There is no lock. The rename
 decides which one lands and the loser discards its work, so the result is correct and no
 directory is ever overwritten while someone reads it — it just costs the duplicated CPU. For
 an audience of a handful of people that is cheaper than the coordination would be.
 
-**The library id does not cover pixel content.** Covered above under `GET /library`.
+**The library id does not cover pixel content.** Covered above under `GET /libraries`.

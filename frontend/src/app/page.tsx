@@ -4,9 +4,16 @@ import { useEffect, useState } from "react";
 import { Controls } from "@/components/controls";
 import { Viewer } from "@/components/viewer";
 import type { LibraryInfo, Sequence, SequenceParams } from "@/lib/api";
-import { ApiError, createSequence, fetchLibrary } from "@/lib/api";
+import {
+  ApiError,
+  createSequence,
+  estimatorName,
+  fetchLibraries,
+} from "@/lib/api";
 
 const DEFAULTS: SequenceParams = {
+  // Filled with the first library once the list arrives.
+  library: "",
   seed: 0,
   frames: 80,
   size: 512,
@@ -15,7 +22,7 @@ const DEFAULTS: SequenceParams = {
 };
 
 export default function Page() {
-  const [library, setLibrary] = useState<LibraryInfo | null>(null);
+  const [libraries, setLibraries] = useState<LibraryInfo[]>([]);
   const [params, setParams] = useState<SequenceParams>(DEFAULTS);
   const [sequence, setSequence] = useState<Sequence | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,8 +30,14 @@ export default function Page() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchLibrary(controller.signal)
-      .then(setLibrary)
+    fetchLibraries(controller.signal)
+      .then((found) => {
+        setLibraries(found);
+        setParams((p) => ({
+          ...p,
+          library: p.library || (found[0]?.id ?? ""),
+        }));
+      })
       .catch((cause) => {
         if (cause instanceof DOMException && cause.name === "AbortError")
           return;
@@ -32,6 +45,11 @@ export default function Page() {
       });
     return () => controller.abort();
   }, []);
+
+  const byId = (id?: string) => libraries.find((lib) => lib.id === id) ?? null;
+  const library = byId(params.library);
+  // Looked up from the sequence rather than the picker, which may have moved on since.
+  const shown = byId(sequence?.library);
 
   async function generate() {
     setBusy(true);
@@ -55,7 +73,7 @@ export default function Page() {
               library{" "}
               <span className="text-foreground font-mono">{library.id}</span>
             </span>
-            <span>{library.depth_model ?? "unknown model"}</span>
+            <span>{estimatorName(library)}</span>
             <span>
               {library.n_foregrounds} objects, {library.n_backgrounds}{" "}
               backgrounds
@@ -64,7 +82,7 @@ export default function Page() {
           </p>
         ) : (
           <p className="text-muted-foreground text-xs">
-            {error ? "no library" : "reading the library"}
+            {error ? "no library" : "reading the libraries"}
           </p>
         )}
       </header>
@@ -72,6 +90,7 @@ export default function Page() {
       <main className="flex flex-1 flex-col gap-6 p-6 lg:flex-row">
         <aside className="lg:border-border w-full shrink-0 lg:w-64 lg:border-r lg:pr-6">
           <Controls
+            libraries={libraries}
             params={params}
             onChange={setParams}
             onGenerate={generate}
@@ -89,7 +108,11 @@ export default function Page() {
               {error}
             </p>
           )}
-          <Viewer sequence={sequence} generating={busy} />
+          <Viewer
+            sequence={sequence}
+            estimator={estimatorName(shown)}
+            generating={busy}
+          />
         </section>
       </main>
 

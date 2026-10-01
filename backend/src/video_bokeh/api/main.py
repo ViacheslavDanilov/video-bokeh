@@ -1,4 +1,4 @@
-"""The HTTP surface: what library is mounted, and sequences generated on demand.
+"""The HTTP surface: which libraries are mounted, and sequences generated on demand.
 
 Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B is
 CPU work measured in seconds, and the sequence id is a hash of the request and the
@@ -21,7 +21,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 
-from video_bokeh.api._library import summarize
+from video_bokeh.api._library import (
+    DuplicateLibraryError,
+    LibrarySummary,
+    summarize_all,
+)
 from video_bokeh.api._sequences import (
     VIDEO_STREAMS,
     SequenceRequest,
@@ -31,8 +35,8 @@ from video_bokeh.api._sequences import (
 from video_bokeh.api._settings import (
     LibraryUnavailableError,
     Settings,
+    find_libraries,
     load_settings,
-    require_library,
 )
 from video_bokeh.preview._colormap import COLORMAPS
 from video_bokeh.preview._masks import object_color_hex
@@ -98,6 +102,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 class SequenceParams(BaseModel):
+    #: The id of the library to generate from. Optional while only one is mounted.
+    library: str | None = None
     seed: int = 0
     frames: int = Field(default=80, ge=1, le=_MAX_FRAMES)
     size: int = Field(default=512, ge=64, le=2048)
@@ -126,9 +132,10 @@ class SequenceParams(BaseModel):
 
 class LibraryResponse(BaseModel):
     id: str
+    name: str
     n_foregrounds: int
     n_backgrounds: int
-    depth_model: str | None
+    depth_estimator: str | None
     asset_size: int | None
 
 
@@ -152,6 +159,9 @@ class StreamInfo(BaseModel):
 
 class SequenceResponse(BaseModel):
     id: str
+    #: The library it was generated from, so a client can label what is on screen
+    #: after the person has picked another one.
+    library: str
     cached: bool
     seed: int
     frames: int
@@ -163,14 +173,34 @@ class SequenceResponse(BaseModel):
     streams: dict[str, StreamInfo]
 
 
-def _mounted_library(settings: Settings) -> Path:
-    """The library, or a 503 naming the path. Unavailable is a deployment state, not
-    a bad request: the volume may simply not be populated yet.
+def _mounted_libraries(settings: Settings) -> list[LibrarySummary]:
+    """The libraries, or a 503 naming the path. Unavailable is a deployment state, not
+    a bad request: the volume may simply not be populated yet, or two libraries that
+    cannot be told apart were mounted together.
     """
     try:
-        return require_library(settings)
-    except LibraryUnavailableError as exc:
+        return summarize_all(find_libraries(settings))
+    except (LibraryUnavailableError, DuplicateLibraryError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+def _pick_library(
+    libraries: list[LibrarySummary],
+    wanted: str | None,
+) -> LibrarySummary:
+    """The library a request names, or the only one when it names none."""
+    if wanted is None and len(libraries) == 1:
+        return libraries[0]
+    for library in libraries:
+        if library.id == wanted:
+            return library
+    known = ", ".join(f"{lib.id} ({lib.name})" for lib in libraries)
+    reason = (
+        f"no library {wanted!r}"
+        if wanted is not None
+        else f"{len(libraries)} libraries are mounted, so name one"
+    )
+    raise HTTPException(status_code=422, detail=f"{reason}. Mounted: {known}")
 
 
 @router.get("/health")
@@ -179,11 +209,12 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-@router.get("/library")
-def read_library() -> LibraryResponse:
-    settings = load_settings()
-    summary = summarize(_mounted_library(settings))
-    return LibraryResponse(**vars(summary))
+@router.get("/libraries")
+def read_libraries() -> list[LibraryResponse]:
+    return [
+        LibraryResponse.model_validate(lib, from_attributes=True)
+        for lib in _mounted_libraries(load_settings())
+    ]
 
 
 @router.post("/sequences")
@@ -194,13 +225,12 @@ def create_sequence(params: SequenceParams) -> SequenceResponse:
     a sync endpoint in a threadpool instead of blocking the event loop with it.
     """
     settings = load_settings()
-    library = _mounted_library(settings)
-    summary = summarize(library)
+    library = _pick_library(_mounted_libraries(settings), params.library)
 
     try:
         result = ensure_sequence(
-            library,
-            summary.id,
+            library.root,
+            library.id,
             settings.sequences,
             SequenceRequest(
                 seed=params.seed,
@@ -215,6 +245,7 @@ def create_sequence(params: SequenceParams) -> SequenceResponse:
 
     return SequenceResponse(
         id=result.id,
+        library=library.id,
         cached=result.cached,
         seed=params.seed,
         frames=params.frames,

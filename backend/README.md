@@ -83,8 +83,8 @@ CLI, not this repository's script, and the BG-20k Kaggle download lands as uploa
 
 ### Run the API
 
-The API mounts a library and generates sequences from it on demand, so point it at one. Every
-library on disk is flat, so name it directly:
+The API mounts libraries and generates sequences from the one a request names, on demand. Point
+it at one library, or at a directory with one library per subdirectory:
 
 ```bash
 VIDEO_BOKEH_LIBRARY=data/library_dev \
@@ -95,10 +95,11 @@ VIDEO_BOKEH_LIBRARY=data/library_dev \
 - Docs: http://localhost:8000/docs
 
 Without `VIDEO_BOKEH_LIBRARY` it looks for `$VIDEO_BOKEH_DATA_ROOT/library`, and
-`VIDEO_BOKEH_DATA_ROOT` itself defaults to `data`. Sequences are written under
-`$VIDEO_BOKEH_DATA_ROOT/sequences/`.
+`VIDEO_BOKEH_DATA_ROOT` itself defaults to `data`. That is where `make libraries`, from the
+repository root, writes one library per depth estimator, so after it the API needs no variable
+at all. Sequences are written under `$VIDEO_BOKEH_DATA_ROOT/sequences/`.
 
-Generate one and watch it:
+Against `data/library_dev`, generate a sequence and watch it:
 
 ```bash
 curl -X POST http://localhost:8000/sequences \
@@ -110,6 +111,9 @@ That takes about 7 seconds on an Apple M3 Pro and answers with a sequence id. Th
 again returns the same id in 0.02 s — the id is a hash of the parameters and the library, so
 the directory on disk is the cache. Then open
 `http://localhost:8000/sequences/<id>/disparity.mp4`.
+
+With several libraries mounted, the request has to name one: add `"library": "<id>"` with an
+id from `GET /libraries`. Without it the API answers 422 and lists the ids.
 
 Timings for other frame counts, and for the container, are in `docs/reference/api.md`.
 

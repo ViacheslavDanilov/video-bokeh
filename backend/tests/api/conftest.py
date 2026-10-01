@@ -30,8 +30,9 @@ def make_library(tmp_path: Path) -> Callable[..., Path]:
         name: str = "library",
         foregrounds: tuple[str, ...] = ("fg_a", "fg_b"),
         backgrounds: tuple[str, ...] = ("bg_a", "bg_b"),
+        estimator: str = ESTIMATOR,
     ) -> Path:
-        return build_library(tmp_path / name, foregrounds, backgrounds)
+        return build_library(tmp_path / name, foregrounds, backgrounds, estimator)
 
     return _make
 
