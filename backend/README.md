@@ -99,7 +99,7 @@ Without `VIDEO_BOKEH_LIBRARY` it looks for `$VIDEO_BOKEH_DATA_ROOT/library`, and
 repository root, writes one library per depth estimator, so after it the API needs no variable
 at all. Sequences are written under `$VIDEO_BOKEH_DATA_ROOT/sequences/`.
 
-Against that one library, generate a sequence and watch it:
+Against `data/library_dev`, generate a sequence and watch it:
 
 ```bash
 curl -X POST http://localhost:8000/sequences \

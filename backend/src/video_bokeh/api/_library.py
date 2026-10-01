@@ -73,10 +73,11 @@ def summarize(library_root: Path) -> LibrarySummary:
     is rebuilt at another size, and it does not move when the same library is mounted at
     a different path -- sequences cached against it stay valid.
 
-    **It does not cover pixel content.** The same ids and the same estimator over
-    different images produce the same id. Hashing a full library's pixels at every
-    startup is not worth it for a failure nobody has hit; rebuild under a new
-    directory name, as decision 9 requires, and the question does not arise.
+    **It does not cover pixel content.** The same ids, estimator and size over
+    different images produce the same id, wherever the library sits, so a new directory
+    name does not help. Hashing a full library's pixels at every startup is not worth it
+    for a failure nobody has hit: never rebuild a library in place, which
+    ``make libraries`` refuses to do, or clear the cached sequences after one.
     """
     foreground_ids = list_foregrounds(library_root)
     background_ids = list_backgrounds(library_root)

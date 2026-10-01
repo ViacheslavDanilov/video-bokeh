@@ -21,7 +21,7 @@ export default defineConfig({
   webServer: [
     {
       // Two fresh tiny libraries every run, one per depth estimator: real files, gradient
-      // depth, no model.
+      // disparity, no depth estimator.
       command: [
         `rm -rf "${DATA_ROOT}"`,
         `uv run --directory ../backend --extra api python tests/api/fixture_library.py "${LIBRARY}/da2-small"`,
