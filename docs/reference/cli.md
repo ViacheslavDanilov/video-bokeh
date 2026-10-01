@@ -61,10 +61,12 @@ the next section says. `da3-metric-large` has not run yet; the lab machine runs 
 
 **Depth Anything 3's other checkpoints are left out on purpose.** Small, Base and Large are
 multi-view models, which estimate depth from several views of one scene at once. Their output
-has no sky estimate, so the package cannot push a sky to the far end. On the dev backgrounds
-with sky, Small and Base, run on 2026-10-01, lost almost all agreement with `da2-large`: a rank
-correlation of 0.10 and 0.02 on the worst one, where `da3-mono-large` scores 0.96. Backgrounds
-often have sky. Large 1.0 and Giant are CC BY-NC 4.0 besides.
+has no sky estimate, so the package never sets a sky to the far end, and where a sky lands is
+up to the image. Small and Base, run on the 20 dev backgrounds on 2026-10-01, agreed with
+`da2-large` at medians of 0.75 and 0.81, but on `testval__h_7b2a0862`, a background with sky,
+at 0.10 and 0.02, where `da3-mono-large` holds 0.96. A dataset cannot leave its skies to the
+image. Large 1.0 and Giant are
+CC BY-NC 4.0 besides.
 
 ### Depth Anything 3's own environment
 
@@ -83,8 +85,9 @@ whose own OpenMP runtime clashes with torch's. To use a venv somewhere else, set
 `VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, a `--model da3-*` stops before any
 asset is processed and names the script.
 
-Mono-Large's weights, 1.34 GB, download on first use. After that, 3 foregrounds and 1 background at
-size 512 took 8.2 s on an Apple M3 Pro.
+Mono-Large's weights, 1.34 GB, download on first use, and Metric-Large's are the same size.
+After that, Mono-Large took 8.2 s for 3 foregrounds and 1 background at size 512 on an Apple
+M3 Pro.
 
 ### Your own model
 
@@ -147,7 +150,7 @@ in a fresh process. When the weights were not cached before the run, the load ti
 `(download)`, because it includes fetching them. An estimator that fails, running out of memory
 for instance, gets `failed` and the reason under the table; the others are still measured.
 Without `--model`, `--measure` loads every registered estimator and so downloads whatever is not
-cached: 8.1 GiB of checkpoints from scratch, by the Hub's metadata on 2026-10-01. On a machine
+cached: 5.97 GiB of checkpoints from scratch, by the Hub's metadata on 2026-10-01. On a machine
 short of disk or memory, name the ones to measure.
 
 Measured on an Apple M3 Pro on 2026-10-01:

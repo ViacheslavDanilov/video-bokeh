@@ -8,8 +8,9 @@ Both checkpoints predict depth, far larger than near, at a 504 px working size, 
 Apache-2.0.
 
 The multi-view checkpoints, Small, Base and Large, are left out on purpose. Their head has
-no sky output, so the package cannot push a sky to the far end, and on a background with
-sky their disparity stops agreeing with every other estimator's: checked on 2026-10-01.
+no sky output, so the package never sets a sky to the far end, and where a sky lands is up
+to the image. On one dev background with sky, Small and Base fell to almost no agreement
+with Depth Anything V2 Large on 2026-10-01.
 """
 
 from __future__ import annotations
@@ -108,7 +109,7 @@ class DepthAnything3MonoLarge(DepthAnything3Estimator):
 
 
 class DepthAnything3MetricLarge(DepthAnything3Estimator):
-    """Predicts depth scaled by the focal length, a factor per image that the library's
+    """Predicts depth divided by the focal length, a factor per image that the library's
     min/max normalisation removes, so the reciprocal is disparity all the same.
     """
 
