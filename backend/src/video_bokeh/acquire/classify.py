@@ -223,6 +223,20 @@ def read_metadata(
     return fieldnames, present
 
 
+def read_predictions(predictions_csv: Path) -> list[dict[str, str]]:
+    with predictions_csv.open("r", encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def unclassified(
+    rows: list[dict[str, str]],
+    kept: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """The metadata rows no kept prediction covers, in their own order."""
+    done = {r["page_id"] for r in kept}
+    return [r for r in rows if r["page_id"] not in done]
+
+
 def encode_class_prompts(
     model,
     tokenizer,
@@ -260,6 +274,14 @@ def main() -> int:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument(
+        "--keep-existing",
+        action="store_true",
+        help="keep the predictions already in the output and classify only the images "
+        "it lacks. CLIP's top class can differ from run to run on a close call, so "
+        "classifying a grown pool afresh can change which of its old images a filter "
+        "keeps",
+    )
     args = parser.parse_args()
 
     metadata_csv = args.data_root / "metadata.csv"
@@ -269,6 +291,13 @@ def main() -> int:
     if not rows:
         print(f"No images found under {args.data_root}/images", file=sys.stderr)
         return 1
+    kept: list[dict[str, str]] = []
+    if args.keep_existing and output_csv.is_file():
+        kept = read_predictions(output_csv)
+        rows = unclassified(rows, kept)
+        print(f"  Keeping {len(kept)} predictions; {len(rows)} images to classify")
+        if not rows:
+            return 0
 
     device = pick_device(args.device)
     print(f"  Using device: {device}")
@@ -378,7 +407,7 @@ def main() -> int:
     with output_csv.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        for pred in predictions:
+        for pred in [*kept, *predictions]:
             writer.writerow(pred)
 
     subject_counts: dict[str, int] = dict.fromkeys(subject_labels, 0)
@@ -392,7 +421,10 @@ def main() -> int:
     print("\n  Style distribution (top-1):")
     for label, count in style_counts.items():
         print(f"    {label:<14} {count:>5}")
-    print(f"\n  Wrote {len(predictions)} rows → {output_csv}")
+    print(
+        f"\n  Wrote {len(kept) + len(predictions)} rows, {len(predictions)} new, "
+        f"→ {output_csv}",
+    )
     return 0
 
 
