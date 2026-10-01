@@ -56,7 +56,7 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da3-metric-large` | `depth-anything/DA3METRIC-LARGE` | Apache-2.0 |
 
 Licences as checked on 2026-09-30, and on 2026-10-01 for `da3-metric-large`. Non-commercial
-weights are fine for a research dataset. Both `da3-*` need an environment of its own first, as
+weights are fine for a research dataset. Both `da3-*` need an environment of their own first, as
 the next section says. `da3-metric-large` has not run yet; the lab machine runs it first.
 
 **Depth Anything 3's other checkpoints are left out on purpose.** Small, Base and Large are
@@ -65,8 +65,7 @@ has no sky estimate, so the package never sets a sky to the far end, and where a
 up to the image. Small and Base, run on the 20 dev backgrounds on 2026-10-01, agreed with
 `da2-large` at medians of 0.75 and 0.81, but on `testval__h_7b2a0862`, a background with sky,
 at 0.10 and 0.02, where `da3-mono-large` holds 0.96. A dataset cannot leave its skies to the
-image. Large 1.0 and Giant are
-CC BY-NC 4.0 besides.
+image. Large 1.0 and Giant are CC BY-NC 4.0 besides.
 
 ### Depth Anything 3's own environment
 
