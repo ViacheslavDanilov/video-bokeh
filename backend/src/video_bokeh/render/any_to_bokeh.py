@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -119,6 +120,8 @@ def _write_bokeh(video: Path, seq: Path) -> None:
         size = first.size
     # Named per run, so two runs over one data root cannot delete each other's frames.
     staging = Path(tempfile.mkdtemp(prefix=".bokeh-", dir=seq))
+    # mkdtemp makes it private (0700); the stream gets the access its siblings have.
+    staging.chmod(stat.S_IMODE((seq / "all_in_focus").stat().st_mode))
     reader = imageio.get_reader(video)
     try:
         for name, frame in zip(names, reader.iter_data(), strict=True):

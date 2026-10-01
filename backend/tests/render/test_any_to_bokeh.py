@@ -110,6 +110,14 @@ def test_writes_a_bokeh_frame_per_frame_at_the_sequence_size(dataset: Path) -> N
             assert abs(np.asarray(img).mean() - (40 + 60 * i + 20 * t)) < 6
 
 
+@pytest.mark.usefixtures("fake_a2b")
+def test_the_bokeh_stream_is_as_readable_as_the_others(dataset: Path) -> None:
+    # Whoever can read a sequence's all_in_focus/ must be able to read its bokeh/ too.
+    AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+    for seq in _sequences(dataset):
+        assert (seq / "bokeh").stat().st_mode == (seq / "all_in_focus").stat().st_mode
+
+
 def test_leaves_the_submodule_untouched(dataset: Path, fake_a2b: Path) -> None:
     before = sorted(p.relative_to(fake_a2b) for p in fake_a2b.rglob("*"))
     AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
