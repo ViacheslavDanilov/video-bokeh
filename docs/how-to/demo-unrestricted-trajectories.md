@@ -22,8 +22,9 @@ gitignored. To produce a dataset in the first place, see [[generate-a-dataset]].
 ## Before you start
 
 You need the artifact library. If `backend/data/library_dev/` already has `foregrounds/` and
-`backgrounds/`, skip this — the current one holds 12 foregrounds and 20 backgrounds, enough
-for every recipe here.
+`backgrounds/`, skip this. Built from today's pools it holds 17 foregrounds and 30
+backgrounds, and one built before 2026-10-01 holds 12 and 20; either is enough for every recipe
+here.
 
 ```bash
 cd backend

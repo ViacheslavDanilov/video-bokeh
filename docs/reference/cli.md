@@ -264,8 +264,8 @@ different `--colormap` overwrites the previous `disparity.mp4` rather than writi
 | module | flags |
 |---|---|
 | `video_bokeh.acquire.magick` | `--metadata` (csv), `--output`, `--count`, `--seed`, `--picked` |
-| `video_bokeh.acquire.bg20k` | `--output`. Needs `~/.kaggle/kaggle.json` |
-| `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers` |
+| `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs `~/.kaggle/kaggle.json` |
+| `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks |
 
 ---
 

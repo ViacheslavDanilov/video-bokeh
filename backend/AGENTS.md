@@ -64,12 +64,15 @@ Dataset scripts assume working directory is `backend/`. Examples:
 
 ```bash
 # 1. Acquire sources
-#    MAGICK dev mirror (HuggingFace)
+#    MAGICK dev pool (HuggingFace), then CLIP predictions for what it lacks
 uv run python -m video_bokeh.acquire.magick \
   --metadata data/magick_metadata.csv \
   --output   data/magick_dev \
-  --count    20 --seed 0
-#    BG-20k full archive (Kaggle) — needs ~/.kaggle/kaggle.json
+  --count    30 --seed 11
+uv run python -m video_bokeh.acquire.classify --data-root data/magick_dev --keep-existing
+#    BG-20k dev pool, one file at a time (Kaggle) — needs ~/.kaggle/kaggle.json
+uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11
+#    BG-20k full archive
 uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
 
 # 2. Stage A — build the artifact library (depth runs once per asset)

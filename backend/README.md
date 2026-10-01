@@ -39,7 +39,7 @@ only the last row wants.
 ### Smoke test
 
 A fresh clone can run the pipeline without a download or a Kaggle account: the two source
-pools `data/magick_dev` (20 foregrounds) and `data/bg-20k_dev` (20 backgrounds) are tracked on
+pools `data/magick_dev` (30 foregrounds) and `data/bg-20k_dev` (30 backgrounds) are tracked on
 purpose. The artifact library is not — it is generated, and `.gitignore` keeps
 `backend/data/library*/` out — so build it once with Stage A, then run Stage B as often as you
 like. Both numbers below were measured on an Apple M3 Pro.
@@ -52,10 +52,9 @@ uv run python -m video_bokeh.library.build \
   --output data/library_dev --size 512 --model da2-small
 ```
 
-**10 s**, on MPS, once the depth model is cached; the first run also pulls it from Hugging
+**11 s**, on MPS, once the depth model is cached; the first run also pulls it from Hugging
 Face. `da2-small` is the fast model and is what makes this a smoke test — `da2-large` is the
-default elsewhere and is slower and better. The CLIP filter keeps about 12 of the 20
-foregrounds.
+default elsewhere and is slower and better. The CLIP filter keeps 17 of the 30 foregrounds.
 
 **Stage B — generate sequences.** `uv sync --no-dev` is enough; Stage B needs no torch.
 
