@@ -118,7 +118,8 @@ The far-to-near order in which objects are composited, recomputed on every frame
 _Avoid_: z-order, layer order
 
 **Seed**:
-The integer that, together with the library, fully determines a sequence.
+The integer that picks a sequence. Together with the library, the frame count, the frame size
+and the range of object counts, it determines the sequence exactly.
 
 **Dataset**:
 The sequences Stage B writes, with their manifest.
