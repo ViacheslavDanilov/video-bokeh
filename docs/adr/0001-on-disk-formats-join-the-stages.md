@@ -21,8 +21,8 @@ the layout drawn on the call and the architecture discussed after it.
 - **The containers drawn on the call: depth estimation together with sequence generation, and
   any-to-bokeh apart.** That joins Stage A, which needs torch and a depth model, to generating
   sequences, which needs neither. The API image has no torch and no depth model.
-- **One image per model.** Every model added would be an image to build and keep, where most
-  share one environment: Depth Anything V2 and Depth Pro both run in ours. A flag picks the
+- **One image per model.** Every model added would be an image to build and keep, where models
+  can share one environment: Depth Anything V2 and Depth Pro both run in ours. A flag picks the
   model inside an environment instead, as the depth registry does.
 
 ## Consequences
