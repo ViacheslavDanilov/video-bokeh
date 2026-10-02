@@ -13,6 +13,9 @@ class BokehRenderer(Protocol):
     For every sequence it is given, ``render`` writes ``<sequence>/bokeh/<frame>.png``:
     RGB uint8 at the sequence's own size, one file per ``all_in_focus`` frame and named
     like it. A sequence's ``bokeh/`` appears complete or not at all.
+
+    A renderer that cannot take short sequences may say so with a ``min_frames`` class
+    attribute; ``render.run --missing`` then leaves them out instead of handing them over.
     """
 
     name: ClassVar[str]

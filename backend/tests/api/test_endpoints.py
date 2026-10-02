@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
+import shutil
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from pathlib import Path
 
 import numpy as np
 import pytest
+from fake_bokeh import render_fake_bokeh
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -454,3 +457,67 @@ def test_the_sequence_names_a_colour_for_every_object(client: TestClient) -> Non
     assert len(colors) == body["n_objects"]
     assert all(c.startswith("#") and len(c) == 7 for c in colors), colors
     assert len(set(colors)) == len(colors), "objects must be told apart"
+
+
+# --- bokeh ----------------------------------------------------------------- #
+
+
+def test_a_sequence_has_no_bokeh_until_stage_c_renders_it(client: TestClient) -> None:
+    streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
+    assert "bokeh" not in streams
+
+
+def test_bokeh_joins_the_manifest_once_rendered(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Asking again finds the sequence in the cache, now with the stream Stage C wrote."""
+    first = client.post("/sequences", json=SEQUENCE_BODY).json()
+    render_fake_bokeh(tmp_path / "sequences" / first["id"])
+
+    again = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert again["cached"] is True
+    assert list(again["streams"]) == ["all_in_focus", "alpha", "disparity", "bokeh"]
+    assert again["streams"]["bokeh"] == {
+        "url": f"/sequences/{first['id']}/bokeh.mp4",
+        "colormaps": [],
+        "default": None,
+    }
+
+
+def test_serves_bokeh_as_video(client: TestClient, tmp_path: Path) -> None:
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    render_fake_bokeh(tmp_path / "sequences" / sid)
+    response = client.get(f"/sequences/{sid}/bokeh.mp4")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp4"
+
+
+def test_bokeh_that_is_not_there_is_not_found(client: TestClient) -> None:
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    response = client.get(f"/sequences/{sid}/bokeh.mp4")
+    assert response.status_code == 404
+    assert "bokeh" in response.json()["detail"]
+
+
+def test_a_re_render_replaces_the_cached_bokeh_video(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Stage C run again, at another strength say, replaces bokeh/; the encode cached from
+    the first render must not keep being served.
+    """
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    sequence_dir = tmp_path / "sequences" / sid
+    render_fake_bokeh(sequence_dir)
+    first = client.get(f"/sequences/{sid}/bokeh.mp4").content
+
+    shutil.rmtree(sequence_dir / "bokeh")
+    render_fake_bokeh(sequence_dir)
+    for frame in (sequence_dir / "bokeh").iterdir():
+        Image.new("RGB", Image.open(frame).size, (255, 0, 0)).save(frame)
+    # Later than the encode, whatever the file system's clock resolution.
+    later = (sequence_dir / "bokeh.mp4").stat().st_mtime + 10
+    os.utime(sequence_dir / "bokeh", (later, later))
+
+    assert client.get(f"/sequences/{sid}/bokeh.mp4").content != first

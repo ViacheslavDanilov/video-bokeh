@@ -206,6 +206,12 @@ has the command. It has not run to completion on a GPU yet.
 | `--renderer` | str | `any-to-bokeh` | a renderer below, or `package.module:ClassName` for your own |
 | `--strength` | float | `16` | blur strength, any-to-bokeh's `k` |
 | `--focus-disparity` | float | the renderer's choice | one in-focus disparity in `[0, 1]` for every frame |
+| `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any shorter than the renderer can take |
+
+`--missing` is what `make bokeh` runs, over the API's data root, so it renders whatever the page
+has generated since the last run. A sequence shorter than the renderer's minimum is named and
+left out rather than handed over, where it would fail the whole batch. A directory whose name
+starts with a dot is never a sequence: the API generates under `.tmp-*` and renames.
 
 | `--renderer` | runs in | setup |
 |---|---|---|

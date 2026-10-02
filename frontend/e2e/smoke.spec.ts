@@ -1,4 +1,11 @@
+import { execFileSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
+
+// Where playwright.config.ts points the API, so a test can write into a sequence as
+// Stage C would.
+const SEQUENCES = path.join(os.tmpdir(), "video-bokeh-e2e", "sequences");
 
 /**
  * One path through the page, against the real API and a tiny real library: the library
@@ -89,4 +96,46 @@ test("generates from the depth estimator picked", async ({ page }) => {
   await page.getByRole("option", { name: "da2-small" }).click();
   await expect(header.getByText("da2-small")).toBeVisible();
   await expect(shown).toBeVisible();
+});
+
+/**
+ * Bokeh is rendered after the sequence exists, by Stage C on a GPU. Its frames are faked
+ * here; asking for the same sequence again lists the stream, and a pane opens for it.
+ */
+test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  // A seed of its own: the other tests share seed 0, and this one writes into its sequence.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("7");
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  await generate.click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+
+  const id = await page
+    .locator("dt", { hasText: /^sequence$/ })
+    .locator("xpath=following-sibling::dd[1]")
+    .innerText();
+  execFileSync("uv", [
+    "run",
+    "--directory",
+    "../backend",
+    "--extra",
+    "api",
+    "python",
+    "tests/api/fake_bokeh.py",
+    path.join(SEQUENCES, id),
+  ]);
+
+  await generate.click();
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await expect(
+    page.getByRole("combobox", { name: "Stream" }).nth(3),
+  ).toHaveText("Bokeh");
+  await expect
+    .poll(
+      () => videos.nth(3).evaluate((el) => (el as HTMLVideoElement).readyState),
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThanOrEqual(2);
 });

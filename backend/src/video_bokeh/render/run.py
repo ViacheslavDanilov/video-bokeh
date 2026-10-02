@@ -8,6 +8,10 @@ stream beside them:
 
 Usage:
     uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
+
+With ``--missing`` it renders only the sequences that have no ``bokeh/`` yet, and leaves
+out any shorter than the renderer can take, saying which. Pointed at the API's data root,
+that renders whatever the page has generated since the last run: ``make bokeh``.
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from video_bokeh.bridge.any_to_bokeh import list_png_frames
 from video_bokeh.core._seq_io import list_sequences
 from video_bokeh.render import RENDERERS, resolve_renderer
 
@@ -56,7 +61,29 @@ def _build_parser() -> argparse.ArgumentParser:
         help="fixed in-focus disparity in [0, 1] for every frame. Default: the "
         "renderer chooses; any-to-bokeh focuses on the objects.",
     )
+    parser.add_argument(
+        "--missing",
+        action="store_true",
+        help="render only the sequences without bokeh/, leaving out any shorter than "
+        "the renderer can take",
+    )
     return parser
+
+
+def _still_missing(seq_dirs: list[Path], min_frames: int) -> list[Path]:
+    """The sequences with no bokeh yet that the renderer can take, saying what it skips."""
+    todo: list[Path] = []
+    for seq in seq_dirs:
+        if (seq / "bokeh").is_dir():
+            continue
+        frames = len(list_png_frames(seq / "all_in_focus"))
+        if frames < min_frames:
+            print(
+                f"  skip {seq.name}: {frames} frames, the renderer needs {min_frames}",
+            )
+            continue
+        todo.append(seq)
+    return todo
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,11 +91,24 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.focus_disparity is not None and not 0 <= args.focus_disparity <= 1:
         parser.error("--focus-disparity must be in [0, 1]")
+    seq_root = args.data_root / "sequences"
+    if args.missing and not seq_root.is_dir():
+        # A page that has generated nothing yet, not a mistake.
+        print(f"Nothing to render: no sequences under {seq_root} yet.")
+        return 0
     seq_dirs = list_sequences(args.data_root, args.seqs)
+    for unfinished in sorted(seq_root.glob(".*")):
+        if unfinished.is_dir():
+            print(f"  skip {unfinished.name}: still being written")
     if not seq_dirs:
         raise SystemExit(f"no sequences to render under {args.data_root / 'sequences'}")
 
     renderer = resolve_renderer(args.renderer)()
+    if args.missing:
+        seq_dirs = _still_missing(seq_dirs, getattr(renderer, "min_frames", 0))
+        if not seq_dirs:
+            print("Nothing to render: every sequence has bokeh or is too short.")
+            return 0
     print(f"Rendering {len(seq_dirs)} sequence(s) with {args.renderer}")
     renderer.render(seq_dirs, args.strength, args.focus_disparity)
     print("Done.")

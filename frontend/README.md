@@ -44,7 +44,10 @@ without rebuilding.
   the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
   at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.
 
-Bokeh is not here. It runs on a GPU in its own container, which does not exist yet.
+**Bokeh shows once Stage C has rendered a sequence.** The page does not render it. On a
+machine with an NVIDIA card, generate a sequence, run `make bokeh` from the repository root, and
+generate the same sequence again: the server lists its bokeh stream, and a pane opens for it.
+The frames slider starts at 16, because Stage C needs 13 frames or more.
 
 ## Conventions
 

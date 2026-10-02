@@ -4,8 +4,10 @@ Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B i
 CPU work measured in seconds, and the sequence id is a hash of the request and the
 library, so the cache is the directory on disk and there is no database.
 
-Rendering bokeh is not here. That is minutes of GPU work in its own container, so it
-gets a job id and polling when `render` exists.
+Rendering bokeh is not here: it is minutes of GPU work. Stage C renders it into the
+sequences this API wrote, on a machine with an NVIDIA card (`make bokeh`), and the API
+serves the stream once it is there. Starting a render from here would need a job id and
+polling, and waits on where Stage C runs.
 """
 
 from __future__ import annotations
@@ -27,10 +29,12 @@ from video_bokeh.api._library import (
     summarize_all,
 )
 from video_bokeh.api._sequences import (
+    BOKEH,
     VIDEO_STREAMS,
     SequenceRequest,
     SequenceUnsatisfiableError,
     ensure_sequence,
+    video_streams,
 )
 from video_bokeh.api._settings import (
     LibraryUnavailableError,
@@ -143,8 +147,8 @@ class StreamInfo(BaseModel):
     """How one stream of a sequence can be displayed.
 
     The client renders whatever this manifest reports rather than knowing the stream
-    names itself, so a stream added later -- `bokeh`, once the render container
-    exists -- shows up in the interface without a frontend change.
+    names itself, so a stream that appears later -- `bokeh`, once Stage C has rendered
+    the sequence -- shows up in the interface without a frontend change.
     """
 
     url: str
@@ -258,7 +262,7 @@ def create_sequence(params: SequenceParams) -> SequenceResponse:
                 colormaps=sorted(COLORMAPS) if stream == "disparity" else [],
                 default=DEFAULT_COLORMAP if stream == "disparity" else None,
             )
-            for stream in VIDEO_STREAMS
+            for stream in video_streams(result.path)
         },
     )
 
@@ -279,7 +283,7 @@ def read_sequence_video(
     colour here. Every other stream is already RGB, so the parameter is dropped
     rather than forking that stream's cache into identical copies.
     """
-    if stream not in VIDEO_STREAMS:
+    if stream not in (*VIDEO_STREAMS, BOKEH):
         raise HTTPException(status_code=404, detail=f"no video for stream {stream!r}")
     if colormap not in COLORMAPS:
         raise HTTPException(
@@ -296,7 +300,15 @@ def read_sequence_video(
 
     suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
     video = sequence_dir / f"{stream}{suffix}.mp4"
-    if not video.is_file():
+    # Re-encoded when the frames are newer than the video: Stage C run again replaces
+    # bokeh/ whole, and the encode of the first render would otherwise be served for good.
+    frames_dir = sequence_dir / stream
+    stale = (
+        video.is_file()
+        and frames_dir.is_dir()
+        and frames_dir.stat().st_mtime > video.stat().st_mtime
+    )
+    if not video.is_file() or stale:
         frames = list_stream_frames(sequence_dir, stream)
         if not frames:
             raise HTTPException(

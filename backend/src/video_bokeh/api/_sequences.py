@@ -41,6 +41,19 @@ STREAMS = ("all_in_focus", "alpha", "disparity")
 #: silhouette.
 VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 
+#: Stage C's stream. Nothing here renders it: it needs an NVIDIA card, and Stage C writes it
+#: into a sequence this API generated, `make bokeh`, whole or not at all. It is served
+#: once it is there.
+BOKEH = "bokeh"
+
+
+def video_streams(sequence_dir: Path) -> list[str]:
+    """The streams of this sequence that can be served, bokeh among them once rendered."""
+    streams = list(VIDEO_STREAMS)
+    if (sequence_dir / BOKEH).is_dir():
+        streams.append(BOKEH)
+    return streams
+
 
 class SequenceUnsatisfiableError(RuntimeError):
     """The request is valid but no collision-free scene could be sampled for it."""

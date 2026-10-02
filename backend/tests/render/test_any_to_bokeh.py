@@ -201,3 +201,66 @@ def test_a_sequence_too_short_to_group_is_refused_before_the_model_runs(
         AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
     assert not (tmp_path / "fake_log.json").exists(), "the demo must not have started"
     assert not any((seq / "bokeh").exists() for seq in _sequences(dataset))
+
+
+def _rendered(tmp_path: Path) -> list[str]:
+    """The sequences the fake demo was handed, by name."""
+    log = json.loads((tmp_path / "fake_log.json").read_text())
+    return [Path(row["aif_folder"]).name for row in log["rows"]]
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_missing_renders_only_the_sequences_without_bokeh(
+    dataset: Path,
+    tmp_path: Path,
+) -> None:
+    cli.main(["--data-root", str(dataset), "--seqs", "0001"])
+    assert cli.main(["--data-root", str(dataset), "--missing"]) == 0
+    assert _rendered(tmp_path) == ["0002"]
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_missing_skips_what_the_renderer_cannot_take(
+    dataset: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The page can make a sequence too short for any-to-bokeh; that must not block the
+    sequences beside it, as handing it over would.
+    """
+    _write_sequence(dataset / "sequences" / "0003", frames=12)
+    assert cli.main(["--data-root", str(dataset), "--missing"]) == 0
+    assert _rendered(tmp_path) == ["0001", "0002"]
+    assert not (dataset / "sequences" / "0003" / "bokeh").exists()
+    assert "0003" in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_missing_with_nothing_left_starts_nothing(
+    dataset: Path,
+    tmp_path: Path,
+) -> None:
+    cli.main(["--data-root", str(dataset)])
+    (tmp_path / "fake_log.json").unlink()
+    assert cli.main(["--data-root", str(dataset), "--missing"]) == 0
+    assert not (tmp_path / "fake_log.json").exists()
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_a_sequence_still_being_written_is_not_a_sequence(
+    dataset: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The API generates into `.tmp-*` beside the finished ones and renames it."""
+    _write_sequence(dataset / "sequences" / ".tmp-abc123")
+    assert cli.main(["--data-root", str(dataset)]) == 0
+    assert _rendered(tmp_path) == ["0001", "0002"]
+    assert ".tmp-abc123: still being written" in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_missing_before_the_page_made_anything_renders_nothing(
+    tmp_path: Path,
+) -> None:
+    assert cli.main(["--data-root", str(tmp_path / "empty"), "--missing"]) == 0
