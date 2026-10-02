@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controls } from "@/components/controls";
 import { Viewer } from "@/components/viewer";
 import type { LibraryInfo, Sequence, SequenceParams } from "@/lib/api";
 import {
   ApiError,
   createSequence,
-  estimatorName,
   fetchLibraries,
   libraryLabel,
 } from "@/lib/api";
@@ -27,7 +26,11 @@ export default function Page() {
   const [params, setParams] = useState<SequenceParams>(DEFAULTS);
   const [sequence, setSequence] = useState<Sequence | null>(null);
   const [busy, setBusy] = useState(false);
+  // Apart, so a list read that works again clears its own error and not a Generate's.
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  // The list as last read, for the effect's handler, which outlives any one render.
+  const librariesRef = useRef<LibraryInfo[]>([]);
 
   useEffect(() => {
     let controller = new AbortController();
@@ -36,19 +39,26 @@ export default function Page() {
       controller = new AbortController();
       fetchLibraries(controller.signal)
         .then((found) => {
+          const before = librariesRef.current;
+          librariesRef.current = found;
           setLibraries(found);
-          // The selection stays while its library is still mounted.
-          setParams((p) => ({
-            ...p,
-            library: found.some((lib) => lib.id === p.library)
-              ? p.library
-              : (found[0]?.id ?? ""),
-          }));
+          setListError(null);
+          // The selection follows its library: by id while it is mounted, by directory
+          // once it is rebuilt there under a new id, else the first.
+          setParams((p) => {
+            const name = before.find((lib) => lib.id === p.library)?.name;
+            const kept =
+              found.find((lib) => lib.id === p.library) ??
+              found.find((lib) => lib.name === name);
+            return { ...p, library: (kept ?? found[0])?.id ?? "" };
+          });
         })
         .catch((cause) => {
           if (cause instanceof DOMException && cause.name === "AbortError")
             return;
-          setError(cause instanceof ApiError ? cause.message : String(cause));
+          setListError(
+            cause instanceof ApiError ? cause.message : String(cause),
+          );
         });
     };
     load();
@@ -88,7 +98,7 @@ export default function Page() {
               library{" "}
               <span className="text-foreground font-mono">{library.id}</span>
             </span>
-            <span>{estimatorName(library)}</span>
+            <span>{libraryLabel(library)}</span>
             <span>
               {library.n_foregrounds} objects, {library.n_backgrounds}{" "}
               backgrounds
@@ -97,7 +107,7 @@ export default function Page() {
           </p>
         ) : (
           <p className="text-muted-foreground text-xs">
-            {error ? "no library" : "reading the libraries"}
+            {listError ? "no library" : "reading the libraries"}
           </p>
         )}
       </header>
@@ -115,17 +125,26 @@ export default function Page() {
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col gap-4">
-          {error && (
-            <p
-              role="alert"
-              className="border-destructive bg-destructive/8 text-foreground rounded-lg border-l-2 px-4 py-3 text-sm"
-            >
-              {error}
-            </p>
+          {(
+            [
+              ["list", listError],
+              ["generate", error],
+            ] as const
+          ).map(
+            ([key, message]) =>
+              message && (
+                <p
+                  key={key}
+                  role="alert"
+                  className="border-destructive bg-destructive/8 text-foreground rounded-lg border-l-2 px-4 py-3 text-sm"
+                >
+                  {message}
+                </p>
+              ),
           )}
           <Viewer
             sequence={sequence}
-            estimator={libraryLabel(shown)}
+            library={libraryLabel(shown)}
             generating={busy}
           />
         </section>

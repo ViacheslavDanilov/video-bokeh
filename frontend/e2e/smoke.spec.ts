@@ -150,19 +150,20 @@ test("lists a library built while the page is open", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
 
+  // Last in the file and removed again, because the tests above expect two libraries.
   const extra = path.join(LIBRARIES, "extra");
-  execFileSync("uv", [
-    "run",
-    "--directory",
-    "../backend",
-    "--extra",
-    "api",
-    "python",
-    "tests/api/fixture_library.py",
-    extra,
-    "da2-large",
-  ]);
   try {
+    execFileSync("uv", [
+      "run",
+      "--directory",
+      "../backend",
+      "--extra",
+      "api",
+      "python",
+      "tests/api/fixture_library.py",
+      extra,
+      "da2-large",
+    ]);
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await page.getByRole("combobox", { name: "Depth estimator" }).click();
     await expect(page.getByRole("option")).toHaveCount(3);
@@ -176,4 +177,19 @@ test("lists a library built while the page is open", async ({ page }) => {
   } finally {
     rmSync(extra, { recursive: true, force: true });
   }
+});
+
+/**
+ * A list read that fails leaves an error; the next one that works, on focus, clears it.
+ */
+test("clears a failed library read once one works", async ({ page }) => {
+  await page.route("**/libraries", (route) => route.abort());
+  await page.goto("/");
+  const alert = page.getByRole("main").getByRole("alert");
+  await expect(alert).toHaveCount(1);
+
+  await page.unroute("**/libraries");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await expect(alert).toHaveCount(0);
 });
