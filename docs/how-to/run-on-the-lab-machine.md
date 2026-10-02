@@ -105,7 +105,16 @@ make api LIBRARY=backend/data/lab/libraries
 make web
 ```
 
-The page does not show bokeh yet. The MP4s from step 5 do: each sequence under
+The script's own sequences are not the page's: the page generates its own and caches them under
+`backend/data/sequences/`. To see bokeh in the page:
+
+1. Pick a depth estimator and press Generate.
+2. In another terminal, `make bokeh` renders every sequence the page has made that has no bokeh
+   yet. It leaves out any of 12 frames or fewer, and says so.
+3. Press Generate again with the same settings. The cached sequence now lists its bokeh, and a
+   pane opens for it.
+
+The script's own bokeh is in the MP4s from step 5: each sequence under
 `backend/data/lab/sequences/<estimator>/sequences/<id>/` holds `all_in_focus.mp4`,
 `disparity.mp4` and `bokeh.mp4`.
 
@@ -113,8 +122,9 @@ The page does not show bokeh yet. The MP4s from step 5 do: each sequence under
 
 ## What has not run yet
 
-- `scripts/setup_third_party.sh`, Stage C and therefore steps 4 and 5's bokeh: they need the
-  NVIDIA card.
+- `scripts/setup_third_party.sh`, Stage C and therefore steps 4 and 5's bokeh, and `make bokeh`
+  with the real any-to-bokeh: they need the NVIDIA card. `make bokeh` has run here against a
+  stand-in for any-to-bokeh, and the API served the stream it wrote.
 - The script over every depth estimator. Only `da2-small` has gone through it. Every other
   checkpoint was already cached on the Apple machine but `da3-metric-large`, 1.2 GiB, which
   stays off it to spare its memory.
