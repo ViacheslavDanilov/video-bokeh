@@ -10,8 +10,17 @@ related: [cli, dataset-layout, generate-a-dataset]
 Four endpoints. They mount the libraries Stage A built and generate Stage B sequences on demand,
 from whichever library a request names.
 
-Bokeh rendering is not here. That runs on a GPU for minutes per sequence, so it gets its own
-container and its own asynchronous endpoints once that container exists.
+**The API serves bokeh but does not render it.** Rendering is minutes of GPU work per sequence.
+Stage C renders it into the sequences this API wrote, on a machine with an NVIDIA card:
+
+```bash
+make bokeh
+```
+
+That renders every sequence under `$VIDEO_BOKEH_DATA_ROOT/sequences/` that has no bokeh yet,
+and leaves out any shorter than any-to-bokeh can take, saying which. Asking for a sequence again
+then lists its `bokeh` stream. Starting a render from the API would need a job id and polling,
+and waits on where Stage C runs.
 
 Interactive docs are at `/docs` when the server is running.
 
@@ -154,8 +163,8 @@ curl -X POST http://localhost:8000/sequences \
 
 **`streams` is a manifest, not a list of URLs.** Each entry says how that stream can be
 displayed, and `colormaps` is empty when the stream is already RGB. A client that renders what
-the manifest reports needs no change when a stream is added — `bokeh` will appear here once
-the render container exists.
+the manifest reports needs no change when a stream is added. `bokeh` appears here once Stage C
+has rendered the sequence, with no colormaps, after the three every sequence has.
 
 **`library` may be left out only while one library is mounted.** With several, leaving it out
 answers 422 and lists the ids. An id that is not mounted answers the same way. The API never
@@ -194,7 +203,8 @@ when there is no library, or when two cannot be told apart.
 
 ## `GET /sequences/{id}/{stream}.mp4`
 
-Serves one stream as H.264. `stream` is `all_in_focus`, `alpha` or `disparity`.
+Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` once
+Stage C has rendered the sequence.
 
 **`alpha` is one colour per object, not one silhouette.** The stream is a multi-page TIFF
 with one page per object, and the page index is that object's identity for the whole clip —
@@ -231,6 +241,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── all_in_focus/           RGB uint8 PNG
 ├── alpha/                  multi-page uint8 TIFF, one page per object
 ├── disparity/              uint16 PNG
+├── bokeh/                  RGB uint8 PNG, once Stage C has rendered it
 ├── all_in_focus.mp4        written on first request
 ├── disparity.mp4           written on first request, Spectral
 └── disparity.grey.mp4      written if grey is ever asked for

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from fake_bokeh import render_fake_bokeh
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -454,3 +455,44 @@ def test_the_sequence_names_a_colour_for_every_object(client: TestClient) -> Non
     assert len(colors) == body["n_objects"]
     assert all(c.startswith("#") and len(c) == 7 for c in colors), colors
     assert len(set(colors)) == len(colors), "objects must be told apart"
+
+
+# --- bokeh ----------------------------------------------------------------- #
+
+
+def test_a_sequence_has_no_bokeh_until_stage_c_renders_it(client: TestClient) -> None:
+    streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
+    assert "bokeh" not in streams
+
+
+def test_bokeh_joins_the_manifest_once_rendered(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Asking again finds the sequence in the cache, now with the stream Stage C wrote."""
+    first = client.post("/sequences", json=SEQUENCE_BODY).json()
+    render_fake_bokeh(tmp_path / "sequences" / first["id"])
+
+    again = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert again["cached"] is True
+    assert list(again["streams"]) == ["all_in_focus", "alpha", "disparity", "bokeh"]
+    assert again["streams"]["bokeh"] == {
+        "url": f"/sequences/{first['id']}/bokeh.mp4",
+        "colormaps": [],
+        "default": None,
+    }
+
+
+def test_serves_bokeh_as_video(client: TestClient, tmp_path: Path) -> None:
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    render_fake_bokeh(tmp_path / "sequences" / sid)
+    response = client.get(f"/sequences/{sid}/bokeh.mp4")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp4"
+
+
+def test_bokeh_that_is_not_there_is_not_found(client: TestClient) -> None:
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    response = client.get(f"/sequences/{sid}/bokeh.mp4")
+    assert response.status_code == 404
+    assert "bokeh" in response.json()["detail"]
