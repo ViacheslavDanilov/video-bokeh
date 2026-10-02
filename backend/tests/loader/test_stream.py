@@ -143,14 +143,14 @@ def test_a_seed_that_cannot_be_placed_is_skipped(
     library: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    real = mod.sample_scene
+    real = mod.sample_sequence
 
     def refuses_seed_0(root, seed, *args, **kwargs):
         if seed == 0:
             raise CollisionRetriesExhausted("seed 0: objects still collide")
         return real(root, seed, *args, **kwargs)
 
-    monkeypatch.setattr(mod, "sample_scene", refuses_seed_0)
+    monkeypatch.setattr(mod, "sample_sequence", refuses_seed_0)
     assert next(iter(_stream(library)))["seed"] == 1
 
 
@@ -161,6 +161,6 @@ def test_a_stream_that_can_place_nothing_fails_instead_of_spinning(
     def never(*args, **kwargs):
         raise CollisionRetriesExhausted("objects still collide")
 
-    monkeypatch.setattr(mod, "sample_scene", never)
+    monkeypatch.setattr(mod, "sample_sequence", never)
     with pytest.raises(RuntimeError, match="100 seeds in a row"):
         next(iter(_stream(library)))

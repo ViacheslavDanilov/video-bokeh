@@ -15,9 +15,8 @@ from video_bokeh.core._sequence_geometry import SampleConfig
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     render_scene,
-    sample_scene,
 )
-from video_bokeh.scenes.generate import sample_n_objects
+from video_bokeh.scenes.generate import sample_sequence
 
 # A stream that skips this many seeds in a row will not recover: the parameters ask for
 # more objects than the depth axis can hold apart. Failing beats spinning forever.
@@ -94,13 +93,13 @@ class SequenceStream(IterableDataset):
             yield item
 
     def _render(self, seq_seed: int) -> dict[str, Any]:
-        n_objects = sample_n_objects(seq_seed, self.n_objects_min, self.n_objects_max)
-        scene = sample_scene(
+        scene = sample_sequence(
             self.library_root,
             seed=seq_seed,
             n_frames=self.n_frames,
             size=self.size,
-            n_objects=n_objects,
+            n_objects_min=self.n_objects_min,
+            n_objects_max=self.n_objects_max,
             cfg=self.cfg,
         )
         frames = render_scene(scene)
