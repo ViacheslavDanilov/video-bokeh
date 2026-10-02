@@ -15,6 +15,7 @@ with Depth Anything V2 Large on 2026-10-01.
 
 from __future__ import annotations
 
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import ClassVar
@@ -38,6 +39,14 @@ _DEFAULT_PYTHON = (
 )
 
 
+#: What the worker imports before it loads a model, pycolmap stub included.
+_IMPORT_CHECK = (
+    "import sys, types; "
+    "sys.modules.setdefault('pycolmap', types.ModuleType('pycolmap')); "
+    "import depth_anything_3.api"
+)
+
+
 def _python() -> Path:
     return interpreter(
         "VIDEO_BOKEH_DA3_PYTHON",
@@ -57,11 +66,28 @@ class DepthAnything3Estimator:
 
     @classmethod
     def environment_problem(cls) -> str | None:
-        """Why this estimator cannot run here, or None: its venv is all it needs."""
+        """Why this estimator cannot run here, or None: its venv is all it needs.
+
+        The package is imported, not just the interpreter found, so a venv whose install
+        stopped half way reads as missing before a build finds out. The worker's pycolmap
+        stub comes first, as in the worker.
+        """
         try:
-            _python()
+            python = _python()
         except RuntimeError as exc:
             return str(exc)
+        result = subprocess.run(
+            [str(python), "-c", _IMPORT_CHECK],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            last = (result.stderr.strip().splitlines() or ["no output"])[-1]
+            return (
+                f"{python} cannot import depth_anything_3 ({last}): run "
+                "scripts/setup_depth_anything_3.sh again"
+            )
         return None
 
     def load(self, device: torch.device) -> None:
