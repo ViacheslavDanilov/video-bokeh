@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -6,6 +7,7 @@ import { expect, test } from "@playwright/test";
 // Where playwright.config.ts points the API, so a test can write into a sequence as
 // Stage C would.
 const SEQUENCES = path.join(os.tmpdir(), "video-bokeh-e2e", "sequences");
+const LIBRARIES = path.join(os.tmpdir(), "video-bokeh-e2e", "library");
 
 /**
  * One path through the page, against the real API and a tiny real library: the library
@@ -138,4 +140,40 @@ test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
       { timeout: 60_000 },
     )
     .toBeGreaterThanOrEqual(2);
+});
+
+/**
+ * A library built while the page is open shows in the picker once the page has focus
+ * again, and a sequence from it is named by its directory as well as its estimator.
+ */
+test("lists a library built while the page is open", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+
+  const extra = path.join(LIBRARIES, "extra");
+  execFileSync("uv", [
+    "run",
+    "--directory",
+    "../backend",
+    "--extra",
+    "api",
+    "python",
+    "tests/api/fixture_library.py",
+    extra,
+    "da2-large",
+  ]);
+  try {
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.getByRole("combobox", { name: "Depth estimator" }).click();
+    await expect(page.getByRole("option")).toHaveCount(3);
+    await page.getByRole("option", { name: /extra/ }).click();
+    await page.getByRole("spinbutton", { name: "Seed" }).fill("11");
+    await page.getByRole("button", { name: "Generate sequence" }).click();
+    await expect(page.locator("video")).toHaveCount(3, { timeout: 60_000 });
+    await expect(
+      page.getByRole("definition").filter({ hasText: "da2-large, extra" }),
+    ).toBeVisible();
+  } finally {
+    rmSync(extra, { recursive: true, force: true });
+  }
 });

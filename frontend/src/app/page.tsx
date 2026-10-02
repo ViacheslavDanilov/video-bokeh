@@ -30,21 +30,35 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetchLibraries(controller.signal)
-      .then((found) => {
-        setLibraries(found);
-        setParams((p) => ({
-          ...p,
-          library: p.library || (found[0]?.id ?? ""),
-        }));
-      })
-      .catch((cause) => {
-        if (cause instanceof DOMException && cause.name === "AbortError")
-          return;
-        setError(cause instanceof ApiError ? cause.message : String(cause));
-      });
-    return () => controller.abort();
+    let controller = new AbortController();
+    const load = () => {
+      controller.abort();
+      controller = new AbortController();
+      fetchLibraries(controller.signal)
+        .then((found) => {
+          setLibraries(found);
+          // The selection stays while its library is still mounted.
+          setParams((p) => ({
+            ...p,
+            library: found.some((lib) => lib.id === p.library)
+              ? p.library
+              : (found[0]?.id ?? ""),
+          }));
+        })
+        .catch((cause) => {
+          if (cause instanceof DOMException && cause.name === "AbortError")
+            return;
+          setError(cause instanceof ApiError ? cause.message : String(cause));
+        });
+    };
+    load();
+    // A library built while the page is open, by make libraries or the lab script, shows
+    // in the picker when the person comes back to the page.
+    window.addEventListener("focus", load);
+    return () => {
+      window.removeEventListener("focus", load);
+      controller.abort();
+    };
   }, []);
 
   const byId = (id?: string) => libraries.find((lib) => lib.id === id) ?? null;

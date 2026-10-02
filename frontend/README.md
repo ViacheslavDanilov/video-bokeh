@@ -33,7 +33,8 @@ without rebuilding.
 
 - **Depth estimator** — which library the sequence comes from, one library per depth
   estimator. The same seed through two estimators gives the same objects on the same paths;
-  only the disparity differs.
+  only the disparity differs. The list is read again whenever the page regains focus, so a
+  library built while it is open shows without a reload.
 - **Parameters** — seed, frames, size, and the range of objects a sequence may contain. The seed
   picks a count in that range, so the same five numbers from the same library always name the
   same sequence.
