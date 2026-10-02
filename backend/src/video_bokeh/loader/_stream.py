@@ -11,13 +11,13 @@ import numpy as np
 import torch
 from torch.utils.data import IterableDataset, get_worker_info
 
+from video_bokeh.core._library import list_backgrounds, list_foregrounds
 from video_bokeh.core._sequence_geometry import SampleConfig
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     render_scene,
-    sample_scene,
 )
-from video_bokeh.scenes.generate import sample_n_objects
+from video_bokeh.scenes.generate import sample_sequence
 
 # A stream that skips this many seeds in a row will not recover: the parameters ask for
 # more objects than the depth axis can hold apart. Failing beats spinning forever.
@@ -60,6 +60,21 @@ class SequenceStream(IterableDataset):
         cfg: SampleConfig | None = None,
     ) -> None:
         super().__init__()
+        # Checked here, in the training process, rather than met as a SystemExit inside a
+        # DataLoader worker once iteration starts.
+        empty = [
+            kind
+            for kind, ids in (
+                ("foregrounds", list_foregrounds(library_root)),
+                ("backgrounds", list_backgrounds(library_root)),
+            )
+            if not ids
+        ]
+        if empty:
+            raise ValueError(
+                f"{library_root} is not a library: no {' and no '.join(empty)}. "
+                "Build one with video_bokeh.library.build.",
+            )
         if not 1 <= n_objects_min <= n_objects_max:
             raise ValueError(
                 f"need 1 <= n_objects_min <= n_objects_max, "
@@ -94,13 +109,13 @@ class SequenceStream(IterableDataset):
             yield item
 
     def _render(self, seq_seed: int) -> dict[str, Any]:
-        n_objects = sample_n_objects(seq_seed, self.n_objects_min, self.n_objects_max)
-        scene = sample_scene(
+        scene = sample_sequence(
             self.library_root,
             seed=seq_seed,
             n_frames=self.n_frames,
             size=self.size,
-            n_objects=n_objects,
+            n_objects_min=self.n_objects_min,
+            n_objects_max=self.n_objects_max,
             cfg=self.cfg,
         )
         frames = render_scene(scene)

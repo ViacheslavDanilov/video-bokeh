@@ -25,9 +25,8 @@ from video_bokeh.scenes._compositor import (
     RenderedFrame,
     Scene,
     render_scene,
-    sample_scene,
 )
-from video_bokeh.scenes.generate import sample_n_objects, write_sequence
+from video_bokeh.scenes.generate import sample_sequence, write_sequence
 
 _ID_CHARS = 16
 _META = "sequence.json"
@@ -116,18 +115,14 @@ def _generate_into(
     request: SequenceRequest,
     render: Callable[[Scene], list[RenderedFrame]],
 ) -> int:
-    n_objects = sample_n_objects(
-        request.seed,
-        request.n_objects_min,
-        request.n_objects_max,
-    )
     try:
-        scene = sample_scene(
+        scene = sample_sequence(
             library_root,
             seed=request.seed,
             n_frames=request.frames,
             size=request.size,
-            n_objects=n_objects,
+            n_objects_min=request.n_objects_min,
+            n_objects_max=request.n_objects_max,
         )
     except CollisionRetriesExhausted as exc:
         raise SequenceUnsatisfiableError(str(exc)) from exc

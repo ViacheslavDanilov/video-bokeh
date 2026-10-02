@@ -34,6 +34,7 @@ from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     RenderedFrame,
+    Scene,
     render_scene,
     sample_scene,
 )
@@ -68,10 +69,34 @@ def sample_n_objects(seed: int, n_objects_min: int, n_objects_max: int) -> int:
     """How many objects a seed asks for.
 
     Keyed on a prefixed string rather than the bare seed so this draw is independent
-    of the stream the scene itself uses. Shared with the API, so the same seed and
-    range produce the same scene whether it came from the CLI or over HTTP.
+    of the stream the scene itself uses.
     """
     return random.Random(f"nobj:{seed}").randint(n_objects_min, n_objects_max)
+
+
+def sample_sequence(
+    library_root: Path,
+    seed: int,
+    n_frames: int,
+    size: int,
+    n_objects_min: int,
+    n_objects_max: int,
+    cfg: SampleConfig | None = None,
+) -> Scene:
+    """The scene a seed and these settings name.
+
+    The dataset writer, the API and the training stream all sample through here, so
+    the same seed and settings give the same scene wherever it is made. Raises
+    ``CollisionRetriesExhausted`` when no collision-free trajectories are found.
+    """
+    return sample_scene(
+        library_root,
+        seed=seed,
+        n_frames=n_frames,
+        size=size,
+        n_objects=sample_n_objects(seed, n_objects_min, n_objects_max),
+        cfg=cfg,
+    )
 
 
 def write_sequence(seq_dir: Path, frames: list[RenderedFrame]) -> None:
@@ -116,14 +141,14 @@ def generate_dataset(
 
     for i in range(count):
         seq_seed = seed + i
-        n_obj = sample_n_objects(seq_seed, n_objects_min, n_objects_max)
         try:
-            scene = sample_scene(
+            scene = sample_sequence(
                 library_root,
                 seed=seq_seed,
                 n_frames=n_frames,
                 size=size,
-                n_objects=n_obj,
+                n_objects_min=n_objects_min,
+                n_objects_max=n_objects_max,
                 cfg=cfg,
             )
         except CollisionRetriesExhausted as exc:
