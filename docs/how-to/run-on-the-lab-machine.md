@@ -62,8 +62,9 @@ changed or the last set did not finish. To redo an estimator from scratch, delet
 **Send back the log** it names on its first and its last line,
 `backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and CUDA
 versions of all three environments, and a summary with a timing and an outcome for each step that
-ran: the device check, and each library, set of sequences and bokeh render. A skipped step gets
-no line. The summary is printed even when a step fails.
+ran: the device check, and each library, set of sequences and bokeh render. A library that
+exists still gets a line, from the make target that skips it. Skipped sequences and bokeh get
+none. The summary is printed even when a step fails.
 
 Run on the Apple M3 Pro with one estimator and without Stage C, the part of the run that can go
 there:
@@ -115,7 +116,7 @@ The page does not show bokeh yet. The MP4s from step 5 do: each sequence under
 - `scripts/setup_third_party.sh`, Stage C and therefore steps 4 and 5's bokeh: they need the
   NVIDIA card.
 - The script over every depth estimator. Only `da2-small` has gone through it. Every other
-  checkpoint was already cached on the Apple machine but `da3-metric-large`, 1.34 GB, which
+  checkpoint was already cached on the Apple machine but `da3-metric-large`, 1.2 GiB, which
   stays off it to spare its memory.
 - `da3-metric-large` anywhere, for that reason.
 - The CUDA paths of the device check, its VRAM figures and its peak memory.

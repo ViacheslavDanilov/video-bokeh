@@ -193,6 +193,8 @@ for estimator in ${READY[@]+"${READY[@]}"}; do
         [ -d "$dest/sequences" ]; then
         echo "$SETTINGS" > "$dest/.lab-settings"
         GENERATED+=("$estimator")
+    elif [ -d "$dest" ] && [ ! -d "$dest/sequences" ]; then
+        FAILED+=("sequences $estimator: Stage B wrote none")
     else
         FAILED+=("sequences $estimator")
     fi
