@@ -539,10 +539,11 @@ def test_a_re_render_renamed_into_place_after_an_encode_is_still_caught(
     for frame in (sequence_dir / "bokeh").iterdir():
         Image.new("RGB", Image.open(frame).size, (255, 0, 0)).save(staging / frame.name)
     finished = staging.stat().st_mtime
+    # Its frames all written before the encode below. Set first, because setting times
+    # moves the ctime too, and only the rename may move it past the encode.
+    os.utime(staging, (finished - 10, finished - 10))
 
     first = client.get(f"/sequences/{sid}/bokeh.mp4").content
-    # The staging directory's frames were all written before that encode.
-    os.utime(staging, (finished - 10, finished - 10))
     shutil.rmtree(sequence_dir / "bokeh")
     staging.rename(sequence_dir / "bokeh")
 
