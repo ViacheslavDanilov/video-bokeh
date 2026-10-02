@@ -43,8 +43,9 @@ The stream never ends. Stop after as many batches as a run needs.
 
 `n_objects_min` must be at least 1 and no more than `n_objects_max`; anything else is refused
 when the stream is created. So is a `library_root` with no foregrounds or no backgrounds, which
-would otherwise fail inside a DataLoader worker once iteration starts. `cfg`, a `SampleConfig`, changes the pose and motion ranges the way
-it does for the dataset writer; leave it out for the writer's defaults.
+would otherwise fail inside a DataLoader worker once iteration starts. `cfg`, a `SampleConfig`,
+changes the pose and motion ranges the way it does for the dataset writer; leave it out for the
+writer's defaults.
 
 ## What an item holds
 
