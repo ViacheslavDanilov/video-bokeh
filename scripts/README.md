@@ -86,6 +86,17 @@ Stage C writes each sequence's `bokeh/` stream through any-to-bokeh, on a machin
 card and after `setup_third_party.sh`. The command, and how far it has been run, are in
 `docs/how-to/run-any-to-bokeh-inference.md`.
 
+## Run everything on the lab machine
+
+`lab_run.sh` is the lab-machine test in one command: the device check with every depth estimator
+measured, one library per estimator from the dev pools, the same sequences from each, their
+bokeh, and MP4s to look at. It writes one log to send back. The setup it needs and what it
+does step by step are in `docs/how-to/run-on-the-lab-machine.md`.
+
+```bash
+scripts/lab_run.sh
+```
+
 ## Measure any-to-bokeh inference
 
 `measure_a2b.sh` generates one 80-frame sequence, converts it, runs inference and reports wall clock and seconds per frame next to the GPU that produced them. No arguments. CUDA-only — `inference_demo.py` is pinned to `cuda:0`, so this is a lab-machine script.
