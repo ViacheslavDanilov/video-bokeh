@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import shutil
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from pathlib import Path
@@ -496,3 +498,26 @@ def test_bokeh_that_is_not_there_is_not_found(client: TestClient) -> None:
     response = client.get(f"/sequences/{sid}/bokeh.mp4")
     assert response.status_code == 404
     assert "bokeh" in response.json()["detail"]
+
+
+def test_a_re_render_replaces_the_cached_bokeh_video(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Stage C run again, at another strength say, replaces bokeh/; the encode cached from
+    the first render must not keep being served.
+    """
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    sequence_dir = tmp_path / "sequences" / sid
+    render_fake_bokeh(sequence_dir)
+    first = client.get(f"/sequences/{sid}/bokeh.mp4").content
+
+    shutil.rmtree(sequence_dir / "bokeh")
+    render_fake_bokeh(sequence_dir)
+    for frame in (sequence_dir / "bokeh").iterdir():
+        Image.new("RGB", Image.open(frame).size, (255, 0, 0)).save(frame)
+    # Later than the encode, whatever the file system's clock resolution.
+    later = (sequence_dir / "bokeh.mp4").stat().st_mtime + 10
+    os.utime(sequence_dir / "bokeh", (later, later))
+
+    assert client.get(f"/sequences/{sid}/bokeh.mp4").content != first

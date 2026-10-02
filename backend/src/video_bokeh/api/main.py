@@ -300,7 +300,15 @@ def read_sequence_video(
 
     suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
     video = sequence_dir / f"{stream}{suffix}.mp4"
-    if not video.is_file():
+    # Re-encoded when the frames are newer than the video: Stage C run again replaces
+    # bokeh/ whole, and the encode of the first render would otherwise be served for good.
+    frames_dir = sequence_dir / stream
+    stale = (
+        video.is_file()
+        and frames_dir.is_dir()
+        and frames_dir.stat().st_mtime > video.stat().st_mtime
+    )
+    if not video.is_file() or stale:
         frames = list_stream_frames(sequence_dir, stream)
         if not frames:
             raise HTTPException(
