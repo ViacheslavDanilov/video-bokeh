@@ -65,8 +65,10 @@ else
 fi
 
 # Stop before anything long, rather than an hour in.
+# any-to-bokeh loads the Stable Video Diffusion base model offline only, from here.
+SVD_CACHE="${HF_HOME:-$HOME/.cache/huggingface}/hub/models--stabilityai--stable-video-diffusion-img2vid-xt"
 if [ "$RENDER" = 1 ]; then
-    for need in "$A2B_PYTHON" "$A2B/checkpoints/unet" "$A2B/checkpoints/vae"; do
+    for need in "$A2B_PYTHON" "$A2B/checkpoints/unet" "$A2B/checkpoints/vae" "$SVD_CACHE"; do
         if [ ! -e "$need" ]; then
             echo "error: $need missing. Run scripts/setup_third_party.sh first." >&2
             exit 1
@@ -139,9 +141,11 @@ else
     echo "no nvidia-smi on this machine"
 fi
 TORCH='import torch; print("torch", torch.__version__, "| cuda", torch.version.cuda, "| available", torch.cuda.is_available())'
-run uv run --directory "$BACKEND" --extra library python -c "$TORCH"
-[ -x "$DA3_PYTHON" ] && run "$DA3_PYTHON" -c "$TORCH"
-[ -x "$A2B_PYTHON" ] && run "$A2B_PYTHON" -c "$TORCH"
+# A venv whose torch will not import is a finding for the log, not a reason to stop here:
+# the step that needs it fails on its own and says so.
+run uv run --directory "$BACKEND" --extra library python -c "$TORCH" || true
+if [ -x "$DA3_PYTHON" ]; then run "$DA3_PYTHON" -c "$TORCH" || true; fi
+if [ -x "$A2B_PYTHON" ]; then run "$A2B_PYTHON" -c "$TORCH" || true; fi
 
 printf '\n===== 1. device check, measured =====\n'
 model_flags=()
@@ -149,7 +153,8 @@ for estimator in "${ESTIMATORS[@]}"; do
     model_flags+=(--model "$estimator")
 done
 # Not ready is a finding to send back, not a reason to stop: the summary says so.
-timed "device check" py -m video_bokeh.library.check --measure "${model_flags[@]}" ||
+timed "device check" uv run --directory "$BACKEND" --extra library \
+    python -m video_bokeh.library.check --measure "${model_flags[@]}" ||
     FAILED+=("device check")
 
 READY=()
@@ -183,7 +188,9 @@ for estimator in ${READY[@]+"${READY[@]}"}; do
     rm -rf "$dest"
     if timed "sequences, $estimator" uv run --directory "$BACKEND" \
         python -m video_bokeh.scenes.generate --library-root "$OUT/libraries/$estimator" \
-        --output "$dest" --count "$COUNT" --frames "$FRAMES" --size "$SIZE" --seed 0; then
+        --output "$dest" --count "$COUNT" --frames "$FRAMES" --size "$SIZE" --seed 0 &&
+        # Stage B exits 0 having written nothing when every seed runs out of retries.
+        [ -d "$dest/sequences" ]; then
         echo "$SETTINGS" > "$dest/.lab-settings"
         GENERATED+=("$estimator")
     else
