@@ -146,9 +146,9 @@ class LibraryResponse(BaseModel):
 class StreamInfo(BaseModel):
     """How one stream of a sequence can be displayed.
 
-    The client renders whatever these entries list rather than knowing the stream
-    names itself, so a stream that appears later -- `bokeh`, once Stage C has rendered
-    the sequence -- shows up in the interface without a frontend change.
+    The client renders whatever stream info a sequence lists rather than knowing the
+    stream names itself, so a stream that appears later -- `bokeh`, once Stage C has
+    rendered the sequence -- shows up in the interface without a frontend change.
     """
 
     url: str

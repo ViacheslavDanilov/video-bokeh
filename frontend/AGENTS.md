@@ -70,7 +70,7 @@ variable it is read at build time, so a container built for one address cannot b
 another without rebuilding.
 
 **Which streams a sequence has, and which of them take a colormap, come from the server's
-manifest.** Do not hardcode stream names in components — a stream added to the API appears in
+stream info.** Do not hardcode stream names in components — a stream added to the API appears in
 the interface on its own, and that is the point.
 
 ## Conventions

@@ -161,8 +161,8 @@ curl -X POST http://localhost:8000/sequences \
 }
 ```
 
-**`streams` describes each stream, not only where it is.** Each entry says how that stream can
-be displayed, and `colormaps` is empty when the stream is already RGB. A client that renders
+**Each entry of `streams` is stream info: how the stream can be displayed, not only where it
+is.** `colormaps` is empty when the stream is already RGB. A client that renders
 what `streams` lists needs no change when a stream is added. `bokeh` appears here once Stage C
 has rendered the sequence, with no colormaps, after the three every sequence has.
 
