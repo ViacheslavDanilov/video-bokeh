@@ -47,13 +47,13 @@ renders bokeh, is not part of it.
 uv run python scripts/build_dataset.py
 ```
 
-A fresh clone has everything this needs. `backend/data/magick_dev` (20 foregrounds) and
-`backend/data/bg-20k_dev` (20 backgrounds) are tracked on purpose, so nothing is downloaded
+A fresh clone has everything this needs. `backend/data/magick_dev` (30 foregrounds) and
+`backend/data/bg-20k_dev` (30 backgrounds) are tracked on purpose, so nothing is downloaded
 except the depth model, which Hugging Face caches on first use.
 
 Defaults write `backend/data/library_demo` and `backend/data/demo`: 4 sequences, 24 frames,
-512 px, 1 to 5 objects, `da2-small`. **Measured end to end on an M-series Mac: 14 s**, of
-which Stage A is 9 s. The script then prints what it wrote and the `vpv` command to look at it.
+512 px, 1 to 5 objects, `da2-small`. **Measured end to end on an Apple M3 Pro: 16 s**, of
+which Stage A is 11 s. The script then prints what it wrote and the `vpv` command to look at it.
 
 ### Run it again
 

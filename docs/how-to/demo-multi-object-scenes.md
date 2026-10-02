@@ -26,9 +26,10 @@ Run this one from the repo root, not `backend/`:
 uv sync --all-extras --dev
 ```
 
-You need the tracked dev pools, already in the repo: `data/magick_dev` (12 usable foregrounds
-out of 20, the rest dropped by the CLIP subject filter) and `data/bg-20k_dev` (20 backgrounds).
-No download, no Kaggle credentials.
+You need the tracked dev pools, already in the repo: `data/magick_dev` (17 usable foregrounds
+out of 30, the rest dropped by the CLIP subject filter) and `data/bg-20k_dev` (30 backgrounds).
+No download, no Kaggle credentials. The measurements below predate 2026-10-01, when the pools
+held 20 of each and the library 12 foregrounds.
 
 ---
 

@@ -80,8 +80,9 @@ class Crashes(Unknown):
 
 class Heavy(Unknown):
     def load(self, device):
-        # Touched, so it is resident rather than merely reserved.
-        self._ballast = np.ones(400_000_000 // 8)
+        # A gigabyte, touched, so it is resident rather than merely reserved, and well
+        # above what importing torch leaves behind as a peak.
+        self._ballast = np.ones(1_000_000_000 // 8)
 """
 
 
@@ -284,11 +285,17 @@ def test_each_estimator_is_measured_in_a_fresh_process(plugins: str) -> None:
     """The peak resident set never falls inside a process, so a heavy estimator
     measured first would otherwise lend its peak to every one after it.
     """
+    before = check.measure(f"{plugins}:Ready", CPU)
     heavy = check.measure(f"{plugins}:Heavy", CPU)
-    light = check.measure(f"{plugins}:Ready", CPU)
+    after = check.measure(f"{plugins}:Ready", CPU)
+    assert before.memory is not None
     assert heavy.memory is not None
-    assert light.memory is not None
-    assert light.memory < heavy.memory - 300_000_000
+    assert after.memory is not None
+    # The light one is what it was before the heavy one ran, and the heavy one is
+    # heavier: compared with itself, not with a margin that depends on the platform's
+    # import-time peak, which was 871 MB on a CI runner.
+    assert after.memory < before.memory + 200_000_000
+    assert heavy.memory > after.memory + 200_000_000
 
 
 def test_an_estimator_holding_its_weights_elsewhere_reports_that_process(

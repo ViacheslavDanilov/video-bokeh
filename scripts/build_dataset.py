@@ -5,8 +5,8 @@ Stages A and B, in order. Stage A estimates depth once per asset and writes the 
 library; Stage B samples scenes from that library and writes sequences. Stage C, which
 renders bokeh, is not run here.
 
-A fresh clone has everything this needs: `backend/data/magick_dev` (20 foregrounds) and
-`backend/data/bg-20k_dev` (20 backgrounds) are tracked on purpose, so there is nothing to
+A fresh clone has everything this needs: `backend/data/magick_dev` (30 foregrounds) and
+`backend/data/bg-20k_dev` (30 backgrounds) are tracked on purpose, so there is nothing to
 download except the depth model, which Hugging Face caches on first use.
 
     uv run python scripts/build_dataset.py

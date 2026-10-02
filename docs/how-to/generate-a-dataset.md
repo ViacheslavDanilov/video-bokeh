@@ -27,8 +27,26 @@ pipeline is shaped this way, see [[pipeline-explainer]].
    whether each depth estimator can run there, before a build finds out. See [[cli]].
 
 If `data/library_dev/` already holds `foregrounds/` and `backgrounds/`, Stage A is done and
-you can skip to Stage B. The current `library_dev` has 12 foregrounds and 20 backgrounds,
-which is enough for every recipe below.
+you can skip to Stage B. Built with the default class filter from the pools as of 2026-10-01,
+it holds 17 foregrounds and 30 backgrounds; one built before then holds 12 and 20. Either is
+enough for every recipe below.
+
+### How the dev pools were grown to 30 and 30
+
+On 2026-10-01, from `backend/`, keeping the 20 of each that were there:
+
+1. `uv run --extra acquire python -m video_bokeh.acquire.magick --metadata data/magick_metadata.csv --output data/magick_dev --count 30 --seed 11`
+   downloads ten foregrounds. Seed 11 drew the first twenty, and a larger count keeps them,
+   because the sample keeps its order as it grows.
+2. `uv run --extra acquire python -m video_bokeh.acquire.classify --data-root data/magick_dev --keep-existing --num-workers 0`
+   classifies the ten new ones and keeps the twenty predictions there. A fresh run over those
+   twenty disagreed on five of them, all close calls, and would have shrunk the class filter's
+   keep from 12 to 8.
+3. `uv run --extra acquire python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11`
+   fetches ten backgrounds one file at a time from Kaggle, with no archive download. It needs
+   `~/.kaggle/kaggle.json`.
+
+The pools grew by 20.8 MiB.
 
 ---
 

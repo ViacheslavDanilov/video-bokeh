@@ -18,8 +18,8 @@ Usage:
     uv run python -m video_bokeh.acquire.magick \
         --metadata backend/data/magick_metadata.csv \
         --output   backend/data/magick_dev \
-        --count    20 \
-        --seed     0
+        --count    30 \
+        --seed     11
 
     # Include auto-picked rows too
     uv run python -m video_bokeh.acquire.magick ... --picked any
