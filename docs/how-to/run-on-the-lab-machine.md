@@ -11,8 +11,9 @@ related: [cli, generate-a-dataset, run-any-to-bokeh-inference]
 on the machine's GPU, builds a library with each from the dev pools, generates the same
 sequences from every library, renders their bokeh and packs MP4s to look at.
 
-Commands run from the repository root. Each step below says whether it has run, on an Apple
-M3 Pro. The any-to-bokeh setup and Stage C have not run anywhere yet.
+Commands run from the repository root. The setup steps say whether they have run on an Apple
+M3 Pro, and "What has not run yet" lists the rest. The any-to-bokeh setup and Stage C have not
+run anywhere yet.
 
 ---
 
@@ -60,8 +61,9 @@ changed or the last set did not finish. To redo an estimator from scratch, delet
 
 **Send back the log** it names on its first and its last line,
 `backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and CUDA
-versions of all three environments, and a timing and an outcome for every step. The summary is
-printed even when a step fails.
+versions of all three environments, and a summary with a timing and an outcome for each step that
+ran: the device check, and each library, set of sequences and bokeh render. A skipped step gets
+no line. The summary is printed even when a step fails.
 
 Run on the Apple M3 Pro with one estimator and without Stage C, the part of the run that can go
 there:
@@ -79,8 +81,8 @@ sequences, da2-small                     16 s  ok
 
 The library had been built by an earlier run, in 26 s, and held 30 foregrounds and 30
 backgrounds. A second run skipped the library and the sequences. A run with a second estimator
-whose load fails named that estimator's library as failed, still made `da2-small`'s sequences,
-and exited 1.
+whose load fails named that estimator's library as failed, went on with `da2-small`, and
+exited 1.
 
 | knob | default | meaning |
 |---|---|---|
@@ -112,7 +114,8 @@ The page does not show bokeh yet. The MP4s from step 5 do: each sequence under
 
 - `scripts/setup_third_party.sh`, Stage C and therefore steps 4 and 5's bokeh: they need the
   NVIDIA card.
-- The script over every depth estimator. Only `da2-small` has gone through it. The others would
-  have downloaded 5.97 GiB of checkpoints to the Apple machine.
-- `da3-metric-large` anywhere, for the same reason.
+- The script over every depth estimator. Only `da2-small` has gone through it. Every other
+  checkpoint was already cached on the Apple machine but `da3-metric-large`, 1.34 GB, which
+  stays off it to spare its memory.
+- `da3-metric-large` anywhere, for that reason.
 - The CUDA paths of the device check, its VRAM figures and its peak memory.
