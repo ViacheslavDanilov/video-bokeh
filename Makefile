@@ -38,7 +38,7 @@ libraries: ## Build one library per depth estimator into LIBRARY (da3 needs scri
 	done
 
 api: ## Serve the API on :8000 from LIBRARY (default: the main checkout's libraries)
-	cd backend && VIDEO_BOKEH_LIBRARY="$(LIBRARY)" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
+	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 
 web: ## Serve the page on :3000
 	cd frontend && pnpm dev

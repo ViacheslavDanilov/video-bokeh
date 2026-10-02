@@ -11,8 +11,8 @@ related: [cli, generate-a-dataset, run-any-to-bokeh-inference]
 on the machine's GPU, builds a library with each from the dev pools, generates the same
 sequences from every library, renders their bokeh and packs MP4s to look at.
 
-Commands run from the repository root. Everything that can run without an NVIDIA card has run
-on an Apple M3 Pro, as marked; the any-to-bokeh setup and Stage C have not run anywhere yet.
+Commands run from the repository root. Each step below says whether it has run, on an Apple
+M3 Pro. The any-to-bokeh setup and Stage C have not run anywhere yet.
 
 ---
 
@@ -37,11 +37,10 @@ on an Apple M3 Pro, as marked; the any-to-bokeh setup and Stage C have not run a
 scripts/lab_run.sh
 ```
 
-It does five things, in order. Every step but the first stops the run when it fails:
+It does five things, in order:
 
 1. **The device check with `--measure`**, every depth estimator in a process of its own. This
-   downloads every checkpoint that is not cached: 5.97 GiB from scratch. A model that fails to
-   measure does not stop the run.
+   downloads every checkpoint that is not cached: 5.97 GiB from scratch.
 2. **One library per depth estimator** from `backend/data/magick_dev` and
    `backend/data/bg-20k_dev`, with no class filter, so each holds all 30 foregrounds and all 30
    backgrounds. It goes through `make libraries`, so a library that exists is skipped.
@@ -50,14 +49,22 @@ It does five things, in order. Every step but the first stops the run when it fa
 4. **Bokeh, Stage C**, through any-to-bokeh, into each sequence's `bokeh/`.
 5. **MP4s** of each sequence's frames, disparity and bokeh, next to the frames.
 
-A re-run picks up where the last one stopped: libraries, sequences and bokeh that exist are not
-made again.
+**One estimator failing does not stop the others.** A library that does not build is named in
+the summary, its estimator gets no sequences, and the rest go on. The run then exits 1. The
+same holds for a set of sequences and for Stage C.
 
-**Send back the log** it names on its last line, `backend/data/measurements/lab-<time>.log`.
-It carries the commands, the GPU, the versions and a timing for every step.
+**A re-run picks up where the last one stopped.** A library or a bokeh stream that exists is
+not made again. Sequences are made again, with their bokeh, when `COUNT`, `FRAMES` or `SIZE`
+changed or the last set did not finish. To redo an estimator from scratch, delete both
+`backend/data/lab/libraries/<estimator>` and `backend/data/lab/sequences/<estimator>`.
 
-Measured on the Apple M3 Pro with one estimator and without Stage C, the part of the run that
-can go there:
+**Send back the log** it names on its first and its last line,
+`backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and CUDA
+versions of all three environments, and a timing and an outcome for every step. The summary is
+printed even when a step fails.
+
+Run on the Apple M3 Pro with one estimator and without Stage C, the part of the run that can go
+there:
 
 ```bash
 scripts/lab_run.sh --no-render da2-small
@@ -65,21 +72,23 @@ scripts/lab_run.sh --no-render da2-small
 
 ```
 ===== summary =====
-device check                                      5 s
-libraries                                        26 s
-sequences, da2-small                             16 s
+device check                              7 s  ok
+library, da2-small                        0 s  ok
+sequences, da2-small                     16 s  ok
 ```
 
-52 s in all. The library held 30 foregrounds and 30 backgrounds. A second run skipped the
-library and the sequences.
+The library had been built by an earlier run, in 26 s, and held 30 foregrounds and 30
+backgrounds. A second run skipped the library and the sequences. A run with a second estimator
+whose load fails named that estimator's library as failed, still made `da2-small`'s sequences,
+and exited 1.
 
 | knob | default | meaning |
 |---|---|---|
-| estimators, as arguments | every registered one | e.g. `scripts/lab_run.sh da2-large depth-pro` |
+| estimators, as arguments | every registered one | such as `scripts/lab_run.sh da2-large depth-pro` |
 | `--no-render` | off | stop before Stage C, for a machine with no NVIDIA card |
 | `COUNT` | `4` | sequences per estimator |
-| `FRAMES` | `80` | frames per sequence; Stage C refuses 12 or fewer |
-| `SIZE` | `512` | frame side; any-to-bokeh renders at 1024×576 whatever it is given |
+| `FRAMES` | `80` | frames per sequence. Stage C refuses 12 or fewer |
+| `SIZE` | `512` | frame side. any-to-bokeh renders at 1024×576 whatever it is given |
 
 ---
 
@@ -103,5 +112,7 @@ The page does not show bokeh yet. The MP4s from step 5 do: each sequence under
 
 - `scripts/setup_third_party.sh`, Stage C and therefore steps 4 and 5's bokeh: they need the
   NVIDIA card.
-- `da3-metric-large`: not downloaded on the Apple machine, to spare its memory.
+- The script over every depth estimator. Only `da2-small` has gone through it. The others would
+  have downloaded 5.97 GiB of checkpoints to the Apple machine.
+- `da3-metric-large` anywhere, for the same reason.
 - The CUDA paths of the device check, its VRAM figures and its peak memory.
