@@ -105,6 +105,8 @@ test("generates from the depth estimator picked", async ({ page }) => {
 test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  // A seed of its own: the other tests share seed 0, and this one writes into its sequence.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("7");
   const generate = page.getByRole("button", { name: "Generate sequence" });
   await generate.click();
   const videos = page.locator("video");
