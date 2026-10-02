@@ -1,7 +1,7 @@
 "use client";
 
 import type { LibraryInfo, SequenceParams } from "@/lib/api";
-import { estimatorName } from "@/lib/api";
+import { estimatorName, libraryDirectory } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,14 +86,12 @@ export function Controls({
           </SelectTrigger>
           <SelectContent>
             {libraries.map((lib) => {
-              const estimator = estimatorName(lib);
+              const directory = libraryDirectory(lib);
               return (
                 <SelectItem key={lib.id} value={lib.id}>
-                  {estimator}
-                  {/* Only when it adds something: a directory is often named
-                      after its estimator. */}
-                  {lib.name !== estimator && (
-                    <span className="text-muted-foreground">{lib.name}</span>
+                  {estimatorName(lib)}
+                  {directory && (
+                    <span className="text-muted-foreground">{directory}</span>
                   )}
                 </SelectItem>
               );
