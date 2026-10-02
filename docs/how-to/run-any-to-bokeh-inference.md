@@ -25,9 +25,9 @@ uv run --extra render python -m video_bokeh.render.run --data-root data/demo
 ```
 
 It keeps its inputs and the script's `output/` in a temporary directory, so the submodule stays
-clean, and it checks that every sequence got back as many frames as it sent. It refuses a sequence of
-twelve frames or fewer before the model loads, because any-to-bokeh fails on it. Flags are in
-[[cli]]. The stream is in [[dataset-layout]].
+clean, and it checks that every sequence got back as many frames as it sent. Before the model
+loads, it refuses a batch holding a sequence of twelve frames or fewer, because any-to-bokeh
+fails on such a sequence. Flags are in [[cli]]. The stream is in [[dataset-layout]].
 
 **This has not run to completion yet.** On a machine without the any-to-bokeh venv it stops
 before converting anything:

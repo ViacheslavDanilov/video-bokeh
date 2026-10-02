@@ -216,10 +216,10 @@ under the union of the object mattes. `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2
 at another checkout or interpreter.
 
 **any-to-bokeh needs thirteen frames or more per sequence.** It groups frames eight at a time,
-four overlapping. Its dataset cannot group eight frames or fewer, and its pipeline drops the
+four overlapping. Its dataset cannot group eight frames or fewer. Its pipeline drops the
 trailing frames of a sequence that makes exactly two groups, nine to twelve frames. One such
 sequence would fail the whole batch after the model has loaded, so the renderer refuses the
-batch first and names it.
+whole batch before it starts and names each short sequence.
 
 ### Your own renderer
 

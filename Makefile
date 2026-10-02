@@ -12,6 +12,9 @@ MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolut
 # depth estimator, which is what the page's picker chooses between.
 LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library
 ESTIMATORS := da2-large da3-mono-large depth-pro
+# Passed to every Stage A build, e.g. "--subjects , --styles , --subject-thr 0" for no
+# class filter.
+BUILD_FLAGS ?=
 
 help: ## List the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z]+:.*## / {printf "  make %-9s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -30,12 +33,12 @@ libraries: ## Build one library per depth estimator into LIBRARY (da3 needs scri
 	  rm -rf "$$out/.$$estimator" && \
 	  (cd backend && uv run --extra library python -m video_bokeh.library.build \
 	    --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-	    --output "$$out/.$$estimator" --model $$estimator) && \
+	    --output "$$out/.$$estimator" --model $$estimator $(BUILD_FLAGS)) && \
 	  mv "$$out/.$$estimator" "$$out/$$estimator" || exit 1; \
 	done
 
 api: ## Serve the API on :8000 from LIBRARY (default: the main checkout's libraries)
-	cd backend && VIDEO_BOKEH_LIBRARY="$(LIBRARY)" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
+	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 
 web: ## Serve the page on :3000
 	cd frontend && pnpm dev
