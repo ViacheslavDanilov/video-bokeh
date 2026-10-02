@@ -64,7 +64,7 @@ export function Viewer({
   generating,
 }: {
   sequence: Sequence | null;
-  /** The depth estimator of the library this sequence came from. */
+  /** The library this sequence came from, named by its depth estimator. */
   estimator: string;
   generating: boolean;
 }) {

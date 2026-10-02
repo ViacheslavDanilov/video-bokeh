@@ -93,6 +93,15 @@ export function estimatorName(library: LibraryInfo | null): string {
   return library?.depth_estimator ?? "unknown estimator";
 }
 
+/** How the page names a library outside the picker: its estimator, and its directory too
+ *  when that says more, so two libraries from one estimator are told apart. */
+export function libraryLabel(library: LibraryInfo | null): string {
+  const estimator = estimatorName(library);
+  return library && library.name !== estimator
+    ? `${estimator}, ${library.name}`
+    : estimator;
+}
+
 /** Every mounted library, in the order the picker lists them. */
 export async function fetchLibraries(
   signal?: AbortSignal,

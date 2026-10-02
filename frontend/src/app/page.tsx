@@ -9,6 +9,7 @@ import {
   createSequence,
   estimatorName,
   fetchLibraries,
+  libraryLabel,
 } from "@/lib/api";
 
 const DEFAULTS: SequenceParams = {
@@ -110,7 +111,7 @@ export default function Page() {
           )}
           <Viewer
             sequence={sequence}
-            estimator={estimatorName(shown)}
+            estimator={libraryLabel(shown)}
             generating={busy}
           />
         </section>
