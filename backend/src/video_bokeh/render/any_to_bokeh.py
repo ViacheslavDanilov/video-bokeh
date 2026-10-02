@@ -46,6 +46,7 @@ class AnyToBokeh:
     """
 
     name: ClassVar[str] = "any-to-bokeh"
+    min_frames: ClassVar[int] = _MIN_FRAMES
 
     def render(
         self,
