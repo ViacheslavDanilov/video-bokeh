@@ -186,17 +186,19 @@ for estimator in ${READY[@]+"${READY[@]}"}; do
     fi
     # Different settings or an unfinished set: start over, bokeh included.
     rm -rf "$dest"
-    if timed "sequences, $estimator" uv run --directory "$BACKEND" \
+    generated=0
+    timed "sequences, $estimator" uv run --directory "$BACKEND" \
         python -m video_bokeh.scenes.generate --library-root "$OUT/libraries/$estimator" \
-        --output "$dest" --count "$COUNT" --frames "$FRAMES" --size "$SIZE" --seed 0 &&
+        --output "$dest" --count "$COUNT" --frames "$FRAMES" --size "$SIZE" --seed 0 ||
+        generated=$?
+    if [ "$generated" -ne 0 ]; then
+        FAILED+=("sequences $estimator")
+    elif [ ! -d "$dest/sequences" ]; then
         # Stage B exits 0 having written nothing when every seed runs out of retries.
-        [ -d "$dest/sequences" ]; then
-        echo "$SETTINGS" > "$dest/.lab-settings"
-        GENERATED+=("$estimator")
-    elif [ -d "$dest" ] && [ ! -d "$dest/sequences" ]; then
         FAILED+=("sequences $estimator: Stage B wrote none")
     else
-        FAILED+=("sequences $estimator")
+        echo "$SETTINGS" > "$dest/.lab-settings"
+        GENERATED+=("$estimator")
     fi
 done
 
