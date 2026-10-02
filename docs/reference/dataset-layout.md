@@ -148,15 +148,16 @@ One row per written sequence.
 | column | meaning |
 |---|---|
 | `seq_id` | the directory name under `sequences/` |
-| `seed` | `seed + i`. The sequence is fully reproducible from this plus the library |
+| `seed` | `seed + i`. The sequence is fully reproducible from this, the library and the run's settings |
 | `n_frames` | frames written |
 | `size` | square frame side in pixels |
 | `n_objects` | objects actually placed |
 | `n_rejections` | trajectory sets discarded by the collision validator |
 | `n_range_fallbacks` | objects forced to hold their start scale because no end pose fit |
 
-`seed` makes the dataset reproducible rather than merely archived: the library plus a manifest
-regenerates every sequence exactly.
+`seed` makes the dataset reproducible rather than merely archived: the library plus a manifest,
+which records the frame count and size beside each seed, regenerates every sequence exactly when
+the run's other settings, the object range and the sampling configuration, are the same.
 
 ---
 

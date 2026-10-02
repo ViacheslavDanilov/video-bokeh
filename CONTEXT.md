@@ -45,13 +45,13 @@ _Avoid_: core mask, valid region
 
 **Scene**:
 The sampled setup a sequence is rendered from: its background, its objects with their
-trajectories, the frame count and the size — everything the seed decides before a frame is
-drawn.
+trajectories, the frame count and the size — everything the seed and the run's settings decide
+before a frame is drawn.
 _Avoid_: layout, plan
 
 **Sequence**:
 One generated clip: a scene rendered frame by frame into streams, fully determined by its
-seed and the library.
+seed, the library and the run's settings.
 _Avoid_: clip, video
 
 **Frame**:
@@ -118,8 +118,8 @@ The far-to-near order in which objects are composited, recomputed on every frame
 _Avoid_: z-order, layer order
 
 **Seed**:
-The integer that picks a sequence. Together with the library, the frame count, the frame size
-and the range of object counts, it determines the sequence exactly.
+The integer that picks a sequence. Together with the library and the run's settings, it
+determines the sequence exactly.
 
 **Dataset**:
 The sequences Stage B writes, with their manifest.
