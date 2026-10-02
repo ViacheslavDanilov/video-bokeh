@@ -101,7 +101,10 @@ def main(argv: list[str] | None = None) -> int:
         if unfinished.is_dir():
             print(f"  skip {unfinished.name}: still being written")
     if not seq_dirs:
-        raise SystemExit(f"no sequences to render under {args.data_root / 'sequences'}")
+        if args.missing:
+            print(f"Nothing to render: no finished sequences under {seq_root} yet.")
+            return 0
+        raise SystemExit(f"no sequences to render under {seq_root}")
 
     renderer = resolve_renderer(args.renderer)()
     if args.missing:
