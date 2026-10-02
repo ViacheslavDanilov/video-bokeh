@@ -250,8 +250,17 @@ def test_missing_with_nothing_left_starts_nothing(
 def test_a_sequence_still_being_written_is_not_a_sequence(
     dataset: Path,
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """The API generates into `.tmp-*` beside the finished ones and renames it."""
     _write_sequence(dataset / "sequences" / ".tmp-abc123")
     assert cli.main(["--data-root", str(dataset)]) == 0
     assert _rendered(tmp_path) == ["0001", "0002"]
+    assert ".tmp-abc123: still being written" in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_missing_before_the_page_made_anything_renders_nothing(
+    tmp_path: Path,
+) -> None:
+    assert cli.main(["--data-root", str(tmp_path / "empty"), "--missing"]) == 0

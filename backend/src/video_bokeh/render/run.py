@@ -91,7 +91,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.focus_disparity is not None and not 0 <= args.focus_disparity <= 1:
         parser.error("--focus-disparity must be in [0, 1]")
+    seq_root = args.data_root / "sequences"
+    if args.missing and not seq_root.is_dir():
+        # A page that has generated nothing yet, not a mistake.
+        print(f"Nothing to render: no sequences under {seq_root} yet.")
+        return 0
     seq_dirs = list_sequences(args.data_root, args.seqs)
+    for unfinished in sorted(seq_root.glob(".*")):
+        if unfinished.is_dir():
+            print(f"  skip {unfinished.name}: still being written")
     if not seq_dirs:
         raise SystemExit(f"no sequences to render under {args.data_root / 'sequences'}")
 
