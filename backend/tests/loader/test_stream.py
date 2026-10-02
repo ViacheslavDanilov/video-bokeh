@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from itertools import islice
 from pathlib import Path
 
@@ -164,3 +165,21 @@ def test_a_stream_that_can_place_nothing_fails_instead_of_spinning(
     monkeypatch.setattr(mod, "sample_sequence", never)
     with pytest.raises(RuntimeError, match="100 seeds in a row"):
         next(iter(_stream(library)))
+
+
+def test_a_path_that_is_not_a_library_is_refused_up_front(tmp_path: Path) -> None:
+    """At construction, in the training process, rather than as a SystemExit inside a
+    DataLoader worker once iteration starts.
+    """
+    with pytest.raises(ValueError, match="nothing-here"):
+        SequenceStream(tmp_path / "nothing-here", n_frames=4, size=32)
+
+
+def test_a_library_without_backgrounds_is_refused_up_front(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    half = tmp_path / "half"
+    shutil.copytree(library / "foregrounds", half / "foregrounds")
+    with pytest.raises(ValueError, match="backgrounds"):
+        SequenceStream(half, n_frames=4, size=32)
