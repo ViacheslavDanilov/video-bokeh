@@ -110,7 +110,7 @@ if [ "$START_FROM" -le 4 ]; then
     if [ -d "$SVD_CACHE" ]; then
         echo "[4/4] SVD base model already cached at $SVD_CACHE — skipping"
     else
-        echo "[4/4] Downloading SVD base model ($SVD_REPO) from Hugging Face (~10 GB, fp16)"
+        echo "[4/4] Downloading SVD base model ($SVD_REPO) from Hugging Face (4.2 GiB of fp16 weights)"
         "$VENV/bin/python" -c "
 from diffusers import StableVideoDiffusionPipeline
 import torch

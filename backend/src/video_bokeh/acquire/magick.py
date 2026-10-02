@@ -126,7 +126,8 @@ def main() -> int:
 
     metadata_out = args.output / "metadata.csv"
     with metadata_out.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        # LF, the endings the tracked dev pool is committed with.
+        writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         for row in downloaded:
             writer.writerow({k: row.get(k, "") for k in fieldnames})

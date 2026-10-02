@@ -55,6 +55,7 @@ import imageio.v2 as iio
 import numpy as np
 from PIL import Image
 
+from video_bokeh.core._seq_io import list_sequences
 from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
 from video_bokeh.preview._colormap import COLORMAPS, apply_colormap
 from video_bokeh.preview._masks import render_object_masks
@@ -62,21 +63,6 @@ from video_bokeh.preview._masks import render_object_masks
 # --------------------------------------------------------------------------- #
 # I/O                                                                         #
 # --------------------------------------------------------------------------- #
-
-
-def list_sequences(root: Path, seqs: list[str] | None) -> list[Path]:
-    seq_root = root / "sequences"
-    if not seq_root.exists():
-        raise FileNotFoundError(f"sequences dir missing: {seq_root}")
-    dirs = sorted(p for p in seq_root.iterdir() if p.is_dir())
-    if seqs is None:
-        return dirs
-    wanted = set(seqs)
-    picked = [p for p in dirs if p.name in wanted]
-    missing = wanted - {p.name for p in picked}
-    if missing:
-        raise SystemExit(f"sequences not found under {seq_root}: {sorted(missing)}")
-    return picked
 
 
 #: What each stream is stored as. Alpha is multi-page TIFF because it carries one page

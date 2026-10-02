@@ -221,7 +221,8 @@ distance is read.
 drift from what the video paints.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
-file read.
+file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
+run a second time replaces `bokeh/`, and the page plays the new render once reloaded.
 
 **`?colormap=` applies to `disparity` only.** It is 16-bit greyscale on disk and gets its
 colour when served, so `spectral_r` (the default, matching what `video_bokeh.preview.pack`

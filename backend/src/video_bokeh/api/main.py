@@ -302,12 +302,12 @@ def read_sequence_video(
     video = sequence_dir / f"{stream}{suffix}.mp4"
     # Re-encoded when the frames are newer than the video: Stage C run again replaces
     # bokeh/ whole, and the encode of the first render would otherwise be served for good.
+    # The ctime too, because Stage C renames bokeh/ into place and a rename moves only that.
     frames_dir = sequence_dir / stream
-    stale = (
-        video.is_file()
-        and frames_dir.is_dir()
-        and frames_dir.stat().st_mtime > video.stat().st_mtime
-    )
+    stale = False
+    if video.is_file() and frames_dir.is_dir():
+        changed = frames_dir.stat()
+        stale = max(changed.st_mtime, changed.st_ctime) > video.stat().st_mtime
     if not video.is_file() or stale:
         frames = list_stream_frames(sequence_dir, stream)
         if not frames:

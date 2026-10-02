@@ -123,11 +123,21 @@ def test_environment_names_the_setup_script_when_the_venv_is_missing(
     assert "setup_depth_anything_3.sh" in problem
 
 
-def test_environment_is_ready_once_the_interpreter_exists(
+@pytest.mark.usefixtures("fake_worker")
+def test_environment_is_ready_once_the_package_imports() -> None:
+    assert mod.DepthAnything3MonoLarge.environment_problem() is None
+
+
+def test_a_venv_without_the_package_is_not_ready(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """A half-built venv has the interpreter and not the package; the check imports it."""
     monkeypatch.setenv("VIDEO_BOKEH_DA3_PYTHON", sys.executable)
-    assert mod.DepthAnything3MonoLarge.environment_problem() is None
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+    problem = mod.DepthAnything3MonoLarge.environment_problem()
+    assert problem is not None
+    assert "depth_anything_3" in problem
+    assert "setup_depth_anything_3.sh" in problem
 
 
 def test_each_name_loads_its_own_checkpoint() -> None:

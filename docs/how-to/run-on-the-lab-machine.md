@@ -22,8 +22,9 @@ run anywhere yet.
 1. `make setup` installs every backend extra, the frontend and the smoke test's browser. Run
    here.
 2. `scripts/setup_third_party.sh` checks out any-to-bokeh, builds its Python 3.10 venv and
-   downloads its checkpoints and the Stable Video Diffusion base model, about 10 GB. It needs
-   an NVIDIA card and has not run yet. [[run-any-to-bokeh-inference]] has the details.
+   downloads its checkpoints and the Stable Video Diffusion base model, 4.2 GiB of fp16
+   weights by the Hub's metadata on 2026-10-02. It needs an NVIDIA card and has not run yet.
+   [[run-any-to-bokeh-inference]] has the details.
 3. `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in.
    Run here. [[cli]], section "Depth Anything 3's own environment", says what it leaves out.
 4. `uv run --directory backend --extra library python -m video_bokeh.library.check` says

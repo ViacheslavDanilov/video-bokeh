@@ -264,3 +264,13 @@ def test_missing_before_the_page_made_anything_renders_nothing(
     tmp_path: Path,
 ) -> None:
     assert cli.main(["--data-root", str(tmp_path / "empty"), "--missing"]) == 0
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_missing_over_a_page_still_writing_its_first_renders_nothing(
+    tmp_path: Path,
+) -> None:
+    """The API makes sequences/ before its first generation is renamed into place."""
+    root = tmp_path / "api"
+    _write_sequence(root / "sequences" / ".tmp-first")
+    assert cli.main(["--data-root", str(root), "--missing"]) == 0
