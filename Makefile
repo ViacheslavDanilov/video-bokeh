@@ -3,7 +3,7 @@
 # frontend/AGENTS.md. `make` alone lists the targets.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup libraries api web smoke test check
+.PHONY: help setup libraries api bokeh web smoke test check
 
 # The libraries live under backend/data/, which is not in git, so a second worktree has
 # none of its own. Resolve them against the main checkout, which every worktree shares.
@@ -39,6 +39,12 @@ libraries: ## Build one library per depth estimator into LIBRARY (da3 needs scri
 
 api: ## Serve the API on :8000 from LIBRARY (default: the main checkout's libraries)
 	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
+
+# The data root the API writes sequences under, VIDEO_BOKEH_DATA_ROOT or backend/data as
+# make api leaves it, so this renders whatever the page has generated since the last run.
+bokeh: ## Render bokeh for the sequences the page generated (NVIDIA only; setup_third_party.sh first)
+	cd backend && uv run --extra render python -m video_bokeh.render.run \
+	  --data-root "$${VIDEO_BOKEH_DATA_ROOT:-data}" --missing
 
 web: ## Serve the page on :3000
 	cd frontend && pnpm dev
