@@ -521,3 +521,29 @@ def test_a_re_render_replaces_the_cached_bokeh_video(
     os.utime(sequence_dir / "bokeh", (later, later))
 
     assert client.get(f"/sequences/{sid}/bokeh.mp4").content != first
+
+
+def test_a_re_render_renamed_into_place_after_an_encode_is_still_caught(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Stage C writes bokeh under a staging name and renames it, and a rename leaves the
+    directory's mtime where the last frame put it. A video encoded in between is newer
+    than that mtime, so only the ctime the rename sets tells the new render apart.
+    """
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    sequence_dir = tmp_path / "sequences" / sid
+    render_fake_bokeh(sequence_dir)
+    staging = sequence_dir / ".bokeh-next"
+    staging.mkdir()
+    for frame in (sequence_dir / "bokeh").iterdir():
+        Image.new("RGB", Image.open(frame).size, (255, 0, 0)).save(staging / frame.name)
+    finished = staging.stat().st_mtime
+
+    first = client.get(f"/sequences/{sid}/bokeh.mp4").content
+    # The staging directory's frames were all written before that encode.
+    os.utime(staging, (finished - 10, finished - 10))
+    shutil.rmtree(sequence_dir / "bokeh")
+    staging.rename(sequence_dir / "bokeh")
+
+    assert client.get(f"/sequences/{sid}/bokeh.mp4").content != first
