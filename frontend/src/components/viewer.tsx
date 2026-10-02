@@ -60,12 +60,12 @@ function initialPanes(streams: string[]): Pane[] {
 
 export function Viewer({
   sequence,
-  estimator,
+  library,
   generating,
 }: {
   sequence: Sequence | null;
-  /** The library this sequence came from, named by its depth estimator. */
-  estimator: string;
+  /** The library this sequence came from, as the page names libraries. */
+  library: string;
   generating: boolean;
 }) {
   const names = sequence ? Object.keys(sequence.streams) : [];
@@ -444,8 +444,8 @@ export function Viewer({
           <dd className="text-foreground font-mono">{sequence.id}</dd>
         </div>
         <div className="flex gap-2">
-          <dt>depth estimator</dt>
-          <dd className="text-foreground font-mono">{estimator}</dd>
+          <dt>library</dt>
+          <dd className="text-foreground font-mono">{library}</dd>
         </div>
         <div className="flex gap-2">
           <dt>objects</dt>
