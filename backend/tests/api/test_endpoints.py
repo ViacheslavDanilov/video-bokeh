@@ -166,14 +166,14 @@ def test_generates_a_sequence_and_lists_its_streams(client: TestClient) -> None:
     )
 
 
-def test_the_manifest_says_which_streams_take_a_colormap(client: TestClient) -> None:
+def test_the_stream_info_says_which_streams_take_a_colormap(client: TestClient) -> None:
     """The client reads this instead of knowing the stream names, so bokeh can join later."""
     streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
     assert streams["disparity"]["colormaps"] == ["grey", "spectral_r"]
     assert streams["all_in_focus"]["colormaps"] == []
 
 
-def test_the_manifest_names_the_colormap_the_url_already_uses(
+def test_the_stream_info_names_the_colormap_the_url_already_uses(
     client: TestClient,
 ) -> None:
     """Named, not inferred from the order of `colormaps`: adding one whose name sorts
@@ -467,7 +467,7 @@ def test_a_sequence_has_no_bokeh_until_stage_c_renders_it(client: TestClient) ->
     assert "bokeh" not in streams
 
 
-def test_bokeh_joins_the_manifest_once_rendered(
+def test_bokeh_joins_the_streams_once_rendered(
     client: TestClient,
     tmp_path: Path,
 ) -> None:

@@ -150,7 +150,7 @@ test("lists a library built while the page is open", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
 
-  // Last in the file and removed again, because the tests above expect two libraries.
+  // Removed again, because the other tests expect exactly two libraries.
   const extra = path.join(LIBRARIES, "extra");
   try {
     execFileSync("uv", [

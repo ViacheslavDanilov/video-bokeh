@@ -161,9 +161,9 @@ curl -X POST http://localhost:8000/sequences \
 }
 ```
 
-**`streams` is a manifest, not a list of URLs.** Each entry says how that stream can be
-displayed, and `colormaps` is empty when the stream is already RGB. A client that renders what
-the manifest reports needs no change when a stream is added. `bokeh` appears here once Stage C
+**Each entry of `streams` is stream info: how the stream can be displayed, not only where it
+is.** `colormaps` is empty when the stream is already RGB. A client that renders
+what `streams` lists needs no change when a stream is added. `bokeh` appears here once Stage C
 has rendered the sequence, with no colormaps, after the three every sequence has.
 
 **`library` may be left out only while one library is mounted.** With several, leaving it out
@@ -261,8 +261,9 @@ Deliberate, and worth knowing before the library or the audience grows.
 
 **Nothing evicts `sequences/`.** It grows until someone deletes it. A sequence of 80 frames at 512
 is about 44 MB, so a thousand of them is about 43 GB. Deleting the directory is safe: every
-sequence is reproducible from its library and its seed, which is the same reason
-[[dataset-layout]] treats frames as disposable and the library as the thing to keep.
+sequence is reproducible from its library, its seed and the settings its request named, which
+`sequence.json` records. That is the same reason [[dataset-layout]] treats frames as
+disposable and the library as the thing to keep.
 
 **The libraries are re-read on every request.** Per library, two directory listings, one small
 JSON and one image header, so that `/libraries` and `/sequences` always reflect what is mounted

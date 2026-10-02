@@ -97,7 +97,7 @@ def test_matches_what_the_cli_writes_for_the_same_seed(
 ) -> None:
     """The API and video_bokeh.scenes.generate must not drift into different sequences.
 
-    They share sample_n_objects for exactly this reason: a seed that means four
+    They share sample_sequence for exactly this reason: a seed that means four
     objects on the command line has to mean four objects over HTTP.
     """
     from video_bokeh.scenes.generate import generate_dataset
