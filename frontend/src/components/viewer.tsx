@@ -105,6 +105,27 @@ export function Viewer({
     setPanes(initialPanes(names));
   }
 
+  // A stream the manifest did not list before gets a pane of its own while there is room:
+  // bokeh appears this way, once Stage C has rendered a sequence and it is asked for again.
+  // Only a stream new to the manifest, so a pane the person closed stays closed.
+  const [knownStreams, setKnownStreams] = useState<string[]>([]);
+  if (names.join(",") !== knownStreams.join(",")) {
+    setKnownStreams(names);
+    const appeared = names.filter(
+      (n) => !knownStreams.includes(n) && !panes.some((p) => p.stream === n),
+    );
+    if (panes.length > 0 && appeared.length > 0) {
+      const room = MAX_PANES - panes.length;
+      const nextKey = Math.max(0, ...panes.map((p) => p.key)) + 1;
+      setPanes([
+        ...panes,
+        ...appeared
+          .slice(0, room)
+          .map((stream, i) => ({ key: nextKey + i, stream, colormap: "" })),
+      ]);
+    }
+  }
+
   // A pane naming a stream this sequence does not have falls back to the first one. Derived
   // rather than stored, so no state has to be repaired when the manifest changes.
   const streamFor = (pane: Pane) =>
