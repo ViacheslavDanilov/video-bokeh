@@ -161,9 +161,9 @@ curl -X POST http://localhost:8000/sequences \
 }
 ```
 
-**`streams` is a manifest, not a list of URLs.** Each entry says how that stream can be
-displayed, and `colormaps` is empty when the stream is already RGB. A client that renders what
-the manifest reports needs no change when a stream is added. `bokeh` appears here once Stage C
+**`streams` describes each stream, not only where it is.** Each entry says how that stream can
+be displayed, and `colormaps` is empty when the stream is already RGB. A client that renders
+what `streams` lists needs no change when a stream is added. `bokeh` appears here once Stage C
 has rendered the sequence, with no colormaps, after the three every sequence has.
 
 **`library` may be left out only while one library is mounted.** With several, leaving it out

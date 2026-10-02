@@ -128,7 +128,7 @@ export function Viewer({
   }
 
   // A pane naming a stream this sequence does not have falls back to the first one. Derived
-  // rather than stored, so no state has to be repaired when the manifest changes.
+  // rather than stored, so no state has to be repaired when the streams listed change.
   const streamFor = (pane: Pane) =>
     sequence && pane.stream in sequence.streams
       ? pane.stream
