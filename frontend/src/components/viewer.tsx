@@ -15,8 +15,8 @@ import { Slider } from "@/components/ui/slider";
 import { ObjectLegend } from "./object-legend";
 import { SpectralScale } from "./spectral-scale";
 
-// Four: the frame, the masks, the depth, and the bokeh render once that container
-// exists. Past four the panes are too small to judge anything on a laptop.
+// Four: the frame, the masks, the depth, and the bokeh once Stage C has rendered it. Past
+// four the panes are too small to judge anything on a laptop.
 const MAX_PANES = 4;
 
 // Independent <video> elements drift apart as they play -- measured at about 1.75
@@ -105,17 +105,18 @@ export function Viewer({
     setPanes(initialPanes(names));
   }
 
-  // A stream the manifest did not list before gets a pane of its own while there is room:
-  // bokeh appears this way, once Stage C has rendered a sequence and it is asked for again.
-  // Only a stream new to the manifest, so a pane the person closed stays closed.
+  // A stream the server did not list for the last sequence gets a pane of its own while
+  // there is room: bokeh appears this way, once Stage C has rendered a sequence and it is
+  // asked for again. Only a stream new since the last sequence, so a closed pane stays
+  // closed while the streams do not change.
   const [knownStreams, setKnownStreams] = useState<string[]>([]);
   if (names.join(",") !== knownStreams.join(",")) {
     setKnownStreams(names);
     const appeared = names.filter(
       (n) => !knownStreams.includes(n) && !panes.some((p) => p.stream === n),
     );
-    if (panes.length > 0 && appeared.length > 0) {
-      const room = MAX_PANES - panes.length;
+    const room = MAX_PANES - panes.length;
+    if (panes.length > 0 && appeared.length > 0 && room > 0) {
       const nextKey = Math.max(0, ...panes.map((p) => p.key)) + 1;
       setPanes([
         ...panes,
