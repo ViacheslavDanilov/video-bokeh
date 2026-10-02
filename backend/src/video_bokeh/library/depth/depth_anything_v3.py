@@ -77,7 +77,9 @@ class DepthAnything3Estimator:
         except RuntimeError as exc:
             return str(exc)
         result = subprocess.run(
-            [str(python), "-c", _IMPORT_CHECK],
+            # -P keeps the working directory off sys.path, where a folder named like the
+            # package would stand in for it, as the worker's own `del sys.path[0]` does.
+            [str(python), "-P", "-c", _IMPORT_CHECK],
             capture_output=True,
             text=True,
             check=False,
