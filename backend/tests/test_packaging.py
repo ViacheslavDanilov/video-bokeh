@@ -47,3 +47,15 @@ def test_dockerfile_installs_the_api_extra() -> None:
     )
     assert "--extra api" in dockerfile, "the image would ship without the pipeline"
     assert "video_bokeh.api.main:app" in dockerfile
+
+
+def test_dockerfile_installs_the_locked_versions() -> None:
+    """Without uv.lock every build resolves afresh and ships whatever is newest that day."""
+    dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(
+        encoding="utf-8",
+    )
+    lines = dockerfile.splitlines()
+    assert any(line.startswith("COPY") and "uv.lock" in line for line in lines)
+    syncs = [line for line in lines if "uv sync" in line]
+    assert syncs
+    assert all("--locked" in line for line in syncs)

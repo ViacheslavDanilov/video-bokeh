@@ -13,7 +13,11 @@ services:
     - api
 
   api:
-    build: ./backend
+    # From the repository root, where uv.lock is. backend/Dockerfile.dockerignore keeps
+    # the context to what the image copies.
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     image: video-bokeh-api
     container_name: video-bokeh-api
     ports:
