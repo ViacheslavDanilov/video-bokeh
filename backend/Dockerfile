@@ -1,3 +1,6 @@
+# Built from the repository root, where the workspace's uv.lock is:
+#   docker build -t video-bokeh-api -f backend/Dockerfile .
+# backend/Dockerfile.dockerignore keeps that context to the files copied below.
 FROM python:3.13-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,15 +10,20 @@ WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install dependencies (cached layer)
-COPY pyproject.toml ./
-RUN uv sync --extra api --no-dev --no-install-project
+# Install dependencies (cached layer). --locked installs the versions in uv.lock, and
+# fails the build when the lock no longer matches pyproject.toml.
+COPY pyproject.toml uv.lock ./
+COPY backend/pyproject.toml backend/
+RUN uv sync --locked --package video-bokeh --extra api --no-dev --no-install-project
 
 # Copy application code
-COPY src/ src/
+COPY backend/src/ backend/src/
 
 # Install the project itself
-RUN uv sync --extra api --no-dev
+RUN uv sync --locked --package video-bokeh --extra api --no-dev
+
+# The API runs from backend/, as it does outside the container.
+WORKDIR /app/backend
 
 EXPOSE 8000
 

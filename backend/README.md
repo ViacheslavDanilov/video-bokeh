@@ -133,8 +133,8 @@ docker compose up --build
 To build and run this service on its own:
 
 ```bash
-# From backend/ directory
-docker build -t video-bokeh-api .
+# From the repository root, where uv.lock is
+docker build -t video-bokeh-api -f backend/Dockerfile .
 docker run -p 8000:8000 video-bokeh-api
 ```
 

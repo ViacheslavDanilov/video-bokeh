@@ -1,0 +1,10 @@
+# backend/Dockerfile builds from the repository root, which also holds the data, the
+# models, node_modules and every venv. BuildKit reads this file in place of a root
+# .dockerignore for that Dockerfile, and lets in only what it copies.
+*
+!pyproject.toml
+!uv.lock
+!backend/pyproject.toml
+!backend/src
+**/__pycache__
+**/*.pyc

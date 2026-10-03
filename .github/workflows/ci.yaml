@@ -177,7 +177,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Build backend image
-      run: docker build -t video-bokeh-api ./backend
+      run: docker build -t video-bokeh-api -f backend/Dockerfile .
 
     - name: Build frontend image
       run: docker build -t video-bokeh-web ./frontend
