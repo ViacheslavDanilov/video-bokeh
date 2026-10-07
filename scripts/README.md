@@ -13,7 +13,7 @@ scripts/setup_third_party.sh
 What it does:
 
 1. `git submodule update --init --recursive` to pull `backend/third_party/any-to-bokeh/`.
-2. Creates the venv, installs PyTorch 2.4.1 with CUDA 12.4 wheels (override via `CUDA_INDEX_URL=https://download.pytorch.org/whl/cuXYZ`), then installs `any-to-bokeh/requirements.txt`.
+2. Creates the venv, installs PyTorch 2.7.1 with CUDA 12.8 wheels; 2.7 is the first release with kernels for Blackwell cards such as the RTX 5090 (`CUDA_INDEX_URL` overrides the index, but only `cu118`, `cu126` and `cu128` carry 2.7.1, and a Blackwell card needs `cu128`), then installs `any-to-bokeh/requirements.txt`.
 3. Downloads the UNet + VAE checkpoints from Google Drive via `uvx gdown` into `backend/third_party/any-to-bokeh/checkpoints/{unet,vae}/`. This path matches `inference_demo.py`'s defaults and is gitignored by the a2b submodule. If `gdown` fails (Drive rate-limit, auth, or quota), the script prints a manual fallback URL.
 4. Downloads the Stable Video Diffusion base model (`stabilityai/stable-video-diffusion-img2vid-xt`, 4.2 GiB of fp16 weights by the Hub's metadata) from Hugging Face into `$HF_HOME`. The a2b inference script loads it with `local_files_only=True`, so it **must** be cached before running inference. If you've gated the model, run `huggingface-cli login` before the setup script.
 
