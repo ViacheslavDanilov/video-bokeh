@@ -4,8 +4,8 @@ The vendored code needs Python 3.10, ``transformers==4.32.1`` and an NVIDIA card
 runs under the venv ``scripts/setup_third_party.sh`` builds, as one program per batch of
 sequences. Its inputs and its ``output/`` go to a temporary directory, so the read-only
 submodule stays clean. ``_a2b_launch.py`` starts the demo, with its VAE encoder taking a
-few frames per call so that it fits a 32 GiB card. ``VIDEO_BOKEH_A2B_ROOT`` and ``VIDEO_BOKEH_A2B_PYTHON`` point at
-another checkout or interpreter.
+few frames per call so that it fits a 32 GiB card. ``VIDEO_BOKEH_A2B_ROOT`` and
+``VIDEO_BOKEH_A2B_PYTHON`` point at another checkout or interpreter.
 
 The demo writes a lossy mp4 per sequence at a fixed 1024x576. Each frame is resized back
 to the sequence's own size; a lossless path is later work, once a GPU run can check it.

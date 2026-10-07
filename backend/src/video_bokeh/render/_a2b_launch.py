@@ -3,7 +3,8 @@
 Started as ``python _a2b_launch.py <inference_demo.py> <demo arguments>``, it makes the
 VAE encoder take its frames a few at a time and its float32 convolutions exact, moves the
 UNet and the image encoder off the card while the VAE decodes, then runs the demo
-unchanged. None of this changes what is computed, only where and in how many calls.
+unchanged. Chunks, the allocator and the offload change only where and in how many calls
+the work runs; TF32 off makes the encoder's float32 exact, as the demo meant it.
 
 The demo encodes 16 frames at 1024x576 in one call, and the pipeline upcasts the VAE to
 float32 for it. The first down block's activations alone are then 4.5 GiB, and the call

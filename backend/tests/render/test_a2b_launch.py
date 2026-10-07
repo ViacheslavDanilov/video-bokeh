@@ -38,12 +38,12 @@ class _Encoder(nn.Module):
         return self.conv_out(sample)
 
 
-class _Chunked(_Encoder):
-    pass
-
-
 @pytest.fixture
 def encoders() -> tuple[_Encoder, _Encoder]:
+    # A fresh subclass per test, so one test's patch never wraps another's.
+    class _Chunked(_Encoder):
+        pass
+
     torch.manual_seed(0)
     whole = _Encoder().eval()
     chunk_encoder(_Chunked, chunk=4)
