@@ -55,17 +55,21 @@ class TransformersDepthEstimator:
     @classmethod
     def environment_problem(cls) -> str | None:
         """Why this estimator cannot run here, or None. In process it needs nothing."""
-        if runner() == "local":
-            return None
         try:
+            if runner() == "local":
+                return None
             cls._command()
-        except RuntimeError as exc:
+        except (RuntimeError, ValueError, OSError) as exc:
             return str(exc)
         return None
 
     @classmethod
     def _command(cls) -> list[str]:
-        # The local arguments never apply: in process there is no interpreter to find.
+        """``python`` in the family's image. Only for the docker runner: in process there
+        is no interpreter to find, so the local arguments are left empty.
+        """
+        if not cls.docker_image:
+            raise RuntimeError(f"{cls.__name__} names no Docker image to run in")
         return model_command("", Path(), "", cls.docker_image)
 
     def load(self, device: torch.device) -> None:

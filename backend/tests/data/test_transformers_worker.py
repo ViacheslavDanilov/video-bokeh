@@ -60,6 +60,7 @@ class AutoModelForDepthEstimation:
 
     def __call__(self, **inputs):
         print("the model's own logging, on stdout")
+        os.write(1, b"native code writing straight to fd 1\\n")
         return _Outputs()
 """
 
@@ -142,3 +143,17 @@ def test_environment_in_docker_names_the_missing_image(
 def test_in_process_has_no_environment_to_miss(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("VIDEO_BOKEH_RUNNER", raising=False)
     assert ESTIMATORS["da2-small"].environment_problem() is None
+
+
+def test_an_estimator_without_an_image_says_so(
+    fake_docker: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from video_bokeh.library.depth._transformers import TransformersDepthEstimator
+
+    class Mine(TransformersDepthEstimator):
+        name = "mine"
+        hf_model_id = "me/mine"
+
+    problem = Mine.environment_problem()
+    assert problem is not None and "names no Docker image" in problem

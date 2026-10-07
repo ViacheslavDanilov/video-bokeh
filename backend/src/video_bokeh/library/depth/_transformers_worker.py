@@ -12,8 +12,9 @@ import json
 import os
 import sys
 
-# Run as a script, this file's own directory comes first on sys.path, and its siblings
-# are named like the packages it imports.
+# Run as a script, this file's own directory comes first on sys.path. None of its
+# siblings shadows a package imported here, but Depth Anything 3's worker was bitten that
+# way, so the directory goes.
 del sys.path[0]
 
 # fd 1 is the protocol's alone; see the Depth Anything 3 worker for why.
@@ -24,7 +25,7 @@ sys.stdout = sys.stderr
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 from PIL import Image  # noqa: E402
-from transformers import (  # noqa: E402  # ty: ignore[unresolved-import]
+from transformers import (  # noqa: E402
     AutoImageProcessor,
     AutoModelForDepthEstimation,
 )
