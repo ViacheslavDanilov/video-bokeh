@@ -22,7 +22,7 @@ import subprocess
 import sys
 import tempfile
 from collections import deque
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +50,69 @@ def interpreter(env_var: str, default: Path, setup: str) -> Path:
             f"no interpreter at {python}: run {setup}, or set {env_var}",
         )
     return python
+
+
+#: The repository, mounted into every model container. parents[4] is the repository root.
+_REPO = Path(__file__).resolve().parents[4]
+#: Enough for the any-to-bokeh demo's data loader, which starts 64 worker processes that
+#: share tensors through /dev/shm; Docker's default is 64 MiB.
+_SHM_SIZE = "16g"
+
+
+def model_command(
+    env_var: str,
+    default: Path,
+    setup: str,
+    image: str,
+    *,
+    mounts: Iterable[Path] = (),
+    workdir: Path | None = None,
+) -> list[str]:
+    """The command a model's own Python runs under, by ``VIDEO_BOKEH_RUNNER``.
+
+    ``local``, the default, is the interpreter ``interpreter`` finds. ``docker`` is
+    ``python`` in ``image``, with the GPU. The repository, the temporary directory, the
+    Hugging Face cache and ``mounts`` are mounted at their own paths, so a path means the
+    same inside and out, and the container runs as this user, so what it writes is ours.
+    ``workdir`` is where it starts. Raises before anything starts when the venv or the
+    image is missing.
+    """
+    runner = os.environ.get("VIDEO_BOKEH_RUNNER", "local")
+    if runner == "local":
+        return [str(interpreter(env_var, default, setup))]
+    if runner != "docker":
+        raise ValueError(f"VIDEO_BOKEH_RUNNER must be local or docker, not {runner!r}")
+    found = subprocess.run(
+        ["docker", "image", "inspect", image],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if found.returncode != 0:
+        raise RuntimeError(f"no Docker image {image}: run make images")
+    hf_home = Path(
+        os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"),
+    ).absolute()
+    hf_home.mkdir(parents=True, exist_ok=True)
+    argv = ["docker", "run", "--rm", "-i", "--init", "--gpus", "all"]
+    argv += [f"--shm-size={_SHM_SIZE}", "--user", f"{os.getuid()}:{os.getgid()}"]
+    argv += ["-e", f"HF_HOME={hf_home}", "-e", f"HOME={tempfile.gettempdir()}"]
+    paths = [_REPO, Path(tempfile.gettempdir()), hf_home, *mounts]
+    for path in _outermost(Path(p).absolute() for p in paths):
+        argv += ["-v", f"{path}:{path}"]
+    if workdir is not None:
+        argv += ["-w", str(Path(workdir).absolute())]
+    return [*argv, image, "python"]
+
+
+def _outermost(paths: Iterable[Path]) -> list[Path]:
+    """Each path once, leaving out any that lies inside another."""
+    unique = sorted(set(paths), key=lambda p: len(p.parts))
+    kept: list[Path] = []
+    for path in unique:
+        if not any(path.is_relative_to(outer) for outer in kept):
+            kept.append(path)
+    return kept
 
 
 def run_script(argv: list[str], cwd: Path) -> None:

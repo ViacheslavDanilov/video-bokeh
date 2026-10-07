@@ -1,0 +1,4 @@
+# Built from the repository root, which holds the data, the checkpoints and every venv.
+# Only the file the Dockerfile copies goes into the context.
+*
+!backend/third_party/any-to-bokeh/requirements.txt
