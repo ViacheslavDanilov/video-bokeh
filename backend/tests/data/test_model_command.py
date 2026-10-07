@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import getpass
 import json
 import os
 import subprocess
@@ -215,3 +216,13 @@ def test_the_home_is_the_user_s_own(outside: Path) -> None:
     assert Path(home).is_relative_to(outside / "home")
     assert Path(home).stat().st_mode & 0o777 == 0o700
     assert _resolves(argv, Path(home))
+
+
+def test_the_container_knows_the_user_s_name(outside: Path) -> None:
+    """The uid has no passwd entry in the image, and torch's cache path asks for a name
+    through getpass, which then reads the environment alone.
+    """
+    argv = model_command("X_PYTHON", outside, _SETUP, "video-bokeh-x")
+    env = _pairs(argv, "-e")
+    assert f"USER={getpass.getuser()}" in env
+    assert f"LOGNAME={getpass.getuser()}" in env

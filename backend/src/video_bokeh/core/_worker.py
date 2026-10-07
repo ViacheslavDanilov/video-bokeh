@@ -16,6 +16,7 @@ logging, not native code, not a child process.
 
 from __future__ import annotations
 
+import getpass
 import json
 import os
 import subprocess
@@ -113,6 +114,9 @@ def model_command(
     argv += ["--label", f"video-bokeh.model={image}"]
     argv += [f"--shm-size={_SHM_SIZE}", "--user", f"{os.getuid()}:{os.getgid()}"]
     argv += ["-e", f"HF_HOME={hf_home}", "-e", f"HOME={home}"]
+    # Nor a name: getpass, which torch asks for its cache path, falls back to these.
+    user = getpass.getuser()
+    argv += ["-e", f"USER={user}", "-e", f"LOGNAME={user}"]
     paths = [_REPO, Path(tempfile.gettempdir()), hf_home, home, *mounts]
     for host, inside in _mounts(paths):
         argv += ["-v", f"{host}:{inside}"]
