@@ -215,11 +215,19 @@ starts with a dot is never a sequence: the API generates under `.tmp-*` and rena
 
 | `--renderer` | runs in | setup |
 |---|---|---|
-| `any-to-bokeh` | its own Python 3.10 venv, NVIDIA only | `scripts/setup_third_party.sh` |
+| `any-to-bokeh` | its own Python 3.10 venv, or the `video-bokeh-a2b` image; NVIDIA only | `scripts/setup_third_party.sh`, then `make images` for the image |
 
 any-to-bokeh follows one object by default: the bridge's `--focus object`, described below.
 `bokeh/focus.json` records the object and each frame's in-focus disparity. `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point
 at another checkout or interpreter.
+
+`VIDEO_BOKEH_RUNNER=docker` runs it in the `video-bokeh-a2b` image instead of the venv, with the
+GPU. The image holds the dependencies alone: the repository, the checkpoints, the temporary
+directory and the Hugging Face cache are mounted at their own paths, and the container runs as
+you. The setup script still provides the checkpoints and the cached base model. On the RTX 5090
+on 2026-10-07 one 80-frame sequence took 88 s in the image and 90 s in the venv, and the two
+differed by 0.83 grey levels on average, as much as two runs in the venv differ from each other.
+`local`, the venv, is the default.
 
 **any-to-bokeh needs thirteen frames or more per sequence.** It groups frames eight at a time,
 four overlapping. Its dataset cannot group eight frames or fewer. Its pipeline drops the
