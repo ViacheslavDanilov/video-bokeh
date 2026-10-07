@@ -61,9 +61,10 @@ It does five things, in order:
 shell opened before joining the `docker` group gets `local`. The log's header says which ran,
 and `VIDEO_BOKEH_RUNNER` picks one outright. Under `docker` the run checks for the images
 before anything long starts, and names `make images` when one is missing. The any-to-bokeh
-checkpoints and base model still come from setup step 2, because the image mounts them. On the RTX 5090 on 2026-10-07, with `COUNT=2 FRAMES=24`, the
-whole run took 15 minutes under `docker`: 62 to 90 s per library, 57 to 63 s of bokeh per
-estimator, and the device check's peak memory matched the venv run's for every estimator.
+checkpoints and base model still come from setup step 2, because the image mounts them. On the
+RTX 5090 on 2026-10-07, with `COUNT=2 FRAMES=24`, the whole run took 15 minutes under `docker`:
+62 to 90 s per library, 57 to 63 s of bokeh per estimator, and the device check's peak memory
+matched the venv run's for every estimator.
 
 **One estimator failing does not stop the others.** A library that does not build is named in
 the summary, its estimator gets no sequences, and the rest go on. The run then exits 1. The
@@ -75,11 +76,12 @@ changed or the last set did not finish. To redo an estimator from scratch, delet
 `backend/data/lab/libraries/<estimator>` and `backend/data/lab/sequences/<estimator>`.
 
 **Send back the log** it names on its first and its last line,
-`backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and CUDA
-versions of each environment the run uses, the host's and each image's or venv's, and a summary with a timing and an outcome for each step that
-ran: the device check, and each library, set of sequences and bokeh render. A library that
-exists still gets a line, from the make target that skips it. Skipped sequences and bokeh get
-none. The summary is printed even when a step fails.
+`backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and
+CUDA versions of each environment the run uses, the host's and each image's or venv's, and a
+summary with a timing and an outcome for each step that ran: the device check, and each
+library, set of sequences and bokeh render. A library that exists still gets a line, from the
+make target that skips it. Skipped sequences and bokeh get none. The summary is printed even
+when a step fails.
 
 Run on the Apple M3 Pro with one estimator and without Stage C, the part of the run that can go
 there:

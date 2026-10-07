@@ -105,7 +105,9 @@ fi
 if [ "$VIDEO_BOKEH_RUNNER" = docker ]; then
     # The images the run needs, each once, as the classes name them; an estimator of your
     # own with none runs in this process.
-    read -r -a images <<< "$(py -c "
+    # Stage C's class needs the render extra, and a failure here must stop the run rather
+    # than leave the list empty and the check skipped.
+    listed="$(uv run --directory "$BACKEND" --extra library --extra render python -c "
 import sys
 from video_bokeh.library.depth import resolve_estimator
 from video_bokeh.render.any_to_bokeh import AnyToBokeh
@@ -115,6 +117,7 @@ if sys.argv[1] == '1':
 names = [getattr(cls, 'docker_image', '') for cls in classes]
 print(' '.join(dict.fromkeys(n for n in names if n)))
 " "$RENDER" "${ESTIMATORS[@]}")"
+    read -r -a images <<< "$listed"
     for image in ${images[@]+"${images[@]}"}; do
         if ! problem="$(docker image inspect "$image" 2>&1 > /dev/null)"; then
             # Only a missing image is the image's fault; anything else says so itself.
