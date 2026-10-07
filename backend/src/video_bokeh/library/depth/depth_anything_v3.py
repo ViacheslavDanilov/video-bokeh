@@ -66,6 +66,7 @@ class DepthAnything3Estimator:
 
     name: ClassVar[str] = ""
     hf_model_id: ClassVar[str] = ""
+    docker_image: ClassVar[str] = _IMAGE
 
     def __init__(self) -> None:
         self._worker: WorkerProcess | None = None

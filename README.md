@@ -54,7 +54,8 @@ Stage A estimates depth once per asset and stores it as a library. Stage B sampl
 
 ```bash
 make setup                          # every backend extra, the frontend, Chromium for the smoke test
-scripts/setup_depth_anything_3.sh   # once: the venv Depth Anything 3 runs in
+make images                         # once, on Linux with an NVIDIA card: each model's Docker image
+scripts/setup_depth_anything_3.sh   # once, elsewhere: the venv Depth Anything 3 runs in
 make libraries                      # once: one library per depth estimator
 make api                            # terminal 1: the API on :8000
 make web                            # terminal 2: the page on :3000
@@ -66,8 +67,9 @@ Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://local
 The page picks a depth estimator, sets the sequence parameters, generates, and compares the
 streams side by side. It needs libraries behind it, one per depth estimator: `make libraries`
 builds them with Depth Anything V2 Large, Depth Anything 3 Mono-Large and Depth Pro into the
-main checkout's `backend/data/library/`, and `make api` serves them. Depth Anything 3 runs in
-a venv of its own, which `scripts/setup_depth_anything_3.sh` builds once. `make api
+main checkout's `backend/data/library/`, and `make api` serves them. On Linux with Docker's
+NVIDIA runtime each model runs in its own image, which `make images` builds. Elsewhere Depth
+Anything 3 runs in a venv of its own, which `scripts/setup_depth_anything_3.sh` builds once. `make api
 LIBRARY=<path>` serves something else: one library, or a directory of them. Building a library
 by hand with Stage A is in [backend/README.md](backend/README.md), the page is in
 [frontend/README.md](frontend/README.md), and the endpoints are in

@@ -18,8 +18,8 @@
 # The output lands in backend/data/lab/, which git ignores, and
 # `make api LIBRARY=backend/data/lab/libraries` shows the libraries in the page's picker.
 #
-# The models run in their Docker images where Linux has docker, and in their venvs
-# elsewhere; VIDEO_BOKEH_RUNNER=docker or local chooses outright.
+# The models run in their Docker images where Linux has docker with the NVIDIA runtime,
+# and in their venvs elsewhere; VIDEO_BOKEH_RUNNER=docker or local chooses outright.
 #
 # Prerequisites, once per machine, from the repository root:
 #   make setup
@@ -31,7 +31,7 @@
 #   Estimators default to every registered one. --no-render stops before Stage C, for
 #   checking the rest of this script on a machine without an NVIDIA card.
 # Environment: COUNT sequences per estimator (4), FRAMES per sequence (80), SIZE (512),
-# VIDEO_BOKEH_RUNNER (docker on Linux with docker, local otherwise).
+# VIDEO_BOKEH_RUNNER (docker on Linux with docker's NVIDIA runtime, local otherwise).
 
 set -euo pipefail
 
@@ -61,23 +61,23 @@ DA3_PYTHON="$BACKEND/envs/depth-anything-3/.venv/bin/python"
 py() { uv run --directory "$BACKEND" --extra library python "$@"; }
 
 if [ -z "${VIDEO_BOKEH_RUNNER:-}" ]; then
-    # Docker on a Mac has no GPU to give a container.
-    if [ "$(uname)" = Linux ] && command -v docker > /dev/null; then
+    # A daemon this user can reach, with a GPU to give a container: not Docker on a Mac,
+    # not a Linux box without an NVIDIA card, not a shell outside the docker group.
+    if [ "$(uname)" = Linux ] &&
+        docker info --format '{{json .Runtimes}}' 2> /dev/null | grep -q '"nvidia"'; then
         VIDEO_BOKEH_RUNNER=docker
     else
         VIDEO_BOKEH_RUNNER=local
     fi
 fi
+case "$VIDEO_BOKEH_RUNNER" in
+    local | docker) ;;
+    *)
+        echo "error: VIDEO_BOKEH_RUNNER must be local or docker, not $VIDEO_BOKEH_RUNNER" >&2
+        exit 1
+        ;;
+esac
 export VIDEO_BOKEH_RUNNER
-
-# The image each estimator runs in under the docker runner; none for one of your own.
-image_of() {
-    case "$1" in
-        da2-*) echo video-bokeh-da2 ;;
-        depth-pro) echo video-bokeh-depth-pro ;;
-        da3-*) echo video-bokeh-da3 ;;
-    esac
-}
 
 if [ "${#ESTIMATORS[@]}" -eq 0 ]; then
     read -r -a ESTIMATORS <<< "$(py -c \
@@ -103,18 +103,26 @@ if [ "$RENDER" = 1 ]; then
     done
 fi
 if [ "$VIDEO_BOKEH_RUNNER" = docker ]; then
-    images=()
-    [ "$RENDER" = 1 ] && images+=(video-bokeh-a2b)
-    for estimator in "${ESTIMATORS[@]}"; do
-        image="$(image_of "$estimator")"
-        # Once each: the three da2-* share an image.
-        if [ -n "$image" ] && [[ " ${images[*]-} " != *" $image "* ]]; then
-            images+=("$image")
-        fi
-    done
+    # The images the run needs, each once, as the classes name them; an estimator of your
+    # own with none runs in this process.
+    read -r -a images <<< "$(py -c "
+import sys
+from video_bokeh.library.depth import resolve_estimator
+from video_bokeh.render.any_to_bokeh import AnyToBokeh
+classes = [resolve_estimator(s) for s in sys.argv[2:]]
+if sys.argv[1] == '1':
+    classes.append(AnyToBokeh)
+names = [getattr(cls, 'docker_image', '') for cls in classes]
+print(' '.join(dict.fromkeys(n for n in names if n)))
+" "$RENDER" "${ESTIMATORS[@]}")"
     for image in ${images[@]+"${images[@]}"}; do
-        if ! docker image inspect "$image" > /dev/null 2>&1; then
-            echo "error: no Docker image $image. Run make images first." >&2
+        if ! problem="$(docker image inspect "$image" 2>&1 > /dev/null)"; then
+            # Only a missing image is the image's fault; anything else says so itself.
+            if grep -qi "no such image" <<< "$problem"; then
+                echo "error: no Docker image $image. Run make images first." >&2
+            else
+                echo "error: docker cannot inspect $image: $problem" >&2
+            fi
             exit 1
         fi
     done

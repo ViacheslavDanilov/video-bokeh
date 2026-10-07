@@ -8,9 +8,9 @@ MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolut
 # One library, or a directory holding several, such as one per depth estimator.
 LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library
 ESTIMATORS := da2-large da3-mono-large depth-pro
-# Where the models run: their Docker images on Linux with docker, their venvs elsewhere,
-# as Docker on a Mac has no GPU to give a container. VIDEO_BOKEH_RUNNER overrides it.
-RUNNER := $(or $(VIDEO_BOKEH_RUNNER),$(shell [ "$$(uname)" = Linux ] && command -v docker > /dev/null && echo docker || echo local))
+# Where the models run: their Docker images where Linux has docker's NVIDIA runtime, their
+# venvs elsewhere, as a Mac's Docker has no GPU to give. VIDEO_BOKEH_RUNNER overrides it.
+RUNNER := $(or $(VIDEO_BOKEH_RUNNER),$(shell [ "$$(uname)" = Linux ] && docker info --format '{{json .Runtimes}}' 2> /dev/null | grep -q '"nvidia"' && echo docker || echo local))
 # Extra flags for every library build. "--subjects , --styles , --subject-thr 0" turns off
 # the class filter.
 BUILD_FLAGS ?=

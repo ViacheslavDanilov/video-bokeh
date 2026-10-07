@@ -36,8 +36,6 @@ from video_bokeh.core._worker import model_command, run_script
 _DEFAULT_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "any-to-bokeh"
 _SETUP = "scripts/setup_third_party.sh"
 _LAUNCH = Path(__file__).with_name("_a2b_launch.py")
-#: The image ``make images`` builds, for ``VIDEO_BOKEH_RUNNER=docker``.
-_IMAGE = "video-bokeh-a2b"
 
 #: The demo groups frames eight at a time, four overlapping. Its dataset cannot group a
 #: sequence of eight frames or fewer, and nine to twelve make exactly two groups, which
@@ -56,6 +54,8 @@ class AnyToBokeh:
     """
 
     name: ClassVar[str] = "any-to-bokeh"
+    #: The image ``make images`` builds, for ``VIDEO_BOKEH_RUNNER=docker``.
+    docker_image: ClassVar[str] = "video-bokeh-a2b"
     min_frames: ClassVar[int] = _MIN_FRAMES
 
     def render(
@@ -73,7 +73,7 @@ class AnyToBokeh:
                 "VIDEO_BOKEH_A2B_PYTHON",
                 root / ".venv" / "bin" / "python",
                 _SETUP,
-                _IMAGE,
+                self.docker_image,
                 mounts=[root, *sequence_dirs],
                 workdir=work,
             )
