@@ -16,6 +16,7 @@ logging, not native code, not a child process.
 
 from __future__ import annotations
 
+import getpass
 import json
 import os
 import subprocess
@@ -59,6 +60,14 @@ _REPO = Path(__file__).resolve().parents[4]
 _SHM_SIZE = "16g"
 
 
+def runner() -> str:
+    """``VIDEO_BOKEH_RUNNER``: ``local``, the default, or ``docker``."""
+    value = os.environ.get("VIDEO_BOKEH_RUNNER", "local")
+    if value not in ("local", "docker"):
+        raise ValueError(f"VIDEO_BOKEH_RUNNER must be local or docker, not {value!r}")
+    return value
+
+
 def model_command(
     env_var: str,
     default: Path,
@@ -77,11 +86,8 @@ def model_command(
     ``workdir`` is where it starts. Raises before anything starts when the venv or the
     image is missing.
     """
-    runner = os.environ.get("VIDEO_BOKEH_RUNNER", "local")
-    if runner == "local":
+    if runner() == "local":
         return [str(interpreter(env_var, default, setup))]
-    if runner != "docker":
-        raise ValueError(f"VIDEO_BOKEH_RUNNER must be local or docker, not {runner!r}")
     found = subprocess.run(
         ["docker", "image", "inspect", image],
         stdout=subprocess.DEVNULL,
@@ -108,6 +114,9 @@ def model_command(
     argv += ["--label", f"video-bokeh.model={image}"]
     argv += [f"--shm-size={_SHM_SIZE}", "--user", f"{os.getuid()}:{os.getgid()}"]
     argv += ["-e", f"HF_HOME={hf_home}", "-e", f"HOME={home}"]
+    # Nor a name: getpass, which torch asks for its cache path, falls back to these.
+    user = getpass.getuser()
+    argv += ["-e", f"USER={user}", "-e", f"LOGNAME={user}"]
     paths = [_REPO, Path(tempfile.gettempdir()), hf_home, home, *mounts]
     for host, inside in _mounts(paths):
         argv += ["-v", f"{host}:{inside}"]
