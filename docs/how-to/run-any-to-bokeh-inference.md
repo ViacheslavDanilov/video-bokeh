@@ -29,8 +29,11 @@ clean, and it checks that every sequence got back as many frames as it sent. Bef
 loads, it refuses a batch holding a sequence of twelve frames or fewer, because any-to-bokeh
 fails on such a sequence. Flags are in [[cli]]. The stream is in [[dataset-layout]].
 
-**This has not run to completion yet.** On a machine without the any-to-bokeh venv it stops
-before converting anything:
+**It first ran to completion on 2026-10-07, on an RTX 5090 with 32 GiB**: one 80-frame sequence
+at 512 px in 90 s, model load included. It starts the demo through `_a2b_launch.py`, which has
+the VAE encode a few frames at a time and keeps the UNet off the card while the VAE decodes.
+The demo on its own runs out of memory on that card. On a machine without the any-to-bokeh venv
+it stops before converting anything:
 
 ```
 RuntimeError: no interpreter at .../third_party/any-to-bokeh/.venv/bin/python: run scripts/setup_third_party.sh, or set VIDEO_BOKEH_A2B_PYTHON
@@ -100,7 +103,8 @@ python test/inference_demo.py --val_csv_path csv_file/demo.csv
 ```
 
 `third_party/any-to-bokeh` is a submodule and read-only — do not edit anything inside it. It
-needs its own environment and checkpoints; see `scripts/setup_third_party.sh`.
+needs its own environment and checkpoints; see `scripts/setup_third_party.sh`. Run this way it
+needs more than 32 GiB of GPU memory: it ran out on an RTX 5090, where Stage C's launcher fits.
 
 **`--k` sets blur strength**, written into the CSV as a column, `16` by default. It is a
 property of the conversion, not of the dataset, so re-running the bridge with a different
@@ -110,8 +114,8 @@ property of the conversion, not of the dataset, so re-running the bridge with a 
 
 ## 4. Measure what inference costs
 
-Nobody has measured it. The submodule has never been run, so every figure quoted so far —
-"about a minute for 80 frames" — is a recollection. That matters beyond curiosity: anything
+Stage C's first run gives one figure: 90 s for one 80-frame sequence at 512 px on an RTX 5090,
+model load included. Nothing has been measured beyond that one run. That matters beyond curiosity: anything
 past a few seconds cannot be a synchronous HTTP request, so the shape of the render API hangs
 off the answer.
 
@@ -129,9 +133,9 @@ to five objects, converts it exactly as section 1 does, and wall-clocks the infe
 Everything is teed into `backend/data/measurements/a2b-<timestamp>.log`. **That file is what
 to send back** — it carries the commands, the card and the timing in one place.
 
-**Steps 2 and 3 have been executed as written. The environment capture and the inference have
-not** — they need an NVIDIA card, and `test/inference_demo.py` is pinned to `cuda:0` in six
-places.
+**Steps 2 and 3 have been executed as written. The script's inference has not run to the end**:
+it calls the demo directly, which runs out of memory on a 32 GiB card, and
+`test/inference_demo.py` is pinned to `cuda:0` in six places.
 
 Two things the script is careful about. It writes to `data/library_a2b_measure` and
 `data/a2b_measure`, so an existing `data/demo` survives. And it removes the converted inputs

@@ -12,8 +12,8 @@ on the machine's GPU, builds a library with each from the dev pools, generates t
 sequences from every library, renders their bokeh and packs MP4s to look at.
 
 Commands run from the repository root. The setup steps say whether they have run on an Apple
-M3 Pro, and "What has not run yet" lists the rest. The any-to-bokeh setup and Stage C have not
-run anywhere yet.
+M3 Pro, and "What has not run yet" lists the rest. The any-to-bokeh setup and Stage C first ran
+on an RTX 5090 on 2026-10-07.
 
 ---
 
@@ -23,7 +23,7 @@ run anywhere yet.
    here.
 2. `scripts/setup_third_party.sh` checks out any-to-bokeh, builds its Python 3.10 venv and
    downloads its checkpoints and the Stable Video Diffusion base model, 4.2 GiB of fp16
-   weights by the Hub's metadata on 2026-10-02. It needs an NVIDIA card and has not run yet.
+   weights by the Hub's metadata on 2026-10-02. It needs an NVIDIA card, and ran on an RTX 5090.
    [[run-any-to-bokeh-inference]] has the details.
 3. `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in.
    Run here. [[cli]], section "Depth Anything 3's own environment", says what it leaves out.
@@ -123,9 +123,8 @@ The script's own bokeh is in the MP4s from step 5: each sequence under
 
 ## What has not run yet
 
-- `scripts/setup_third_party.sh`, Stage C and therefore steps 4 and 5's bokeh, and `make bokeh`
-  with the real any-to-bokeh: they need the NVIDIA card. `make bokeh` has run here against a
-  stand-in for any-to-bokeh, and the API served the stream it wrote.
+- `make bokeh` with the real any-to-bokeh. It has run here against a stand-in for
+  any-to-bokeh, and the API served the stream it wrote. Stage C itself ran on an RTX 5090.
 - The script over every depth estimator. Only `da2-small` has gone through it. Every other
   checkpoint was already cached on the Apple machine but `da3-metric-large`, 1.2 GiB, which
   stays off it to spare its memory.

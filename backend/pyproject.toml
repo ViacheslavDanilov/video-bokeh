@@ -71,9 +71,9 @@ exclude = ["venv", ".venv", "tests"]
 
 [tool.ruff]
 target-version = "py313"
-# The Depth Anything 3 worker runs under that model's own Python 3.12, so pyupgrade must
-# not move it to 3.13 syntax.
-per-file-target-version = { "src/video_bokeh/library/depth/_da3_worker.py" = "py312" }
+# The Depth Anything 3 worker and the any-to-bokeh launcher run under those models' own
+# Python 3.12 and 3.10, so pyupgrade must not move them to 3.13 syntax.
+per-file-target-version = { "src/video_bokeh/library/depth/_da3_worker.py" = "py312", "src/video_bokeh/render/_a2b_launch.py" = "py310" }
 line-length = 88
 
 [tool.ruff.lint]

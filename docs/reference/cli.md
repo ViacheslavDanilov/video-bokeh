@@ -197,7 +197,7 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 
 Renders bokeh for written sequences and writes each one's `bokeh/` stream, as
 [[dataset-layout]] describes. It needs the `render` extra, and [[run-any-to-bokeh-inference]]
-has the command. It has not run to completion on a GPU yet.
+has the command. It first ran to completion on an RTX 5090 on 2026-10-07.
 
 | flag | type | default | meaning |
 |---|---|---|---|

@@ -3,8 +3,9 @@
 The vendored code needs Python 3.10, ``transformers==4.32.1`` and an NVIDIA card, so it
 runs under the venv ``scripts/setup_third_party.sh`` builds, as one program per batch of
 sequences. Its inputs and its ``output/`` go to a temporary directory, so the read-only
-submodule stays clean. ``VIDEO_BOKEH_A2B_ROOT`` and ``VIDEO_BOKEH_A2B_PYTHON`` point at
-another checkout or interpreter.
+submodule stays clean. ``_a2b_launch.py`` starts the demo, with its VAE encoder taking a
+few frames per call so that it fits a 32 GiB card. ``VIDEO_BOKEH_A2B_ROOT`` and
+``VIDEO_BOKEH_A2B_PYTHON`` point at another checkout or interpreter.
 
 The demo writes a lossy mp4 per sequence at a fixed 1024x576. Each frame is resized back
 to the sequence's own size; a lossless path is later work, once a GPU run can check it.
@@ -28,6 +29,7 @@ from video_bokeh.core._worker import interpreter, run_script
 # backend/third_party/any-to-bokeh; parents[3] is backend/.
 _DEFAULT_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "any-to-bokeh"
 _SETUP = "scripts/setup_third_party.sh"
+_LAUNCH = Path(__file__).with_name("_a2b_launch.py")
 
 #: The demo groups frames eight at a time, four overlapping. Its dataset cannot group a
 #: sequence of eight frames or fewer, and nine to twelve make exactly two groups, which
@@ -85,6 +87,7 @@ class AnyToBokeh:
             run_script(
                 [
                     str(python),
+                    str(_LAUNCH),
                     str(root / "test" / "inference_demo.py"),
                     "--val_csv_path",
                     str(csv_path),

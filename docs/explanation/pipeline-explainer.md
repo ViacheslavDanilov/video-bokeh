@@ -188,8 +188,8 @@ have recorded: the `bokeh` stream, one frame for every `all_in_focus` frame.
 
 any-to-bokeh is the first renderer. It is a diffusion model with its own Python environment, so
 Stage C runs it as a separate program and reads its result back. By default each frame focuses
-on the objects: the in-focus disparity is the mean under their mattes. Stage C has not yet run
-end to end on a GPU, and [[run-any-to-bokeh-inference]] says where it stands.
+on the objects: the in-focus disparity is the mean under their mattes. Stage C first ran end to
+end on 2026-10-07, on an RTX 5090, and [[run-any-to-bokeh-inference]] says where it stands.
 
 ---
 
