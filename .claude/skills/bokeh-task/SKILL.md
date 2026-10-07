@@ -55,7 +55,8 @@ If the ask is ambiguous, ask once. Never infer scope from a slug.
 | Code in this repo | a pull request |
 | `docs/explanation/`, `docs/how-to/`, `docs/reference/` | a pull request — these are in git |
 | `docs/reports/`, `docs/specs/`, `docs/plans/`, `docs/meetings/` | a file, no commit |
-| Outside this repo — the paper, an email, an IT ticket | a draft, or an honest "not this repo" |
+| The paper | a hand-off to the paper repository |
+| Outside this repo — an email, an IT ticket | a draft, or an honest "not this repo" |
 
 **Which route**, stated in one line for the user to override:
 
@@ -65,8 +66,8 @@ If the ask is ambiguous, ask once. Never infer scope from a slug.
 | **bug** | behaviour that already worked is wrong | repro test → PR |
 | **investigate** | a question, an unknown cause, or "does the code match what we recorded" | a written finding, no code |
 | **docs** | a runbook, an explanation page, a reference, a README | PR |
-| **paper** | manuscript text, section structure, revisions | a draft in the paper repo, or `docs/reports/` while it does not exist |
-| **literature** | a survey, a search for prior datasets, a comparison table | a note with verified citations |
+| **paper** | manuscript text, section structure, revisions, literature for the paper | a hand-off to the paper repository: go straight to 6e |
+| **literature** | a survey behind this repository's own design choices | a note with verified citations |
 | **out of scope** | install software, chase IT, write to a person | name it, stop, draft the message if there is one |
 
 Signals for **investigate** even when the ask sounds like a change: no reproduction, "надо
@@ -101,7 +102,7 @@ numbered with a recommended answer, and looks facts up itself instead of asking 
 `domain-modeling` records settled terms in `CONTEXT.md` as they land, and offers an ADR only
 for a decision that is hard to reverse. On a route that ends without a branch it writes
 nothing, because a glossary edit or an ADR would have nowhere to land: investigate, out of
-scope, and paper or literature when the result goes to `docs/reports/`. Proposed terms and
+scope, paper, and literature when the result goes to `docs/reports/`. Proposed terms and
 decisions go into that route's written output instead.
 
 Scale it. When the meeting note already settles every question, skip the grilling and say
@@ -182,29 +183,29 @@ over prose that reads stiffly. Then step 7, with commit type `docs`.
 
 ## 6e. Route: paper
 
-Check `paper_repo` in the conventions file. While it is unset, draft into
-`docs/reports/YYYY-MM-DD-<slug>.md` and say so — never create the repository unasked.
+The paper has its own repository, `paper_repo` in the conventions file, with its own
+`bokeh-task` for writing, literature, figures and the co-authors' comments. Say so, and tell
+the user to start a session in that checkout; do not write paper text here.
 
-`academic-researcher` leads. Before anything is called finished:
-`scientific-clarity-checker` for whether each claim is carried by its evidence,
-`manuscript-writing-review` for submission readiness, `no-ai-slop` so the prose reads as a
-person wrote it. `make-pdf` to build a readable draft, `pptx` if the output is slides.
-
-Numbers in the manuscript are measured and traceable to a command or a file. Never carry a
-figure from a meeting note into the paper without re-deriving it.
+What the paper needs from this repository is a task here like any other: a number no
+command produces yet, data for a figure, or a fix to the pipeline it describes, on the
+feature, bug or investigate route. The paper copies the result together with the commit
+and the command that produced it.
 
 ## 6f. Route: literature
 
-`academic-researcher` plus `deep-research`. The recurring question here is whether a prior
-synthetic dataset already covers this contribution — answer it with a comparison table:
-datasets in rows, desirable properties in columns.
+Literature for the paper, the comparison against prior datasets included, belongs to the
+paper repository: its `refs.bib` and `literature/`. That is the **paper** route, not this
+one.
+
+This route is for a survey behind this repository's own design choices.
+`academic-researcher` plus `deep-research`.
 
 **Every citation is opened and verified.** Never cite from memory, never invent a DOI, never
 report a paper's claim you have not read in the paper. `fact-checker` for anything
 contested. An unverifiable source is reported as unverifiable.
 
-Durable results belong in `docs/explanation/` — it is in git, so Pablo and Valery see it. A
-dated snapshot belongs in `docs/reports/`.
+Durable results land in `docs/explanation/`, a dated snapshot in `docs/reports/`.
 
 ## 6g. Route: out of scope
 
