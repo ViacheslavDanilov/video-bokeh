@@ -31,9 +31,10 @@ fails on such a sequence. Flags are in [[cli]]. The stream is in [[dataset-layou
 
 **It first ran to completion on 2026-10-07, on an RTX 5090 with 32 GiB**: one 80-frame sequence
 at 512 px in 90 s, model load included. It starts the demo through `_a2b_launch.py`, which has
-the VAE encode a few frames at a time and keeps the UNet off the card while the VAE decodes.
-The demo on its own runs out of memory on that card. On a machine without the any-to-bokeh venv
-it stops before converting anything:
+the VAE encode a few frames at a time, keeps the UNet off the card while the VAE decodes, and
+loads the sequences without the demo's 64 data-loader workers, whose shared memory a run of
+twelve outgrew in a container. The demo on its own runs out of memory on that card. On a machine
+without the any-to-bokeh venv it stops before converting anything:
 
 ```
 RuntimeError: no interpreter at .../third_party/any-to-bokeh/.venv/bin/python: run scripts/setup_third_party.sh, or set VIDEO_BOKEH_A2B_PYTHON
