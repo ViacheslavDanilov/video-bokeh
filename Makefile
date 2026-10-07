@@ -8,6 +8,9 @@ MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolut
 # One library, or a directory holding several, such as one per depth estimator.
 LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library
 ESTIMATORS := da2-large da3-mono-large depth-pro
+# Where the models run: their Docker images where Linux has docker's NVIDIA runtime, their
+# venvs elsewhere, as a Mac's Docker has no GPU to give. VIDEO_BOKEH_RUNNER overrides it.
+RUNNER := $(or $(VIDEO_BOKEH_RUNNER),$(shell [ "$$(uname)" = Linux ] && docker info --format '{{json .Runtimes}}' 2> /dev/null | grep -q '"nvidia"' && echo docker || echo local))
 # Extra flags for every library build. "--subjects , --styles , --subject-thr 0" turns off
 # the class filter.
 BUILD_FLAGS ?=
@@ -25,7 +28,7 @@ libraries: ## Build one library per depth estimator into LIBRARY
 	@out="$(abspath $(LIBRARY))"; for estimator in $(ESTIMATORS); do \
 	  if [ -d "$$out/$$estimator" ]; then echo "$$estimator: exists, skipped"; continue; fi; \
 	  rm -rf "$$out/.$$estimator" && \
-	  (cd backend && uv run --extra library python -m video_bokeh.library.build \
+	  (cd backend && VIDEO_BOKEH_RUNNER=$(RUNNER) uv run --extra library python -m video_bokeh.library.build \
 	    --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
 	    --output "$$out/.$$estimator" --model $$estimator $(BUILD_FLAGS)) && \
 	  mv "$$out/.$$estimator" "$$out/$$estimator" || exit 1; \
@@ -41,7 +44,7 @@ api: ## Serve the API on :8000 from LIBRARY
 	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 
 bokeh: ## Render bokeh for the page's new sequences (NVIDIA only)
-	cd backend && uv run --extra render python -m video_bokeh.render.run \
+	cd backend && VIDEO_BOKEH_RUNNER=$(RUNNER) uv run --extra render python -m video_bokeh.render.run \
 	  --data-root "$${VIDEO_BOKEH_DATA_ROOT:-data}" --missing
 
 web: ## Serve the page on :3000

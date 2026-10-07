@@ -50,6 +50,12 @@ os.execvpe(command[0], command, env)
 """
 
 
+@pytest.fixture(autouse=True)
+def _in_process_runner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test starts with the default runner, whatever the shell exported."""
+    monkeypatch.delenv("VIDEO_BOKEH_RUNNER", raising=False)
+
+
 @pytest.fixture
 def fake_docker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A fake docker first on PATH; returns its log. The docker runner is selected."""

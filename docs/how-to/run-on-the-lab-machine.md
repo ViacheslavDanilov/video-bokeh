@@ -25,9 +25,14 @@ on an RTX 5090 on 2026-10-07.
    downloads its checkpoints and the Stable Video Diffusion base model, 4.2 GiB of fp16
    weights by the Hub's metadata on 2026-10-02. It needs an NVIDIA card, and ran on an RTX 5090.
    [[run-any-to-bokeh-inference]] has the details.
-3. `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in.
-   Run here. [[cli]], section "Depth Anything 3's own environment", says what it leaves out.
-4. `uv run --directory backend --extra library python -m video_bokeh.library.check` says
+3. `make images` builds the models' Docker images: `video-bokeh-a2b`, `video-bokeh-da3`,
+   `video-bokeh-da2` and `video-bokeh-depth-pro`, 8 to 12 GB each, with no weights in them. It
+   needs Docker with the NVIDIA Container Toolkit, and ran on the RTX 5090.
+4. On a machine without Docker's NVIDIA runtime, such as the Mac,
+   `scripts/setup_depth_anything_3.sh` builds the venv
+   the `da3-*` depth estimators run in instead. Run here. [[cli]], section "Depth Anything 3's
+   own environment", says what it leaves out.
+5. `uv run --directory backend --extra library python -m video_bokeh.library.check` says
    whether each depth estimator can run on the machine, without downloading anything. Run
    here.
 
@@ -51,6 +56,16 @@ It does five things, in order:
 4. **Bokeh, Stage C**, through any-to-bokeh, into each sequence's `bokeh/`.
 5. **MP4s** of each sequence's frames, disparity and bokeh, next to the frames.
 
+**On Linux with Docker's NVIDIA runtime, every model runs in its own image.** The runner is
+`docker` when this user can reach a daemon that has that runtime, and `local` otherwise. A
+shell opened before joining the `docker` group gets `local`. The log's header says which ran,
+and `VIDEO_BOKEH_RUNNER` picks one outright. Under `docker` the run checks for the images
+before anything long starts, and names `make images` when one is missing. The any-to-bokeh
+checkpoints and base model still come from setup step 2, because the image mounts them. On the
+RTX 5090 on 2026-10-07, with `COUNT=2 FRAMES=24`, the whole run took 15 minutes under `docker`:
+62 to 90 s per library, 57 to 63 s of bokeh per estimator, and the device check's peak memory
+matched the venv run's for every estimator.
+
 **One estimator failing does not stop the others.** A library that does not build is named in
 the summary, its estimator gets no sequences, and the rest go on. The run then exits 1. The
 same holds for a set of sequences and for Stage C.
@@ -61,11 +76,12 @@ changed or the last set did not finish. To redo an estimator from scratch, delet
 `backend/data/lab/libraries/<estimator>` and `backend/data/lab/sequences/<estimator>`.
 
 **Send back the log** it names on its first and its last line,
-`backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and CUDA
-versions of all three environments, and a summary with a timing and an outcome for each step that
-ran: the device check, and each library, set of sequences and bokeh render. A library that
-exists still gets a line, from the make target that skips it. Skipped sequences and bokeh get
-none. The summary is printed even when a step fails.
+`backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and
+CUDA versions of each environment the run uses, the host's and each image's or venv's, and a
+summary with a timing and an outcome for each step that ran: the device check, and each
+library, set of sequences and bokeh render. A library that exists still gets a line, from the
+make target that skips it. Skipped sequences and bokeh get none. The summary is printed even
+when a step fails.
 
 Run on the Apple M3 Pro with one estimator and without Stage C, the part of the run that can go
 there:
