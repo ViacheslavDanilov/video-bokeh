@@ -5,7 +5,8 @@ runs under the venv ``scripts/setup_third_party.sh`` builds, as one program per 
 sequences. Its inputs and its ``output/`` go to a temporary directory, so the read-only
 submodule stays clean. ``_a2b_launch.py`` starts the demo, with its VAE encoder taking a
 few frames per call so that it fits a 32 GiB card. ``VIDEO_BOKEH_A2B_ROOT`` and
-``VIDEO_BOKEH_A2B_PYTHON`` point at another checkout or interpreter.
+``VIDEO_BOKEH_A2B_PYTHON`` point at another checkout or interpreter. With
+``VIDEO_BOKEH_RUNNER=docker`` it runs in the ``video-bokeh-a2b`` image instead of the venv.
 
 The demo writes a lossy mp4 per sequence at a fixed 1024x576. Each frame is resized back
 to the sequence's own size; a lossless path is later work, once a GPU run can check it.
@@ -24,12 +25,14 @@ import imageio.v2 as imageio
 from PIL import Image
 
 from video_bokeh.bridge.any_to_bokeh import list_png_frames, write_inputs
-from video_bokeh.core._worker import interpreter, run_script
+from video_bokeh.core._worker import model_command, run_script
 
 # backend/third_party/any-to-bokeh; parents[3] is backend/.
 _DEFAULT_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "any-to-bokeh"
 _SETUP = "scripts/setup_third_party.sh"
 _LAUNCH = Path(__file__).with_name("_a2b_launch.py")
+#: The image ``make images`` builds, for ``VIDEO_BOKEH_RUNNER=docker``.
+_IMAGE = "video-bokeh-a2b"
 
 #: The demo groups frames eight at a time, four overlapping. Its dataset cannot group a
 #: sequence of eight frames or fewer, and nine to twelve make exactly two groups, which
@@ -59,20 +62,24 @@ class AnyToBokeh:
         _refuse_short(sequence_dirs)
         # Absolute, because the demo runs from a temporary directory.
         root = Path(os.environ.get("VIDEO_BOKEH_A2B_ROOT", _DEFAULT_ROOT)).absolute()
-        python = interpreter(
-            "VIDEO_BOKEH_A2B_PYTHON",
-            root / ".venv" / "bin" / "python",
-            _SETUP,
-        )
-        checkpoints = root / "checkpoints"
-        for sub in ("unet", "vae"):
-            if not (checkpoints / sub).is_dir():
-                raise RuntimeError(
-                    f"no any-to-bokeh checkpoint at {checkpoints / sub}: run {_SETUP}",
-                )
-
         with tempfile.TemporaryDirectory(prefix="any-to-bokeh-") as tmp:
             work = Path(tmp)
+            command = model_command(
+                "VIDEO_BOKEH_A2B_PYTHON",
+                root / ".venv" / "bin" / "python",
+                _SETUP,
+                _IMAGE,
+                mounts=[root, *sequence_dirs],
+                workdir=work,
+            )
+            checkpoints = root / "checkpoints"
+            for sub in ("unet", "vae"):
+                if not (checkpoints / sub).is_dir():
+                    raise RuntimeError(
+                        f"no any-to-bokeh checkpoint at {checkpoints / sub}: "
+                        f"run {_SETUP}",
+                    )
+
             csv_path = work / "inputs.csv"
             write_inputs(
                 sequence_dirs,
@@ -86,7 +93,7 @@ class AnyToBokeh:
             # The demo writes output/ relative to its working directory.
             run_script(
                 [
-                    str(python),
+                    *command,
                     str(_LAUNCH),
                     str(root / "test" / "inference_demo.py"),
                     "--val_csv_path",
