@@ -74,9 +74,21 @@ filename — `01_zf_0.500000.png`.
 
 | what you want | flag |
 |---|---|
-| Follow the subject: focus on the mean disparity under the alpha mask | default, or `--focus alpha` |
+| Follow one object, drawn by area: its mean disparity in each frame | default, or `--focus object` |
+| Focus on the mean disparity under all the objects' masks together | `--focus alpha` |
 | Focus on the mean disparity of the whole frame | `--focus full` |
 | Pin one focus plane for the entire clip | `--focus-disparity 0.5` |
+
+**The default keeps one object sharp, the way a camera operator follows a subject.** Each
+sequence draws one object, with odds in proportion to its mean area, seeded by the sequence's
+name so a re-run keeps it. Its mean disparity is the focus in every frame it shows; a frame
+where it is hidden keeps the last focus, and a sequence with no object focuses on the whole
+frame. Weighting by area rather than taking the largest keeps the focus off the foreground,
+where the large objects usually are, without landing on a speck.
+
+`--focus alpha` was the default until 2026-10-07. With several objects at different depths, the
+mean under all their masks falls between them, so none was sharp: on one sequence with objects
+at disparity 0.11, 0.49 and 0.90 the focus came to 0.515.
 
 **Pin the focus when you are comparing frames rather than following a subject.** With the
 default the focus chases the object, so a clip where the object moves through depth never

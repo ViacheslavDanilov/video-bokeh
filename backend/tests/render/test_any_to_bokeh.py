@@ -119,7 +119,7 @@ def test_writes_a_bokeh_frame_per_frame_at_the_sequence_size(dataset: Path) -> N
     AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
 
     for i, seq in enumerate(_sequences(dataset)):
-        names = sorted(p.name for p in (seq / "bokeh").iterdir())
+        names = sorted(p.name for p in (seq / "bokeh").glob("*.png"))
         assert names == sorted(p.name for p in (seq / "all_in_focus").iterdir())
         for t, name in enumerate(names):
             img = Image.open(seq / "bokeh" / name)
@@ -298,3 +298,23 @@ def test_missing_over_a_page_still_writing_its_first_renders_nothing(
     root = tmp_path / "api"
     _write_sequence(root / "sequences" / ".tmp-first")
     assert cli.main(["--data-root", str(root), "--missing"]) == 0
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_records_which_object_held_the_focus(dataset: Path) -> None:
+    AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
+    for seq in _sequences(dataset):
+        record = json.loads((seq / "bokeh" / "focus.json").read_text())
+        # The fixture has one object, so it is the one in focus, in every frame.
+        assert record["object"] == 0
+        assert len(record["zf"]) == FRAMES
+        # Only frames are listed as the stream.
+        assert len(list((seq / "bokeh").glob("*.png"))) == FRAMES
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_a_fixed_focus_records_no_object(dataset: Path) -> None:
+    AnyToBokeh().render(_sequences(dataset)[:1], strength=16, focus_disparity=0.5)
+    record = json.loads((_sequences(dataset)[0] / "bokeh" / "focus.json").read_text())
+    assert record["object"] is None
+    assert record["zf"] == [0.5] * FRAMES

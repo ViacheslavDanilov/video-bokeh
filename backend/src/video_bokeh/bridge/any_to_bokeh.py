@@ -22,6 +22,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import zlib
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -114,13 +117,80 @@ def _relative_to_a2b(path: Path, a2b_root: Path) -> str:
     return path.resolve().relative_to(a2b_root.resolve()).as_posix()
 
 
+#: How each frame's in-focus disparity is chosen, when no fixed one is given.
+#: ``object``: one object, drawn by area, in every frame. ``alpha``: the mean under the
+#: union of the objects' masks. ``full``: the mean over the whole frame.
+FOCUS_MODES = ("object", "alpha", "full")
+
+
+@dataclass(frozen=True)
+class SequenceInputs:
+    """What the bridge wrote for one sequence: its frame count and its focus."""
+
+    frames: int
+    #: The object the focus follows, by alpha page, or None when no object held it.
+    focus_object: int | None
+    #: The in-focus disparity of each frame, in [0, 1].
+    zf: list[float]
+
+
+def choose_focus_object(areas: Sequence[float], seed: int) -> int | None:
+    """One object, drawn with probability proportional to its area; None without any.
+
+    By area rather than the largest: large objects are usually the near ones, so the
+    largest would put the focus on the foreground almost every time. A tiny object in
+    focus leaves next to nothing sharp, which the weighting makes rare.
+    """
+    weights = np.asarray(areas, dtype=np.float64)
+    if weights.size == 0 or weights.sum() <= 0:
+        return None
+    rng = np.random.default_rng(seed)
+    return int(rng.choice(weights.size, p=weights / weights.sum()))
+
+
+def _object_focus(
+    seq_dir: Path,
+    alpha_paths: list[Path],
+    disps: list[np.ndarray],
+) -> tuple[int | None, list[float | None]]:
+    """The object the focus follows and its mean disparity per frame, None where hidden.
+
+    The draw is seeded by the sequence's name, so a sequence keeps its focus across runs.
+    """
+    pages = [read_alpha_tiff(path) for path in alpha_paths]
+    n_objects = max((len(p) for p in pages), default=0)
+    areas = [0.0] * n_objects
+    for frame in pages:
+        for i, page in enumerate(frame):
+            areas[i] += float((page > 0.5).sum()) / len(pages)
+    chosen = choose_focus_object(areas, zlib.crc32(seq_dir.name.encode()))
+    if chosen is None:
+        return None, [None] * len(disps)
+    zfs: list[float | None] = []
+    for frame, disp in zip(pages, disps, strict=True):
+        mask = frame[chosen] > 0.5 if chosen < len(frame) else None
+        zfs.append(None if mask is None or not mask.any() else disp[mask].mean() / 255)
+    return chosen, zfs
+
+
+def _held(zfs: list[float | None]) -> list[float | None]:
+    """Each hidden frame keeps the last focus seen; frames before the first take it."""
+    first = next((z for z in zfs if z is not None), None)
+    held: list[float | None] = []
+    last = first
+    for z in zfs:
+        last = z if z is not None else last
+        held.append(last)
+    return held
+
+
 def _write_sequence(
     seq_dir: Path,
     out_video_dir: Path,
     out_disp_dir: Path,
-    use_alpha_focus: bool,
+    focus: str,
     focus_disparity: float | None = None,
-) -> int:
+) -> SequenceInputs:
     image_paths = list_png_frames(seq_dir / "all_in_focus")
     disparity_paths = list_png_frames(seq_dir / "disparity")
     alpha_paths = (
@@ -132,7 +202,8 @@ def _write_sequence(
             f"{seq_dir.name}: {len(image_paths)} all_in_focus frames but "
             f"{len(disparity_paths)} disparity frames",
         )
-    if use_alpha_focus and alpha_paths and len(alpha_paths) != len(image_paths):
+    use_alpha = focus in ("object", "alpha")
+    if use_alpha and alpha_paths and len(alpha_paths) != len(image_paths):
         raise ValueError(
             f"{seq_dir.name}: {len(image_paths)} all_in_focus frames but "
             f"{len(alpha_paths)} alpha frames",
@@ -145,6 +216,13 @@ def _write_sequence(
     disp_pngs = _to_uint8_disparities(raw_disps)
     digits = max(2, len(str(len(image_paths))))
 
+    focus_object: int | None = None
+    object_zf: list[float | None] = [None] * len(image_paths)
+    if focus_disparity is None and focus == "object" and alpha_paths:
+        focus_object, object_zf = _object_focus(seq_dir, alpha_paths, disp_pngs)
+        object_zf = _held(object_zf)
+    zfs: list[float] = []
+
     for idx, (image_path, disp_u8) in enumerate(
         zip(image_paths, disp_pngs, strict=True),
         start=1,
@@ -155,20 +233,22 @@ def _write_sequence(
             compress_level=6,
         )
 
-        if focus_disparity is None:
-            alpha_path = (
-                alpha_paths[idx - 1] if use_alpha_focus and alpha_paths else None
-            )
+        held = object_zf[idx - 1]
+        if focus_disparity is not None:
+            zf = focus_disparity
+        elif held is not None:
+            zf = float(held)
+        else:
+            alpha_path = alpha_paths[idx - 1] if use_alpha and alpha_paths else None
             mask = _load_focus_mask(alpha_path, disp_u8.shape)
             zf = float(disp_u8[mask].mean() / 255.0)
-        else:
-            zf = focus_disparity
+        zfs.append(zf)
         Image.fromarray(disp_u8, mode="L").save(
             out_disp_dir / f"{frame_stem}_zf_{zf:.6f}.png",
             compress_level=6,
         )
 
-    return len(image_paths)
+    return SequenceInputs(frames=len(image_paths), focus_object=focus_object, zf=zfs)
 
 
 def write_inputs(
@@ -177,27 +257,28 @@ def write_inputs(
     disp_root: Path,
     csv_path: Path,
     k: str,
-    use_alpha_focus: bool,
+    focus: str = "object",
     focus_disparity: float | None = None,
     relative_to: Path | None = None,
-) -> list[int]:
+) -> list[SequenceInputs]:
     """Write any-to-bokeh's inputs for ``seq_dirs``, and the CSV that lists them.
 
     CSV paths are relative to ``relative_to`` when it is given, which is how the vendored
     demo lays them out, and absolute otherwise, so the inputs can live outside the
-    submodule. Returns each sequence's frame count, in order.
+    submodule. ``focus`` is one of ``FOCUS_MODES``; ``focus_disparity`` overrides it.
+    Returns what was written for each sequence, in order.
     """
     rows: list[list[str]] = []
-    counts: list[int] = []
+    written: list[SequenceInputs] = []
     for seq_dir in seq_dirs:
         out_video_dir = videos_root / seq_dir.name
         out_disp_dir = disp_root / seq_dir.name
-        counts.append(
+        written.append(
             _write_sequence(
                 seq_dir=seq_dir,
                 out_video_dir=out_video_dir,
                 out_disp_dir=out_disp_dir,
-                use_alpha_focus=use_alpha_focus,
+                focus=focus,
                 focus_disparity=focus_disparity,
             ),
         )
@@ -214,7 +295,7 @@ def write_inputs(
         writer = csv.writer(f)
         writer.writerow(["aif_folder", "disp_folder", "k"])
         writer.writerows(rows)
-    return counts
+    return written
 
 
 def _csv_entry(path: Path, relative_to: Path | None) -> str:
@@ -257,9 +338,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--focus",
-        choices=("alpha", "full"),
-        default="alpha",
-        help="how to compute zf in disparity filenames. Default: alpha mask mean.",
+        choices=FOCUS_MODES,
+        default="object",
+        help="how to compute zf in disparity filenames: one object drawn by area "
+        "(default), the mean under all the objects' masks, or the whole frame's mean.",
     )
     return parser
 
@@ -281,18 +363,18 @@ def main(argv: list[str] | None = None) -> int:
             f"no sequences to process under {args.data_root / 'sequences'}",
         )
 
-    counts = write_inputs(
+    written = write_inputs(
         seq_dirs,
         videos_root=out_root / "videos",
         disp_root=out_root / "disp",
         csv_path=csv_path,
         k=str(args.k),
-        use_alpha_focus=args.focus == "alpha" and args.focus_disparity is None,
+        focus=args.focus,
         focus_disparity=args.focus_disparity,
         relative_to=a2b_root,
     )
-    for seq_dir, count in zip(seq_dirs, counts, strict=True):
-        print(f"  {seq_dir.name}: wrote {count} frame(s)")
+    for seq_dir, inputs in zip(seq_dirs, written, strict=True):
+        print(f"  {seq_dir.name}: wrote {inputs.frames} frame(s)")
 
     print(f"\nDone. CSV: {csv_path}")
     print(f"Inference working directory: {a2b_root}")

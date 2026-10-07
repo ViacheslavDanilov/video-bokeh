@@ -217,8 +217,8 @@ starts with a dot is never a sequence: the API generates under `.tmp-*` and rena
 |---|---|---|
 | `any-to-bokeh` | its own Python 3.10 venv, NVIDIA only | `scripts/setup_third_party.sh` |
 
-any-to-bokeh focuses on the objects by default: each frame's in-focus disparity is the mean
-under the union of the object mattes. `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point
+any-to-bokeh follows one object by default: the bridge's `--focus object`, described below.
+`bokeh/focus.json` records the object and each frame's in-focus disparity. `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point
 at another checkout or interpreter.
 
 **any-to-bokeh needs thirteen frames or more per sequence.** It groups frames eight at a time,
@@ -245,7 +245,7 @@ named like the `all_in_focus` frames. The interface is
 | `--k` | str | `16` | blur-strength column written to the CSV |
 | `--seqs` | list | all | comma-separated sequence ids, e.g. `0001,0003` |
 | `--focus-disparity` | float | unset | pin one focus in `[0, 1]` for every frame. Overrides `--focus` |
-| `--focus` | str | `alpha` | `alpha` = mean disparity under the mask; `full` = whole frame |
+| `--focus` | str | `object` | `object` = one object, drawn by area, in every frame; `alpha` = mean disparity under all the masks; `full` = whole frame |
 
 ## `video_bokeh.preview.pack` — PNG streams to MP4
 
