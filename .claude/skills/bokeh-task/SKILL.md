@@ -65,7 +65,7 @@ If the ask is ambiguous, ask once. Never infer scope from a slug.
 | **bug** | behaviour that already worked is wrong | repro test → PR |
 | **investigate** | a question, an unknown cause, or "does the code match what we recorded" | a written finding, no code |
 | **docs** | a runbook, an explanation page, a reference, a README | PR |
-| **paper** | manuscript text, section structure, revisions | a draft in the paper repo, or `docs/reports/` while it does not exist |
+| **paper** | manuscript text, section structure, revisions, literature for the paper | a hand-off to the paper repository |
 | **literature** | a survey, a search for prior datasets, a comparison table | a note with verified citations |
 | **out of scope** | install software, chase IT, write to a person | name it, stop, draft the message if there is one |
 
@@ -182,16 +182,14 @@ over prose that reads stiffly. Then step 7, with commit type `docs`.
 
 ## 6e. Route: paper
 
-Check `paper_repo` in the conventions file. While it is unset, draft into
-`docs/reports/YYYY-MM-DD-<slug>.md` and say so — never create the repository unasked.
+The paper has its own repository, `paper_repo` in the conventions file, with its own
+`bokeh-task` for writing, literature, figures and the co-authors' comments. Say so, and tell
+the user to start a session in that checkout; do not write paper text here.
 
-`academic-researcher` leads. Before anything is called finished:
-`scientific-clarity-checker` for whether each claim is carried by its evidence,
-`manuscript-writing-review` for submission readiness, `no-ai-slop` so the prose reads as a
-person wrote it. `make-pdf` to build a readable draft, `pptx` if the output is slides.
-
-Numbers in the manuscript are measured and traceable to a command or a file. Never carry a
-figure from a meeting note into the paper without re-deriving it.
+What the paper needs from this repository is a task here like any other: a number no
+command produces yet, data for a figure, or a fix to the pipeline it describes, on the
+feature, bug or investigate route. The paper copies the result together with the commit
+and the command that produced it.
 
 ## 6f. Route: literature
 
@@ -203,8 +201,10 @@ datasets in rows, desirable properties in columns.
 report a paper's claim you have not read in the paper. `fact-checker` for anything
 contested. An unverifiable source is reported as unverifiable.
 
-Durable results belong in `docs/explanation/` — it is in git, so Pablo and Valery see it. A
-dated snapshot belongs in `docs/reports/`.
+Literature for the paper, the comparison table included, belongs to the paper repository:
+its `refs.bib` and `literature/`. Run that search there, through the **paper** route. A
+survey for this repository's own design choices lands in `docs/explanation/`, or as a dated
+snapshot in `docs/reports/`.
 
 ## 6g. Route: out of scope
 
