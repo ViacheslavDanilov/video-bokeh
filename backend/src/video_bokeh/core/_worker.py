@@ -55,8 +55,8 @@ def interpreter(env_var: str, default: Path, setup: str) -> Path:
 
 #: The repository, mounted into every model container. parents[4] is the repository root.
 _REPO = Path(__file__).resolve().parents[4]
-#: Enough for the any-to-bokeh demo's data loader, which starts 64 worker processes that
-#: share tensors through /dev/shm; Docker's default is 64 MiB.
+#: Room for a model's data-loader workers, which share tensors through /dev/shm; Docker's
+#: default is 64 MiB. any-to-bokeh's launcher starts none, as its sequences outgrew even this.
 _SHM_SIZE = "16g"
 
 
