@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -150,33 +149,69 @@ def test_an_unreachable_daemon_is_not_blamed_on_the_image(
     assert "make images" not in str(exc.value)
 
 
-def test_a_symlink_is_mounted_where_it_points(
-    fake_docker: Path,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.fixture
+def outside(
     tmp_path: Path,
-) -> None:
-    """Data on a second disk, linked from inside the repository, is mounted at its target:
-    mounted under the link's name, the link inside the container would lead nowhere.
-    """
+    monkeypatch: pytest.MonkeyPatch,
+    fake_docker: Path,
+) -> Path:
+    """A repository, a temporary directory and a cache that cover nothing else."""
     monkeypatch.setenv("FAKE_DOCKER_IMAGES", "video-bokeh-x")
-    repo = Path(__file__).resolve().parents[3]
-    inside = Path(tempfile.mkdtemp(dir=repo / "backend"))
-    # Nothing else may cover the target, as the real temporary directory would.
-    monkeypatch.setattr(worker.tempfile, "gettempdir", lambda: str(inside))
-    monkeypatch.setenv("HF_HOME", str(inside / "hf"))
-    target = tmp_path / "disk2"
-    target.mkdir()
-    link = inside / "data"
-    link.symlink_to(target)
-    try:
-        argv = model_command(
-            "X_PYTHON",
-            tmp_path,
-            _SETUP,
-            "video-bokeh-x",
-            mounts=[link],
-        )
-    finally:
-        shutil.rmtree(inside)
-    hosts = [Path(v.split(":")[0]) for v in _pairs(argv, "-v")]
-    assert target in hosts
+    monkeypatch.setattr(worker, "_REPO", tmp_path / "repo")
+    monkeypatch.setattr(worker.tempfile, "gettempdir", lambda: str(tmp_path / "tmp"))
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "hf"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    for name in ("repo", "tmp", "disk2"):
+        (tmp_path / name).mkdir()
+    return tmp_path
+
+
+def _resolves(argv: list[str], path: Path) -> bool:
+    """Whether ``path``, as the container is told it, lands on a mount of its target."""
+    for spec in _pairs(argv, "-v"):
+        host, inside = map(Path, spec.split(":"))
+        if path.is_relative_to(inside):
+            return (host / path.relative_to(inside)).resolve() == path.resolve()
+    return False
+
+
+def test_a_symlink_inside_a_mount_is_mounted_where_it_points(outside: Path) -> None:
+    """Data on a second disk, linked from inside the repository."""
+    link = outside / "repo" / "data"
+    link.symlink_to(outside / "disk2")
+    argv = model_command("X_PYTHON", outside, _SETUP, "video-bokeh-x", mounts=[link])
+    assert f"{outside / 'disk2'}:{outside / 'disk2'}" in _pairs(argv, "-v")
+
+
+def test_a_symlink_outside_every_mount_keeps_its_own_name(
+    outside: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Hugging Face cache linked to a bigger disk: the container is told the link."""
+    link = outside / "hf-link"
+    link.symlink_to(outside / "disk2")
+    monkeypatch.setenv("HF_HOME", str(link))
+    argv = model_command("X_PYTHON", outside, _SETUP, "video-bokeh-x")
+    assert f"HF_HOME={link}" in _pairs(argv, "-e")
+    assert _resolves(argv, link)
+
+
+def test_a_symlinked_temporary_directory_still_holds_the_workdir(
+    outside: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    link = outside / "tmp-link"
+    link.symlink_to(outside / "disk2")
+    monkeypatch.setattr(worker.tempfile, "gettempdir", lambda: str(link))
+    work = link / "run"
+    work.mkdir()
+    argv = model_command("X_PYTHON", outside, _SETUP, "video-bokeh-x", workdir=work)
+    assert _resolves(argv, work)
+
+
+def test_the_home_is_the_user_s_own(outside: Path) -> None:
+    argv = model_command("X_PYTHON", outside, _SETUP, "video-bokeh-x")
+    (home,) = [e.split("=", 1)[1] for e in _pairs(argv, "-e") if e.startswith("HOME=")]
+    assert Path(home).is_relative_to(outside / "home")
+    assert Path(home).stat().st_mode & 0o777 == 0o700
+    assert _resolves(argv, Path(home))

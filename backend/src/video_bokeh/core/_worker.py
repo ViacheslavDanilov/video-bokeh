@@ -99,23 +99,37 @@ def model_command(
         os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"),
     ).absolute()
     hf_home.mkdir(parents=True, exist_ok=True)
-    # The user has no home in the image, and a shared /tmp/.cache would belong to whoever
-    # wrote it first.
-    home = Path(tempfile.gettempdir()) / f"video-bokeh-home-{os.getuid()}"
-    home.mkdir(exist_ok=True)
+    # The user has no home in the image. This one is theirs, not a name in the shared /tmp
+    # that someone else could take first.
+    home = Path.home() / ".cache" / "video-bokeh-home"
+    home.mkdir(mode=0o700, parents=True, exist_ok=True)
     argv = ["docker", "run", "--rm", "-i", "--init", "--gpus", "all"]
     # Labelled, so a container left behind by a killed run can be found and stopped.
     argv += ["--label", f"video-bokeh.model={image}"]
     argv += [f"--shm-size={_SHM_SIZE}", "--user", f"{os.getuid()}:{os.getgid()}"]
     argv += ["-e", f"HF_HOME={hf_home}", "-e", f"HOME={home}"]
-    paths = [_REPO, Path(tempfile.gettempdir()), hf_home, *mounts]
-    # Resolved: a path that is a symlink to another disk is mounted where it points, and
-    # the link, inside a mounted parent, still finds it.
-    for path in _outermost(Path(p).resolve() for p in paths):
-        argv += ["-v", f"{path}:{path}"]
+    paths = [_REPO, Path(tempfile.gettempdir()), hf_home, home, *mounts]
+    for host, inside in _mounts(paths):
+        argv += ["-v", f"{host}:{inside}"]
     if workdir is not None:
         argv += ["-w", str(Path(workdir).absolute())]
     return [*argv, image, "python"]
+
+
+def _mounts(paths: Iterable[Path]) -> list[tuple[Path, Path]]:
+    """Host and container path of each mount, so that every path in ``paths`` resolves.
+
+    A path is mounted where it really is. A symlink, to data on another disk say, is also
+    mounted under its own name unless a mounted parent already holds the link: the
+    container is handed the link's name, in HF_HOME, -w or an argument.
+    """
+    given = [Path(os.path.normpath(Path(p).absolute())) for p in paths]
+    pairs = [(real, real) for real in _outermost(p.resolve() for p in given)]
+    for path in given:
+        real = path.resolve()
+        if path != real and not any(path.is_relative_to(inside) for _, inside in pairs):
+            pairs.append((real, path))
+    return pairs
 
 
 def _outermost(paths: Iterable[Path]) -> list[Path]:
