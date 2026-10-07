@@ -80,7 +80,7 @@ class DepthAnything3Estimator:
         """
         try:
             python = _python()
-        except RuntimeError as exc:
+        except (RuntimeError, ValueError, OSError) as exc:
             return str(exc)
         result = subprocess.run(
             # -P keeps the working directory off sys.path, where a folder named like the

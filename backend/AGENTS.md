@@ -6,6 +6,7 @@ FastAPI on Python 3.13, managed with `uv`. Type checker: `ty` (astral). Linter/f
 
 - **Python 3.13 only.** `requires-python = ">=3.13"` in `pyproject.toml`. Don't downgrade syntax for older versions.
   - Two exceptions: `src/video_bokeh/library/depth/_da3_worker.py` runs under Depth Anything 3's own Python 3.12, and `src/video_bokeh/render/_a2b_launch.py` under any-to-bokeh's Python 3.10, so they stay compatible with those. `pyproject.toml` gives ruff a `py312` and a `py310` target for those files alone.
+- **Models that cannot share our environment run in their own.** `VIDEO_BOKEH_RUNNER=docker`, the default of `make` and `scripts/lab_run.sh` on Linux with Docker, runs each in its image from `docker/`, built by `make images`; `local`, the default elsewhere, runs them in their venvs or in this process. `core/_worker.py`'s `model_command` is the one place that decides. Tests reset the variable, so a shell export cannot change them.
 - **`uv` is the package manager** — not pip, not poetry, not conda. Lockfile is `../uv.lock` (at repo root because this is a uv workspace; `[tool.uv.workspace] members = ["backend"]`).
 - **All Python commands go through `uv run ...`** so they use the locked environment.
 
@@ -42,6 +43,7 @@ backend/
 ├── tests/             # pytest tests
 ├── models/            # Trained model artifacts (gitignored)
 ├── data/              # Datasets (gitignored)
+├── docker/            # One Dockerfile per model family, built by `make images`
 ├── envs/              # Venvs for models that cannot share ours, built by ../scripts/ (gitignored)
 ├── third_party/       # Git submodules — DO NOT MODIFY
 └── pyproject.toml

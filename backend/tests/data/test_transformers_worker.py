@@ -157,3 +157,13 @@ def test_an_estimator_without_an_image_says_so(
 
     problem = Mine.environment_problem()
     assert problem is not None and "names no Docker image" in problem
+
+
+@pytest.mark.parametrize("key", ["da2-small", "depth-pro", "da3-mono-large"])
+def test_a_misspelt_runner_is_a_reason_not_a_crash(
+    key: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIDEO_BOKEH_RUNNER", "dokcer")
+    problem = ESTIMATORS[key].environment_problem()
+    assert problem is not None and "VIDEO_BOKEH_RUNNER" in problem

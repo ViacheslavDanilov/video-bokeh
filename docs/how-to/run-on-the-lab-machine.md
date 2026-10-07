@@ -25,9 +25,13 @@ on an RTX 5090 on 2026-10-07.
    downloads its checkpoints and the Stable Video Diffusion base model, 4.2 GiB of fp16
    weights by the Hub's metadata on 2026-10-02. It needs an NVIDIA card, and ran on an RTX 5090.
    [[run-any-to-bokeh-inference]] has the details.
-3. `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in.
-   Run here. [[cli]], section "Depth Anything 3's own environment", says what it leaves out.
-4. `uv run --directory backend --extra library python -m video_bokeh.library.check` says
+3. `make images` builds the models' Docker images: `video-bokeh-a2b`, `video-bokeh-da3`,
+   `video-bokeh-da2` and `video-bokeh-depth-pro`, 8 to 12 GB each, with no weights in them. It
+   needs Docker with the NVIDIA Container Toolkit, and ran on the RTX 5090.
+4. On a machine without them, the Mac, `scripts/setup_depth_anything_3.sh` builds the venv
+   the `da3-*` depth estimators run in instead. Run here. [[cli]], section "Depth Anything 3's
+   own environment", says what it leaves out.
+5. `uv run --directory backend --extra library python -m video_bokeh.library.check` says
    whether each depth estimator can run on the machine, without downloading anything. Run
    here.
 
@@ -50,6 +54,14 @@ It does five things, in order:
    seeds and same assets give the same scenes, so only the disparity differs between libraries.
 4. **Bokeh, Stage C**, through any-to-bokeh, into each sequence's `bokeh/`.
 5. **MP4s** of each sequence's frames, disparity and bokeh, next to the frames.
+
+**On Linux with Docker, every model runs in its own image.** The log's header says which
+runner it used, `docker` or `local`, and `VIDEO_BOKEH_RUNNER` picks one outright. Under
+`docker` the run checks for the images before anything long starts, and names `make images`
+when one is missing; the any-to-bokeh checkpoints and base model still come from step 2,
+because the image mounts them. On the RTX 5090 on 2026-10-07, with `COUNT=2 FRAMES=24`, the
+whole run took 15 minutes under `docker`: 62 to 90 s per library, 57 to 63 s of bokeh per
+estimator, and the device check's peak memory matched the venv run's for every estimator.
 
 **One estimator failing does not stop the others.** A library that does not build is named in
 the summary, its estimator gets no sequences, and the rest go on. The run then exits 1. The

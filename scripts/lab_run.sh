@@ -18,15 +18,20 @@
 # The output lands in backend/data/lab/, which git ignores, and
 # `make api LIBRARY=backend/data/lab/libraries` shows the libraries in the page's picker.
 #
+# The models run in their Docker images where Linux has docker, and in their venvs
+# elsewhere; VIDEO_BOKEH_RUNNER=docker or local chooses outright.
+#
 # Prerequisites, once per machine, from the repository root:
 #   make setup
-#   scripts/setup_third_party.sh       # any-to-bokeh, its checkpoints, NVIDIA only
-#   scripts/setup_depth_anything_3.sh  # the da3-* depth estimators
+#   scripts/setup_third_party.sh       # any-to-bokeh's checkpoints and base model, NVIDIA only
+#   make images                        # the models' images, for the docker runner
+#   scripts/setup_depth_anything_3.sh  # the da3-* venv, for the local runner only
 #
 # Usage: scripts/lab_run.sh [--no-render] [estimator ...]
 #   Estimators default to every registered one. --no-render stops before Stage C, for
 #   checking the rest of this script on a machine without an NVIDIA card.
-# Environment: COUNT sequences per estimator (4), FRAMES per sequence (80), SIZE (512).
+# Environment: COUNT sequences per estimator (4), FRAMES per sequence (80), SIZE (512),
+# VIDEO_BOKEH_RUNNER (docker on Linux with docker, local otherwise).
 
 set -euo pipefail
 
@@ -55,6 +60,25 @@ DA3_PYTHON="$BACKEND/envs/depth-anything-3/.venv/bin/python"
 
 py() { uv run --directory "$BACKEND" --extra library python "$@"; }
 
+if [ -z "${VIDEO_BOKEH_RUNNER:-}" ]; then
+    # Docker on a Mac has no GPU to give a container.
+    if [ "$(uname)" = Linux ] && command -v docker > /dev/null; then
+        VIDEO_BOKEH_RUNNER=docker
+    else
+        VIDEO_BOKEH_RUNNER=local
+    fi
+fi
+export VIDEO_BOKEH_RUNNER
+
+# The image each estimator runs in under the docker runner; none for one of your own.
+image_of() {
+    case "$1" in
+        da2-*) echo video-bokeh-da2 ;;
+        depth-pro) echo video-bokeh-depth-pro ;;
+        da3-*) echo video-bokeh-da3 ;;
+    esac
+}
+
 if [ "${#ESTIMATORS[@]}" -eq 0 ]; then
     read -r -a ESTIMATORS <<< "$(py -c \
         "from video_bokeh.library.depth import ESTIMATORS; print(' '.join(sorted(ESTIMATORS)))")"
@@ -68,19 +92,40 @@ fi
 # any-to-bokeh loads the Stable Video Diffusion base model offline only, from here.
 SVD_CACHE="${HF_HOME:-$HOME/.cache/huggingface}/hub/models--stabilityai--stable-video-diffusion-img2vid-xt"
 if [ "$RENDER" = 1 ]; then
-    for need in "$A2B_PYTHON" "$A2B/checkpoints/unet" "$A2B/checkpoints/vae" "$SVD_CACHE"; do
+    # The image mounts the checkpoints and the base model, so both runners need them.
+    needs=("$A2B/checkpoints/unet" "$A2B/checkpoints/vae" "$SVD_CACHE")
+    [ "$VIDEO_BOKEH_RUNNER" = local ] && needs+=("$A2B_PYTHON")
+    for need in "${needs[@]}"; do
         if [ ! -e "$need" ]; then
             echo "error: $need missing. Run scripts/setup_third_party.sh first." >&2
             exit 1
         fi
     done
 fi
-for estimator in "${ESTIMATORS[@]}"; do
-    if [[ "$estimator" == da3-* ]] && [ ! -x "$DA3_PYTHON" ]; then
-        echo "error: $DA3_PYTHON missing. Run scripts/setup_depth_anything_3.sh first." >&2
-        exit 1
-    fi
-done
+if [ "$VIDEO_BOKEH_RUNNER" = docker ]; then
+    images=()
+    [ "$RENDER" = 1 ] && images+=(video-bokeh-a2b)
+    for estimator in "${ESTIMATORS[@]}"; do
+        image="$(image_of "$estimator")"
+        # Once each: the three da2-* share an image.
+        if [ -n "$image" ] && [[ " ${images[*]-} " != *" $image "* ]]; then
+            images+=("$image")
+        fi
+    done
+    for image in ${images[@]+"${images[@]}"}; do
+        if ! docker image inspect "$image" > /dev/null 2>&1; then
+            echo "error: no Docker image $image. Run make images first." >&2
+            exit 1
+        fi
+    done
+else
+    for estimator in "${ESTIMATORS[@]}"; do
+        if [[ "$estimator" == da3-* ]] && [ ! -x "$DA3_PYTHON" ]; then
+            echo "error: $DA3_PYTHON missing. Run scripts/setup_depth_anything_3.sh first." >&2
+            exit 1
+        fi
+    done
+fi
 
 LOG_DIR="$BACKEND/data/measurements"
 mkdir -p "$LOG_DIR" "$OUT/libraries" "$OUT/sequences"
@@ -133,6 +178,7 @@ printf 'host:       %s\n' "$(hostname)"
 printf 'commit:     %s\n' "$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 printf 'estimators: %s\n' "${ESTIMATORS[*]}"
 printf 'sequences:  %s per estimator, %s frames at %s px\n' "$COUNT" "$FRAMES" "$SIZE"
+printf 'runner:     %s\n' "$VIDEO_BOKEH_RUNNER"
 
 printf '\n===== environment =====\n'
 if command -v nvidia-smi > /dev/null; then
@@ -144,8 +190,14 @@ TORCH='import torch; print("torch", torch.__version__, "| cuda", torch.version.c
 # A venv whose torch will not import is a finding for the log, not a reason to stop here:
 # the step that needs it fails on its own and says so.
 run uv run --directory "$BACKEND" --extra library python -c "$TORCH" || true
-if [ -x "$DA3_PYTHON" ]; then run "$DA3_PYTHON" -c "$TORCH" || true; fi
-if [ -x "$A2B_PYTHON" ]; then run "$A2B_PYTHON" -c "$TORCH" || true; fi
+if [ "$VIDEO_BOKEH_RUNNER" = docker ]; then
+    for image in ${images[@]+"${images[@]}"}; do
+        run docker run --rm --gpus all "$image" python -c "$TORCH" || true
+    done
+else
+    if [ -x "$DA3_PYTHON" ]; then run "$DA3_PYTHON" -c "$TORCH" || true; fi
+    if [ -x "$A2B_PYTHON" ]; then run "$A2B_PYTHON" -c "$TORCH" || true; fi
+fi
 
 printf '\n===== 1. device check, measured =====\n'
 model_flags=()
