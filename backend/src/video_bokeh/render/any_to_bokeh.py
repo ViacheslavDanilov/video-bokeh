@@ -14,6 +14,7 @@ to the sequence's own size; a lossless path is later work, once a GPU run can ch
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import stat
@@ -24,7 +25,11 @@ from typing import Any, ClassVar, cast
 import imageio.v2 as imageio
 from PIL import Image
 
-from video_bokeh.bridge.any_to_bokeh import list_png_frames, write_inputs
+from video_bokeh.bridge.any_to_bokeh import (
+    SequenceInputs,
+    list_png_frames,
+    write_inputs,
+)
 from video_bokeh.core._worker import model_command, run_script
 
 # backend/third_party/any-to-bokeh; parents[3] is backend/.
@@ -46,8 +51,8 @@ _MIN_FRAMES = 13
 class AnyToBokeh:
     """any-to-bokeh, with ``strength`` passed through as its ``k``.
 
-    With no ``focus_disparity``, each frame focuses on the mean disparity under the union
-    of the object mattes, as the bridge computes it.
+    With no ``focus_disparity``, the focus follows one object, drawn by area, as the bridge
+    chooses it; ``bokeh/focus.json`` records which.
     """
 
     name: ClassVar[str] = "any-to-bokeh"
@@ -81,13 +86,13 @@ class AnyToBokeh:
                     )
 
             csv_path = work / "inputs.csv"
-            write_inputs(
+            written = write_inputs(
                 sequence_dirs,
                 videos_root=work / "videos",
                 disp_root=work / "disp",
                 csv_path=csv_path,
                 k=f"{strength:g}",
-                use_alpha_focus=focus_disparity is None,
+                focus="object",
                 focus_disparity=focus_disparity,
             )
             # The demo writes output/ relative to its working directory.
@@ -110,8 +115,13 @@ class AnyToBokeh:
             # leaves no sequence rendered while its neighbours are not.
             for video, seq in zip(outputs, sequence_dirs, strict=True):
                 _check_length(video, seq)
-            for video, seq in zip(outputs, sequence_dirs, strict=True):
-                _write_bokeh(video, seq)
+            for video, seq, inputs in zip(
+                outputs,
+                sequence_dirs,
+                written,
+                strict=True,
+            ):
+                _write_bokeh(video, seq, inputs)
 
 
 def _frame_names(seq: Path) -> list[str]:
@@ -152,8 +162,12 @@ def _check_length(video: Path, seq: Path) -> None:
         )
 
 
-def _write_bokeh(video: Path, seq: Path) -> None:
-    """Decode one sequence's video into ``bokeh/``, which appears whole or not at all."""
+def _write_bokeh(video: Path, seq: Path, inputs: SequenceInputs) -> None:
+    """Decode one sequence's video into ``bokeh/``, which appears whole or not at all.
+
+    ``focus.json`` beside the frames says what was in focus: the object, by alpha page,
+    or null, and each frame's in-focus disparity.
+    """
     names = _frame_names(seq)
     with Image.open(seq / "all_in_focus" / names[0]) as first:
         size = first.size
@@ -169,6 +183,8 @@ def _write_bokeh(video: Path, seq: Path) -> None:
                 staging / name,
                 compress_level=6,
             )
+        record = {"object": inputs.focus_object, "zf": inputs.zf}
+        (staging / "focus.json").write_text(json.dumps(record) + "\n", encoding="utf-8")
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
         raise

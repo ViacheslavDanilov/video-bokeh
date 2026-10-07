@@ -74,9 +74,28 @@ filename — `01_zf_0.500000.png`.
 
 | what you want | flag |
 |---|---|
-| Follow the subject: focus on the mean disparity under the alpha mask | default, or `--focus alpha` |
+| Follow one object, drawn by area: its mean disparity in each frame | default, or `--focus object` |
+| Focus on the mean disparity under all the objects' masks together | `--focus alpha` |
 | Focus on the mean disparity of the whole frame | `--focus full` |
 | Pin one focus plane for the entire clip | `--focus-disparity 0.5` |
+
+**The default keeps one object sharp, the way a camera operator follows a subject.** Each
+sequence draws one object, with odds in proportion to the mean area it holds alone, seeded by
+the sequence's name so a re-run keeps it. Its mean disparity there is the focus in every frame.
+A frame where it is off screen or wholly covered keeps the last focus. A sequence with
+no object focuses on the whole frame. Weighting by area rather than taking the largest keeps
+the focus off the foreground, where the large objects usually are, without landing on a speck.
+
+**Only the pixels an object holds alone count.** The alpha masks are whole, drawn before
+occlusion, while the disparity shows the nearest object. Where two masks overlap, the
+disparity may be either object's. Taken whole, a far object at 0.2 three quarters behind one
+at 0.8 would focus at 0.65. So the focus and the area count only the pixels no other mask
+covers. A small object wholly inside a larger one's mask reads as hidden in that frame, even
+when it is in front, and the focus keeps its last value.
+
+`--focus alpha` was the default until 2026-10-07. With several objects at different depths, the
+mean under all their masks falls between them, so none was sharp: on one sequence with objects
+at disparity 0.11, 0.49 and 0.90 the focus came to 0.515.
 
 **Pin the focus when you are comparing frames rather than following a subject.** With the
 default the focus chases the object, so a clip where the object moves through depth never
@@ -153,8 +172,8 @@ any-to-bokeh reads 8-bit disparity, so the bridge quantizes the 16-bit stream do
 the single lossy step, and it happens once — it used to happen twice, which was harmless only
 while the source had no precision to lose.
 
-The focus plane is the mean disparity under the **union** of the object masks. Until
-2026-09-18 the bridge blended the mask channels by luminance instead, which dropped objects
+With `--focus alpha`, the focus plane is the mean disparity under the **union** of the object
+masks. Until 2026-09-18 the bridge blended the mask channels by luminance instead, which dropped objects
 that were not in the middle channel and often fell back to whole-frame focus without saying
 so. Any comparison against output generated before that fix is invalid.
 

@@ -108,6 +108,9 @@ occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live a
 | `bokeh` | PNG, RGB | uint8 | the frame as the bokeh renderer blurred it |
 
 - **One file per `all_in_focus` frame, named like it**, at the sequence's own size.
+- **`focus.json` beside the frames says what was in focus**: `{"object": 2, "zf": [...]}`,
+  the object by its alpha page, or `null` when none held the focus, and each frame's in-focus
+  disparity in `[0, 1]`. A reader that lists the stream takes `*.png`.
 - **It appears complete or not at all.** The renderer writes into a hidden folder beside it,
   `.bokeh-` and a random suffix, a new one per run. It renames that folder to `bokeh/` only
   when every frame is in place. A run that was killed can leave one behind, and deleting it
@@ -174,9 +177,11 @@ expects.
 └── csv_file/<dataset-name>.csv                  aif_folder, disp_folder, k
 ```
 
-`<focus>` is the in-focus disparity, six decimals. By default it is the mean disparity under
-the frame's alpha mask; `--focus-disparity` pins one value for the whole clip instead, which
-is what you want when comparing frames rather than chasing the subject.
+`<focus>` is the in-focus disparity, six decimals. By default it is the mean disparity of one
+object, over the pixels no other mask covers, the object drawn by that area for the whole
+sequence. `--focus alpha` takes the mean under all the objects' masks, and `--focus-disparity`
+pins one value for the whole clip instead, which is what you want when comparing frames rather
+than chasing the subject.
 
 The bridge reads the 16-bit disparity PNGs and quantizes them to the 8 bits any-to-bokeh
 reads, once.

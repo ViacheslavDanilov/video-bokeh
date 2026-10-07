@@ -7,7 +7,14 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from video_bokeh.bridge.any_to_bokeh import main
+from video_bokeh.bridge import any_to_bokeh as bridge
+from video_bokeh.bridge.any_to_bokeh import (
+    SequenceInputs,
+    choose_focus_object,
+    main,
+    visible_masks,
+    write_inputs,
+)
 from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 
 
@@ -196,7 +203,8 @@ def test_focus_mask_is_the_union_of_the_pages(tmp_path: Path) -> None:
 
     root = _seq_with_alpha(tmp_path, masks, disp)
     target = tmp_path / "a2b"
-    assert main(["--data-root", str(root), "--a2b-root", str(target)]) == 0
+    args = ["--data-root", str(root), "--a2b-root", str(target), "--focus", "alpha"]
+    assert main(args) == 0
 
     # Mean over both masked pixels, not over one of them and not over the frame.
     assert _zf_of(target) == pytest.approx(0.2, abs=2e-3)
@@ -261,4 +269,239 @@ def test_alpha_directory_without_tif_frames_is_an_error(tmp_path: Path) -> None:
                 "--a2b-root",
                 str(tmp_path / "a2b"),
             ],
+        )
+
+
+# --focus object, the default: one object, chosen by area, holds the focus.
+
+
+def _zfs_of(target: Path, seq: str = "0001", dataset: str = "data") -> list[float]:
+    names = sorted((target / f"demo_dataset/{dataset}/disp/{seq}").glob("*.png"))
+    return [float(p.name.split("_zf_")[1].removesuffix(".png")) for p in names]
+
+
+def _two_object_sequence(
+    root: Path,
+    seq: str,
+    frames: list[tuple[np.ndarray | None, np.ndarray | None]],
+) -> None:
+    """Object 0 at disparity 0.2, object 1 at 0.8, background 0.5; None hides one."""
+    for t, (first, second) in enumerate(frames, start=1):
+        stem = f"{t:02d}"
+        empty = np.zeros((4, 4), dtype=np.float32)
+        masks = [empty if first is None else first, empty if second is None else second]
+        disp = np.full((4, 4), 0.5, dtype=np.float32)
+        disp[masks[0] > 0.5] = 0.2
+        disp[masks[1] > 0.5] = 0.8
+        _write_rgb(root / "sequences" / seq / "all_in_focus" / f"{stem}.png", 100)
+        _write_alpha(root / "sequences" / seq / "alpha" / f"{stem}.tif", masks)
+        _write_disparity(root / "sequences" / seq / "disparity" / f"{stem}.png", disp)
+
+
+def _block(rows: slice, cols: slice) -> np.ndarray:
+    m = np.zeros((4, 4), dtype=np.float32)
+    m[rows, cols] = 1.0
+    return m
+
+
+def test_choice_is_weighted_by_area() -> None:
+    picks = [choose_focus_object([3.0, 1.0], seed) for seed in range(4000)]
+    assert picks.count(0) / len(picks) == pytest.approx(0.75, abs=0.03)
+
+
+def test_choice_is_reproducible_and_needs_an_object() -> None:
+    assert choose_focus_object([2.0, 5.0, 1.0], 7) == choose_focus_object(
+        [2.0, 5.0, 1.0],
+        7,
+    )
+    assert choose_focus_object([0.0, 0.0], 7) is None
+    assert choose_focus_object([], 7) is None
+
+
+def test_the_focus_is_one_object_s_disparity_in_every_frame(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    big, small = _block(slice(0, 2), slice(0, 4)), _block(slice(3, 4), slice(3, 4))
+    _two_object_sequence(root, "0001", [(big, small)] * 3)
+    target = tmp_path / "a2b"
+    assert main(["--data-root", str(root), "--a2b-root", str(target)]) == 0
+    zfs = _zfs_of(target)
+    # Either object, but one of them, whole: never the 0.5 background, never a mean.
+    assert len(set(zfs)) == 1
+    assert zfs[0] == pytest.approx(0.2, abs=3e-3) or zfs[0] == pytest.approx(
+        0.8,
+        abs=3e-3,
+    )
+
+
+def test_a_hidden_object_keeps_the_focus_where_it_was(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    # Only object 1 exists, so it is the one chosen; it is hidden in frames 1 and 3.
+    obj = _block(slice(0, 2), slice(0, 2))
+    _two_object_sequence(root, "0001", [(None, None), (None, obj), (None, None)])
+    target = tmp_path / "a2b"
+    assert main(["--data-root", str(root), "--a2b-root", str(target)]) == 0
+    assert _zfs_of(target) == pytest.approx([0.8, 0.8, 0.8], abs=3e-3)
+
+
+def test_a_sequence_without_objects_focuses_on_the_whole_frame(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    _two_object_sequence(root, "0001", [(None, None)] * 2)
+    target = tmp_path / "a2b"
+    assert main(["--data-root", str(root), "--a2b-root", str(target)]) == 0
+    assert _zfs_of(target) == pytest.approx([0.5, 0.5], abs=3e-3)
+
+
+def test_write_inputs_reports_the_chosen_object(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    obj = _block(slice(0, 2), slice(0, 2))
+    _two_object_sequence(root, "0001", [(None, obj)] * 2)
+    (written,) = write_inputs(
+        [root / "sequences" / "0001"],
+        videos_root=tmp_path / "v",
+        disp_root=tmp_path / "d",
+        csv_path=tmp_path / "in.csv",
+        k="16",
+        focus="object",
+    )
+    assert written.frames == 2
+    assert written.focus_object == 1
+    assert written.zf == pytest.approx([0.8, 0.8], abs=3e-3)
+
+
+def _occluded_sequence(root: Path, seq: str, far: np.ndarray, near: np.ndarray) -> None:
+    """Far object 0 at 0.2 under near object 1 at 0.8, composited as Stage B does: each
+    mask is whole, and the disparity shows the near object wherever the two overlap.
+    """
+    disp = np.full((4, 4), 0.5, dtype=np.float32)
+    disp[far > 0.5] = 0.2
+    disp[near > 0.5] = 0.8
+    _write_rgb(root / "sequences" / seq / "all_in_focus" / "01.png", 100)
+    _write_alpha(root / "sequences" / seq / "alpha" / "01.tif", [far, near])
+    _write_disparity(root / "sequences" / seq / "disparity" / "01.png", disp)
+
+
+def _focus_of(tmp_path: Path, far: np.ndarray, near: np.ndarray) -> SequenceInputs:
+    root = tmp_path / "data"
+    _occluded_sequence(root, "0001", far, near)
+    (written,) = write_inputs(
+        [root / "sequences" / "0001"],
+        videos_root=tmp_path / "v",
+        disp_root=tmp_path / "d",
+        csv_path=tmp_path / "in.csv",
+        k="16",
+    )
+    return written
+
+
+def test_an_occluded_object_is_focused_by_what_shows_of_it(tmp_path: Path) -> None:
+    far = _block(slice(0, 4), slice(0, 2))  # 8 pixels
+    near = _block(slice(0, 3), slice(0, 2))  # covers 6 of them
+    written = _focus_of(tmp_path, far, near)
+    # Whichever is drawn, its focus is its own disparity, never a blend of the two.
+    expected = {0: 0.2, 1: 0.8}[written.focus_object]
+    assert written.zf == pytest.approx([expected], abs=3e-3)
+    # And the far object, whichever was drawn: what shows of it is at its own 0.2.
+    disp = np.where(near > 0.5, 0.8, np.where(far > 0.5, 0.2, 0.5))
+    shows = visible_masks([far > 0.5, near > 0.5])[0]
+    assert shows.sum() == 2
+    assert disp[shows].mean() == pytest.approx(0.2)
+
+
+def test_a_small_near_object_inside_a_far_mask_counts_as_hidden() -> None:
+    """Every pixel of the near object lies inside the far object's mask. Its own
+    disparity shows there, but nothing tells it from a far object covered: hidden is the
+    safe reading, and the focus keeps its last value.
+    """
+    far = _block(slice(0, 4), slice(0, 4)) > 0.5
+    near = _block(slice(1, 2), slice(1, 2)) > 0.5
+    visible = visible_masks([far, near])
+    assert not visible[1].any()
+    assert visible[0].sum() == 15
+
+
+def test_a_fully_covered_object_is_hidden() -> None:
+    far = _block(slice(1, 3), slice(1, 3)) > 0.5
+    near = _block(slice(0, 4), slice(0, 4)) > 0.5
+    visible = visible_masks([far, near])
+    assert not visible[0].any()
+    assert visible[1].sum() == 12
+
+
+def test_a_covered_frame_keeps_the_focus_whatever_its_cover_s_relief(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Object 0 alone, then wholly behind object 1, whose disparity ramps 0.70 to 0.90.
+    Ranked by medians, object 0 would come out in front, at the cover's 0.87.
+    """
+    monkeypatch.setattr(bridge, "choose_focus_object", lambda areas, seed: 0)
+    root = tmp_path / "data" / "sequences" / "0001"
+    # Under the cover's nearer side, where its disparity is above its own median.
+    small = _block(slice(1, 3), slice(2, 4))
+    big = _block(slice(0, 4), slice(0, 4))
+    ramp = np.tile(np.linspace(0.70, 0.90, 4, dtype=np.float32), (4, 1))
+    frames = [
+        ([small, np.zeros((4, 4), np.float32)], np.where(small > 0.5, 0.2, 0.5)),
+        ([small, big], ramp),
+    ]
+    for t, (masks, disp) in enumerate(frames, start=1):
+        _write_rgb(root / "all_in_focus" / f"0{t}.png", 100)
+        _write_alpha(root / "alpha" / f"0{t}.tif", masks)
+        _write_disparity(root / "disparity" / f"0{t}.png", disp.astype(np.float32))
+    (written,) = write_inputs(
+        [root],
+        tmp_path / "v",
+        tmp_path / "d",
+        tmp_path / "in.csv",
+        "16",
+    )
+    assert written.focus_object == 0
+    assert written.zf == pytest.approx([0.2, 0.2], abs=3e-3)
+
+
+def test_the_draw_depends_on_the_sequence_s_name(tmp_path: Path) -> None:
+    """Seeded by name: the same sequence keeps its object, and names spread the draws."""
+    root = tmp_path / "data"
+    big, small = _block(slice(0, 2), slice(0, 2)), _block(slice(3, 4), slice(0, 4))
+    names = [f"{i:04d}" for i in range(1, 21)]
+    for name in names:
+        _two_object_sequence(root, name, [(big, small)])
+    seqs = [root / "sequences" / n for n in names]
+    first = write_inputs(seqs, tmp_path / "v", tmp_path / "d", tmp_path / "a.csv", "16")
+    again = write_inputs(
+        seqs,
+        tmp_path / "v2",
+        tmp_path / "d2",
+        tmp_path / "b.csv",
+        "16",
+    )
+    assert [w.focus_object for w in first] == [w.focus_object for w in again]
+    assert len({w.focus_object for w in first}) == 2
+
+
+def test_a_pinned_focus_does_not_read_the_alpha(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    obj = _block(slice(0, 2), slice(0, 2))
+    _two_object_sequence(root, "0001", [(obj, None)] * 2)
+    (root / "sequences" / "0001" / "alpha" / "02.tif").unlink()
+    (written,) = write_inputs(
+        [root / "sequences" / "0001"],
+        tmp_path / "v",
+        tmp_path / "d",
+        tmp_path / "in.csv",
+        "16",
+        focus_disparity=0.4,
+    )
+    assert written.zf == [0.4, 0.4]
+
+
+def test_an_unknown_focus_mode_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="focus"):
+        write_inputs(
+            [],
+            tmp_path / "v",
+            tmp_path / "d",
+            tmp_path / "in.csv",
+            "16",
+            focus="obj",
         )
