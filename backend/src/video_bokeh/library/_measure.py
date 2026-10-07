@@ -75,9 +75,12 @@ def main(argv: list[str]) -> int:
     _synchronize(device)
     per_image_s = time.perf_counter() - start
 
-    # An estimator that keeps its weights in another process reports that process.
+    # An estimator that keeps its weights in another process reports that process; None
+    # means they are in this one after all.
     elsewhere = getattr(estimator, "peak_memory", None)
-    memory = elsewhere() if elsewhere is not None else peak_memory(device)
+    memory = elsewhere() if elsewhere is not None else None
+    if memory is None:
+        memory = peak_memory(device)
     close = getattr(estimator, "close", None)
     if close is not None:
         close()

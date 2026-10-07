@@ -14,13 +14,16 @@ from video_bokeh.library.depth._transformers import TransformersDepthEstimator
 class DepthAnythingV2Small(TransformersDepthEstimator):
     name: ClassVar[str] = "da2-small"
     hf_model_id: ClassVar[str] = "depth-anything/Depth-Anything-V2-Small-hf"
+    docker_image: ClassVar[str] = "video-bokeh-da2"
 
 
 class DepthAnythingV2Base(TransformersDepthEstimator):
     name: ClassVar[str] = "da2-base"
     hf_model_id: ClassVar[str] = "depth-anything/Depth-Anything-V2-Base-hf"
+    docker_image: ClassVar[str] = "video-bokeh-da2"
 
 
 class DepthAnythingV2Large(TransformersDepthEstimator):
     name: ClassVar[str] = "da2-large"
     hf_model_id: ClassVar[str] = "depth-anything/Depth-Anything-V2-Large-hf"
+    docker_image: ClassVar[str] = "video-bokeh-da2"

@@ -59,6 +59,14 @@ _REPO = Path(__file__).resolve().parents[4]
 _SHM_SIZE = "16g"
 
 
+def runner() -> str:
+    """``VIDEO_BOKEH_RUNNER``: ``local``, the default, or ``docker``."""
+    value = os.environ.get("VIDEO_BOKEH_RUNNER", "local")
+    if value not in ("local", "docker"):
+        raise ValueError(f"VIDEO_BOKEH_RUNNER must be local or docker, not {value!r}")
+    return value
+
+
 def model_command(
     env_var: str,
     default: Path,
@@ -77,11 +85,8 @@ def model_command(
     ``workdir`` is where it starts. Raises before anything starts when the venv or the
     image is missing.
     """
-    runner = os.environ.get("VIDEO_BOKEH_RUNNER", "local")
-    if runner == "local":
+    if runner() == "local":
         return [str(interpreter(env_var, default, setup))]
-    if runner != "docker":
-        raise ValueError(f"VIDEO_BOKEH_RUNNER must be local or docker, not {runner!r}")
     found = subprocess.run(
         ["docker", "image", "inspect", image],
         stdout=subprocess.DEVNULL,
