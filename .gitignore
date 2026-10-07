@@ -44,6 +44,15 @@ backend/models/*.pkl
 backend/models/any_to_bokeh/
 backend/data/*/
 !backend/data/*_dev/
+# Laid out like magick_dev/, without the images: the CLIP predictions on MAGICK took a GPU
+# to make, and the metadata names the images they cover. A full mirror's images stay out.
+!backend/data/magick/
+backend/data/magick/*
+!backend/data/magick/metadata.csv
+!backend/data/magick/predictions.csv
+!backend/data/magick/images/
+backend/data/magick/images/*
+!backend/data/magick/images/.gitkeep
 backend/data/synth*/
 backend/data/library*/
 
