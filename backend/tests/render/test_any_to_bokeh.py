@@ -23,11 +23,12 @@ FRAMES, SIZE = 13, 32
 # Reads the CSV the way the real demo does and writes one mp4 per row into output/ in its
 # working directory, at the demo's fixed 1024x576. Frame t of row i is grey level
 # 40 + 100 * i + 8 * t, so a test can tell which output went where. It records what it
-# was given in $FAKE_LOG.
+# was given in $FAKE_LOG, and the name of the VAE encoder's forward it ran with.
 _FAKE_DEMO = """
 import argparse, csv, json, os
 import imageio.v2 as imageio
 import numpy as np
+from models.vae import Encoder
 
 p = argparse.ArgumentParser()
 p.add_argument("--val_csv_path")
@@ -45,7 +46,11 @@ for i, row in enumerate(rows):
     for t in range(len(frames) - short):
         writer.append_data(np.full((576, 1024, 3), 40 + 100 * i + 8 * t, np.uint8))
     writer.close()
-log = {"rows": rows, "disp": [sorted(os.listdir(r["disp_folder"])) for r in rows]}
+log = {
+    "rows": rows,
+    "disp": [sorted(os.listdir(r["disp_folder"])) for r in rows],
+    "encoder": Encoder.forward.__name__,
+}
 json.dump(log, open(os.environ["FAKE_LOG"], "w"))
 if os.environ.get("FAKE_FAIL"):
     raise SystemExit("CUDA error: no kernel image is available")
@@ -81,6 +86,18 @@ def fake_a2b(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     root = tmp_path / "any-to-bokeh"
     (root / "test").mkdir(parents=True)
     (root / "test" / "inference_demo.py").write_text(_FAKE_DEMO, encoding="utf-8")
+    (root / "models").mkdir()
+    (root / "models" / "vae.py").write_text(
+        "class Encoder:\n    def forward(self, sample, cache_flag=False):\n"
+        "        return sample\n",
+        encoding="utf-8",
+    )
+    (root / "pipelines").mkdir()
+    (root / "pipelines" / "any2bokeh_pipe.py").write_text(
+        "class StableVideoDiffusionPipeline:\n    def decode_latents(self):\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
     for sub in ("unet", "vae"):
         (root / "checkpoints" / sub).mkdir(parents=True)
     monkeypatch.setenv("VIDEO_BOKEH_A2B_ROOT", str(root))
@@ -124,6 +141,13 @@ def test_leaves_the_submodule_untouched(dataset: Path, fake_a2b: Path) -> None:
     before = sorted(p.relative_to(fake_a2b) for p in fake_a2b.rglob("*"))
     AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
     assert sorted(p.relative_to(fake_a2b) for p in fake_a2b.rglob("*")) == before
+
+
+@pytest.mark.usefixtures("fake_a2b")
+def test_the_demo_runs_with_the_encoder_chunked(dataset: Path, tmp_path: Path) -> None:
+    AnyToBokeh().render(_sequences(dataset)[:1], strength=16, focus_disparity=None)
+    log = json.loads((tmp_path / "fake_log.json").read_text())
+    assert log["encoder"] == "chunked"
 
 
 @pytest.mark.usefixtures("fake_a2b")
