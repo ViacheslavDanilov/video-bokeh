@@ -2,9 +2,10 @@
 
 Started as ``python _a2b_launch.py <inference_demo.py> <demo arguments>``, it makes the
 VAE encoder take its frames a few at a time and its float32 convolutions exact, moves the
-UNet and the image encoder off the card while the VAE decodes, then runs the demo
-unchanged. Chunks, the allocator and the offload change only where and in how many calls
-the work runs; TF32 off makes the encoder's float32 exact, as the demo meant it.
+UNet and the image encoder off the card while the VAE decodes, caps its data-loader
+workers, then runs the demo unchanged. Chunks, the allocator, the offload and the workers
+change only where and in how many calls the work runs; TF32 off makes the encoder's
+float32 exact, as the demo meant it.
 
 The demo encodes 16 frames at 1024x576 in one call, and the pipeline upcasts the VAE to
 float32 for it. The first down block's activations alone are then 4.5 GiB, and the call
@@ -60,6 +61,29 @@ def chunk_encoder(encoder_cls: Any, chunk: int = CHUNK) -> None:
     encoder_cls.forward = chunked
 
 
+#: Data-loader workers. The demo asks for 64, each preparing a whole sequence in shared
+#: memory, its frames twice over in overlapping groups: 12 sequences of 80 frames in one
+#: run outgrew a container's 16 GiB /dev/shm on 2026-10-07, and so did 2 workers, as each
+#: keeps two sequences ahead. With none, this process loads each sequence itself, using no
+#: shared memory whatever the sequence's length.
+LOADER_WORKERS = 0
+
+
+def cap_loader_workers(loader_cls: Any, workers: int = LOADER_WORKERS) -> None:
+    """Make ``loader_cls`` start at most ``workers`` processes, however many it is asked.
+
+    The demo passes ``num_workers`` by keyword, which is all this reads.
+    """
+    init = loader_cls.__init__
+
+    def capped(self, *args, **kwargs):
+        if kwargs.get("num_workers", 0) > workers:
+            kwargs["num_workers"] = workers
+        init(self, *args, **kwargs)
+
+    loader_cls.__init__ = capped
+
+
 def offload_while_decoding(pipeline_cls: Any) -> None:
     """Keep the pipeline's UNet and image encoder on the CPU while its VAE decodes."""
     decode_latents = pipeline_cls.decode_latents
@@ -91,6 +115,7 @@ def main() -> None:
 
     chunk_encoder(Encoder)
     offload_while_decoding(StableVideoDiffusionPipeline)
+    cap_loader_workers(torch.utils.data.DataLoader)
     torch.backends.cudnn.allow_tf32 = False
     sys.argv = [str(demo), *sys.argv[2:]]
     runpy.run_path(str(demo), run_name="__main__")

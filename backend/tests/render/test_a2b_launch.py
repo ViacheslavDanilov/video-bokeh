@@ -6,7 +6,11 @@ from __future__ import annotations
 
 import pytest
 
-from video_bokeh.render._a2b_launch import chunk_encoder, offload_while_decoding
+from video_bokeh.render._a2b_launch import (
+    cap_loader_workers,
+    chunk_encoder,
+    offload_while_decoding,
+)
 
 torch = pytest.importorskip("torch")
 nn = torch.nn
@@ -122,3 +126,23 @@ def test_the_unet_and_image_encoder_leave_the_card_while_decoding() -> None:
     with pytest.raises(RuntimeError, match="decode failed"):
         pipe.decode_latents(fail=True)
     assert log[-2:] == ["unet to cuda", "image_encoder to cuda"]
+
+
+def test_the_data_loader_starts_no_workers() -> None:
+    """The demo asks for 64, each holding whole sequences in shared memory."""
+
+    class Loader(torch.utils.data.DataLoader):
+        pass
+
+    cap_loader_workers(Loader)
+    assert Loader(list(range(4)), num_workers=64).num_workers == 0
+    assert Loader(list(range(4))).num_workers == 0
+
+
+def test_the_cap_leaves_fewer_workers_alone() -> None:
+    class Loader(torch.utils.data.DataLoader):
+        pass
+
+    cap_loader_workers(Loader, workers=2)
+    assert Loader(list(range(4)), num_workers=64).num_workers == 2
+    assert Loader(list(range(4)), num_workers=1).num_workers == 1
