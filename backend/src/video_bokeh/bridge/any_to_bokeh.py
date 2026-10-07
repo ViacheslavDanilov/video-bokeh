@@ -196,7 +196,7 @@ def _object_focus(
         visible = visible_masks(masks, disp)
         areas.append([int(v.sum()) for v in visible])
         means.append(
-            [float(disp[v].mean()) / 255 if v.any() else None for v in visible]
+            [float(disp[v].mean()) / 255 if v.any() else None for v in visible],
         )
     n_objects = max((len(a) for a in areas), default=0)
     totals = [

@@ -437,7 +437,11 @@ def test_the_draw_depends_on_the_sequence_s_name(tmp_path: Path) -> None:
     seqs = [root / "sequences" / n for n in names]
     first = write_inputs(seqs, tmp_path / "v", tmp_path / "d", tmp_path / "a.csv", "16")
     again = write_inputs(
-        seqs, tmp_path / "v2", tmp_path / "d2", tmp_path / "b.csv", "16"
+        seqs,
+        tmp_path / "v2",
+        tmp_path / "d2",
+        tmp_path / "b.csv",
+        "16",
     )
     assert [w.focus_object for w in first] == [w.focus_object for w in again]
     assert len({w.focus_object for w in first}) == 2
@@ -462,5 +466,10 @@ def test_a_pinned_focus_does_not_read_the_alpha(tmp_path: Path) -> None:
 def test_an_unknown_focus_mode_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="focus"):
         write_inputs(
-            [], tmp_path / "v", tmp_path / "d", tmp_path / "in.csv", "16", focus="obj"
+            [],
+            tmp_path / "v",
+            tmp_path / "d",
+            tmp_path / "in.csv",
+            "16",
+            focus="obj",
         )
