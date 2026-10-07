@@ -6,9 +6,11 @@
 #   1. Initializes the any-to-bokeh git submodule (idempotent).
 #   2. Creates a Python 3.10 venv at backend/third_party/any-to-bokeh/.venv
 #      via uv (each third-party tool owns its own venv — no shared env),
-#      installs PyTorch 2.4.1 with CUDA 12.4 wheels (any-to-bokeh's
+#      installs PyTorch 2.7.1 with CUDA 12.8 wheels (any-to-bokeh's
 #      requirements.txt does not pin torch), then installs any-to-bokeh's
-#      own dependencies.
+#      own dependencies. 2.7 is the first release with kernels for Blackwell
+#      cards such as the RTX 5090; 2.4.1 installs there but fails at the first
+#      kernel. CUDA 12.8 wheels need driver 570 or newer.
 #   3. Downloads the UNet + VAE checkpoints from Google Drive via `uvx gdown`
 #      and extracts them. The archive's top-level dir is `checkpoints/`, so
 #      extraction lands them at <a2b>/checkpoints/{unet,vae}/ — matching
@@ -68,11 +70,11 @@ if [ "$START_FROM" -le 2 ]; then
         echo "[2/4] Reusing existing venv at $VENV"
     fi
 
-    echo "      Installing PyTorch 2.4.1 with CUDA 12.4 wheels"
+    echo "      Installing PyTorch 2.7.1 with CUDA 12.8 wheels"
     echo "      (override CUDA_INDEX_URL for a different CUDA version)"
-    CUDA_INDEX_URL="${CUDA_INDEX_URL:-https://download.pytorch.org/whl/cu124}"
+    CUDA_INDEX_URL="${CUDA_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
     uv pip install --python "$VENV/bin/python" \
-        torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 \
+        torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
         --index-url "$CUDA_INDEX_URL"
 
     echo "      Installing any-to-bokeh requirements"
