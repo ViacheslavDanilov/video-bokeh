@@ -84,6 +84,11 @@ whose own OpenMP runtime clashes with torch's. To use a venv somewhere else, set
 `VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, a `--model da3-*` stops before any
 asset is processed and names the script.
 
+`VIDEO_BOKEH_RUNNER=docker` runs the worker in the `video-bokeh-da3` image instead, which
+`make images` builds with the same packages; nothing else changes. On the RTX 5090 on 2026-10-07
+a Mono-Large library from the dev pools took 56 s that way, and its depth maps matched the venv's
+to 0.003% of the range on average over 47 assets, 0.12% at the worst pixel.
+
 Mono-Large's weights, 1.34 GB, download on first use, and Metric-Large's are the same size.
 After that, Mono-Large took 8.2 s for 3 foregrounds and 1 background at size 512 on an Apple
 M3 Pro.

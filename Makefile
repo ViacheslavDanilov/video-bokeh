@@ -33,6 +33,7 @@ libraries: ## Build one library per depth estimator into LIBRARY
 
 images: ## Build the models' Docker images (NVIDIA only)
 	docker build -t video-bokeh-a2b -f backend/docker/any-to-bokeh/Dockerfile .
+	docker build -t video-bokeh-da3 -f backend/docker/depth-anything-3/Dockerfile .
 
 api: ## Serve the API on :8000 from LIBRARY
 	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000

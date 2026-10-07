@@ -1,7 +1,8 @@
 """Depth Anything 3 checkpoints, run in their own environment.
 
 Depth Anything 3 cannot share ours; ``docs/reference/cli.md`` says why and how to build
-its venv. These classes drive that venv through a worker process, ``_da3_worker.py``.
+its venv. These classes drive that venv through a worker process, ``_da3_worker.py``, or the
+``video-bokeh-da3`` image with ``VIDEO_BOKEH_RUNNER=docker``.
 
 Both checkpoints predict depth, far larger than near, at a 504 px working size, so
 ``infer`` takes the reciprocal and resizes back to each image's own size. Both are
@@ -24,7 +25,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from video_bokeh.core._worker import WorkerProcess, interpreter
+from video_bokeh.core._worker import WorkerProcess, model_command
 from video_bokeh.library.depth.base import resize_map
 
 _WORKER = Path(__file__).with_name("_da3_worker.py")
@@ -39,6 +40,9 @@ _DEFAULT_PYTHON = (
 )
 
 
+#: The image ``make images`` builds, for ``VIDEO_BOKEH_RUNNER=docker``.
+_IMAGE = "video-bokeh-da3"
+
 #: What the worker imports before it loads a model, pycolmap stub included.
 _IMPORT_CHECK = (
     "import sys, types; "
@@ -47,11 +51,13 @@ _IMPORT_CHECK = (
 )
 
 
-def _python() -> Path:
-    return interpreter(
+def _python() -> list[str]:
+    """The venv's interpreter, or ``python`` in the image with ``VIDEO_BOKEH_RUNNER=docker``."""
+    return model_command(
         "VIDEO_BOKEH_DA3_PYTHON",
         _DEFAULT_PYTHON,
         "scripts/setup_depth_anything_3.sh",
+        _IMAGE,
     )
 
 
@@ -66,7 +72,7 @@ class DepthAnything3Estimator:
 
     @classmethod
     def environment_problem(cls) -> str | None:
-        """Why this estimator cannot run here, or None: its venv is all it needs.
+        """Why this estimator cannot run here, or None: its venv, or image, is all it needs.
 
         The package is imported, not just the interpreter found, so a venv whose install
         stopped half way reads as missing before a build finds out. The worker's pycolmap
@@ -79,16 +85,21 @@ class DepthAnything3Estimator:
         result = subprocess.run(
             # -P keeps the working directory off sys.path, where a folder named like the
             # package would stand in for it, as the worker's own `del sys.path[0]` does.
-            [str(python), "-P", "-c", _IMPORT_CHECK],
+            [*python, "-P", "-c", _IMPORT_CHECK],
             capture_output=True,
             text=True,
             check=False,
         )
         if result.returncode != 0:
             last = (result.stderr.strip().splitlines() or ["no output"])[-1]
+            if len(python) == 1:
+                return (
+                    f"{python[0]} cannot import depth_anything_3 ({last}): run "
+                    "scripts/setup_depth_anything_3.sh again"
+                )
             return (
-                f"{python} cannot import depth_anything_3 ({last}): run "
-                "scripts/setup_depth_anything_3.sh again"
+                f"the {_IMAGE} image cannot import depth_anything_3 ({last}): run "
+                "make images again"
             )
         return None
 
@@ -96,7 +107,7 @@ class DepthAnything3Estimator:
         if self._worker is not None:
             return
         self._worker = WorkerProcess(
-            [str(_python()), str(_WORKER), self.hf_model_id, str(device)],
+            [*_python(), str(_WORKER), self.hf_model_id, str(device)],
         )
 
     def infer(self, images: list[Image.Image]) -> list[np.ndarray]:
