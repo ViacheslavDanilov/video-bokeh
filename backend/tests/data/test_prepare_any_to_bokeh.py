@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from video_bokeh.bridge import any_to_bokeh as bridge
 from video_bokeh.bridge.any_to_bokeh import (
     SequenceInputs,
     choose_focus_object,
@@ -401,30 +402,61 @@ def test_an_occluded_object_is_focused_by_what_shows_of_it(tmp_path: Path) -> No
     assert written.zf == pytest.approx([expected], abs=3e-3)
     # And the far object, whichever was drawn: what shows of it is at its own 0.2.
     disp = np.where(near > 0.5, 0.8, np.where(far > 0.5, 0.2, 0.5))
-    shows = visible_masks([far > 0.5, near > 0.5], disp)[0]
+    shows = visible_masks([far > 0.5, near > 0.5])[0]
     assert shows.sum() == 2
     assert disp[shows].mean() == pytest.approx(0.2)
 
 
-def test_a_small_near_object_over_a_far_one_is_seen(tmp_path: Path) -> None:
-    """Every pixel of the near object lies inside the far object's mask."""
-    far = _block(slice(0, 4), slice(0, 4))
-    near = _block(slice(1, 2), slice(1, 2))
-    visible = visible_masks(
-        [far > 0.5, near > 0.5],
-        np.where(near > 0.5, 0.8, 0.2).astype(np.float32),
-    )
-    assert visible[1].sum() == 1
+def test_a_small_near_object_inside_a_far_mask_counts_as_hidden() -> None:
+    """Every pixel of the near object lies inside the far object's mask. Its own
+    disparity shows there, but nothing tells it from a far object covered: hidden is the
+    safe reading, and the focus keeps its last value.
+    """
+    far = _block(slice(0, 4), slice(0, 4)) > 0.5
+    near = _block(slice(1, 2), slice(1, 2)) > 0.5
+    visible = visible_masks([far, near])
+    assert not visible[1].any()
     assert visible[0].sum() == 15
 
 
 def test_a_fully_covered_object_is_hidden() -> None:
-    far = _block(slice(0, 2), slice(0, 2)) > 0.5
+    far = _block(slice(1, 3), slice(1, 3)) > 0.5
     near = _block(slice(0, 4), slice(0, 4)) > 0.5
-    disp = np.where(near, 0.8, 0.2).astype(np.float32)
-    visible = visible_masks([far, near], disp)
+    visible = visible_masks([far, near])
     assert not visible[0].any()
-    assert visible[1].sum() == 16
+    assert visible[1].sum() == 12
+
+
+def test_a_covered_frame_keeps_the_focus_whatever_its_cover_s_relief(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Object 0 alone, then wholly behind object 1, whose disparity ramps 0.70 to 0.90.
+    Ranked by medians, object 0 would come out in front, at the cover's 0.87.
+    """
+    monkeypatch.setattr(bridge, "choose_focus_object", lambda areas, seed: 0)
+    root = tmp_path / "data" / "sequences" / "0001"
+    # Under the cover's nearer side, where its disparity is above its own median.
+    small = _block(slice(1, 3), slice(2, 4))
+    big = _block(slice(0, 4), slice(0, 4))
+    ramp = np.tile(np.linspace(0.70, 0.90, 4, dtype=np.float32), (4, 1))
+    frames = [
+        ([small, np.zeros((4, 4), np.float32)], np.where(small > 0.5, 0.2, 0.5)),
+        ([small, big], ramp),
+    ]
+    for t, (masks, disp) in enumerate(frames, start=1):
+        _write_rgb(root / "all_in_focus" / f"0{t}.png", 100)
+        _write_alpha(root / "alpha" / f"0{t}.tif", masks)
+        _write_disparity(root / "disparity" / f"0{t}.png", disp.astype(np.float32))
+    (written,) = write_inputs(
+        [root],
+        tmp_path / "v",
+        tmp_path / "d",
+        tmp_path / "in.csv",
+        "16",
+    )
+    assert written.focus_object == 0
+    assert written.zf == pytest.approx([0.2, 0.2], abs=3e-3)
 
 
 def test_the_draw_depends_on_the_sequence_s_name(tmp_path: Path) -> None:

@@ -178,9 +178,10 @@ expects.
 ```
 
 `<focus>` is the in-focus disparity, six decimals. By default it is the mean disparity of one
-object where it shows, the object drawn by visible area for the whole sequence; `--focus alpha` takes the mean under all the
-objects' masks, and `--focus-disparity` pins one value for the whole clip instead, which
-is what you want when comparing frames rather than chasing the subject.
+object, over the pixels no other mask covers, the object drawn by that area for the whole
+sequence. `--focus alpha` takes the mean under all the objects' masks, and `--focus-disparity`
+pins one value for the whole clip instead, which is what you want when comparing frames rather
+than chasing the subject.
 
 The bridge reads the 16-bit disparity PNGs and quantizes them to the 8 bits any-to-bokeh
 reads, once.

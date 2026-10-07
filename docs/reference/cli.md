@@ -219,7 +219,7 @@ starts with a dot is never a sequence: the API generates under `.tmp-*` and rena
 
 any-to-bokeh follows one object by default: the bridge's `--focus object`, described below.
 `bokeh/focus.json` records the object and each frame's in-focus disparity.
-at another checkout or interpreter.
+`VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point at another checkout or interpreter.
 
 `VIDEO_BOKEH_RUNNER=docker` runs it in the `video-bokeh-a2b` image instead of the venv, with the
 GPU. The image holds the dependencies alone: the repository, the checkpoints, the temporary

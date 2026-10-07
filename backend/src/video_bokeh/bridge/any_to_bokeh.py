@@ -148,33 +148,21 @@ def choose_focus_object(areas: Sequence[float], seed: int) -> int | None:
     return int(rng.choice(weights.size, p=weights / weights.sum()))
 
 
-def visible_masks(masks: list[np.ndarray], disparity: np.ndarray) -> list[np.ndarray]:
-    """Where each object shows, from its whole mask and the composited disparity.
+def visible_masks(masks: list[np.ndarray]) -> list[np.ndarray]:
+    """Each object's pixels that no other object's mask covers.
 
-    Stage B writes each mask before occlusion and paints far to near, each object in its
-    own disparity band. So an object's depth is its disparity where no other mask covers
-    it, and a pixel two masks cover shows the nearer one. An object with no such pixel of
-    its own takes the disparity under its whole mask: on top, that is its own; fully
-    covered, it is its cover's, a tie it loses.
+    Stage B writes each mask whole, before occlusion, and the disparity shows whichever
+    object is nearest. Where two masks overlap, the disparity may belong to either, so
+    only the pixels one mask holds alone are surely that object's. A small object in front
+    of a large one, wholly inside its mask, reads as hidden then, as a covered one does.
     """
-    covered = [m.any() for m in masks]
-    depth: list[tuple[float, bool]] = []
+    visible = []
     for i, mask in enumerate(masks):
         others = np.zeros_like(mask)
         for j, other in enumerate(masks):
             if j != i:
                 others |= other
-        own = mask & ~others
-        source = own if own.any() else mask
-        value = float(np.median(disparity[source])) if covered[i] else -np.inf
-        depth.append((value, bool(own.any())))
-    visible = []
-    for i, mask in enumerate(masks):
-        nearer = np.zeros_like(mask)
-        for j, other in enumerate(masks):
-            if depth[j] > depth[i]:
-                nearer |= other
-        visible.append(mask & ~nearer)
+        visible.append(mask & ~others)
     return visible
 
 
@@ -185,15 +173,15 @@ def _object_focus(
 ) -> tuple[int | None, list[float | None]]:
     """The object the focus follows and its mean disparity per frame, None where hidden.
 
-    Both count only where the object shows, so a nearer object in front of it neither pulls
-    the focus nor adds to its area. The draw is seeded by the sequence's name, so a
+    Both count only the pixels the object holds alone, so another object over it neither
+    pulls the focus nor adds to its area. The draw is seeded by the sequence's name, so a
     sequence keeps its focus across runs.
     """
     areas: list[list[int]] = []
     means: list[list[float | None]] = []
     for path, disp in zip(alpha_paths, disps, strict=True):
         masks = [page > 0.5 for page in read_alpha_tiff(path)]
-        visible = visible_masks(masks, disp)
+        visible = visible_masks(masks)
         areas.append([int(v.sum()) for v in visible])
         means.append(
             [float(disp[v].mean()) / 255 if v.any() else None for v in visible],
