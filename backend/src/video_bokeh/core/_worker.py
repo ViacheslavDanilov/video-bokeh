@@ -85,20 +85,33 @@ def model_command(
     found = subprocess.run(
         ["docker", "image", "inspect", image],
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
         check=False,
     )
     if found.returncode != 0:
-        raise RuntimeError(f"no Docker image {image}: run make images")
+        # Only a missing image is the image's fault; an unreachable daemon or a user
+        # outside the docker group says so itself.
+        if "no such image" in found.stderr.lower():
+            raise RuntimeError(f"no Docker image {image}: run make images")
+        raise RuntimeError(f"docker cannot inspect {image}: {found.stderr.strip()}")
     hf_home = Path(
         os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"),
     ).absolute()
     hf_home.mkdir(parents=True, exist_ok=True)
+    # The user has no home in the image, and a shared /tmp/.cache would belong to whoever
+    # wrote it first.
+    home = Path(tempfile.gettempdir()) / f"video-bokeh-home-{os.getuid()}"
+    home.mkdir(exist_ok=True)
     argv = ["docker", "run", "--rm", "-i", "--init", "--gpus", "all"]
+    # Labelled, so a container left behind by a killed run can be found and stopped.
+    argv += ["--label", f"video-bokeh.model={image}"]
     argv += [f"--shm-size={_SHM_SIZE}", "--user", f"{os.getuid()}:{os.getgid()}"]
-    argv += ["-e", f"HF_HOME={hf_home}", "-e", f"HOME={tempfile.gettempdir()}"]
+    argv += ["-e", f"HF_HOME={hf_home}", "-e", f"HOME={home}"]
     paths = [_REPO, Path(tempfile.gettempdir()), hf_home, *mounts]
-    for path in _outermost(Path(p).absolute() for p in paths):
+    # Resolved: a path that is a symlink to another disk is mounted where it points, and
+    # the link, inside a mounted parent, still finds it.
+    for path in _outermost(Path(p).resolve() for p in paths):
         argv += ["-v", f"{path}:{path}"]
     if workdir is not None:
         argv += ["-w", str(Path(workdir).absolute())]
@@ -126,6 +139,8 @@ def run_script(argv: list[str], cwd: Path) -> None:
     with subprocess.Popen(
         argv,
         cwd=cwd,
+        # Nothing to read: under docker -i the terminal would otherwise be attached.
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
 import pytest
 
+from video_bokeh.core import _worker as worker
 from video_bokeh.core._worker import model_command
 
 _SETUP = "scripts/setup_x.sh"
@@ -136,3 +138,45 @@ def test_the_fake_docker_runs_the_command(
     ).stdout.strip()
     assert out == str(tmp_path)
     assert _calls(fake_docker)[-1][0] == "run"
+
+
+def test_an_unreachable_daemon_is_not_blamed_on_the_image(
+    fake_docker: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FAKE_DOCKER_DOWN", "1")
+    with pytest.raises(RuntimeError, match="permission denied") as exc:
+        model_command("X_PYTHON", Path("/x"), _SETUP, "video-bokeh-x")
+    assert "make images" not in str(exc.value)
+
+
+def test_a_symlink_is_mounted_where_it_points(
+    fake_docker: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Data on a second disk, linked from inside the repository, is mounted at its target:
+    mounted under the link's name, the link inside the container would lead nowhere.
+    """
+    monkeypatch.setenv("FAKE_DOCKER_IMAGES", "video-bokeh-x")
+    repo = Path(__file__).resolve().parents[3]
+    inside = Path(tempfile.mkdtemp(dir=repo / "backend"))
+    # Nothing else may cover the target, as the real temporary directory would.
+    monkeypatch.setattr(worker.tempfile, "gettempdir", lambda: str(inside))
+    monkeypatch.setenv("HF_HOME", str(inside / "hf"))
+    target = tmp_path / "disk2"
+    target.mkdir()
+    link = inside / "data"
+    link.symlink_to(target)
+    try:
+        argv = model_command(
+            "X_PYTHON",
+            tmp_path,
+            _SETUP,
+            "video-bokeh-x",
+            mounts=[link],
+        )
+    finally:
+        shutil.rmtree(inside)
+    hosts = [Path(v.split(":")[0]) for v in _pairs(argv, "-v")]
+    assert target in hosts

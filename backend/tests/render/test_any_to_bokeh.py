@@ -13,6 +13,7 @@ from PIL import Image
 from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 from video_bokeh.core._worker import WorkerError
 from video_bokeh.render import RENDERERS
+from video_bokeh.render import any_to_bokeh as a2b_module
 from video_bokeh.render import run as cli
 from video_bokeh.render.any_to_bokeh import AnyToBokeh
 
@@ -330,6 +331,11 @@ def test_a_missing_image_stops_before_converting(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setenv("FAKE_DOCKER_IMAGES", "")
+
+    def converted(*args: object, **kwargs: object) -> None:
+        raise AssertionError("converted before the image was checked")
+
+    monkeypatch.setattr(a2b_module, "write_inputs", converted)
     with pytest.raises(RuntimeError, match="video-bokeh-a2b.*make images"):
         AnyToBokeh().render(_sequences(dataset), strength=16, focus_disparity=None)
     assert not (tmp_path / "fake_log.json").exists()

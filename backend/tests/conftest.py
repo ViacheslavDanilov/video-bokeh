@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 
 # Stands in for the docker CLI. It records each call's argv in $FAKE_DOCKER_LOG, one JSON
-# list per line. `image inspect <image>` succeeds for the images in $FAKE_DOCKER_IMAGES.
+# list per line. `image inspect <image>` succeeds for the images in $FAKE_DOCKER_IMAGES,
+# and $FAKE_DOCKER_DOWN makes every call fail as an unreachable daemon does.
 # `run` takes its flags up to the image, then runs the command after it here, from the
 # directory -w names, with the -e variables set, so a fake model behind it runs as it would
 # in the container.
@@ -18,8 +19,12 @@ import json, os, sys
 args = sys.argv[1:]
 with open(os.environ["FAKE_DOCKER_LOG"], "a") as log:
     log.write(json.dumps(args) + "\\n")
+if os.environ.get("FAKE_DOCKER_DOWN"):
+    sys.exit("permission denied while trying to connect to the docker API")
 if args[:2] == ["image", "inspect"]:
-    sys.exit(0 if args[2] in os.environ.get("FAKE_DOCKER_IMAGES", "").split() else 1)
+    if args[2] in os.environ.get("FAKE_DOCKER_IMAGES", "").split():
+        sys.exit(0)
+    sys.exit("Error response from daemon: No such image: " + args[2])
 assert args[0] == "run", args
 i, cwd, env = 1, None, dict(os.environ)
 while args[i].startswith("-"):
