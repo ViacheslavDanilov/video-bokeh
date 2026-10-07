@@ -178,7 +178,7 @@ expects.
 ```
 
 `<focus>` is the in-focus disparity, six decimals. By default it is the mean disparity of one
-object, drawn by area for the whole sequence; `--focus alpha` takes the mean under all the
+object where it shows, the object drawn by visible area for the whole sequence; `--focus alpha` takes the mean under all the
 objects' masks, and `--focus-disparity` pins one value for the whole clip instead, which
 is what you want when comparing frames rather than chasing the subject.
 

@@ -148,6 +148,36 @@ def choose_focus_object(areas: Sequence[float], seed: int) -> int | None:
     return int(rng.choice(weights.size, p=weights / weights.sum()))
 
 
+def visible_masks(masks: list[np.ndarray], disparity: np.ndarray) -> list[np.ndarray]:
+    """Where each object shows, from its whole mask and the composited disparity.
+
+    Stage B writes each mask before occlusion and paints far to near, each object in its
+    own disparity band. So an object's depth is its disparity where no other mask covers
+    it, and a pixel two masks cover shows the nearer one. An object with no such pixel of
+    its own takes the disparity under its whole mask: on top, that is its own; fully
+    covered, it is its cover's, a tie it loses.
+    """
+    covered = [m.any() for m in masks]
+    depth: list[tuple[float, bool]] = []
+    for i, mask in enumerate(masks):
+        others = np.zeros_like(mask)
+        for j, other in enumerate(masks):
+            if j != i:
+                others |= other
+        own = mask & ~others
+        source = own if own.any() else mask
+        value = float(np.median(disparity[source])) if covered[i] else -np.inf
+        depth.append((value, bool(own.any())))
+    visible = []
+    for i, mask in enumerate(masks):
+        nearer = np.zeros_like(mask)
+        for j, other in enumerate(masks):
+            if depth[j] > depth[i]:
+                nearer |= other
+        visible.append(mask & ~nearer)
+    return visible
+
+
 def _object_focus(
     seq_dir: Path,
     alpha_paths: list[Path],
@@ -155,22 +185,28 @@ def _object_focus(
 ) -> tuple[int | None, list[float | None]]:
     """The object the focus follows and its mean disparity per frame, None where hidden.
 
-    The draw is seeded by the sequence's name, so a sequence keeps its focus across runs.
+    Both count only where the object shows, so a nearer object in front of it neither pulls
+    the focus nor adds to its area. The draw is seeded by the sequence's name, so a
+    sequence keeps its focus across runs.
     """
-    pages = [read_alpha_tiff(path) for path in alpha_paths]
-    n_objects = max((len(p) for p in pages), default=0)
-    areas = [0.0] * n_objects
-    for frame in pages:
-        for i, page in enumerate(frame):
-            areas[i] += float((page > 0.5).sum()) / len(pages)
-    chosen = choose_focus_object(areas, zlib.crc32(seq_dir.name.encode()))
+    areas: list[list[int]] = []
+    means: list[list[float | None]] = []
+    for path, disp in zip(alpha_paths, disps, strict=True):
+        masks = [page > 0.5 for page in read_alpha_tiff(path)]
+        visible = visible_masks(masks, disp)
+        areas.append([int(v.sum()) for v in visible])
+        means.append(
+            [float(disp[v].mean()) / 255 if v.any() else None for v in visible]
+        )
+    n_objects = max((len(a) for a in areas), default=0)
+    totals = [
+        sum(frame[i] for frame in areas if i < len(frame)) / len(areas)
+        for i in range(n_objects)
+    ]
+    chosen = choose_focus_object(totals, zlib.crc32(seq_dir.name.encode()))
     if chosen is None:
         return None, [None] * len(disps)
-    zfs: list[float | None] = []
-    for frame, disp in zip(pages, disps, strict=True):
-        mask = frame[chosen] > 0.5 if chosen < len(frame) else None
-        zfs.append(None if mask is None or not mask.any() else disp[mask].mean() / 255)
-    return chosen, zfs
+    return chosen, [frame[chosen] if chosen < len(frame) else None for frame in means]
 
 
 def _held(zfs: list[float | None]) -> list[float | None]:
@@ -202,7 +238,7 @@ def _write_sequence(
             f"{seq_dir.name}: {len(image_paths)} all_in_focus frames but "
             f"{len(disparity_paths)} disparity frames",
         )
-    use_alpha = focus in ("object", "alpha")
+    use_alpha = focus_disparity is None and focus in ("object", "alpha")
     if use_alpha and alpha_paths and len(alpha_paths) != len(image_paths):
         raise ValueError(
             f"{seq_dir.name}: {len(image_paths)} all_in_focus frames but "
@@ -268,6 +304,8 @@ def write_inputs(
     submodule. ``focus`` is one of ``FOCUS_MODES``; ``focus_disparity`` overrides it.
     Returns what was written for each sequence, in order.
     """
+    if focus not in FOCUS_MODES:
+        raise ValueError(f"focus must be one of {FOCUS_MODES}, not {focus!r}")
     rows: list[list[str]] = []
     written: list[SequenceInputs] = []
     for seq_dir in seq_dirs:
