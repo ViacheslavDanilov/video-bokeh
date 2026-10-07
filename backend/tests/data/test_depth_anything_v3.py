@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -159,3 +160,47 @@ def test_each_checkpoint_loads_its_own_weights(
     finally:
         est.close()
     assert out.shape == (30, 40)
+
+
+def _runs(log: Path) -> list[list[str]]:
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    return [argv for argv in calls if argv[0] == "run"]
+
+
+@pytest.mark.usefixtures("fake_worker")
+def test_runs_in_its_docker_image(
+    fake_docker: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FAKE_DOCKER_IMAGES", "video-bokeh-da3")
+    est = mod.DepthAnything3MonoLarge()
+    est.load(torch.device("cpu"))
+    try:
+        (out,) = est.infer([Image.new("RGB", (64, 48))])
+    finally:
+        est.close()
+    assert out.shape == (48, 64)
+    (argv,) = _runs(fake_docker)
+    image = argv.index("video-bokeh-da3")
+    assert argv[image + 1] == "python"
+    assert argv[image + 2].endswith("_da3_worker.py")
+
+
+@pytest.mark.usefixtures("fake_worker")
+def test_environment_in_docker_is_ready_once_the_package_imports(
+    fake_docker: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FAKE_DOCKER_IMAGES", "video-bokeh-da3")
+    assert mod.DepthAnything3MonoLarge.environment_problem() is None
+    assert _runs(fake_docker), "the import check must run in the image"
+
+
+def test_environment_in_docker_names_the_missing_image(
+    fake_docker: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FAKE_DOCKER_IMAGES", "")
+    problem = mod.DepthAnything3MonoLarge.environment_problem()
+    assert problem is not None
+    assert "video-bokeh-da3" in problem and "make images" in problem
