@@ -5,7 +5,7 @@ FastAPI on Python 3.13, managed with `uv`. Type checker: `ty` (astral). Linter/f
 ## Toolchain
 
 - **Python 3.13 only.** `requires-python = ">=3.13"` in `pyproject.toml`. Don't downgrade syntax for older versions.
-  - One exception: `src/video_bokeh/library/depth/_da3_worker.py` runs under Depth Anything 3's own Python 3.12, so it stays 3.12-compatible. `pyproject.toml` gives ruff a `py312` target for that file alone.
+  - Two exceptions: `src/video_bokeh/library/depth/_da3_worker.py` runs under Depth Anything 3's own Python 3.12, and `src/video_bokeh/render/_a2b_launch.py` under any-to-bokeh's Python 3.10, so they stay compatible with those. `pyproject.toml` gives ruff a `py312` and a `py310` target for those files alone.
 - **`uv` is the package manager** — not pip, not poetry, not conda. Lockfile is `../uv.lock` (at repo root because this is a uv workspace; `[tool.uv.workspace] members = ["backend"]`).
 - **All Python commands go through `uv run ...`** so they use the locked environment.
 
@@ -89,7 +89,7 @@ uv run python -m video_bokeh.scenes.generate \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5
 
 # 4. Stage C — render bokeh into each sequence's bokeh/ (NVIDIA only;
-#    needs scripts/setup_third_party.sh first; not yet run to completion on a GPU)
+#    needs scripts/setup_third_party.sh first; first run on an RTX 5090 on 2026-10-07)
 uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
 
 # Or only convert for any-to-bokeh, to inspect its inputs
