@@ -5,10 +5,11 @@
 
 # Libraries are not in git, so a second worktree uses the main checkout's.
 MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolute --git-common-dir))
-# One library, or a folder with one library per depth estimator.
+# One library, or a directory holding several, such as one per depth estimator.
 LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library
 ESTIMATORS := da2-large da3-mono-large depth-pro
-# Extra flags for every library build, e.g. "--subjects , --styles , --subject-thr 0".
+# Extra flags for every library build. "--subjects , --styles , --subject-thr 0" turns off
+# the class filter.
 BUILD_FLAGS ?=
 
 help: ## List the targets
@@ -20,7 +21,7 @@ setup: ## Install the backend, the frontend and the test browser
 
 # Builds under a hidden name and renames when done, so a half-built library is never
 # served. An existing library is skipped, so cached sequences stay valid.
-libraries: ## Build one library per depth estimator
+libraries: ## Build one library per depth estimator into LIBRARY
 	@out="$(abspath $(LIBRARY))"; for estimator in $(ESTIMATORS); do \
 	  if [ -d "$$out/$$estimator" ]; then echo "$$estimator: exists, skipped"; continue; fi; \
 	  rm -rf "$$out/.$$estimator" && \
@@ -30,7 +31,7 @@ libraries: ## Build one library per depth estimator
 	  mv "$$out/.$$estimator" "$$out/$$estimator" || exit 1; \
 	done
 
-api: ## Serve the API on :8000
+api: ## Serve the API on :8000 from LIBRARY
 	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 
 bokeh: ## Render bokeh for the page's new sequences (NVIDIA only)
