@@ -261,11 +261,12 @@ The dataset paper lives in its own repository with LaTeX (decided 2026-09-17; Gi
 than Overleaf, because Overleaf's team editing needs a paid plan).
 
 ```
-paper_repo: <not created yet>
+paper_repo: ViacheslavDanilov/video-bokeh-paper
 ```
 
-While this is unset, the `paper` route drafts into `docs/reports/` and says so. It never
-creates the repository on its own.
+Private, checked out beside this repository at `../video-bokeh-paper`, created on 2026-10-07
+with CVPR 2027 as the first venue. Paper work runs there, under its own `AGENTS.md` and its
+own `bokeh-task` and `bokeh-review`. It reads this repository and never edits it.
 
 ## Correspondence
 
