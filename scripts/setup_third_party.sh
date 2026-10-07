@@ -71,7 +71,8 @@ if [ "$START_FROM" -le 2 ]; then
     fi
 
     echo "      Installing PyTorch 2.7.1 with CUDA 12.8 wheels"
-    echo "      (override CUDA_INDEX_URL for a different CUDA version)"
+    echo "      (override CUDA_INDEX_URL for a different CUDA version: only cu118,"
+    echo "      cu126 and cu128 carry 2.7.1, and a Blackwell card needs cu128)"
     CUDA_INDEX_URL="${CUDA_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
     uv pip install --python "$VENV/bin/python" \
         torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
