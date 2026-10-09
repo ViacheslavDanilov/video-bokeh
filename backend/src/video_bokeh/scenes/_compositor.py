@@ -11,6 +11,7 @@ rather than made collision-proof by construction.
 from __future__ import annotations
 
 import random
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -81,6 +82,22 @@ class Scene:
 
 
 @dataclass
+class FrameLayers:
+    """A frame before compositing: the whole background and each whole object.
+
+    Objects are indexed like ``RenderedFrame.object_alphas``, which holds their alpha
+    masks, and each object's colour and disparity are zero outside its alpha mask.
+    Compositing the objects over the background in ``paint_order`` gives back the frame.
+    """
+
+    background_rgb: np.ndarray  # (H, W, 3) float32 in [0, 255]
+    background_disparity: np.ndarray  # (H, W) float32 in [0, 1]
+    object_rgbs: list[np.ndarray]  # (H, W, 3) float32 in [0, 255], one per object
+    object_disparities: list[np.ndarray]  # (H, W) float32 in [0, 1], one per object
+    paint_order: list[int]  # object indices, far to near
+
+
+@dataclass
 class RenderedFrame:
     rgb: np.ndarray  # (H, W, 3) float32 in [0, 255]
     alpha: np.ndarray  # (H, W) float32 union alpha
@@ -88,6 +105,7 @@ class RenderedFrame:
     object_alphas: list[np.ndarray] = field(
         default_factory=list,
     )  # one per object, indexed by position in Scene.objects
+    layers: FrameLayers | None = None  # only when render_scene is asked for them
 
 
 def sample_scene(
@@ -207,13 +225,22 @@ def sample_scene(
     )
 
 
-def render_scene(scene: Scene) -> list[RenderedFrame]:
-    """Render every frame: warp the precomputed triplet, band depth, composite."""
+def render_scene(scene: Scene, layers: bool = False) -> list[RenderedFrame]:
+    """Render every frame: warp the precomputed triplet, band depth, composite.
+
+    With ``layers``, each frame also keeps what it was composited from. Off by default:
+    the layers hold several more copies of the frame, which a caller that composites
+    only would carry for nothing.
+    """
+    return list(iter_frames(scene, layers))
+
+
+def iter_frames(scene: Scene, layers: bool = False) -> Iterator[RenderedFrame]:
+    """``render_scene`` one frame at a time, so a writer never holds the whole clip."""
     size = scene.size
     bg_easing_fn = EASING_FNS[scene.bg_easing]
     bg_src_size = scene.background.rgb.size[0]
 
-    frames: list[RenderedFrame] = []
     for i in range(scene.n_frames):
         t = 0.0 if scene.n_frames == 1 else i / (scene.n_frames - 1)
 
@@ -234,6 +261,10 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
         object_alphas = [
             np.zeros((size, size), dtype=np.float32) for _ in scene.objects
         ]
+        n_kept = len(scene.objects) if layers else 0
+        object_rgbs = [np.zeros((size, size, 3), dtype=np.float32)] * n_kept
+        object_disparities = [np.zeros((size, size), dtype=np.float32)] * n_kept
+        background_disparity = disparity
 
         def _band(idx: int, _t: float = t) -> tuple[float, float, float]:
             """Target disparity band and its width for object ``idx`` at ``_t``."""
@@ -275,13 +306,25 @@ def render_scene(scene: Scene) -> list[RenderedFrame]:
             union_alpha = np.maximum(union_alpha, a)
             disparity = a * obj_disp + (1.0 - a) * disparity
             object_alphas[idx] = a.astype(np.float32)
+            if layers:
+                inside = a > 0
+                object_rgbs[idx] = np.where(inside[..., None], warped_rgba[..., :3], 0)
+                object_disparities[idx] = np.where(inside, obj_disp, 0).astype(
+                    np.float32,
+                )
 
-        frames.append(
-            RenderedFrame(
-                rgb=rgb.astype(np.float32),
-                alpha=union_alpha.astype(np.float32),
-                disparity=np.clip(disparity, 0.0, 1.0).astype(np.float32),
-                object_alphas=object_alphas,
-            ),
+        yield RenderedFrame(
+            rgb=rgb.astype(np.float32),
+            alpha=union_alpha.astype(np.float32),
+            disparity=np.clip(disparity, 0.0, 1.0).astype(np.float32),
+            object_alphas=object_alphas,
+            layers=FrameLayers(
+                background_rgb=bg_rgb,
+                background_disparity=background_disparity,
+                object_rgbs=object_rgbs,
+                object_disparities=object_disparities,
+                paint_order=draw_order,
+            )
+            if layers
+            else None,
         )
-    return frames

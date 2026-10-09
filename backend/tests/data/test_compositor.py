@@ -626,3 +626,61 @@ def test_generate_dataset_still_accepts_three_objects(tmp_path) -> None:
     )
     assert written == 1
     assert len(read_alpha_tiff(out / "sequences" / "0001" / "alpha" / "01.tif")) == 3
+
+
+def _composite_layers(frame) -> tuple[np.ndarray, np.ndarray]:
+    """Painter's compositing of a frame's layers, in the paint order it records."""
+    layers = frame.layers
+    rgb = layers.background_rgb
+    disparity = layers.background_disparity
+    for idx in layers.paint_order:
+        a = frame.object_alphas[idx]
+        rgb = a[..., None] * layers.object_rgbs[idx] + (1.0 - a[..., None]) * rgb
+        disparity = a * layers.object_disparities[idx] + (1.0 - a) * disparity
+    return rgb, np.clip(disparity, 0.0, 1.0)
+
+
+def test_layers_composited_in_paint_order_give_back_the_frame(tmp_path) -> None:
+    # The two squares overlap fully and swap depth over the clip, so a wrong paint
+    # order, or an object layer that is not the whole object, shows in the colour.
+    from video_bokeh.core._trajectory import DepthRange
+
+    scene = _overlapping_pair_scene(
+        tmp_path,
+        range_a=(DepthRange(0.66, 0.74), DepthRange(0.26, 0.34)),
+        range_b=(DepthRange(0.26, 0.34), DepthRange(0.66, 0.74)),
+    )
+    frames = render_scene(scene, layers=True)
+    assert frames[0].layers.paint_order != frames[-1].layers.paint_order
+    for frame in frames:
+        rgb, disparity = _composite_layers(frame)
+        np.testing.assert_array_equal(rgb, frame.rgb)
+        np.testing.assert_array_equal(disparity, frame.disparity)
+
+
+def test_an_object_layer_is_zero_outside_its_alpha_mask(tmp_path) -> None:
+    _tiny_library(tmp_path)
+    scene = sample_scene(tmp_path, seed=1, n_frames=3, size=32, n_objects=2)
+    for frame in render_scene(scene, layers=True):
+        for idx, a in enumerate(frame.object_alphas):
+            outside = a == 0
+            assert outside.any() and (~outside).any()
+            assert not frame.layers.object_rgbs[idx][outside].any()
+            assert not frame.layers.object_disparities[idx][outside].any()
+            assert frame.layers.object_disparities[idx][~outside].min() > 0
+
+
+def test_keeping_the_layers_leaves_the_frame_unchanged(tmp_path) -> None:
+    _tiny_library(tmp_path)
+    scene = sample_scene(tmp_path, seed=1, n_frames=3, size=32, n_objects=2)
+    plain = render_scene(scene)
+    layered = render_scene(scene, layers=True)
+    for a, b in zip(plain, layered, strict=True):
+        assert a.layers is None
+        np.testing.assert_array_equal(a.rgb, b.rgb)
+        np.testing.assert_array_equal(a.alpha, b.alpha)
+        np.testing.assert_array_equal(a.disparity, b.disparity)
+        np.testing.assert_array_equal(
+            np.stack(a.object_alphas),
+            np.stack(b.object_alphas),
+        )
