@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import json
 from pathlib import Path
 
 
@@ -25,3 +27,21 @@ def list_sequences(root: Path, seqs: list[str] | None) -> list[Path]:
     if missing:
         raise SystemExit(f"sequences not found under {seq_root}: {sorted(missing)}")
     return picked
+
+
+def sequence_seed(seq_dir: Path) -> int | None:
+    """The seed a sequence was generated from, where it is recorded.
+
+    A sequence the API generated records it in its ``sequence.json``; a dataset records
+    each sequence's in ``manifest.csv``, two levels up. None when neither says.
+    """
+    meta = seq_dir / "sequence.json"
+    if meta.is_file():
+        return int(json.loads(meta.read_text(encoding="utf-8"))["seed"])
+    manifest = seq_dir.parent.parent / "manifest.csv"
+    if manifest.is_file():
+        with manifest.open(encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                if row.get("seq_id") == seq_dir.name:
+                    return int(row["seed"])
+    return None

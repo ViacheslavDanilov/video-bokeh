@@ -82,7 +82,9 @@ filename — `01_zf_0.500000.png`.
 
 **The default keeps one object sharp, the way a camera operator follows a subject.** Each
 sequence draws one object, with odds in proportion to the mean area it holds alone, seeded by
-the sequence's name so a re-run keeps it. Its mean disparity there is the focus in every frame.
+the scene's seed from `manifest.csv` or `sequence.json`, so a re-run keeps it and the training
+loader draws the same. A sequence that records no seed falls back to its name. Its mean
+disparity there is the focus in every frame.
 A frame where it is off screen or wholly covered keeps the last focus. A sequence with
 no object focuses on the whole frame. Weighting by area rather than taking the largest keeps
 the focus off the foreground, where the large objects usually are, without landing on a speck.

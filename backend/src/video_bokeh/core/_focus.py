@@ -12,6 +12,7 @@ occlusion: where two overlap, the disparity may belong to either.
 
 from __future__ import annotations
 
+import zlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -63,6 +64,18 @@ def focus_track(
         first = z if z is not None else first
         held.append(first)
     return chosen, held
+
+
+def focus_seed(scene_seed: int | None, name: str) -> int:
+    """The seed of the focus draw.
+
+    The scene's own seed, so a scene focuses on the same object wherever it is rendered:
+    in a written dataset under any name, or in the training loader. A sequence that does
+    not record its scene's seed falls back to its name.
+    """
+    return zlib.crc32(
+        (f"focus:{scene_seed}" if scene_seed is not None else name).encode(),
+    )
 
 
 def choose_focus_object(areas: Sequence[float], seed: int) -> int | None:

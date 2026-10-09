@@ -22,15 +22,14 @@ from __future__ import annotations
 
 import argparse
 import csv
-import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
-from video_bokeh.core._focus import FrameFocus, focus_track, frame_focus
-from video_bokeh.core._seq_io import list_sequences
+from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
+from video_bokeh.core._seq_io import list_sequences, sequence_seed
 from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
 
 
@@ -185,7 +184,7 @@ def _write_sequence(
                 _frame_focus(path, disp)
                 for path, disp in zip(alpha_paths, disp_pngs, strict=True)
             ],
-            zlib.crc32(seq_dir.name.encode()),
+            focus_seed(sequence_seed(seq_dir), seq_dir.name),
         )
         object_zf = list(held_zf)
     zfs: list[float] = []

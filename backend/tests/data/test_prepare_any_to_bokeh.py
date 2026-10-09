@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 import numpy as np
@@ -504,3 +505,48 @@ def test_an_unknown_focus_mode_is_refused(tmp_path: Path) -> None:
             "16",
             focus="obj",
         )
+
+
+def _focus_objects(tmp_path: Path, root: Path, names: list[str]) -> list[int | None]:
+    seqs = [root / "sequences" / n for n in names]
+    written = write_inputs(
+        seqs,
+        tmp_path / "v",
+        tmp_path / "d",
+        tmp_path / "a.csv",
+        "16",
+    )
+    return [w.focus_object for w in written]
+
+
+def test_the_draw_follows_the_scene_s_seed_where_the_dataset_records_it(
+    tmp_path: Path,
+) -> None:
+    """The same scene focuses alike under any name, so the loader can agree with it."""
+    big, small = _block(slice(0, 2), slice(0, 2)), _block(slice(3, 4), slice(0, 4))
+    root = tmp_path / "data"
+    names = [f"{i:04d}" for i in range(1, 21)]
+    for name in names:
+        _two_object_sequence(root, name, [(big, small)])
+    seeds = [7] * 10 + list(range(100, 110))
+    with (root / "manifest.csv").open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["seq_id", "seed"])
+        writer.writerows(zip(names, seeds, strict=True))
+
+    picks = _focus_objects(tmp_path, root, names)
+    assert len(set(picks[:10])) == 1  # one seed, one draw, whatever the name
+    assert len(set(picks[10:])) == 2
+
+
+def test_an_api_sequence_draws_by_the_seed_it_records(tmp_path: Path) -> None:
+    big, small = _block(slice(0, 2), slice(0, 2)), _block(slice(3, 4), slice(0, 4))
+    picks = []
+    for seed in (3, 3, 4, 5, 6, 7, 8, 9):
+        root = tmp_path / f"api{len(picks)}"
+        _two_object_sequence(root, "abc", [(big, small)])
+        meta = root / "sequences" / "abc" / "sequence.json"
+        meta.write_text(json.dumps({"seed": seed, "n_objects": 2}))
+        picks.append(_focus_objects(tmp_path / f"out{len(picks)}", root, ["abc"])[0])
+    assert picks[0] == picks[1]
+    assert len(set(picks)) == 2
