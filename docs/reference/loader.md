@@ -85,7 +85,7 @@ stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
 - **An unknown name, or none at all, is refused** when the stream is created.
 - **`layers` is what a layer-wise bokeh renderer needs**, together with `object_alphas`: object
   `k`'s alpha is `object_alphas[:, k]`. Compositing the object layers over the background in
-  `paint_order` gives back `rgb`. The layers hold `1 + 4 · n_objects_max / 3` times as many
+  `paint_order` gives back `rgb`. The layers hold `4 · (1 + n_objects_max) / 3` times as many
   floats as `rgb`, eight times at the default of five, so ask for them only when the loop uses
   them.
 

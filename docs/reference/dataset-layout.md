@@ -103,7 +103,7 @@ occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live a
 ### The layers stream — optional
 
 `layers/` holds what each frame was composited from. `scenes.generate --layers` writes it;
-without the flag nothing is written and nothing else changes.
+without the flag no layers are written, and any left from an earlier run are removed.
 
 ```
 layers/
