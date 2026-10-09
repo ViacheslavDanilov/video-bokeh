@@ -119,7 +119,7 @@ class AnyToBokeh:
                 written,
                 strict=True,
             ):
-                _write_bokeh(video, seq, inputs)
+                _write_bokeh(video, seq, inputs, strength)
 
 
 def _frame_names(seq: Path) -> list[str]:
@@ -160,11 +160,17 @@ def _check_length(video: Path, seq: Path) -> None:
         )
 
 
-def _write_bokeh(video: Path, seq: Path, inputs: SequenceInputs) -> None:
+def _write_bokeh(
+    video: Path,
+    seq: Path,
+    inputs: SequenceInputs,
+    strength: float,
+) -> None:
     """Decode one sequence's video into ``bokeh/``, which appears whole or not at all.
 
     ``focus.json`` beside the frames says what was in focus: the object, by alpha page,
-    or null, and each frame's in-focus disparity.
+    or null, and each frame's in-focus disparity. It also names the renderer and the
+    strength it ran at.
     """
     names = _frame_names(seq)
     with Image.open(seq / "all_in_focus" / names[0]) as first:
@@ -180,6 +186,12 @@ def _write_bokeh(video: Path, seq: Path, inputs: SequenceInputs) -> None:
             )
             for name, frame in zip(names, reader.iter_data(), strict=True)
         )
-        write_bokeh(seq, frames, {"object": inputs.focus_object, "zf": inputs.zf})
+        record = {
+            "object": inputs.focus_object,
+            "zf": inputs.zf,
+            "renderer": AnyToBokeh.name,
+            "strength": strength,
+        }
+        write_bokeh(seq, frames, record)
     finally:
         reader.close()

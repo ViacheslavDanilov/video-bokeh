@@ -217,21 +217,30 @@ has the command. It first ran to completion on an RTX 5090 on 2026-10-07.
 | `--data-root` | path | **required** | dataset root containing `sequences/` |
 | `--seqs` | list | all | comma-separated sequence ids, e.g. `0001,0003` |
 | `--renderer` | str | `any-to-bokeh` | a renderer below, or `package.module:ClassName` for your own |
-| `--strength` | float | `16` | blur strength, any-to-bokeh's `k` |
-| `--focus-disparity` | float | the renderer's choice | one in-focus disparity in `[0, 1]` for every frame |
-| `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any shorter than the renderer can take |
+| `--strength` | float | `16` | blur strength, any-to-bokeh's `k`: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
+| `--focus-disparity` | float | one object, drawn by area | one in-focus disparity in `[0, 1]` for every frame |
+| `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any the renderer cannot take |
 
 `--missing` is what `make bokeh` runs, over the API's data root, so it renders whatever the page
-has generated since the last run. A sequence shorter than the renderer's minimum is named and
-left out rather than handed over, where it would fail the whole batch. A directory whose name
+has generated since the last run. A sequence shorter than the renderer's minimum, or without
+the layers `layered` needs, is named and left out rather than handed over, where it would fail
+the whole batch. A directory whose name
 starts with a dot is never a sequence: the API generates under `.tmp-*` and renames.
 
 | `--renderer` | runs in | setup |
 |---|---|---|
 | `any-to-bokeh` | its own Python 3.10 venv, or the `video-bokeh-a2b` image; NVIDIA only | `scripts/setup_third_party.sh`, then `make images` for the image |
+| `layered` | this process, on the CPU, an NVIDIA card or a Mac's GPU | sequences written with `scenes.generate --layers` |
 
-any-to-bokeh follows one object by default: the bridge's `--focus object`, described below.
-`bokeh/focus.json` records the object and each frame's in-focus disparity.
+Both follow one object by default: the bridge's `--focus object`, described below.
+`bokeh/focus.json` records the object, each frame's in-focus disparity, the renderer and its
+strength.
+
+**`layered` is the layer-wise renderer** that [[layered-bokeh]] explains. It reads `layers/`,
+`alpha/` and `disparity/` and writes `bokeh/` losslessly. It refuses the whole batch, before
+rendering any, when a sequence has no complete `layers/`. It runs on the CPU unless
+`VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the CPU when that device is
+not there.
 `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point at another checkout or interpreter.
 
 `VIDEO_BOKEH_RUNNER=docker` runs it in the `video-bokeh-a2b` image instead of the venv, with the

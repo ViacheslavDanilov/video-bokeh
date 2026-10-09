@@ -6,6 +6,8 @@ import csv
 import json
 from pathlib import Path
 
+from video_bokeh.core._streams import read_paint_order
+
 
 def list_sequences(root: Path, seqs: list[str] | None) -> list[Path]:
     """Return sequence subdirectories under ``<root>/sequences``, optionally filtered.
@@ -45,3 +47,16 @@ def sequence_seed(seq_dir: Path) -> int | None:
                 if row.get("seq_id") == seq_dir.name:
                     return int(row["seed"])
     return None
+
+
+def has_layers(seq_dir: Path) -> bool:
+    """Whether a sequence holds a whole ``layers/`` stream: one paint order per frame.
+
+    ``paint_order.json`` is written last, so a ``layers/`` without it, or with fewer
+    orders than frames, was interrupted or belongs to another run.
+    """
+    orders = seq_dir / "layers" / "paint_order.json"
+    if not orders.is_file():
+        return False
+    frames = len(list((seq_dir / "all_in_focus").glob("*.png")))
+    return len(read_paint_order(orders)) == frames

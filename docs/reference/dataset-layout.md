@@ -156,7 +156,9 @@ to 0.44 MiB for colour and 0.23 MiB for disparity.
 - **One file per `all_in_focus` frame, named like it**, at the sequence's own size.
 - **`focus.json` beside the frames says what was in focus**: `{"object": 2, "zf": [...]}`,
   the object by its alpha page, or `null` when none held the focus, and each frame's in-focus
-  disparity in `[0, 1]`. A reader that lists the stream takes `*.png`.
+  disparity in `[0, 1]`. It also names the `renderer` and the `strength` it ran at, and the
+  layered renderer adds its `gamma` and `radius_step`. A sequence rendered before 2026-10-10
+  has only `object` and `zf`. A reader that lists the stream takes `*.png`.
 - **It appears complete or not at all.** The renderer writes into a hidden folder beside it,
   `.bokeh-` and a random suffix, a new one per run. It renames that folder to `bokeh/` only
   when every frame is in place. A run that was killed can leave one behind, and deleting it
@@ -166,6 +168,8 @@ to 0.44 MiB for colour and 0.23 MiB for disparity.
 - **With any-to-bokeh it is lossy.** The vendored script writes an mp4 at 1024 × 576, which is
   decoded and resized back to the sequence's size. A lossless path waits for a GPU run that
   can check it.
+- **With the layered renderer it is lossless**, rendered from `layers/` at the sequence's own
+  size.
 
 ### How many objects a scene can hold
 

@@ -39,7 +39,7 @@ Stage A estimates depth once per asset and stores it as a library. Stage B sampl
 | Backend | Python 3.13, FastAPI, Uvicorn |
 | Frontend | TypeScript, Next.js, React, Tailwind CSS |
 | Data | NumPy, Pillow, tifffile, matplotlib |
-| Models | PyTorch and Hugging Face transformers for depth (Stage A), any-to-bokeh for bokeh (Stage C) |
+| Models | PyTorch and Hugging Face transformers for depth (Stage A); any-to-bokeh, or our layer-wise renderer in PyTorch, for bokeh (Stage C) |
 | Package Management | uv (backend), pnpm (frontend) |
 | Build & CI | Docker, Docker Compose, GitHub Actions |
 

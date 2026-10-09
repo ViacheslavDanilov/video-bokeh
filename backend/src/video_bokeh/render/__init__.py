@@ -5,9 +5,11 @@ from __future__ import annotations
 from video_bokeh.core._plugins import resolve_class
 from video_bokeh.render.any_to_bokeh import AnyToBokeh
 from video_bokeh.render.base import BokehRenderer
+from video_bokeh.render.layered import Layered
 
 RENDERERS: dict[str, type[BokehRenderer]] = {
     AnyToBokeh.name: AnyToBokeh,
+    Layered.name: Layered,
 }
 
 

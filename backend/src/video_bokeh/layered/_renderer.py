@@ -30,6 +30,10 @@ from torch import Tensor
 #: disparity from the focus. any-to-bokeh renders 1024 pixels wide and calls it ``k``.
 REFERENCE_WIDTH = 1024
 
+#: The width of a radius bin, in pixels: a radius is off by at most half of it.
+RADIUS_STEP = 1.0
+#: The power that makes colours linear for the blur.
+GAMMA = 2.2
 #: A radius below this many pixels leaves the pixel sharp: its disk is the pixel itself.
 _SHARP = 0.5
 #: A disk of radius ``r`` covers pixels out to ``r`` plus half a pixel, partly.
@@ -46,8 +50,8 @@ def render_bokeh(
     paint_order: Tensor,
     focus_disparity: Tensor,
     strength: float,
-    radius_step: float = 1.0,
-    gamma: float = 2.2,
+    radius_step: float = RADIUS_STEP,
+    gamma: float = GAMMA,
 ) -> Tensor:
     """Render the bokeh of a batch of frames from their layers.
 
