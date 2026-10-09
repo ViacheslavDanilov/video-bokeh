@@ -5,10 +5,16 @@ import pytest
 from PIL import Image
 
 from video_bokeh.core._library import write_background, write_foreground
-from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
+from video_bokeh.core._streams import (
+    read_alpha_tiff,
+    read_disparity_png,
+    read_disparity_tiff,
+    read_paint_order,
+    read_rgb_tiff,
+)
 from video_bokeh.library.build import DEFAULT_BG_MARGIN
 from video_bokeh.scenes._compositor import render_scene, sample_scene
-from video_bokeh.scenes.generate import generate_dataset
+from video_bokeh.scenes.generate import generate_dataset, main
 
 
 def _tiny_library(root, n_fg: int = 2, half: int = 8) -> None:
@@ -684,3 +690,72 @@ def test_keeping_the_layers_leaves_the_frame_unchanged(tmp_path) -> None:
             np.stack(a.object_alphas),
             np.stack(b.object_alphas),
         )
+
+
+def _read_png(path) -> np.ndarray:
+    with Image.open(path) as im:
+        return np.asarray(im, dtype=np.float32)
+
+
+def test_written_layers_give_back_the_written_frame(tmp_path) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    main(
+        [
+            "--library-root",
+            str(library),
+            "--output",
+            str(out),
+            "--count",
+            "2",
+            "--frames",
+            "3",
+            "--size",
+            "32",
+            "--n-objects-max",
+            "2",
+            "--layers",
+        ],
+    )
+    for seq in sorted((out / "sequences").iterdir()):
+        layers = seq / "layers"
+        order = read_paint_order(layers / "paint_order.json")
+        assert len(order) == 3
+        for stem, frame_order in zip(("01", "02", "03"), order, strict=True):
+            alphas = read_alpha_tiff(seq / "alpha" / f"{stem}.tif")
+            colours = read_rgb_tiff(layers / "objects" / f"{stem}.tif")
+            disparities = read_disparity_tiff(
+                layers / "objects_disparity" / f"{stem}.tif",
+            )
+            assert len(colours) == len(disparities) == len(alphas)
+            assert sorted(frame_order) == list(range(len(alphas)))
+            for k, a in enumerate(alphas):
+                assert not colours[k][a == 0].any()
+                assert not disparities[k][a == 0].any()
+
+            rgb = _read_png(layers / "background" / f"{stem}.png")
+            disparity = read_disparity_png(
+                layers / "background_disparity" / f"{stem}.png",
+            )
+            for k in frame_order:
+                a = alphas[k]
+                rgb = a[..., None] * colours[k] + (1.0 - a[..., None]) * rgb
+                disparity = a * disparities[k] + (1.0 - a) * disparity
+
+            aif = _read_png(seq / "all_in_focus" / f"{stem}.png")
+            uncovered = np.stack(alphas).max(axis=0) == 0
+            assert uncovered.any()
+            np.testing.assert_array_equal(rgb[uncovered], aif[uncovered])
+            # Each layer is quantized on its own, so the soft edges carry a few levels.
+            assert np.abs(rgb - aif).max() <= 3.0
+            written = read_disparity_png(seq / "disparity" / f"{stem}.png")
+            assert np.abs(disparity - written).max() <= 2.0 / 255
+
+
+def test_no_layers_are_written_unless_asked(tmp_path) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    generate_dataset(library, out, count=1, n_frames=2, size=32, seed=0)
+    assert not (out / "sequences" / "0001" / "layers").exists()

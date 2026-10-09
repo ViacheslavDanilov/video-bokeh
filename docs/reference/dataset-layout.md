@@ -64,6 +64,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_boke
     ├── all_in_focus/<frame>.png   RGB    uint8   the sharp composite
     ├── alpha/<frame>.tif          multi-page uint8, one page per object
     ├── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
+    ├── layers/                                   optional, written with --layers
     └── bokeh/<frame>.png          RGB    uint8   optional, written by Stage C
 ```
 
@@ -98,6 +99,51 @@ represent them.
 
 **Disparity, not depth.** Larger means closer, throughout the pipeline. The background
 occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live above it.
+
+### The layers stream — optional
+
+`layers/` holds what each frame was composited from. `scenes.generate --layers` writes it;
+without the flag nothing is written and nothing else changes.
+
+```
+layers/
+├── background/<frame>.png            RGB   uint8    the whole background, nothing in front
+├── background_disparity/<frame>.png  I;16  uint16   its disparity
+├── objects/<frame>.tif               multi-page RGB uint8, page k = object k's colour
+├── objects_disparity/<frame>.tif     multi-page uint16, page k = object k's disparity
+└── paint_order.json                  one list per frame: the object pages, far to near
+```
+
+- **`paint_order.json` is written last.** A `layers/` without it was interrupted and is not
+  complete.
+
+- **Every layer is whole.** The background includes what the objects cover, and each object
+  includes what a nearer object covers. A layer-wise renderer can blur each one without
+  inpainting anything first.
+- **Object `k`'s alpha is page `k` of `alpha/<frame>.tif`.** It is not written twice.
+- **An object layer is zero wherever its alpha page reads 0**, colour and disparity both.
+  That is where the stored alpha rounds to 0, so no colour hides under a transparent pixel.
+- **Compositing the layers gives back the frame.** Start from the background, then paint each
+  object over it in the frame's `paint_order`, `out = a · object + (1 − a) · out`. The result
+  is `all_in_focus`, and the same with the disparities gives `disparity`, up to the rounding of
+  each file. The order is recorded because it changes from frame to frame, and because soft
+  edges of objects at similar disparity may overlap.
+- **Quantized like the other streams.** Colour is truncated to 8 bits as `all_in_focus` is, so
+  a pixel no object covers matches it exactly. Disparity is 16-bit as `disparity` is.
+- **The TIFFs follow the alpha stream's rules**: multi-page, deflate, read with Pillow.
+  `src/video_bokeh/core/_streams.py` holds both sides of both formats.
+
+**The layers double the dataset and add two thirds to the write time.** Measured on the lab
+machine on 2026-10-10, five 80-frame sequences at 1024 × 1024 with 1 to 5 objects:
+
+| | MiB per frame | seconds per sequence |
+|---|---|---|
+| without `--layers` | 1.75 | 31.4 |
+| with `--layers` | 3.77 | 52.6 |
+
+Of the 2.02 MiB the layers add, the background's colour is 1.14 MiB: it is a second
+all-in-focus frame. Its disparity is 0.22 MiB. The object pages are mostly empty and compress
+to 0.44 MiB for colour and 0.23 MiB for disparity.
 
 ### The bokeh stream — Stage C
 

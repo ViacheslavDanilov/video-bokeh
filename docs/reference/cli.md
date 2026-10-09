@@ -202,6 +202,7 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 | `--seed` | int | `0` | sequence `i` is seeded from `seed + i` |
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
 | `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [[dataset-layout]] |
+| `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [[dataset-layout]] |
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
 

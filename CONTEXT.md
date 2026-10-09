@@ -63,9 +63,15 @@ A foreground placed in a sequence, with its own trajectory and alpha mask.
 _Avoid_: foreground (for the placed instance), layer, actor
 
 **Stream**:
-One per-frame output of a sequence: all-in-focus, alpha, disparity, and bokeh once Stage C
-has run.
+One per-frame output of a sequence: all-in-focus, alpha, disparity, layers when asked for,
+and bokeh once Stage C has run.
 _Avoid_: channel, modality
+
+**Layer**:
+What a frame is composited from: the whole background, or one whole object, each with its
+own colour and disparity, and an object with its alpha mask. Nothing in front hides any part
+of a layer. An object has one layer per frame; the object itself is not a layer.
+_Avoid_: plane, slice
 
 **All-in-focus**:
 The stream holding the sharp composite, with nothing blurred.
