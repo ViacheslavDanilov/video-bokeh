@@ -747,10 +747,13 @@ def test_written_layers_give_back_the_written_frame(tmp_path) -> None:
             uncovered = np.stack(alphas).max(axis=0) == 0
             assert uncovered.any()
             np.testing.assert_array_equal(rgb[uncovered], aif[uncovered])
-            # Each layer is quantized on its own, so the soft edges carry a few levels.
-            assert np.abs(rgb - aif).max() <= 3.0
+            # The frame and each layer are truncated to 8 bits on their own: under one
+            # and a half levels apart, measured under one.
+            assert np.abs(rgb - aif).max() < 1.5
             written = read_disparity_png(seq / "disparity" / f"{stem}.png")
-            assert np.abs(disparity - written).max() <= 2.0 / 255
+            # The stored alpha is off by up to half an 8-bit step, which moves a soft
+            # edge's disparity by at most that much; each map adds one 16-bit step.
+            assert np.abs(disparity - written).max() <= 0.5 / 255 + 2 / 65535
 
 
 def test_no_layers_are_written_unless_asked(tmp_path) -> None:
