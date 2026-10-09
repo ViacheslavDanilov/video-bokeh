@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from itertools import count
 from pathlib import Path
 from typing import Any
@@ -15,6 +15,7 @@ from video_bokeh.core._library import list_backgrounds, list_foregrounds
 from video_bokeh.core._sequence_geometry import SampleConfig
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
+    RenderedFrame,
     render_scene,
 )
 from video_bokeh.scenes.generate import sample_sequence
@@ -22,6 +23,13 @@ from video_bokeh.scenes.generate import sample_sequence
 # A stream that skips this many seeds in a row will not recover: the parameters ask for
 # more objects than the depth axis can hold apart. Failing beats spinning forever.
 _MAX_SKIPS_IN_A_ROW = 100
+
+#: The streams an item can carry, by the name ``streams`` takes. ``layers`` is five keys:
+#: ``background``, ``background_disparity``, ``object_rgbs``, ``object_disparities`` and
+#: ``paint_order``; every other stream is one key of its own name.
+STREAMS = ("rgb", "disparity", "alpha", "object_alphas", "layers")
+#: What an item carries when ``streams`` is not given.
+DEFAULT_STREAMS = ("rgb", "disparity", "alpha", "object_alphas")
 
 
 class SequenceStream(IterableDataset):
@@ -36,10 +44,22 @@ class SequenceStream(IterableDataset):
       zero past ``n_objects``, so every item has the same shape and the default collate
       batches them;
 
-    plus ``n_objects`` and ``seed``, ints. Worker ``w`` of ``W`` takes seeds
-    ``seed + w``, ``seed + w + W``, ...: workers never repeat each other, and one worker
-    yields the scenes ``scenes.generate --seed`` writes, unquantized. A seed whose objects
-    cannot be placed without colliding is skipped, as the writer skips it.
+    plus ``n_objects`` and ``seed``, ints. ``streams`` names the streams an item carries,
+    those four by default; ``n_objects`` and ``seed`` are always there. ``layers`` adds
+    what each frame was composited from, padded to ``n_objects_max`` like
+    ``object_alphas``:
+
+    - ``background`` (T, 3, H, W) and ``background_disparity`` (T, 1, H, W);
+    - ``object_rgbs`` (T, n_objects_max, 3, H, W) and ``object_disparities``
+      (T, n_objects_max, H, W), zero outside each object's alpha mask and past
+      ``n_objects``;
+    - ``paint_order`` (T, n_objects_max), int64, the objects far to near in each frame,
+      then the padding.
+
+    Worker ``w`` of ``W`` takes seeds ``seed + w``, ``seed + w + W``, ...: workers never
+    repeat each other, and one worker yields the scenes ``scenes.generate --seed``
+    writes, unquantized. A seed whose objects cannot be placed without colliding is
+    skipped, as the writer skips it.
 
     Every new iterator starts again at ``seed``, so a loop that re-creates its iterator
     each epoch sees the same sequences again. Seeds are consecutive, so ``seed=1``
@@ -58,6 +78,7 @@ class SequenceStream(IterableDataset):
         n_objects_max: int = 5,
         seed: int = 0,
         cfg: SampleConfig | None = None,
+        streams: Collection[str] = DEFAULT_STREAMS,
     ) -> None:
         super().__init__()
         # Checked here, in the training process, rather than met as a SystemExit inside a
@@ -80,6 +101,17 @@ class SequenceStream(IterableDataset):
                 f"need 1 <= n_objects_min <= n_objects_max, "
                 f"got {n_objects_min} and {n_objects_max}",
             )
+        if isinstance(streams, str):
+            raise ValueError(
+                f"streams takes a collection of names, such as ({streams!r},), "
+                f"not the string {streams!r}",
+            )
+        unknown = sorted(set(streams) - set(STREAMS))
+        if not streams or unknown:
+            raise ValueError(
+                f"streams must name one or more of {', '.join(STREAMS)}; "
+                f"got {sorted(streams)}",
+            )
         self.library_root = library_root
         self.n_frames = n_frames
         self.size = size
@@ -87,6 +119,7 @@ class SequenceStream(IterableDataset):
         self.n_objects_max = n_objects_max
         self.seed = seed
         self.cfg = cfg
+        self.streams = frozenset(streams)
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         info = get_worker_info()
@@ -118,24 +151,59 @@ class SequenceStream(IterableDataset):
             n_objects_max=self.n_objects_max,
             cfg=self.cfg,
         )
-        frames = render_scene(scene)
+        frames = render_scene(scene, layers="layers" in self.streams)
         placed = len(scene.objects)
-        object_alphas = np.zeros(
-            (len(frames), self.n_objects_max, self.size, self.size),
-            dtype=np.float32,
-        )
-        for t, frame in enumerate(frames):
-            object_alphas[t, :placed] = np.stack(frame.object_alphas)
+        item: dict[str, Any] = {"n_objects": placed, "seed": seq_seed}
+        if "rgb" in self.streams:
+            item["rgb"] = _colours([f.rgb for f in frames])
+        if "disparity" in self.streams:
+            item["disparity"] = _maps([f.disparity for f in frames])
+        if "alpha" in self.streams:
+            item["alpha"] = _maps([f.alpha for f in frames])
+        if "object_alphas" in self.streams:
+            item["object_alphas"] = torch.from_numpy(
+                _padded([f.object_alphas for f in frames], self.n_objects_max),
+            )
+        if "layers" in self.streams:
+            item.update(self._layers(frames, placed))
+        return item
+
+    def _layers(self, frames: list[RenderedFrame], placed: int) -> dict[str, Any]:
+        frame_layers = [f.layers for f in frames if f.layers is not None]
+        n = self.n_objects_max
+        object_rgbs = _padded([fl.object_rgbs for fl in frame_layers], n)
+        padding = list(range(placed, n))
         return {
-            "rgb": torch.from_numpy(
-                np.stack([f.rgb for f in frames]).transpose(0, 3, 1, 2) / 255.0,
+            "background": _colours([fl.background_rgb for fl in frame_layers]),
+            "background_disparity": _maps(
+                [fl.background_disparity for fl in frame_layers],
+            ),
+            "object_rgbs": torch.from_numpy(
+                object_rgbs.transpose(0, 1, 4, 2, 3) / 255.0,
             ).float(),
-            "disparity": torch.from_numpy(np.stack([f.disparity for f in frames]))[
-                :,
-                None,
-            ],
-            "alpha": torch.from_numpy(np.stack([f.alpha for f in frames]))[:, None],
-            "object_alphas": torch.from_numpy(object_alphas),
-            "n_objects": placed,
-            "seed": seq_seed,
+            "object_disparities": torch.from_numpy(
+                _padded([fl.object_disparities for fl in frame_layers], n),
+            ),
+            "paint_order": torch.tensor(
+                [fl.paint_order + padding for fl in frame_layers],
+                dtype=torch.int64,
+            ),
         }
+
+
+def _colours(images: list[np.ndarray]) -> torch.Tensor:
+    """(T, 3, H, W) in ``[0, 1]`` from T images of (H, W, 3) in ``[0, 255]``."""
+    return torch.from_numpy(np.stack(images).transpose(0, 3, 1, 2) / 255.0).float()
+
+
+def _maps(maps: list[np.ndarray]) -> torch.Tensor:
+    """(T, 1, H, W) from T maps of (H, W)."""
+    return torch.from_numpy(np.stack(maps))[:, None]
+
+
+def _padded(per_frame: list[list[np.ndarray]], n: int) -> np.ndarray:
+    """(T, n, ...): each frame's objects in page order, then zeros up to ``n``."""
+    out = np.zeros((len(per_frame), n, *per_frame[0][0].shape), dtype=np.float32)
+    for t, arrays in enumerate(per_frame):
+        out[t, : len(arrays)] = np.stack(arrays)
+    return out
