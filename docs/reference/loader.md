@@ -66,6 +66,10 @@ All tensors are float32 in `[0, 1]`, frames first, except `paint_order`. `T` is 
 | | `object_rgbs` | (T, N, 3, H, W) | each whole object's colour, zero outside its alpha mask |
 | | `object_disparities` | (T, N, H, W) | each whole object's disparity, zero outside its alpha mask |
 | | `paint_order` | (T, N), int64 | the objects far to near in each frame, then the padding |
+| `focus` | `focus_disparity` | (T,) | the in-focus disparity of each frame |
+| | `focus_object` | int | the object the focus follows, by page, or -1 when none does |
+| `bokeh` | `bokeh` | (T, 3, H, W) | the frames as the layered renderer blurs them |
+| | `focus_disparity`, `focus_object` | | the focus it blurred them at, as for `focus` |
 | always | `n_objects` | int | objects actually placed |
 | always | `seed` | int | the seed this sequence came from |
 
@@ -88,6 +92,53 @@ stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
   `paint_order` gives back `rgb`. The layers hold `4 · (1 + n_objects_max) / 3` times as many
   floats as `rgb`, eight times at the default of five, so ask for them only when the loop uses
   them.
+
+### Bokeh
+
+`bokeh` blurs each item with the layered renderer, the one Stage C runs as
+`--renderer layered` and [[layered-bokeh]] explains. It is off by default, so a loop that does
+not ask for it pays nothing.
+
+```python
+stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
+                        streams=("rgb", "bokeh"), bokeh_strength=16.0)
+```
+
+- **`bokeh_strength`** is the renderer's strength, any-to-bokeh's `k`, 16 by default. One
+  value for the whole stream.
+- **The focus follows Stage C's rule**: one object, drawn by the area it holds alone, keyed on
+  the scene's seed. A seed written as a dataset and rendered by Stage C focuses on the same
+  object. `focus_disparity=` pins one disparity for every frame instead.
+- **The worker renders it, on the CPU.** The training loop receives finished batches and the
+  GPU stays with the network. CUDA never runs in a worker.
+
+**Rendered in the workers, bokeh costs nearly two thirds of the throughput. Rendered on the
+GPU, it costs nothing measurable.** Measured on the lab machine on 2026-10-10, 512 pixels, 24
+frames, 1 to 5 objects, batches of 4, 8 workers:
+
+| streams | where the bokeh renders | items/s |
+|---|---|---|
+| the default four | no bokeh | 2.81 |
+| the default four and `bokeh` | the workers' CPU | 1.02 |
+| `rgb`, `disparity`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.87 |
+
+So for training, ask the workers for the layers and render each batch on the GPU:
+
+```python
+from pathlib import Path
+
+from torch.utils.data import DataLoader
+from video_bokeh.loader import SequenceStream, batch_bokeh
+
+stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
+                        streams=("rgb", "object_alphas", "layers", "focus"))
+for batch in DataLoader(stream, batch_size=4, num_workers=8, pin_memory=True):
+    batch = {k: v.cuda(non_blocking=True) for k, v in batch.items()}
+    bokeh = batch_bokeh(batch, strength=16.0)  # (4, 24, 3, 512, 512)
+```
+
+The RTX 5090 renders a 512-pixel frame in about 7 ms, a 24-frame item in 0.16 s. The layers
+cost memory instead, as the next section says.
 
 ### What each choice costs
 
@@ -136,9 +187,8 @@ the only way out.
 
 ## Limits
 
-- **No bokeh yet.** The `layers` stream carries what a layer-wise renderer needs; the renderer
-  itself is not in the stream yet. Bokeh is Stage C's job, run over written sequences.
-- **CPU only.** Each worker generates on the CPU. Use `num_workers` to scale.
+- **Workers run on the CPU only.** Use `num_workers` to scale, or render the bokeh on the GPU
+  as above.
 - **No split across distributed ranks.** Every process with the same `seed` yields the same
   stream, and nearby seeds overlap, as above. Give each rank a seed far from the others', for
   example `seed=rank * 10**9`.

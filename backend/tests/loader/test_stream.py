@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from itertools import islice
 from pathlib import Path
@@ -19,8 +20,10 @@ from video_bokeh.core._streams import (
     read_paint_order,
     read_rgb_tiff,
 )
-from video_bokeh.loader import SequenceStream
+from video_bokeh.layered import render_bokeh
+from video_bokeh.loader import SequenceStream, batch_bokeh
 from video_bokeh.loader import _stream as mod
+from video_bokeh.render.layered import Layered
 from video_bokeh.scenes._compositor import CollisionRetriesExhausted
 from video_bokeh.scenes.generate import generate_dataset
 
@@ -310,3 +313,81 @@ def test_streams_named_by_a_generator_are_kept(library: Path) -> None:
     # Checking a generator would use it up and leave nothing to keep.
     item = next(iter(_stream(library, streams=(s for s in ("rgb", "alpha")))))
     assert set(item) == {"rgb", "alpha", "n_objects", "seed"}
+
+
+def test_the_bokeh_stream_has_fixed_shapes(library: Path) -> None:
+    item = next(iter(_stream(library, streams=("bokeh",))))
+    assert set(item) == {
+        "bokeh",
+        "focus_disparity",
+        "focus_object",
+        "n_objects",
+        "seed",
+    }
+    assert item["bokeh"].shape == (FRAMES, 3, SIZE, SIZE)
+    assert item["bokeh"].dtype == torch.float32
+    assert 0.0 <= float(item["bokeh"].min()) and float(item["bokeh"].max()) <= 1.0
+    assert item["focus_disparity"].shape == (FRAMES,)
+    assert item["focus_object"] in range(-1, item["n_objects"])
+
+
+def test_the_bokeh_is_the_renderer_on_the_item_s_own_layers(library: Path) -> None:
+    streams = ("bokeh", "layers", "object_alphas")
+    item = next(iter(_stream(library, streams=streams)))
+    expected = render_bokeh(
+        item["background"],
+        item["background_disparity"],
+        item["object_rgbs"],
+        item["object_alphas"],
+        item["object_disparities"],
+        item["paint_order"],
+        item["focus_disparity"],
+        16.0,
+    )
+    assert torch.allclose(item["bokeh"], expected, atol=1e-5)
+
+
+def test_the_stream_focuses_where_stage_c_does(library: Path, tmp_path: Path) -> None:
+    # The draw is keyed on the scene's seed, so a written sequence and the stream agree.
+    generate_dataset(
+        library,
+        tmp_path / "out",
+        1,
+        FRAMES,
+        SIZE,
+        seed=1,
+        n_objects_max=2,
+        layers=True,
+    )
+    seq = tmp_path / "out" / "sequences" / "0001"
+    Layered().render([seq], 16.0, None)
+    record = json.loads((seq / "bokeh" / "focus.json").read_text())
+
+    item = next(iter(_stream(library, seed=1, streams=("focus",))))
+    assert item["focus_object"] == (
+        -1 if record["object"] is None else record["object"]
+    )
+    # The written disparity is 16-bit and the written mattes 8-bit.
+    assert item["focus_disparity"].tolist() == pytest.approx(record["zf"], abs=1e-3)
+
+
+def test_a_pinned_focus_holds_in_every_frame(library: Path) -> None:
+    item = next(iter(_stream(library, streams=("focus",), focus_disparity=0.3)))
+    assert item["focus_object"] == -1
+    assert item["focus_disparity"].tolist() == pytest.approx([0.3] * FRAMES)
+
+
+def test_a_batch_renders_in_the_training_process_as_the_workers_would(
+    library: Path,
+) -> None:
+    streams = ("bokeh", "layers", "object_alphas")
+    batch = next(iter(DataLoader(_stream(library, streams=streams), batch_size=2)))
+    out = batch_bokeh(batch)
+    assert out.shape == batch["bokeh"].shape
+    assert torch.allclose(out, batch["bokeh"], atol=1e-5)
+
+
+def test_a_batch_without_the_layers_is_refused(library: Path) -> None:
+    batch = next(iter(DataLoader(_stream(library, streams=("rgb",)), batch_size=2)))
+    with pytest.raises(ValueError, match="layers.*object_alphas.*focus"):
+        batch_bokeh(batch)
