@@ -68,8 +68,8 @@ _MAX_FRAMES = 240
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
-#: it means making generation stream to disk instead of accumulating frames, which is
-#: a change to Stage B rather than to the API.
+#: it means writing the frames as Stage B renders them, with `iter_frames`, as the dataset
+#: writer already does, instead of accumulating them with `render_scene`.
 _MAX_PIXELS = 96_000_000
 
 router = APIRouter()

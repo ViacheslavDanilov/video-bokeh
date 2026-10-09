@@ -69,8 +69,8 @@ _Avoid_: channel, modality
 
 **Layer**:
 What a frame is composited from: the whole background, or one whole object, each with its
-own colour and disparity, and an object with its alpha mask. Nothing in front hides any part
-of a layer. An object has one layer per frame; the object itself is not a layer.
+own colour and disparity, and an object with its alpha mask, nothing in front hiding any of
+it. An object has one layer per frame; the object itself is not a layer.
 _Avoid_: plane, slice
 
 **All-in-focus**:
