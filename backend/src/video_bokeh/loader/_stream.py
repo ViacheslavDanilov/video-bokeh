@@ -173,15 +173,14 @@ class SequenceStream(IterableDataset):
         frame_layers = [f.layers for f in frames if f.layers is not None]
         n = self.n_objects_max
         object_rgbs = _padded([fl.object_rgbs for fl in frame_layers], n)
+        object_rgbs /= 255.0
         padding = list(range(placed, n))
         return {
             "background": _colours([fl.background_rgb for fl in frame_layers]),
             "background_disparity": _maps(
                 [fl.background_disparity for fl in frame_layers],
             ),
-            "object_rgbs": torch.from_numpy(
-                object_rgbs.transpose(0, 1, 4, 2, 3) / 255.0,
-            ).float(),
+            "object_rgbs": torch.from_numpy(object_rgbs).permute(0, 1, 4, 2, 3),
             "object_disparities": torch.from_numpy(
                 _padded([fl.object_disparities for fl in frame_layers], n),
             ),
