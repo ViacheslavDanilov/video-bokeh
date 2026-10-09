@@ -174,10 +174,16 @@ than written. The manifest records the rejection count.
 occludes the other, which is the whole point of letting them move.
 
 **Each object keeps one alpha page for the whole clip**, even as paint order changes. The
-masks are recorded before occlusion is resolved, so they are independent soft layers, not a
+masks are recorded before occlusion is resolved, so they are independent soft masks, not a
 partition of the frame — a renderer can blur each layer separately and then composite. That
 independence is also why a single index or label map cannot stand in for them: two objects
 can be partly transparent at the same pixel.
+
+**The layers themselves can be written too.** With `--layers`, Stage B also writes what each
+frame was composited from: the whole background, each whole object with its own disparity, and
+the paint order. A layer-wise bokeh renderer needs exactly this, because the composite no longer
+holds what a blurred object in front would let through.
+[[0002-layers-are-stored-not-regenerated]] records why they are stored rather than regenerated.
 
 ---
 

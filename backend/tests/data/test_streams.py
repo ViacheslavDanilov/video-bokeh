@@ -15,8 +15,14 @@ from PIL import Image
 from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
+    read_disparity_tiff,
+    read_paint_order,
+    read_rgb_tiff,
     write_alpha_tiff,
     write_disparity_png,
+    write_disparity_tiff,
+    write_paint_order,
+    write_rgb_tiff,
 )
 
 _U8_STEP = 1.0 / 255.0
@@ -158,3 +164,54 @@ def test_disparity_reader_rejects_an_8_bit_png(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="16-bit"):
         read_disparity_png(path)
+
+
+@pytest.mark.parametrize("n", [1, 3, 4, 5])
+def test_object_colours_round_trip_one_page_each(tmp_path: Path, n: int) -> None:
+    """Page k is object k's colour, at any count, read back exactly by Pillow.
+
+    Three and four pages are the counts a shape-guessing writer folds into one image.
+    """
+    rng = np.random.default_rng(n)
+    images = [rng.uniform(0, 255, (16, 16, 3)).astype(np.float32) for _ in range(n)]
+    path = tmp_path / "01.tif"
+    write_rgb_tiff(path, images)
+
+    back = read_rgb_tiff(path)
+    assert len(back) == n
+    for original, restored in zip(images, back, strict=True):
+        assert restored.dtype == np.float32
+        assert restored.shape == (16, 16, 3)
+        assert np.abs(restored - original).max() < 1.0  # truncated, not rounded
+    with Image.open(path) as im:
+        assert im.mode == "RGB"
+
+
+@pytest.mark.parametrize("n", [1, 3, 4, 5])
+def test_object_disparities_round_trip_in_16_bits(tmp_path: Path, n: int) -> None:
+    maps = [np.full((8, 8), 0.5 + i * _U8_STEP / 3.0, np.float32) for i in range(n)]
+    path = tmp_path / "01.tif"
+    write_disparity_tiff(path, maps)
+
+    back = read_disparity_tiff(path)
+    assert len(back) == n
+    for original, restored in zip(maps, back, strict=True):
+        assert restored.dtype == np.float32
+        assert np.abs(restored - original).max() <= _U16_STEP
+    assert len({float(m[0, 0]) for m in back}) == n  # finer than 8 bits
+    with Image.open(path) as im:
+        assert np.asarray(im).dtype == np.uint16
+
+
+def test_paint_order_round_trips(tmp_path: Path) -> None:
+    orders = [[0, 2, 1], [2, 0, 1], [1, 0, 2]]
+    path = tmp_path / "paint_order.json"
+    write_paint_order(path, orders)
+    assert read_paint_order(path) == orders
+
+
+def test_a_paint_order_that_is_not_a_permutation_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "paint_order.json"
+    write_paint_order(path, [[0, 1], [1, 1]])
+    with pytest.raises(ValueError, match="frame 2"):
+        read_paint_order(path)

@@ -6,7 +6,8 @@
     └── sequences/<id>/
         ├── all_in_focus/<frame>.png   RGB uint8
         ├── alpha/<frame>.tif          multi-page uint8, one page per object
-        └── disparity/<frame>.png      uint16
+        ├── disparity/<frame>.png      uint16
+        └── layers/                    with --layers: what each frame was composited from
 
 This layout matches what bridge/any_to_bokeh.py consumes. Replaces the old
 generate_sequences.py + estimate_disparity.py pair: depth is now sampled and
@@ -24,18 +25,28 @@ from __future__ import annotations
 import argparse
 import csv
 import random
+import shutil
+from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
 from video_bokeh.core._sequence_geometry import SampleConfig
-from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
+from video_bokeh.core._streams import (
+    quantize_alpha,
+    write_alpha_tiff,
+    write_disparity_png,
+    write_disparity_tiff,
+    write_paint_order,
+    write_rgb_tiff,
+)
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
+    FrameLayers,
     RenderedFrame,
     Scene,
-    render_scene,
+    iter_frames,
     sample_scene,
 )
 
@@ -57,12 +68,44 @@ def _save_frame(
     alp: Path,
     disp: Path,
 ) -> None:
-    Image.fromarray(np.clip(frame.rgb, 0, 255).astype(np.uint8), "RGB").save(
-        aif / f"{stem}.png",
-        compress_level=6,
-    )
+    _write_rgb_png(aif / f"{stem}.png", frame.rgb)
     write_alpha_tiff(alp / f"{stem}.tif", frame.object_alphas)
     write_disparity_png(disp / f"{stem}.png", frame.disparity)
+
+
+def _write_rgb_png(path: Path, rgb: np.ndarray) -> None:
+    Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").save(
+        path,
+        compress_level=6,
+    )
+
+
+#: The layers stream's directories. Each object's alpha is its page in ``alpha/``.
+_LAYER_DIRS = ("background", "background_disparity", "objects", "objects_disparity")
+
+
+def _save_layers(
+    layers: FrameLayers,
+    object_alphas: list[np.ndarray],
+    stem: str,
+    root: Path,
+) -> None:
+    # Zero wherever the alpha page will read 0, not only where the float alpha is: an
+    # alpha below half a level rounds to 0 on disk, and its colour would be left behind.
+    shown = [quantize_alpha(a) > 0 for a in object_alphas]
+    _write_rgb_png(root / "background" / f"{stem}.png", layers.background_rgb)
+    write_disparity_png(
+        root / "background_disparity" / f"{stem}.png",
+        layers.background_disparity,
+    )
+    write_rgb_tiff(
+        root / "objects" / f"{stem}.tif",
+        [rgb * m[..., None] for rgb, m in zip(layers.object_rgbs, shown, strict=True)],
+    )
+    write_disparity_tiff(
+        root / "objects_disparity" / f"{stem}.tif",
+        [d * m for d, m in zip(layers.object_disparities, shown, strict=True)],
+    )
 
 
 def sample_n_objects(seed: int, n_objects_min: int, n_objects_max: int) -> int:
@@ -99,8 +142,20 @@ def sample_sequence(
     )
 
 
-def write_sequence(seq_dir: Path, frames: list[RenderedFrame]) -> None:
-    """Write one sequence's three streams into ``seq_dir``.
+def write_sequence(
+    seq_dir: Path,
+    frames: Iterable[RenderedFrame],
+    n_frames: int | None = None,
+) -> None:
+    """Write one sequence's three streams into ``seq_dir``, and its layers if it has them.
+
+    Frames rendered with ``layers`` also write ``layers/``: the background and each
+    object per frame, then ``paint_order.json``, the objects far to near in each frame.
+    It comes last, so a ``layers/`` without it was interrupted. Any ``layers/`` already
+    in ``seq_dir`` is removed first: an earlier run's would otherwise pass for this one's.
+
+    ``frames`` may be a generator, written as it yields, so that a long sequence is
+    never held whole; ``n_frames`` then says how many it yields.
 
     The frame-number width comes from the frame count, so an 80-frame sequence is
     ``01``..``80`` and a 100-frame one is ``001``..``100``. The bridge and
@@ -112,9 +167,24 @@ def write_sequence(seq_dir: Path, frames: list[RenderedFrame]) -> None:
     disp = seq_dir / "disparity"
     for d in (aif, alp, disp):
         d.mkdir(parents=True, exist_ok=True)
-    digits = max(2, len(str(len(frames))))
+    layer_root = seq_dir / "layers"
+    shutil.rmtree(layer_root, ignore_errors=True)
+    if n_frames is None:
+        frames = list(frames)
+        n_frames = len(frames)
+    paint_orders: list[list[int]] = []
+    digits = max(2, len(str(n_frames)))
     for fi, frame in enumerate(frames):
-        _save_frame(frame, f"{fi + 1:0{digits}d}", aif, alp, disp)
+        stem = f"{fi + 1:0{digits}d}"
+        _save_frame(frame, stem, aif, alp, disp)
+        if frame.layers is not None:
+            if not paint_orders:
+                for name in _LAYER_DIRS:
+                    (layer_root / name).mkdir(parents=True, exist_ok=True)
+            _save_layers(frame.layers, frame.object_alphas, stem, layer_root)
+            paint_orders.append(frame.layers.paint_order)
+    if paint_orders:
+        write_paint_order(layer_root / "paint_order.json", paint_orders)
 
 
 def generate_dataset(
@@ -127,6 +197,7 @@ def generate_dataset(
     n_objects_min: int = 1,
     n_objects_max: int = 5,
     cfg: SampleConfig | None = None,
+    layers: bool = False,
 ) -> int:
     """Write ``count`` sequences and return how many were actually written.
 
@@ -155,10 +226,12 @@ def generate_dataset(
             skipped.append(seq_seed)
             print(f"  skip  seed={seq_seed}  {exc}")
             continue
-        frames = render_scene(scene)
-
         seq_name = f"{i + 1:04d}"
-        write_sequence(output / "sequences" / seq_name, frames)
+        write_sequence(
+            output / "sequences" / seq_name,
+            iter_frames(scene, layers=layers),
+            n_frames,
+        )
         rows.append(
             [
                 seq_name,
@@ -195,6 +268,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--n-objects-min", type=int, default=1)
     parser.add_argument("--n-objects-max", type=int, default=5)
+    parser.add_argument(
+        "--layers",
+        action="store_true",
+        help="also write layers/: the background and each object per frame, before "
+        "compositing, for a layer-wise bokeh renderer",
+    )
     return parser
 
 
@@ -211,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
             n_objects_min=args.n_objects_min,
             n_objects_max=args.n_objects_max,
+            layers=args.layers,
         )
     except ValueError as exc:
         parser.error(str(exc))

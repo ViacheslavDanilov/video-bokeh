@@ -49,19 +49,63 @@ writer's defaults.
 
 ## What an item holds
 
-All tensors are float32 in `[0, 1]`, frames first. `T` is `n_frames`, `H` and `W` are `size`.
+An item holds the streams `streams` names, plus `n_objects` and `seed`. Without `streams` it
+holds `rgb`, `disparity`, `alpha` and `object_alphas`, as it always did.
 
-| key | shape | meaning |
-|---|---|---|
-| `rgb` | (T, 3, H, W) | the all-in-focus frames |
-| `disparity` | (T, 1, H, W) | disparity, near larger, as in the `disparity` stream |
-| `alpha` | (T, 1, H, W) | the union of every object's matte |
-| `object_alphas` | (T, `n_objects_max`, H, W) | one matte per object, in the alpha stream's page order, zero past `n_objects` |
-| `n_objects` | int | objects actually placed |
-| `seed` | int | the seed this sequence came from |
+All tensors are float32 in `[0, 1]`, frames first, except `paint_order`. `T` is `n_frames`,
+`H` and `W` are `size`, and `N` is `n_objects_max`.
 
-`object_alphas` is padded so every item has the same shape, which is what lets the default
-collate batch sequences with different object counts. Use `n_objects` to ignore the padding.
+| stream | key | shape | meaning |
+|---|---|---|---|
+| `rgb` | `rgb` | (T, 3, H, W) | the all-in-focus frames |
+| `disparity` | `disparity` | (T, 1, H, W) | disparity, near larger, as in the `disparity` stream |
+| `alpha` | `alpha` | (T, 1, H, W) | the union of every object's matte |
+| `object_alphas` | `object_alphas` | (T, N, H, W) | one matte per object, in the alpha stream's page order, zero past `n_objects` |
+| `layers` | `background` | (T, 3, H, W) | the whole background, nothing in front of it |
+| | `background_disparity` | (T, 1, H, W) | its disparity |
+| | `object_rgbs` | (T, N, 3, H, W) | each whole object's colour, zero outside its alpha mask |
+| | `object_disparities` | (T, N, H, W) | each whole object's disparity, zero outside its alpha mask |
+| | `paint_order` | (T, N), int64 | the objects far to near in each frame, then the padding |
+| always | `n_objects` | int | objects actually placed |
+| always | `seed` | int | the seed this sequence came from |
+
+`object_alphas` and the object layers are padded so every item has the same shape, which is
+what lets the default collate batch sequences with different object counts. Use `n_objects`
+to ignore the padding.
+
+### Choosing streams
+
+```python
+stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
+                        streams=("rgb", "disparity"))
+```
+
+- **Ask only for what the loop uses.** Each stream is stacked in the worker and copied to the
+  training process, so a stream the loop discards still costs time.
+- **An unknown name, or none at all, is refused** when the stream is created.
+- **`layers` is what a layer-wise bokeh renderer needs**, together with `object_alphas`: object
+  `k`'s alpha is `object_alphas[:, k]`. Compositing the object layers over the background in
+  `paint_order` gives back `rgb`. The layers hold `1 + 4 · n_objects_max / 3` times as many
+  floats as `rgb`, eight times at the default of five, so ask for them only when the loop uses
+  them.
+
+### What each choice costs
+
+Measured on the lab machine (24 cores) on 2026-10-10: 512 pixels, 24 frames, 1 to 5
+objects, batches of 4, from the 30-asset development library.
+
+| streams | items/s, no workers | items/s, 8 workers | MiB per item |
+|---|---|---|---|
+| `rgb`, `disparity` | 0.56 | 2.91 | 96 |
+| the default four | 0.56 | 2.82 | 240 |
+| the default four and `layers` | 0.46 | 2.17 | 816 |
+
+- **Generating the scene is the cost, not stacking the streams.** Dropping to two streams
+  saves 3 %; adding the layers costs 23 %.
+- **Memory is what the layers really cost.** A `DataLoader` keeps `prefetch_factor` batches per
+  worker in shared memory, 2 by default, so 8 workers with layers can hold 16 batches of 4,
+  about 51 GiB. Fewer workers, a smaller `prefetch_factor` or fewer frames bring it down. In a
+  container, `/dev/shm` has to be that large too.
 
 ## Seeds and workers
 
@@ -92,8 +136,8 @@ the only way out.
 
 ## Limits
 
-- **No bokeh.** Rendering bokeh per item is too heavy for a data loader. Bokeh is Stage C's
-  job, run over written sequences.
+- **No bokeh yet.** The `layers` stream carries what a layer-wise renderer needs; the renderer
+  itself is not in the stream yet. Bokeh is Stage C's job, run over written sequences.
 - **CPU only.** Each worker generates on the CPU. Use `num_workers` to scale.
 - **No split across distributed ranks.** Every process with the same `seed` yields the same
   stream, and nearby seeds overlap, as above. Give each rank a seed far from the others', for

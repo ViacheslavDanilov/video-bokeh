@@ -12,7 +12,13 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader
 
-from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
+from video_bokeh.core._streams import (
+    read_alpha_tiff,
+    read_disparity_png,
+    read_disparity_tiff,
+    read_paint_order,
+    read_rgb_tiff,
+)
 from video_bokeh.loader import SequenceStream
 from video_bokeh.loader import _stream as mod
 from video_bokeh.scenes._compositor import CollisionRetriesExhausted
@@ -183,3 +189,124 @@ def test_a_library_without_backgrounds_is_refused_up_front(
     shutil.copytree(library / "foregrounds", half / "foregrounds")
     with pytest.raises(ValueError, match="backgrounds"):
         SequenceStream(half, n_frames=4, size=32)
+
+
+def test_without_flags_an_item_holds_the_four_streams_it_always_did(
+    library: Path,
+) -> None:
+    item = next(iter(_stream(library)))
+    assert set(item) == {
+        "rgb",
+        "disparity",
+        "alpha",
+        "object_alphas",
+        "n_objects",
+        "seed",
+    }
+
+
+def test_an_item_holds_only_the_streams_asked_for(library: Path) -> None:
+    item = next(iter(_stream(library, streams=("rgb", "disparity"))))
+    assert set(item) == {"rgb", "disparity", "n_objects", "seed"}
+    assert item["rgb"].shape == (FRAMES, 3, SIZE, SIZE)
+
+
+@pytest.mark.parametrize("streams", [(), ("rgb", "depth"), "layers"])
+def test_an_unknown_or_empty_stream_list_is_refused_up_front(
+    library: Path,
+    streams: tuple[str, ...],
+) -> None:
+    with pytest.raises(ValueError, match="object_alphas|collection"):
+        _stream(library, streams=streams)
+
+
+_LAYER_KEYS = {
+    "background",
+    "background_disparity",
+    "object_rgbs",
+    "object_disparities",
+    "paint_order",
+}
+
+
+def test_the_layers_stream_has_fixed_shapes(library: Path) -> None:
+    # Asking for four objects in a library of two pads two of them.
+    stream = SequenceStream(
+        library,
+        n_frames=FRAMES,
+        size=SIZE,
+        n_objects_min=4,
+        n_objects_max=4,
+        streams=("layers",),
+    )
+    item = next(iter(stream))
+    assert set(item) == _LAYER_KEYS | {"n_objects", "seed"}
+    assert item["background"].shape == (FRAMES, 3, SIZE, SIZE)
+    assert item["background_disparity"].shape == (FRAMES, 1, SIZE, SIZE)
+    assert item["object_rgbs"].shape == (FRAMES, 4, 3, SIZE, SIZE)
+    assert item["object_disparities"].shape == (FRAMES, 4, SIZE, SIZE)
+    assert item["paint_order"].shape == (FRAMES, 4)
+    assert item["paint_order"].dtype == torch.int64
+    for key in _LAYER_KEYS - {"paint_order"}:
+        assert item[key].dtype == torch.float32
+        assert 0.0 <= float(item[key].min()) and float(item[key].max()) <= 1.0
+    # The padding is zero and is painted after the placed objects.
+    assert float(item["object_rgbs"][:, 2:].abs().max()) == 0.0
+    assert float(item["object_disparities"][:, 2:].abs().max()) == 0.0
+    for order in item["paint_order"].tolist():
+        assert sorted(order[:2]) == [0, 1]
+        assert order[2:] == [2, 3]
+
+
+def test_streamed_layers_match_the_written_ones(library: Path, tmp_path: Path) -> None:
+    generate_dataset(
+        library,
+        tmp_path / "out",
+        1,
+        FRAMES,
+        SIZE,
+        seed=1,
+        n_objects_max=2,
+        layers=True,
+    )
+    layers = tmp_path / "out" / "sequences" / "0001" / "layers"
+    item = next(iter(_stream(library, seed=1, streams=("layers",))))
+    assert item["n_objects"] == 2
+
+    stems = [p.stem for p in sorted((layers / "objects").iterdir())]
+    assert len(stems) == FRAMES
+    background = np.stack(
+        [np.asarray(Image.open(layers / "background" / f"{s}.png")) for s in stems],
+    )
+    assert (
+        np.abs(background - item["background"].permute(0, 2, 3, 1).numpy() * 255).max()
+        <= 1.0
+    )
+    background_disparity = np.stack(
+        [
+            read_disparity_png(layers / "background_disparity" / f"{s}.png")
+            for s in stems
+        ],
+    )
+    assert (
+        np.abs(background_disparity - item["background_disparity"][:, 0].numpy()).max()
+        <= 1 / 65535 + 1e-7
+    )
+    colours = np.stack([read_rgb_tiff(layers / "objects" / f"{s}.tif") for s in stems])
+    streamed = item["object_rgbs"].permute(0, 1, 3, 4, 2).numpy() * 255
+    assert np.abs(colours - streamed).max() <= 1.0
+    disparities = np.stack(
+        [read_disparity_tiff(layers / "objects_disparity" / f"{s}.tif") for s in stems],
+    )
+    assert (
+        np.abs(disparities - item["object_disparities"].numpy()).max()
+        <= 1 / 65535 + 1e-7
+    )
+    order = read_paint_order(layers / "paint_order.json")
+    assert item["paint_order"].tolist() == order
+
+
+def test_streams_named_by_a_generator_are_kept(library: Path) -> None:
+    # Checking a generator would use it up and leave nothing to keep.
+    item = next(iter(_stream(library, streams=(s for s in ("rgb", "alpha")))))
+    assert set(item) == {"rgb", "alpha", "n_objects", "seed"}

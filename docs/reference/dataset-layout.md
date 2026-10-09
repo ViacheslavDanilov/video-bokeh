@@ -64,6 +64,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_boke
     ├── all_in_focus/<frame>.png   RGB    uint8   the sharp composite
     ├── alpha/<frame>.tif          multi-page uint8, one page per object
     ├── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
+    ├── layers/                                   optional, written with --layers
     └── bokeh/<frame>.png          RGB    uint8   optional, written by Stage C
 ```
 
@@ -92,12 +93,57 @@ into one RGBA page — silently, and exactly at the commonest object counts.
 
 **Alpha masks are soft and they overlap.** Measured over 24 frames: every frame has partially
 transparent pixels, a median 7.9 % of the frame, and 13 of 24 frames had two objects with
-non-zero alpha at the same pixel. The masks are independent layers recorded before occlusion
-is resolved — they are not a partition of the frame, so a single index or label map cannot
-represent them.
+non-zero alpha at the same pixel. The masks are independent of each other, recorded before
+occlusion is resolved — they are not a partition of the frame, so a single index or label map
+cannot represent them.
 
 **Disparity, not depth.** Larger means closer, throughout the pipeline. The background
 occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live above it.
+
+### The layers stream — optional
+
+`layers/` holds what each frame was composited from. `scenes.generate --layers` writes it;
+without the flag nothing is written and nothing else changes.
+
+```
+layers/
+├── background/<frame>.png            RGB   uint8    the whole background, nothing in front
+├── background_disparity/<frame>.png  I;16  uint16   its disparity
+├── objects/<frame>.tif               multi-page RGB uint8, page k = object k's colour
+├── objects_disparity/<frame>.tif     multi-page uint16, page k = object k's disparity
+└── paint_order.json                  one list per frame: the object pages, far to near
+```
+
+- **Every layer is whole.** The background includes what the objects cover, and each object
+  includes what a nearer object covers. A layer-wise renderer can blur each one without
+  inpainting anything first.
+- **`paint_order.json` is written last.** A `layers/` without it was interrupted and is not
+  complete. Writing a sequence again removes its old `layers/` first, with or without
+  `--layers`.
+- **Object `k`'s alpha is page `k` of `alpha/<frame>.tif`.** It is not written twice.
+- **An object layer is zero wherever its alpha page reads 0**, colour and disparity both.
+  That is where the stored alpha rounds to 0, so no colour hides under a transparent pixel.
+- **Compositing the layers gives back the frame.** Start from the background, then paint each
+  object over it in the frame's `paint_order`, `out = a · object + (1 − a) · out`. The result
+  is `all_in_focus`, and the same with the disparities gives `disparity`, up to the rounding of
+  each file. The order is recorded because it changes from frame to frame, and because soft
+  edges of objects at similar disparity may overlap.
+- **Quantized like the other streams.** Colour is truncated to 8 bits as `all_in_focus` is, so
+  a pixel no object covers matches it exactly. Disparity is 16-bit as `disparity` is.
+- **The TIFFs follow the alpha stream's rules**: multi-page, deflate, read with Pillow.
+  `src/video_bokeh/core/_streams.py` holds both sides of both formats.
+
+**The layers double the dataset and add two thirds to the write time.** Measured on the lab
+machine on 2026-10-10, five 80-frame sequences at 1024 × 1024 with 1 to 5 objects:
+
+| | MiB per frame | seconds per sequence |
+|---|---|---|
+| without `--layers` | 1.746 | 31.4 |
+| with `--layers` | 3.773 | 52.6 |
+
+Of the 2.03 MiB the layers add, the background's colour is 1.14 MiB: it is a second
+all-in-focus frame. Its disparity is 0.22 MiB. The object pages are mostly empty and compress
+to 0.44 MiB for colour and 0.23 MiB for disparity.
 
 ### The bokeh stream — Stage C
 
@@ -199,8 +245,11 @@ Real sequences, 1024 × 1024, three objects.
 | `alpha` | 50 | 3.8 |
 
 A 1000-sequence, 80-frame dataset is roughly **75–113 GB**, and `all_in_focus` is 92 % of it.
-These sizes predate 16-bit disparity, which has not been re-measured here.
-Anything that shrinks the dataset meaningfully has to address that stream.
+These sizes predate 16-bit disparity. Re-measured on 2026-10-10, with 16-bit disparity and 1
+to 5 objects, a frame takes 1.30 MiB of `all_in_focus`, 0.39 MiB of `disparity` and 0.05 MiB
+of `alpha`, 1.75 MiB in all. The same dataset is then about **136 GiB**, and about **295 GiB**
+with `--layers`. Anything that shrinks the dataset meaningfully has to address
+`all_in_focus`.
 
 ---
 

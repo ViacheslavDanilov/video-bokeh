@@ -5,10 +5,16 @@ import pytest
 from PIL import Image
 
 from video_bokeh.core._library import write_background, write_foreground
-from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
+from video_bokeh.core._streams import (
+    read_alpha_tiff,
+    read_disparity_png,
+    read_disparity_tiff,
+    read_paint_order,
+    read_rgb_tiff,
+)
 from video_bokeh.library.build import DEFAULT_BG_MARGIN
 from video_bokeh.scenes._compositor import render_scene, sample_scene
-from video_bokeh.scenes.generate import generate_dataset
+from video_bokeh.scenes.generate import generate_dataset, main
 
 
 def _tiny_library(root, n_fg: int = 2, half: int = 8) -> None:
@@ -626,3 +632,145 @@ def test_generate_dataset_still_accepts_three_objects(tmp_path) -> None:
     )
     assert written == 1
     assert len(read_alpha_tiff(out / "sequences" / "0001" / "alpha" / "01.tif")) == 3
+
+
+def _composite_layers(frame) -> tuple[np.ndarray, np.ndarray]:
+    """Painter's compositing of a frame's layers, in the paint order it records."""
+    layers = frame.layers
+    rgb = layers.background_rgb
+    disparity = layers.background_disparity
+    for idx in layers.paint_order:
+        a = frame.object_alphas[idx]
+        rgb = a[..., None] * layers.object_rgbs[idx] + (1.0 - a[..., None]) * rgb
+        disparity = a * layers.object_disparities[idx] + (1.0 - a) * disparity
+    return rgb, np.clip(disparity, 0.0, 1.0)
+
+
+def test_layers_composited_in_paint_order_give_back_the_frame(tmp_path) -> None:
+    # The two squares overlap fully and swap depth over the clip, so a wrong paint
+    # order, or an object layer that is not the whole object, shows in the colour.
+    from video_bokeh.core._trajectory import DepthRange
+
+    scene = _overlapping_pair_scene(
+        tmp_path,
+        range_a=(DepthRange(0.66, 0.74), DepthRange(0.26, 0.34)),
+        range_b=(DepthRange(0.26, 0.34), DepthRange(0.66, 0.74)),
+    )
+    frames = render_scene(scene, layers=True)
+    assert frames[0].layers.paint_order != frames[-1].layers.paint_order
+    for frame in frames:
+        rgb, disparity = _composite_layers(frame)
+        np.testing.assert_array_equal(rgb, frame.rgb)
+        np.testing.assert_array_equal(disparity, frame.disparity)
+
+
+def test_an_object_layer_is_zero_outside_its_alpha_mask(tmp_path) -> None:
+    _tiny_library(tmp_path)
+    scene = sample_scene(tmp_path, seed=1, n_frames=3, size=32, n_objects=2)
+    for frame in render_scene(scene, layers=True):
+        for idx, a in enumerate(frame.object_alphas):
+            outside = a == 0
+            assert outside.any() and (~outside).any()
+            assert not frame.layers.object_rgbs[idx][outside].any()
+            assert not frame.layers.object_disparities[idx][outside].any()
+            assert frame.layers.object_disparities[idx][~outside].min() > 0
+
+
+def test_keeping_the_layers_leaves_the_frame_unchanged(tmp_path) -> None:
+    _tiny_library(tmp_path)
+    scene = sample_scene(tmp_path, seed=1, n_frames=3, size=32, n_objects=2)
+    plain = render_scene(scene)
+    layered = render_scene(scene, layers=True)
+    for a, b in zip(plain, layered, strict=True):
+        assert a.layers is None
+        np.testing.assert_array_equal(a.rgb, b.rgb)
+        np.testing.assert_array_equal(a.alpha, b.alpha)
+        np.testing.assert_array_equal(a.disparity, b.disparity)
+        np.testing.assert_array_equal(
+            np.stack(a.object_alphas),
+            np.stack(b.object_alphas),
+        )
+
+
+def _read_png(path) -> np.ndarray:
+    with Image.open(path) as im:
+        return np.asarray(im, dtype=np.float32)
+
+
+def test_written_layers_give_back_the_written_frame(tmp_path) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    main(
+        [
+            "--library-root",
+            str(library),
+            "--output",
+            str(out),
+            "--count",
+            "2",
+            "--frames",
+            "3",
+            "--size",
+            "32",
+            "--n-objects-max",
+            "2",
+            "--layers",
+        ],
+    )
+    for seq in sorted((out / "sequences").iterdir()):
+        layers = seq / "layers"
+        order = read_paint_order(layers / "paint_order.json")
+        assert len(order) == 3
+        for stem, frame_order in zip(("01", "02", "03"), order, strict=True):
+            alphas = read_alpha_tiff(seq / "alpha" / f"{stem}.tif")
+            colours = read_rgb_tiff(layers / "objects" / f"{stem}.tif")
+            disparities = read_disparity_tiff(
+                layers / "objects_disparity" / f"{stem}.tif",
+            )
+            assert len(colours) == len(disparities) == len(alphas)
+            assert sorted(frame_order) == list(range(len(alphas)))
+            for k, a in enumerate(alphas):
+                assert not colours[k][a == 0].any()
+                assert not disparities[k][a == 0].any()
+
+            rgb = _read_png(layers / "background" / f"{stem}.png")
+            disparity = read_disparity_png(
+                layers / "background_disparity" / f"{stem}.png",
+            )
+            for k in frame_order:
+                a = alphas[k]
+                rgb = a[..., None] * colours[k] + (1.0 - a[..., None]) * rgb
+                disparity = a * disparities[k] + (1.0 - a) * disparity
+
+            aif = _read_png(seq / "all_in_focus" / f"{stem}.png")
+            uncovered = np.stack(alphas).max(axis=0) == 0
+            assert uncovered.any()
+            np.testing.assert_array_equal(rgb[uncovered], aif[uncovered])
+            # The frame and each layer are truncated to 8 bits on their own: under one
+            # and a half levels apart, measured under one.
+            assert np.abs(rgb - aif).max() < 1.5
+            written = read_disparity_png(seq / "disparity" / f"{stem}.png")
+            # The stored alpha is off by up to half an 8-bit step, which moves a soft
+            # edge's disparity by at most that much; each map adds one 16-bit step.
+            assert np.abs(disparity - written).max() <= 0.5 / 255 + 2 / 65535
+
+
+def test_no_layers_are_written_unless_asked(tmp_path) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    generate_dataset(library, out, count=1, n_frames=2, size=32, seed=0)
+    assert not (out / "sequences" / "0001" / "layers").exists()
+
+
+def test_rewriting_a_sequence_drops_its_old_layers(tmp_path) -> None:
+    # paint_order.json marks a complete layers/, so layers left from an earlier run
+    # would pass for this run's.
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    generate_dataset(library, out, count=1, n_frames=2, size=32, seed=0, layers=True)
+    assert (out / "sequences" / "0001" / "layers" / "paint_order.json").is_file()
+    generate_dataset(library, out, count=1, n_frames=2, size=32, seed=5)
+    assert not (out / "sequences" / "0001" / "layers").exists()
