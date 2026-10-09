@@ -7,14 +7,13 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from video_bokeh.bridge import any_to_bokeh as bridge
 from video_bokeh.bridge.any_to_bokeh import (
     SequenceInputs,
-    choose_focus_object,
     main,
-    visible_masks,
     write_inputs,
 )
+from video_bokeh.core import _focus
+from video_bokeh.core._focus import choose_focus_object, visible_masks
 from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 
 
@@ -434,7 +433,7 @@ def test_a_covered_frame_keeps_the_focus_whatever_its_cover_s_relief(
     """Object 0 alone, then wholly behind object 1, whose disparity ramps 0.70 to 0.90.
     Ranked by medians, object 0 would come out in front, at the cover's 0.87.
     """
-    monkeypatch.setattr(bridge, "choose_focus_object", lambda areas, seed: 0)
+    monkeypatch.setattr(_focus, "choose_focus_object", lambda areas, seed: 0)
     root = tmp_path / "data" / "sequences" / "0001"
     # Under the cover's nearer side, where its disparity is above its own median.
     small = _block(slice(1, 3), slice(2, 4))
