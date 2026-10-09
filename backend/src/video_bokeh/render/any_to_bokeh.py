@@ -14,10 +14,7 @@ to the sequence's own size; a lossless path is later work, once a GPU run can ch
 
 from __future__ import annotations
 
-import json
 import os
-import shutil
-import stat
 import tempfile
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -31,6 +28,7 @@ from video_bokeh.bridge.any_to_bokeh import (
     write_inputs,
 )
 from video_bokeh.core._worker import model_command, run_script
+from video_bokeh.render._stream import write_bokeh
 
 # backend/third_party/any-to-bokeh; parents[3] is backend/.
 _DEFAULT_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "any-to-bokeh"
@@ -171,24 +169,17 @@ def _write_bokeh(video: Path, seq: Path, inputs: SequenceInputs) -> None:
     names = _frame_names(seq)
     with Image.open(seq / "all_in_focus" / names[0]) as first:
         size = first.size
-    # Named per run, so two runs over one data root cannot delete each other's frames.
-    staging = Path(tempfile.mkdtemp(prefix=".bokeh-", dir=seq))
-    # mkdtemp makes it private (0700); the stream gets the access its siblings have.
-    staging.chmod(stat.S_IMODE((seq / "all_in_focus").stat().st_mode))
     reader = imageio.get_reader(video)
     try:
-        for name, frame in zip(names, reader.iter_data(), strict=True):
-            image = Image.fromarray(frame).convert("RGB")
-            image.resize(size, Image.Resampling.BICUBIC).save(
-                staging / name,
-                compress_level=6,
+        frames = (
+            (
+                name,
+                Image.fromarray(frame)
+                .convert("RGB")
+                .resize(size, Image.Resampling.BICUBIC),
             )
-        record = {"object": inputs.focus_object, "zf": inputs.zf}
-        (staging / "focus.json").write_text(json.dumps(record) + "\n", encoding="utf-8")
-    except BaseException:
-        shutil.rmtree(staging, ignore_errors=True)
-        raise
+            for name, frame in zip(names, reader.iter_data(), strict=True)
+        )
+        write_bokeh(seq, frames, {"object": inputs.focus_object, "zf": inputs.zf})
     finally:
         reader.close()
-    shutil.rmtree(seq / "bokeh", ignore_errors=True)
-    staging.rename(seq / "bokeh")
