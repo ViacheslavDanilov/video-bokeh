@@ -759,3 +759,15 @@ def test_no_layers_are_written_unless_asked(tmp_path) -> None:
     out = tmp_path / "synth"
     generate_dataset(library, out, count=1, n_frames=2, size=32, seed=0)
     assert not (out / "sequences" / "0001" / "layers").exists()
+
+
+def test_rewriting_a_sequence_drops_its_old_layers(tmp_path) -> None:
+    # paint_order.json marks a complete layers/, so layers left from an earlier run
+    # would pass for this run's.
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    generate_dataset(library, out, count=1, n_frames=2, size=32, seed=0, layers=True)
+    assert (out / "sequences" / "0001" / "layers" / "paint_order.json").is_file()
+    generate_dataset(library, out, count=1, n_frames=2, size=32, seed=5)
+    assert not (out / "sequences" / "0001" / "layers").exists()

@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import csv
 import random
+import shutil
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -150,7 +151,8 @@ def write_sequence(
 
     Frames rendered with ``layers`` also write ``layers/``: the background and each
     object per frame, then ``paint_order.json``, the objects far to near in each frame.
-    It comes last, so a ``layers/`` without it was interrupted.
+    It comes last, so a ``layers/`` without it was interrupted. Any ``layers/`` already
+    in ``seq_dir`` is removed first: an earlier run's would otherwise pass for this one's.
 
     ``frames`` may be a generator, written as it yields, so that a long sequence is
     never held whole; ``n_frames`` then says how many it yields.
@@ -165,10 +167,11 @@ def write_sequence(
     disp = seq_dir / "disparity"
     for d in (aif, alp, disp):
         d.mkdir(parents=True, exist_ok=True)
+    layer_root = seq_dir / "layers"
+    shutil.rmtree(layer_root, ignore_errors=True)
     if n_frames is None:
         frames = list(frames)
         n_frames = len(frames)
-    layer_root = seq_dir / "layers"
     paint_orders: list[list[int]] = []
     digits = max(2, len(str(n_frames)))
     for fi, frame in enumerate(frames):
