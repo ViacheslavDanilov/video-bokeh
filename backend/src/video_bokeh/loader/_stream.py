@@ -106,6 +106,7 @@ class SequenceStream(IterableDataset):
                 f"streams takes a collection of names, such as ({streams!r},), "
                 f"not the string {streams!r}",
             )
+        streams = tuple(streams)
         unknown = sorted(set(streams) - set(STREAMS))
         if not streams or unknown:
             raise ValueError(

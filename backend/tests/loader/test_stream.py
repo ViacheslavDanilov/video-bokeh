@@ -304,3 +304,9 @@ def test_streamed_layers_match_the_written_ones(library: Path, tmp_path: Path) -
     )
     order = read_paint_order(layers / "paint_order.json")
     assert item["paint_order"].tolist() == order
+
+
+def test_streams_named_by_a_generator_are_kept(library: Path) -> None:
+    # Checking a generator would use it up and leave nothing to keep.
+    item = next(iter(_stream(library, streams=(s for s in ("rgb", "alpha")))))
+    assert set(item) == {"rgb", "alpha", "n_objects", "seed"}
