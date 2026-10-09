@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import csv
 import random
+from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
@@ -35,7 +36,7 @@ from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     RenderedFrame,
     Scene,
-    render_scene,
+    iter_frames,
     sample_scene,
 )
 
@@ -99,8 +100,15 @@ def sample_sequence(
     )
 
 
-def write_sequence(seq_dir: Path, frames: list[RenderedFrame]) -> None:
+def write_sequence(
+    seq_dir: Path,
+    frames: Iterable[RenderedFrame],
+    n_frames: int | None = None,
+) -> None:
     """Write one sequence's three streams into ``seq_dir``.
+
+    ``frames`` may be a generator, written as it yields, so that a long sequence is
+    never held whole; ``n_frames`` then says how many it yields.
 
     The frame-number width comes from the frame count, so an 80-frame sequence is
     ``01``..``80`` and a 100-frame one is ``001``..``100``. The bridge and
@@ -112,7 +120,10 @@ def write_sequence(seq_dir: Path, frames: list[RenderedFrame]) -> None:
     disp = seq_dir / "disparity"
     for d in (aif, alp, disp):
         d.mkdir(parents=True, exist_ok=True)
-    digits = max(2, len(str(len(frames))))
+    if n_frames is None:
+        frames = list(frames)
+        n_frames = len(frames)
+    digits = max(2, len(str(n_frames)))
     for fi, frame in enumerate(frames):
         _save_frame(frame, f"{fi + 1:0{digits}d}", aif, alp, disp)
 
@@ -155,10 +166,8 @@ def generate_dataset(
             skipped.append(seq_seed)
             print(f"  skip  seed={seq_seed}  {exc}")
             continue
-        frames = render_scene(scene)
-
         seq_name = f"{i + 1:04d}"
-        write_sequence(output / "sequences" / seq_name, frames)
+        write_sequence(output / "sequences" / seq_name, iter_frames(scene), n_frames)
         rows.append(
             [
                 seq_name,
