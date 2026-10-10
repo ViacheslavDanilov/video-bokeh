@@ -15,7 +15,9 @@ class BokehRenderer(Protocol):
     like it. A sequence's ``bokeh/`` appears complete or not at all.
 
     A renderer that cannot take short sequences may say so with a ``min_frames`` class
-    attribute; ``render.run --missing`` then leaves them out instead of handing them over.
+    attribute, and one that renders from the ``layers/`` stream with ``needs_layers =
+    True``; ``render.run --missing`` then leaves such sequences out instead of handing
+    them over.
     """
 
     name: ClassVar[str]

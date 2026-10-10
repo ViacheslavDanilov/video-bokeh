@@ -123,7 +123,10 @@ def main(argv: list[str] | None = None) -> int:
             getattr(renderer, "needs_layers", False),
         )
         if not seq_dirs:
-            print("Nothing to render: every sequence has bokeh or is too short.")
+            print(
+                "Nothing to render: every sequence has bokeh or is one the renderer "
+                "cannot take.",
+            )
             return 0
     print(f"Rendering {len(seq_dirs)} sequence(s) with {args.renderer}")
     renderer.render(seq_dirs, args.strength, args.focus_disparity)

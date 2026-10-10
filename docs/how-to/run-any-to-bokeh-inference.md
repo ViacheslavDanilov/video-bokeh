@@ -81,10 +81,11 @@ filename — `01_zf_0.500000.png`.
 | Pin one focus plane for the entire clip | `--focus-disparity 0.5` |
 
 **The default keeps one object sharp, the way a camera operator follows a subject.** Each
-sequence draws one object, with odds in proportion to the mean area it holds alone, seeded by
-the scene's seed from `manifest.csv` or `sequence.json`, so a re-run keeps it and the training
-loader draws the same. A sequence that records no seed falls back to its name. Its mean
-disparity there is the focus in every frame.
+sequence draws one object, with odds in proportion to the mean area it holds alone. The draw
+is keyed on the seed the sequence was generated from, which `manifest.csv` or `sequence.json`
+records. A re-run therefore keeps the object, and the training loader draws the same one for
+that seed. A sequence that records no seed is keyed on its name. The object's mean disparity
+is the focus in every frame.
 A frame where it is off screen or wholly covered keeps the last focus. A sequence with
 no object focuses on the whole frame. Weighting by area rather than taking the largest keeps
 the focus off the foreground, where the large objects usually are, without landing on a speck.
