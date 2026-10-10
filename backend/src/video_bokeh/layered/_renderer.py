@@ -65,8 +65,12 @@ def render_bokeh(
     """
     if radius_step <= 0:
         raise ValueError(f"radius_step must be positive, got {radius_step}")
+    if gamma <= 0:
+        raise ValueError(f"gamma must be positive, got {gamma}")
+    if strength < 0:
+        raise ValueError(f"strength must not be negative, got {strength}")
     scale = strength * background.shape[-1] / REFERENCE_WIDTH
-    focus = focus_disparity.reshape(-1, 1, 1, 1).to(background.dtype)
+    focus = focus_disparity.reshape(-1, 1, 1, 1).to(background)
 
     def radius(disparity: Tensor) -> Tensor:
         return scale * (disparity - focus).abs()

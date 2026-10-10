@@ -231,10 +231,13 @@ def test_mps_renders_what_the_cpu_renders() -> None:
     assert torch.allclose(cpu, mps.cpu(), atol=1e-3)
 
 
-@pytest.mark.parametrize("step", [0.0, -1.0])
-def test_a_radius_step_that_is_not_positive_is_refused(step: float) -> None:
-    with pytest.raises(ValueError, match="radius_step"):
-        _render(_flat(BLUE), 0.0, [], focus=0.5, radius_step=step)
+@pytest.mark.parametrize(
+    ("setting", "value"),
+    [("radius_step", 0.0), ("radius_step", -1.0), ("gamma", 0.0), ("strength", -1.0)],
+)
+def test_a_setting_out_of_range_is_refused(setting: str, value: float) -> None:
+    with pytest.raises(ValueError, match=setting):
+        _render(_flat(BLUE), 0.0, [], focus=0.5, **{setting: value})
 
 
 def test_a_frame_renders_the_same_alone_as_in_a_batch() -> None:
