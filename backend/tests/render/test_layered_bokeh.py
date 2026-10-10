@@ -237,7 +237,9 @@ def test_mps_renders_what_the_cpu_renders() -> None:
     [
         ("radius_step", 0.0),
         ("radius_step", -1.0),
+        ("radius_step", float("nan")),
         ("gamma", 0.0),
+        ("gamma", float("nan")),
         ("strength", -1.0),
         ("strength", float("nan")),
     ],
