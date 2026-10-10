@@ -17,7 +17,8 @@ over written sequences.
 - **One pass that holds the whole sequence.** Simple, but 80 frames at 1024 pixels with five
   objects hold about 11 GB of layers.
 - **One pass, frames rendered twice.** The focused object is drawn from the area each object
-  holds over the whole clip, so no frame's bokeh can be rendered before the last frame is seen.
+  holds over the whole sequence, so no frame's bokeh can be rendered before the last frame is
+  seen.
   The first pass writes the streams and keeps each frame's focus statistics; the second renders
   the frames again with their layers, eight at a time, and their bokeh.
 

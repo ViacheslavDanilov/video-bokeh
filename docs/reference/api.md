@@ -21,7 +21,8 @@ Interactive docs are at `/docs` when the server is running.
 
 ## Configuration
 
-Four environment variables, all optional.
+Four environment variables configure the API, all optional. A fifth picks the device the
+bokeh renders on.
 
 | Variable | Default | Names |
 |---|---|---|

@@ -63,8 +63,8 @@ A foreground placed in a sequence, with its own trajectory and alpha mask.
 _Avoid_: foreground (for the placed instance), layer, actor
 
 **Stream**:
-One per-frame output of a sequence: all-in-focus, alpha, disparity, layers when asked for,
-and bokeh once Stage C has run.
+One per-frame output of a sequence: all-in-focus, alpha, disparity, and, when asked for,
+layers and bokeh.
 _Avoid_: channel, modality
 
 **Layer**:
@@ -162,8 +162,8 @@ that holds it, written by Stage B in the same pass or by Stage C afterwards.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
-What writes a sequence's bokeh stream in Stage C: any-to-bokeh, or the layered renderer that
-blurs each layer on its own.
+What renders a sequence's bokeh stream: the layered renderer, which blurs each layer on its
+own in Stage B's pass or in Stage C, or any-to-bokeh, in Stage C only.
 _Avoid_: bokeh model
 
 **any-to-bokeh**:
