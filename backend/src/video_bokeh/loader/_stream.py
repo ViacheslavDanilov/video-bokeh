@@ -32,7 +32,16 @@ _MAX_SKIPS_IN_A_ROW = 100
 #: ``paint_order``. ``focus`` is two: ``focus_disparity`` and ``focus_object``. ``bokeh``
 #: is ``bokeh`` and the focus it was rendered at. Every other stream is one key of its
 #: own name.
-STREAMS = ("rgb", "disparity", "alpha", "object_alphas", "layers", "focus", "bokeh")
+STREAMS = (
+    "rgb",
+    "disparity",
+    "alpha",
+    "object_alphas",
+    "layers",
+    "focus",
+    "bokeh",
+    "flow",
+)
 #: What an item carries when ``streams`` is not given.
 DEFAULT_STREAMS = ("rgb", "disparity", "alpha", "object_alphas")
 #: What ``batch_bokeh`` reads from a batch: the keys of the layers, object_alphas and
@@ -76,7 +85,9 @@ class SequenceStream(IterableDataset):
     holds the focus: Stage C's rule, drawn from the sequence's seed, or
     ``focus_disparity`` in every frame when it is given. ``bokeh`` adds ``bokeh``
     (T, 3, H, W), the layered renderer at ``bokeh_strength``, rendered in the worker on the
-    CPU, with the focus it used.
+    CPU, with the focus it used. ``flow`` adds ``flow`` (T - 1, 2, H, W), each frame's
+    exact forward optical flow to the next, in pixels rather than ``[0, 1]``: the motion of
+    the front-most surface, as ``scenes.generate --flow`` writes it, unquantized.
 
     Worker ``w`` of ``W`` takes seeds ``seed + w``, ``seed + w + W``, ...: workers never
     repeat each other, and one worker yields the scenes ``scenes.generate --seed``
@@ -178,7 +189,11 @@ class SequenceStream(IterableDataset):
             n_objects_max=self.n_objects_max,
             cfg=self.cfg,
         )
-        frames = render_scene(scene, layers=bool({"layers", "bokeh"} & self.streams))
+        frames = render_scene(
+            scene,
+            layers=bool({"layers", "bokeh"} & self.streams),
+            flow="flow" in self.streams,
+        )
         placed = len(scene.objects)
         item: dict[str, Any] = {"n_objects": placed, "seed": seq_seed}
         if "rgb" in self.streams:
@@ -187,6 +202,8 @@ class SequenceStream(IterableDataset):
             item["disparity"] = _maps([f.disparity for f in frames])
         if "alpha" in self.streams:
             item["alpha"] = _maps([f.alpha for f in frames])
+        if "flow" in self.streams:
+            item["flow"] = _flows(frames, self.size)
         rendering = "bokeh" in self.streams
         if {"object_alphas", "bokeh"} & self.streams:
             object_alphas = torch.from_numpy(
@@ -255,6 +272,14 @@ def _colours(images: list[np.ndarray]) -> torch.Tensor:
 def _maps(maps: list[np.ndarray]) -> torch.Tensor:
     """(T, 1, H, W) from T maps of (H, W)."""
     return torch.from_numpy(np.stack(maps))[:, None]
+
+
+def _flows(frames: list[RenderedFrame], size: int) -> torch.Tensor:
+    """(T - 1, 2, H, W) from each frame's flow to the next; the last frame has none."""
+    flows = [f.flow for f in frames if f.flow is not None]
+    if not flows:
+        return torch.zeros((0, 2, size, size), dtype=torch.float32)
+    return torch.from_numpy(np.stack(flows).transpose(0, 3, 1, 2).copy())
 
 
 def _padded(per_frame: list[list[np.ndarray]], n: int) -> np.ndarray:

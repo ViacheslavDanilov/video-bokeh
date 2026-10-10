@@ -33,6 +33,7 @@ from video_bokeh.core._sequence_geometry import (
     SampleConfig,
     build_bg_homography,
     build_fg_homography,
+    homography_flow,
     sample_bg_pose,
     sample_fg_pose,
     warp_depth,
@@ -106,6 +107,9 @@ class RenderedFrame:
         default_factory=list,
     )  # one per object, indexed by position in Scene.objects
     layers: FrameLayers | None = None  # only when render_scene is asked for them
+    #: (H, W, 2) float32, pixels to the next frame, from the front-most surface: only when
+    #: asked for, and never on the last frame, which has no next.
+    flow: np.ndarray | None = None
 
 
 def sample_scene(
@@ -225,17 +229,30 @@ def sample_scene(
     )
 
 
-def render_scene(scene: Scene, layers: bool = False) -> list[RenderedFrame]:
+def render_scene(
+    scene: Scene,
+    layers: bool = False,
+    flow: bool = False,
+) -> list[RenderedFrame]:
     """Render every frame: warp the precomputed triplet, band depth, composite.
 
     With ``layers``, each frame also keeps what it was composited from. Off by default:
     the layers hold several more copies of the frame, which a caller that composites
     only would carry for nothing.
+
+    With ``flow``, each frame but the last carries its forward optical flow. Every layer
+    moves by a known homography, so the flow is exact: per pixel, the motion of the
+    front-most surface, the last-painted object whose alpha is at least 0.5 there, else
+    the background's. Occlusion is not marked.
     """
-    return list(iter_frames(scene, layers))
+    return list(iter_frames(scene, layers, flow))
 
 
-def iter_frames(scene: Scene, layers: bool = False) -> Iterator[RenderedFrame]:
+def iter_frames(
+    scene: Scene,
+    layers: bool = False,
+    flow: bool = False,
+) -> Iterator[RenderedFrame]:
     """``render_scene`` one frame at a time, so a writer never holds the whole clip."""
     size = scene.size
     bg_easing_fn = EASING_FNS[scene.bg_easing]
@@ -243,9 +260,21 @@ def iter_frames(scene: Scene, layers: bool = False) -> Iterator[RenderedFrame]:
 
     for i in range(scene.n_frames):
         t = 0.0 if scene.n_frames == 1 else i / (scene.n_frames - 1)
+        # The next frame's time, when there is one and the flow towards it is wanted.
+        t_next = (
+            (i + 1) / (scene.n_frames - 1) if flow and i + 1 < scene.n_frames else None
+        )
 
         bg_pose = scene.bg_pose_start.lerp(scene.bg_pose_end, bg_easing_fn(t))
         bg_h = build_bg_homography(bg_pose, bg_src_size, size)
+        frame_flow = None
+        if t_next is not None:
+            bg_next = scene.bg_pose_start.lerp(scene.bg_pose_end, bg_easing_fn(t_next))
+            frame_flow = homography_flow(
+                bg_h,
+                build_bg_homography(bg_next, bg_src_size, size),
+                size,
+            )
         bg_rgb = np.asarray(
             warp_pillow(scene.background.rgb, bg_h, size),
             dtype=np.float32,
@@ -306,6 +335,17 @@ def iter_frames(scene: Scene, layers: bool = False) -> Iterator[RenderedFrame]:
             union_alpha = np.maximum(union_alpha, a)
             disparity = a * obj_disp + (1.0 - a) * disparity
             object_alphas[idx] = a.astype(np.float32)
+            if frame_flow is not None and t_next is not None:
+                pose_next = obj.pose_start.lerp(
+                    obj.pose_end,
+                    EASING_FNS[obj.easing](t_next),
+                )
+                front = a >= 0.5
+                frame_flow[front] = homography_flow(
+                    fg_h,
+                    build_fg_homography(pose_next, obj.asset.rgb.size[0], size),
+                    size,
+                )[front]
             if layers:
                 inside = a > 0
                 object_rgbs[idx] = np.where(inside[..., None], warped_rgba[..., :3], 0)
@@ -327,4 +367,5 @@ def iter_frames(scene: Scene, layers: bool = False) -> Iterator[RenderedFrame]:
             )
             if layers
             else None,
+            flow=frame_flow,
         )

@@ -203,6 +203,7 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
 | `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [[dataset-layout]] |
 | `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [[dataset-layout]] |
+| `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [[dataset-layout]] |
 | `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
 | `--bokeh-strength` | float | `16` | the bokeh's strength, as any-to-bokeh's `k` |
 

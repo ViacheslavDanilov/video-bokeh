@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import imagecodecs
 import numpy as np
 import pytest
 from PIL import Image
@@ -16,12 +17,14 @@ from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
     read_disparity_tiff,
+    read_flow_png,
     read_paint_order,
     read_rgb_tiff,
     write_alpha_tiff,
     write_bokeh,
     write_disparity_png,
     write_disparity_tiff,
+    write_flow_png,
     write_paint_order,
     write_rgb_tiff,
 )
@@ -235,3 +238,32 @@ def test_bokeh_written_again_replaces_the_old(tmp_path: Path) -> None:
     write_bokeh(tmp_path, [("01.png", Image.new("RGB", (4, 4)))], {"run": 2})
     assert not (tmp_path / "bokeh" / "old.txt").exists()
     assert (tmp_path / "bokeh" / "01.png").is_file()
+
+
+def test_flow_round_trips_within_a_64th_of_a_pixel(tmp_path: Path) -> None:
+    rng = np.random.default_rng(0)
+    flow = rng.uniform(-40.0, 40.0, size=(12, 16, 2)).astype(np.float32)
+    write_flow_png(tmp_path / "f.png", flow)
+    back, valid = read_flow_png(tmp_path / "f.png")
+    assert back.shape == (12, 16, 2) and back.dtype == np.float32
+    assert valid.all()
+    assert np.abs(back - flow).max() <= 0.5 / 64 + 1e-6
+
+
+def test_flow_is_kitti_16_bit_png(tmp_path: Path) -> None:
+    """Red u * 64 + 2**15, green v * 64 + 2**15, blue 1 where valid."""
+    flow = np.zeros((2, 3, 2), dtype=np.float32)
+    flow[0, 0] = (1.0, -0.5)
+    write_flow_png(tmp_path / "f.png", flow)
+    raw = imagecodecs.png_decode((tmp_path / "f.png").read_bytes())
+    assert raw.dtype == np.uint16 and raw.shape == (2, 3, 3)
+    assert tuple(raw[0, 0]) == (2**15 + 64, 2**15 - 32, 1)
+    assert tuple(raw[1, 2]) == (2**15, 2**15, 1)
+
+
+def test_flow_out_of_range_reads_back_invalid(tmp_path: Path) -> None:
+    flow = np.zeros((2, 2, 2), dtype=np.float32)
+    flow[0, 1] = (600.0, 0.0)
+    write_flow_png(tmp_path / "f.png", flow)
+    _, valid = read_flow_png(tmp_path / "f.png")
+    assert valid.tolist() == [[True, False], [True, True]]

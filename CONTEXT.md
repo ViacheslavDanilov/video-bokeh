@@ -64,7 +64,7 @@ _Avoid_: foreground (for the placed instance), layer, actor
 
 **Stream**:
 One per-frame output of a sequence: all-in-focus, alpha, disparity, and, when asked for,
-layers and bokeh.
+layers, optical flow and bokeh.
 _Avoid_: channel, modality
 
 **Layer**:
@@ -87,6 +87,11 @@ _Avoid_: mask, segmentation, label map, matte
 Inverse distance scaled to [0, 1], where larger means closer — the one quantity every map in
 the pipeline stores.
 _Avoid_: depth, depth map
+
+**Optical flow**:
+Where each pixel's front-most surface moves from one frame to the next, in pixels. Exact,
+because every layer moves by a known homography.
+_Avoid_: motion field, motion vectors
 
 **Background band**:
 The bottom sliver of disparity, reserved for the background.
@@ -151,8 +156,8 @@ Building the library; the only stage that runs the depth estimator.
 _Avoid_: preprocessing
 
 **Stage B**:
-Generating sequences from the library; it never runs the depth estimator. With bokeh asked
-for, it renders the bokeh too, in the same pass.
+Generating sequences from the library; it never runs the depth estimator. With bokeh or
+optical flow asked for, it renders them too, in the same pass.
 _Avoid_: rendering
 
 **Sequence stream**:
