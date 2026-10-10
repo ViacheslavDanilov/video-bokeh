@@ -27,8 +27,8 @@ from video_bokeh.bridge.any_to_bokeh import (
     list_png_frames,
     write_inputs,
 )
+from video_bokeh.core._streams import write_bokeh
 from video_bokeh.core._worker import model_command, run_script
-from video_bokeh.render._stream import write_bokeh
 
 # backend/third_party/any-to-bokeh; parents[3] is backend/.
 _DEFAULT_ROOT = Path(__file__).resolve().parents[3] / "third_party" / "any-to-bokeh"

@@ -12,6 +12,10 @@ and the object layers, written only on request:
     layers/objects_disparity/<frame>.tif  multi-page uint16 TIFF, one page per object
     layers/paint_order.json               per frame, the object pages far to near
 
+and the bokeh stream, written whole or not at all by whatever renders it:
+
+    bokeh/<frame>.png                     RGB uint8, beside focus.json
+
 **Multi-page, not multi-sample.** Pillow cannot open a TIFF with more than four samples per
 pixel at all -- it raises ``UnidentifiedImageError`` -- while it reads a multi-page file
 exactly. Everything here and everyone who downloads the dataset uses Pillow, so the page
@@ -24,7 +28,12 @@ transparency, which is what the dataset exists to provide, so nothing binarizes.
 from __future__ import annotations
 
 import json
+import shutil
+import stat
+import tempfile
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import tifffile
@@ -154,3 +163,28 @@ def read_paint_order(path: Path) -> list[list[int]]:
                 f"of its {len(order)} object pages",
             )
     return orders
+
+
+def write_bokeh(
+    seq: Path,
+    frames: Iterable[tuple[str, Image.Image]],
+    record: dict[str, Any],
+) -> None:
+    """Write ``seq/bokeh/``: each named frame as a PNG, and ``record`` as focus.json.
+
+    The frames go to a hidden folder beside it, named per run so two runs over one data
+    root cannot delete each other's, which is renamed to ``bokeh/`` only when every frame
+    is in place. Anything that fails on the way leaves the old ``bokeh/`` untouched.
+    """
+    staging = Path(tempfile.mkdtemp(prefix=".bokeh-", dir=seq))
+    # mkdtemp makes it private (0700); the stream gets the access its siblings have.
+    staging.chmod(stat.S_IMODE((seq / "all_in_focus").stat().st_mode))
+    try:
+        for name, image in frames:
+            image.save(staging / name, compress_level=6)
+        (staging / "focus.json").write_text(json.dumps(record) + "\n", encoding="utf-8")
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    shutil.rmtree(seq / "bokeh", ignore_errors=True)
+    staging.rename(seq / "bokeh")

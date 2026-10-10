@@ -26,10 +26,10 @@ from video_bokeh.core._streams import (
     read_disparity_tiff,
     read_paint_order,
     read_rgb_tiff,
+    write_bokeh,
 )
 from video_bokeh.layered import GAMMA, RADIUS_STEP, render_bokeh
 from video_bokeh.library._device import select_device
-from video_bokeh.render._stream import write_bokeh
 
 _DEVICE = "VIDEO_BOKEH_LAYERED_DEVICE"
 #: Frames rendered at once. Eight 1024-pixel frames with five objects hold about 1 GiB

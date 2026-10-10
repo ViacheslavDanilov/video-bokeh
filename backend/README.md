@@ -18,7 +18,7 @@ backend/src/video_bokeh/
 │                   _propagation.py  depth/
 ├── loader/         _stream.py                        — on-the-fly training data
 ├── preview/        pack.py                           — streams a human looks at
-├── render/         run.py  any_to_bokeh.py  layered.py  base.py  _stream.py  — Stage C
+├── render/         run.py  any_to_bokeh.py  layered.py  base.py  — Stage C
 └── scenes/         generate.py  _compositor.py       — Stage B
 ```
 
