@@ -45,7 +45,7 @@ api: ## Serve the API on :8000 from LIBRARY
 
 bokeh: ## Render any-to-bokeh for the page's sequences without bokeh (NVIDIA only)
 	cd backend && VIDEO_BOKEH_RUNNER=$(RUNNER) uv run --extra render python -m video_bokeh.render.run \
-	  --data-root "$${VIDEO_BOKEH_DATA_ROOT:-data}" --missing
+	  --data-root "$${VIDEO_BOKEH_DATA_ROOT:-data}" --renderer any-to-bokeh --missing
 
 web: ## Serve the page on :3000
 	cd frontend && pnpm dev

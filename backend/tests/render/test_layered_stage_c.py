@@ -63,6 +63,13 @@ def test_writes_every_frame_and_records_what_made_them(dataset: Path) -> None:
         assert not list(seq.glob(".bokeh-*"))
 
 
+def test_is_what_stage_c_runs_unless_told_otherwise(dataset: Path) -> None:
+    assert cli.main(["--data-root", str(dataset)]) == 0
+    for seq in _sequences(dataset):
+        record = json.loads((seq / "bokeh" / "focus.json").read_text())
+        assert record["renderer"] == "layered"
+
+
 def test_zero_strength_gives_back_the_all_in_focus_frames(dataset: Path) -> None:
     cli.main(["--data-root", str(dataset), "--renderer", "layered", "--strength", "0"])
     for seq in _sequences(dataset):

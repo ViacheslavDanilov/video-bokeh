@@ -92,12 +92,13 @@ uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/synth_dev \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5 --layers
 
-# 4. Stage C — render bokeh into each sequence's bokeh/. any-to-bokeh, the default, is
-#    NVIDIA only and needs scripts/setup_third_party.sh first (first run on an RTX 5090
-#    on 2026-10-07); layered runs anywhere, over sequences written with --layers
+# 4. Stage C — render bokeh into each sequence's bokeh/. layered, the default, runs
+#    anywhere, over sequences written with --layers. any-to-bokeh is for comparison: NVIDIA
+#    only, offline, and needs scripts/setup_third_party.sh first (first run on an RTX 5090
+#    on 2026-10-07)
 uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
 uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev \
-  --renderer layered
+  --renderer any-to-bokeh
 
 # Or only convert for any-to-bokeh, to inspect its inputs
 uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/synth_dev
