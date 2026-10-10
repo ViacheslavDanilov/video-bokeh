@@ -9,7 +9,7 @@ related: [pipeline-explainer, dataset-layout, loader]
 
 Our layer-wise renderer blurs each layer of a frame on its own, by how far it is from the
 focus, and then stacks the blurred layers back together. It is a classical algorithm in
-PyTorch, under 300 lines, and it runs on a CPU, an NVIDIA card or a Mac's GPU.
+PyTorch, and it runs on a CPU, an NVIDIA card or a Mac's GPU.
 
 - **Decision, 2026-10-09:** this renderer is to replace any-to-bokeh as the source of the
   dataset's bokeh. any-to-bokeh stays as a baseline. It follows the 2026-10-08 sync.
@@ -48,9 +48,9 @@ or one object with its alpha mask, each with its own disparity.
 4. **The renderer corrects each layer for coverage.** Where two bins meet, or at the frame's
    edge, the disks do not add up to exactly one. Without a correction, a solid object turns
    up to 20 % see-through along those lines. So the renderer also blurs a frame of ones the
-   same way, and divides by it where it falls short of one. Around the object, that frame of
-   ones takes the radius of the nearest part of the object, so a blurred edge fades as far as
-   its own blur reaches and an edge in focus stays solid.
+   same way, and divides by it. Around the object, that frame of ones takes the radius of the
+   nearest part of the object, so a blurred edge fades as far as its own blur reaches. A pixel
+   in focus never ends up more see-through than it was, so an edge in focus stays solid.
 5. **The blur runs in linear light.** The renderer raises colours to the power 2.2 before the
    blur and brings them back after it. A bright highlight then spreads into a brighter disc
    than a plain average gives. 8-bit frames clip their highlights, so the discs stay dimmer
@@ -88,8 +88,7 @@ Measured on 2026-10-10 on real layers from the development library, 1 to 5 objec
 | lab RTX 5090 | 2.8 | 11.6 |
 | Mac M3 Pro GPU | 19 | 115 |
 
-One thread is what each worker of a training loader gets. Runs vary: two runs of the same lab
-CPU at 1024 pixels, a few hours apart, took 226 and 303 milliseconds.
+One thread is what each worker of a training loader gets.
 
 ---
 

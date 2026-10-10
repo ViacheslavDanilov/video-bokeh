@@ -10,8 +10,9 @@ Within a layer every pixel scatters a disk whose radius grows with its distance 
 focus. Radii are binned ``radius_step`` pixels wide, every bin is one convolution with a
 disk of its pixels' mean radius, and pixels under half a pixel stay sharp. Each layer is
 then divided by how much its bins covered each pixel, so the seams between bins and the
-frame's edge neither thin nor darken it. The convolutions run by FFT, whose cost does not
-grow with the radius.
+frame's edge neither thin nor darken it. The convolutions run by FFT, so one convolution
+costs the same at any radius; wider radii still mean more bins, more padding and a longer
+reach around each object.
 
 The blur runs in linear light. The blurred layers are composited in the frame's own
 values, as Stage B composites, so a layer in focus composites exactly as it did there.
@@ -124,7 +125,7 @@ def _blur_object(
     shown = alpha[:, 0] > 0
     if not bool(shown.any()):
         return colour, alpha_out
-    reach = 2 * math.ceil(float(radius[alpha > 0].max()) + _HALF_PIXEL) + 1
+    reach = _reach(radius, alpha > 0)
     height, width = shown.shape[-2:]
     rows = _spans(shown.any(dim=2), reach, height)
     cols = _spans(shown.any(dim=1), reach, width)
@@ -220,9 +221,15 @@ def _blur_layer(
     return colour.clamp(0.0, 1.0).pow(1.0 / gamma), alpha_out
 
 
+def _reach(radius: Tensor, inside: Tensor) -> int:
+    """How far around a layer its blur can change the coverage: twice its widest disk."""
+    return 2 * math.ceil(float(radius[inside].max()) + _HALF_PIXEL) + 1
+
+
 def _spread_radius(radius: Tensor, alpha: Tensor) -> Tensor:
-    """``radius`` inside the alpha mask, and outside it the largest radius of the mask
-    within reach, so the coverage around an edge is the edge's own.
+    """``radius`` inside the alpha mask, and outside it the radius of the nearest mask
+    pixel, the largest where several are equally near, so the coverage around an edge is
+    the edge's own.
 
     It grows out one pixel a step, as far as the widest disk reaches twice, which is as
     far as coverage matters. Pixels beyond take the layer's mean radius. A maximum,
@@ -235,7 +242,7 @@ def _spread_radius(radius: Tensor, alpha: Tensor) -> Tensor:
         return mean.expand_as(radius)
     filled = torch.where(inside, radius, 0.0)
     known = inside.to(radius.dtype)
-    steps = 2 * math.ceil(float(radius[inside].max()) + _HALF_PIXEL) + 1
+    steps = _reach(radius, inside)
     for _ in range(steps):
         reached = F.max_pool2d(known, 3, stride=1, padding=1)
         grown = F.max_pool2d(filled, 3, stride=1, padding=1)
