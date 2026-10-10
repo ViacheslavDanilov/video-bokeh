@@ -63,8 +63,8 @@ A foreground placed in a sequence, with its own trajectory and alpha mask.
 _Avoid_: foreground (for the placed instance), layer, actor
 
 **Stream**:
-One per-frame output of a sequence: all-in-focus, alpha, disparity, layers when asked for,
-and bokeh once Stage C has run.
+One per-frame output of a sequence: all-in-focus, alpha, disparity, and, when asked for,
+layers and bokeh.
 _Avoid_: channel, modality
 
 **Layer**:
@@ -151,7 +151,8 @@ Building the library; the only stage that runs the depth estimator.
 _Avoid_: preprocessing
 
 **Stage B**:
-Generating sequences from the library; it never runs the depth estimator.
+Generating sequences from the library; it never runs the depth estimator. With bokeh asked
+for, it renders the bokeh too, in the same pass.
 _Avoid_: rendering
 
 **Sequence stream**:
@@ -160,19 +161,20 @@ counterpart of the dataset. `loader` is its role word in code, as `library` is S
 _Avoid_: online dataset
 
 **Stage C**:
-Rendering bokeh for each sequence with a bokeh renderer; it never reads the library.
+Rendering bokeh over sequences already written, with a bokeh renderer; it never reads the
+library.
 _Avoid_: post-processing
 
 ## Rendering and the demo
 
 **Bokeh**:
 The disparity-dependent blur the trained model is meant to produce, and the sequence stream
-Stage C writes with it.
+that holds it, written by Stage B in the same pass or by Stage C afterwards.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
-What writes a sequence's bokeh stream in Stage C: any-to-bokeh, or the layered renderer that
-blurs each layer on its own.
+What renders a sequence's bokeh stream: the layered renderer, which blurs each layer on its
+own in Stage B's pass or in Stage C, or any-to-bokeh, in Stage C only.
 _Avoid_: bokeh model
 
 **any-to-bokeh**:

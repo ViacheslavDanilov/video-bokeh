@@ -203,6 +203,8 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
 | `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [[dataset-layout]] |
 | `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [[dataset-layout]] |
+| `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
+| `--bokeh-strength` | float | `16` | the bokeh's strength, as any-to-bokeh's `k` |
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
 
@@ -221,10 +223,11 @@ has the command. It first ran to completion on an RTX 5090 on 2026-10-07.
 | `--focus-disparity` | float | one object, drawn by area | one in-focus disparity in `[0, 1]` for every frame |
 | `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any the renderer cannot take |
 
-`--missing` is what `make bokeh` runs, over the API's data root, so it renders whatever the page
-has generated since the last run. A sequence shorter than the renderer's minimum, or without
-the layers `layered` needs, is named and left out rather than handed over, where it would fail
-the whole batch. A directory whose name
+`--missing` is what `make bokeh` runs, over the API's data root, so it renders any-to-bokeh's
+bokeh for whatever the page generated without bokeh of its own, as it does without torch. A
+sequence shorter than the renderer's minimum, or without the layers `layered` needs, is named
+and left out rather than handed over, where it would fail the whole batch. A directory whose
+name
 starts with a dot is never a sequence: the API generates under `.tmp-*` and renames.
 
 | `--renderer` | runs in | setup |

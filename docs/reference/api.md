@@ -10,29 +10,28 @@ related: [cli, dataset-layout, generate-a-dataset]
 Four endpoints. They mount the libraries Stage A built and generate Stage B sequences on demand,
 from whichever library a request names.
 
-**The API serves bokeh but does not render it.** Rendering is minutes of GPU work per sequence.
-Stage C renders it into the sequences this API wrote, on a machine with an NVIDIA card:
-
-```bash
-make bokeh
-```
-
-That renders every sequence under `$VIDEO_BOKEH_DATA_ROOT/sequences/` that has no bokeh yet,
-and leaves out any shorter than any-to-bokeh can take, saying which. Asking for a sequence again
-then lists its `bokeh` stream. Starting a render from the API would need a job id and polling,
-and waits on where Stage C runs.
+**A generated sequence comes with its bokeh, when torch is installed.** The API renders it in
+the same request with the layered renderer, so `POST /sequences` takes longer: on an Apple M3
+Pro, 80 frames at 512 pixels with four to five objects took 7 to 11 s without bokeh and 16 to
+21 s with it. A sequence
+cached without bokeh gets it when it is asked for again. Without torch, as in the API's own
+install, sequences come without bokeh, and `make bokeh` can still render it with Stage C;
+asking for a sequence again then lists its `bokeh` stream.
 
 Interactive docs are at `/docs` when the server is running.
 
 ## Configuration
 
-Three environment variables, all optional.
+Four environment variables configure the API, all optional. A fifth picks the device the
+bokeh renders on.
 
 | Variable | Default | Names |
 |---|---|---|
 | `VIDEO_BOKEH_DATA_ROOT` | `data` | the directory everything generated lives under |
 | `VIDEO_BOKEH_LIBRARY` | `$VIDEO_BOKEH_DATA_ROOT/library` | one library, or a directory of them |
 | `CORS_ORIGINS` | `http://localhost:3000` | comma-separated origins a browser may call from |
+| `VIDEO_BOKEH_RENDER_BOKEH` | `1` | whether a sequence comes with its bokeh; `0` turns it off, and without torch it is off anyway |
+| `VIDEO_BOKEH_LAYERED_DEVICE` | `cpu` | the torch device the bokeh renders on: `cpu`, `mps` or `cuda` |
 
 **The second one names a library or a directory of libraries.** A directory holding
 `foregrounds/` and `backgrounds/` is one library, which is what makes an existing checkout work
@@ -163,8 +162,8 @@ curl -X POST http://localhost:8000/sequences \
 
 **Each entry of `streams` is stream info: how the stream can be displayed, not only where it
 is.** `colormaps` is empty when the stream is already RGB. A client that renders
-what `streams` lists needs no change when a stream is added. `bokeh` appears here once Stage C
-has rendered the sequence, with no colormaps, after the three every sequence has.
+what `streams` lists needs no change when a stream is added. `bokeh` appears here once the
+sequence has it, with no colormaps, after the three every sequence has.
 
 **`library` may be left out only while one library is mounted.** With several, leaving it out
 answers 422 and lists the ids. An id that is not mounted answers the same way. The API never
@@ -178,11 +177,12 @@ comparing depth estimators means here.
 deterministic, so the same request always names the same sequence. The cache is the directory
 `$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
 
-`cached` says whether this request generated the sequence or found it. On a cache hit the call
-returns in milliseconds.
+`cached` says whether this request generated the sequence or found it. A cache hit answers at
+once, 0.02 s over HTTP in the table below, unless it adds the bokeh a cached sequence lacks:
+16 to 19 s for 80 frames at 512 px with four to five objects on an Apple M3 Pro.
 
-**The call blocks while it generates.** Measured against `data/library_dev` at size 512 with
-four to five objects per sequence:
+**The call blocks while it generates.** Measured without bokeh against `data/library_dev` at
+size 512 with four to five objects per sequence:
 
 | Where | 24 frames | 80 frames | cache hit |
 |---|---|---|---|
@@ -203,8 +203,8 @@ when there is no library, or when two cannot be told apart.
 
 ## `GET /sequences/{id}/{stream}.mp4`
 
-Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` once
-Stage C has rendered the sequence.
+Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` when
+the sequence has it.
 
 **`alpha` is one colour per object, not one silhouette.** The stream is a multi-page TIFF
 with one page per object, and the page index is that object's identity for the whole clip —
@@ -242,7 +242,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── all_in_focus/           RGB uint8 PNG
 ├── alpha/                  multi-page uint8 TIFF, one page per object
 ├── disparity/              uint16 PNG
-├── bokeh/                  RGB uint8 PNG, once Stage C has rendered it
+├── bokeh/                  RGB uint8 PNG and focus.json, with torch or once Stage C wrote it
 ├── all_in_focus.mp4        written on first request
 ├── disparity.mp4           written on first request, Spectral
 └── disparity.grey.mp4      written if grey is ever asked for

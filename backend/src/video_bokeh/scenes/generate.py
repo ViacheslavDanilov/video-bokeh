@@ -24,18 +24,23 @@ from __future__ import annotations
 
 import argparse
 import csv
+import importlib.util
+import math
 import random
 import shutil
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
+from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
 from video_bokeh.core._sequence_geometry import SampleConfig
 from video_bokeh.core._streams import (
+    BOKEH_STRENGTH,
     quantize_alpha,
     write_alpha_tiff,
+    write_bokeh,
     write_disparity_png,
     write_disparity_tiff,
     write_paint_order,
@@ -142,6 +147,55 @@ def sample_sequence(
     )
 
 
+def _frame_stem(index: int, n_frames: int) -> str:
+    """Frame ``index``'s file stem: 1-based, padded to the width of the frame count."""
+    return f"{index + 1:0{max(2, len(str(n_frames)))}d}"
+
+
+def write_bokeh_stream(
+    seq_dir: Path,
+    scene: Scene,
+    scene_seed: int,
+    focus: list[FrameFocus],
+    strength: float = BOKEH_STRENGTH,
+    replace: bool = True,
+) -> None:
+    """Render a written sequence's bokeh from its scene, in memory, into ``bokeh/``.
+
+    ``focus`` is each frame's focus statistics, gathered while the frames were written;
+    the focused object is drawn from the scene's seed, as the loader and Stage C draw
+    it. The frames are rendered again with their layers, a few at a time, so the layers
+    are never held whole. ``replace`` is ``write_bokeh``'s. Needs torch.
+    """
+    from video_bokeh.layered import (
+        bokeh_device,
+        bokeh_record,
+        layered_frame,
+        render_sequence,
+    )
+
+    focus_object, zf = focus_track(focus, focus_seed(scene_seed))
+    images = render_sequence(
+        (layered_frame(frame) for frame in iter_frames(scene, layers=True)),
+        zf,
+        strength,
+        bokeh_device(),
+    )
+    names = [f"{_frame_stem(i, scene.n_frames)}.png" for i in range(scene.n_frames)]
+    record = bokeh_record(focus_object, zf, strength)
+    write_bokeh(seq_dir, zip(names, images, strict=True), record, replace=replace)
+
+
+def _measured(
+    frames: Iterable[RenderedFrame],
+    focus: list[FrameFocus],
+) -> Iterator[RenderedFrame]:
+    """Pass the frames through, keeping each one's focus statistics in ``focus``."""
+    for frame in frames:
+        focus.append(frame_focus(frame.object_alphas, frame.disparity))
+        yield frame
+
+
 def write_sequence(
     seq_dir: Path,
     frames: Iterable[RenderedFrame],
@@ -151,8 +205,9 @@ def write_sequence(
 
     Frames rendered with ``layers`` also write ``layers/``: the background and each
     object per frame, then ``paint_order.json``, the objects far to near in each frame.
-    It comes last, so a ``layers/`` without it was interrupted. Any ``layers/`` already
-    in ``seq_dir`` is removed first: an earlier run's would otherwise pass for this one's.
+    It comes last, so a ``layers/`` without it was interrupted. Any ``layers/`` or
+    ``bokeh/`` already in ``seq_dir`` is removed first: an earlier run's would otherwise
+    pass for this one's.
 
     ``frames`` may be a generator, written as it yields, so that a long sequence is
     never held whole; ``n_frames`` then says how many it yields.
@@ -169,13 +224,13 @@ def write_sequence(
         d.mkdir(parents=True, exist_ok=True)
     layer_root = seq_dir / "layers"
     shutil.rmtree(layer_root, ignore_errors=True)
+    shutil.rmtree(seq_dir / "bokeh", ignore_errors=True)
     if n_frames is None:
         frames = list(frames)
         n_frames = len(frames)
     paint_orders: list[list[int]] = []
-    digits = max(2, len(str(n_frames)))
     for fi, frame in enumerate(frames):
-        stem = f"{fi + 1:0{digits}d}"
+        stem = _frame_stem(fi, n_frames)
         _save_frame(frame, stem, aif, alp, disp)
         if frame.layers is not None:
             if not paint_orders:
@@ -198,14 +253,25 @@ def generate_dataset(
     n_objects_max: int = 5,
     cfg: SampleConfig | None = None,
     layers: bool = False,
+    bokeh: bool = False,
+    bokeh_strength: float = BOKEH_STRENGTH,
 ) -> int:
     """Write ``count`` sequences and return how many were actually written.
+
+    With ``bokeh``, each sequence's bokeh is rendered in the same run, from the layers
+    held in memory; ``layers`` decides separately whether they are written too.
 
     A sequence whose trajectories cannot be made collision-free is skipped, not
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
     numbering rather than shifting every later sequence onto a different seed.
     """
     cfg = cfg or SampleConfig()
+    if bokeh and importlib.util.find_spec("torch") is None:
+        raise ValueError(
+            "bokeh needs torch: install the render or the loader extra",
+        )
+    if bokeh and not (math.isfinite(bokeh_strength) and bokeh_strength >= 0):
+        raise ValueError(f"bokeh strength must be 0 or more, got {bokeh_strength}")
     output.mkdir(parents=True, exist_ok=True)
     rows: list[list[str]] = []
     skipped: list[int] = []
@@ -227,11 +293,12 @@ def generate_dataset(
             print(f"  skip  seed={seq_seed}  {exc}")
             continue
         seq_name = f"{i + 1:04d}"
-        write_sequence(
-            output / "sequences" / seq_name,
-            iter_frames(scene, layers=layers),
-            n_frames,
-        )
+        seq_dir = output / "sequences" / seq_name
+        focus: list[FrameFocus] = []
+        frames = iter_frames(scene, layers=layers)
+        write_sequence(seq_dir, _measured(frames, focus) if bokeh else frames, n_frames)
+        if bokeh:
+            write_bokeh_stream(seq_dir, scene, seq_seed, focus, bokeh_strength)
         rows.append(
             [
                 seq_name,
@@ -269,6 +336,18 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-objects-min", type=int, default=1)
     parser.add_argument("--n-objects-max", type=int, default=5)
     parser.add_argument(
+        "--bokeh",
+        action="store_true",
+        help="also render each sequence's bokeh in the same run, with the layered "
+        "renderer, from the layers in memory; needs torch",
+    )
+    parser.add_argument(
+        "--bokeh-strength",
+        type=float,
+        default=BOKEH_STRENGTH,
+        help=f"the bokeh's strength, as any-to-bokeh's k (default: {BOKEH_STRENGTH:g})",
+    )
+    parser.add_argument(
         "--layers",
         action="store_true",
         help="also write layers/: the background and each object per frame, before "
@@ -291,6 +370,8 @@ def main(argv: list[str] | None = None) -> int:
             n_objects_min=args.n_objects_min,
             n_objects_max=args.n_objects_max,
             layers=args.layers,
+            bokeh=args.bokeh,
+            bokeh_strength=args.bokeh_strength,
         )
     except ValueError as exc:
         parser.error(str(exc))

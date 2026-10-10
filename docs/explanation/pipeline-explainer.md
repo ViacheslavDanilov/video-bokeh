@@ -200,10 +200,16 @@ one object per sequence, drawn with odds in proportion to its area, so one objec
 the others blur by how far they are from it in depth. Stage C first ran end to
 end on 2026-10-07, on an RTX 5090, and [[run-any-to-bokeh-inference]] says where it stands.
 
-The layer-wise renderer is the second, and the one the dataset's bokeh is to come from. It
-blurs each layer Stage B wrote on its own and stacks them again, so a blurred object in front
-thins out at its edges and shows what is behind it. It runs in our own process, on a CPU or a
-GPU, and focuses the way any-to-bokeh does. [[layered-bokeh]] explains it.
+The layer-wise renderer is the second, and the one the dataset's bokeh comes from. It blurs
+each layer of a frame on its own and stacks them again, so a blurred object in front thins out
+at its edges and shows what is behind it. It runs in our own process, on a CPU or a GPU, and
+focuses the way any-to-bokeh does. [[layered-bokeh]] explains it.
+
+**Bokeh is rendered end to end.** Stage B renders a sequence's bokeh in the same run as its
+frames, from the layers it holds in memory: `scenes.generate --bokeh` for a dataset, the API
+for the demo, the loader for training. Stage C still renders over sequences already written,
+for any-to-bokeh and for a new strength. [[0003-bokeh-is-rendered-in-the-same-pass]] records
+why.
 
 ---
 

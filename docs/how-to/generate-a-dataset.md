@@ -163,10 +163,19 @@ A fuller set of checks on the trajectory model is in [[demo-unrestricted-traject
 
 ## 5. Render bokeh
 
-Stage C writes each sequence's `bokeh/` stream, with one of two renderers.
+**One run writes the frames and their bokeh**, with the layered renderer that [[layered-bokeh]]
+explains. It runs on any machine with torch installed.
 
-**The layered renderer runs on any machine**, from sequences written with their layers.
-[[layered-bokeh]] explains it.
+```bash
+uv run python -m video_bokeh.scenes.generate \
+  --library-root data/library_dev --output data/demo_bokeh \
+  --count 2 --frames 24 --size 512 --seed 0 --bokeh
+```
+
+It took 7 s on an Apple M3 Pro, on 2026-10-10.
+
+**Stage C renders bokeh over sequences already written**, the layered renderer from the layers
+`--layers` wrote:
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
@@ -193,5 +202,5 @@ uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ## Clean up
 
 ```bash
-rm -rf data/demo data/demo5 data/demo_layers
+rm -rf data/demo data/demo5 data/demo_bokeh data/demo_layers
 ```

@@ -2,8 +2,8 @@
  * Client for the sequence API.
  *
  * Everything the interface knows about streams comes from what the server lists
- * rather than from constants here, so a stream that appears later — bokeh, once Stage C
- * has rendered a sequence — shows in the interface without a change on this side.
+ * rather than from constants here, so a stream that appears later — bokeh, added to a
+ * sequence that had none — shows in the interface without a change on this side.
  */
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";

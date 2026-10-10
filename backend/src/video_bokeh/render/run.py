@@ -11,8 +11,9 @@ Usage:
 
 With ``--missing`` it renders only the sequences that have no ``bokeh/`` yet, and leaves
 out any the renderer cannot take, saying which: shorter than any-to-bokeh can group, or
-without the layers ``--renderer layered`` needs. Pointed at the API's data root,
-that renders whatever the page has generated since the last run: ``make bokeh``.
+without the layers ``--renderer layered`` needs. Pointed at the API's data root, that
+renders any-to-bokeh's bokeh for whatever the page generated without bokeh of its own, as
+it does without torch: ``make bokeh``.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from pathlib import Path
 
 from video_bokeh.bridge.any_to_bokeh import list_png_frames
 from video_bokeh.core._seq_io import has_layers, list_sequences
+from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.render import RENDERERS, resolve_renderer
 
 
@@ -52,7 +54,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strength",
         type=float,
-        default=16.0,
+        default=BOKEH_STRENGTH,
         help="blur strength, as any-to-bokeh's k: the blur radius in pixels, at a "
         "1024-pixel width, one unit of disparity from the focus (default: 16).",
     )

@@ -105,3 +105,10 @@ def test_a_half_library_names_what_it_is_missing(tmp_path: Path) -> None:
     with pytest.raises(LibraryUnavailableError) as excinfo:
         find_libraries(_settings(tmp_path))
     assert "backgrounds" in str(excinfo.value)
+
+
+def test_bokeh_is_rendered_unless_turned_off() -> None:
+    assert load_settings({}).render_bokeh is True
+    assert load_settings({"VIDEO_BOKEH_RENDER_BOKEH": "0"}).render_bokeh is False
+    assert load_settings({"VIDEO_BOKEH_RENDER_BOKEH": "false"}).render_bokeh is False
+    assert load_settings({"VIDEO_BOKEH_RENDER_BOKEH": "1"}).render_bokeh is True

@@ -4,14 +4,15 @@ Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B i
 CPU work measured in seconds, and the sequence id is a hash of the request and the
 library, so the cache is the directory on disk and there is no database.
 
-Rendering bokeh is not here: it is minutes of GPU work. Stage C renders it into the
-sequences this API wrote, on a machine with an NVIDIA card (`make bokeh`), and the API
-serves the stream once it is there. Starting a render from here would need a job id and
-polling, and waits on where Stage C runs.
+A generated sequence comes with its bokeh, rendered in the same request by the layered
+renderer, when torch is installed and ``VIDEO_BOKEH_RENDER_BOKEH`` does not turn it off.
+Without torch, as in the browser smoke test's install, sequences come without it, and a
+bokeh stream Stage C writes into one later is served once it is there.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import tempfile
 from pathlib import Path
@@ -66,11 +67,18 @@ _MAX_FRAMES = 240
 #:     80 frames at 1024  =  83.9 Mpx   11.2 s            2.9 GB peak
 #:    240 frames at 1024  = 251.7 Mpx   97 s              9.7 GB peak, machine swaps
 #:
+#: With its bokeh, the second took 69 s and peaked at 4.9 GiB with four objects, against
+#: 3.3 GiB without, on the same machine: the bokeh pass renders the frames again a few at
+#: a time, after the first pass's are freed.
+#:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
 #: it means writing the frames as Stage B renders them, with `iter_frames`, as the dataset
 #: writer already does, instead of accumulating them with `render_scene`.
 _MAX_PIXELS = 96_000_000
+
+#: Rendering bokeh takes torch, which the API's own install leaves out.
+_BOKEH_AVAILABLE = importlib.util.find_spec("torch") is not None
 
 router = APIRouter()
 
@@ -147,8 +155,8 @@ class StreamInfo(BaseModel):
     """How one stream of a sequence can be displayed.
 
     The client renders whatever stream info a sequence lists rather than knowing the
-    stream names itself, so a stream that appears later -- `bokeh`, once Stage C has
-    rendered the sequence -- shows up in the interface without a frontend change.
+    stream names itself, so a stream that appears later -- `bokeh`, added to a sequence
+    that had none -- shows up in the interface without a frontend change.
     """
 
     url: str
@@ -243,6 +251,7 @@ def create_sequence(params: SequenceParams) -> SequenceResponse:
                 n_objects_min=params.n_objects_min,
                 n_objects_max=params.n_objects_max,
             ),
+            bokeh=settings.render_bokeh and _BOKEH_AVAILABLE,
         )
     except SequenceUnsatisfiableError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

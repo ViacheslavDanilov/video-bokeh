@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from collections.abc import Callable, Iterator
@@ -33,11 +34,12 @@ def client_of(
     """A client pointed at a library path, through the same seam compose uses."""
     with ExitStack() as stack:
 
-        def _client(library: Path) -> TestClient:
+        def _client(library: Path, render_bokeh: bool = False) -> TestClient:
             settings = Settings(
                 data_root=tmp_path,
                 library=library,
                 sequences=tmp_path / "sequences",
+                render_bokeh=render_bokeh,
             )
             monkeypatch.setattr(api_main, "load_settings", lambda: settings)
             return stack.enter_context(TestClient(api_main.app))
@@ -462,7 +464,7 @@ def test_the_sequence_names_a_colour_for_every_object(client: TestClient) -> Non
 # --- bokeh ----------------------------------------------------------------- #
 
 
-def test_a_sequence_has_no_bokeh_until_stage_c_renders_it(client: TestClient) -> None:
+def test_without_bokeh_rendering_a_sequence_has_no_bokeh(client: TestClient) -> None:
     streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
     assert "bokeh" not in streams
 
@@ -548,3 +550,42 @@ def test_a_re_render_renamed_into_place_after_an_encode_is_still_caught(
     staging.rename(sequence_dir / "bokeh")
 
     assert client.get(f"/sequences/{sid}/bokeh.mp4").content != first
+
+
+def test_generating_renders_the_bokeh_with_the_sequence(
+    client_of: Callable[..., TestClient],
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    client = client_of(library, render_bokeh=True)
+    body = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert list(body["streams"]) == ["all_in_focus", "alpha", "disparity", "bokeh"]
+    record = json.loads(
+        (tmp_path / "sequences" / body["id"] / "bokeh" / "focus.json").read_text(),
+    )
+    assert record["renderer"] == "layered"
+    assert client.get(body["streams"]["bokeh"]["url"]).status_code == 200
+
+
+def test_a_cached_sequence_without_bokeh_gets_it_when_asked_again(
+    client_of: Callable[..., TestClient],
+    library: Path,
+) -> None:
+    first = client_of(library).post("/sequences", json=SEQUENCE_BODY).json()
+    assert "bokeh" not in first["streams"]
+
+    again = client_of(library, render_bokeh=True).post("/sequences", json=SEQUENCE_BODY)
+    body = again.json()
+    assert body["cached"] is True
+    assert "bokeh" in body["streams"]
+
+
+def test_without_torch_a_sequence_comes_without_bokeh(
+    client_of: Callable[..., TestClient],
+    library: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api_main, "_BOKEH_AVAILABLE", False)
+    client = client_of(library, render_bokeh=True)
+    streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
+    assert "bokeh" not in streams

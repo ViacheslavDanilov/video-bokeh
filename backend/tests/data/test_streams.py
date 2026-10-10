@@ -19,6 +19,7 @@ from video_bokeh.core._streams import (
     read_paint_order,
     read_rgb_tiff,
     write_alpha_tiff,
+    write_bokeh,
     write_disparity_png,
     write_disparity_tiff,
     write_paint_order,
@@ -215,3 +216,22 @@ def test_a_paint_order_that_is_not_a_permutation_is_refused(tmp_path: Path) -> N
     write_paint_order(path, [[0, 1], [1, 1]])
     with pytest.raises(ValueError, match="frame 2"):
         read_paint_order(path)
+
+
+def test_bokeh_written_beside_a_bokeh_already_there_leaves_it(tmp_path: Path) -> None:
+    """Two requests adding bokeh to one sequence at once: the second keeps the first's."""
+    (tmp_path / "all_in_focus").mkdir()
+    (tmp_path / "bokeh").mkdir()
+    (tmp_path / "bokeh" / "first.txt").write_text("first")
+    write_bokeh(tmp_path, [("01.png", Image.new("RGB", (4, 4)))], {}, replace=False)
+    assert (tmp_path / "bokeh" / "first.txt").is_file()
+    assert not list(tmp_path.glob(".bokeh-*"))
+
+
+def test_bokeh_written_again_replaces_the_old(tmp_path: Path) -> None:
+    (tmp_path / "all_in_focus").mkdir()
+    (tmp_path / "bokeh").mkdir()
+    (tmp_path / "bokeh" / "old.txt").write_text("old")
+    write_bokeh(tmp_path, [("01.png", Image.new("RGB", (4, 4)))], {"run": 2})
+    assert not (tmp_path / "bokeh" / "old.txt").exists()
+    assert (tmp_path / "bokeh" / "01.png").is_file()

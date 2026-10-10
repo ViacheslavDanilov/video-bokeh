@@ -43,7 +43,7 @@ images: ## Build the models' Docker images (NVIDIA only)
 api: ## Serve the API on :8000 from LIBRARY
 	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 
-bokeh: ## Render bokeh for the page's new sequences (NVIDIA only)
+bokeh: ## Render any-to-bokeh for the page's sequences without bokeh (NVIDIA only)
 	cd backend && VIDEO_BOKEH_RUNNER=$(RUNNER) uv run --extra render python -m video_bokeh.render.run \
 	  --data-root "$${VIDEO_BOKEH_DATA_ROOT:-data}" --missing
 

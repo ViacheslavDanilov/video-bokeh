@@ -101,8 +101,9 @@ test("generates from the depth estimator picked", async ({ page }) => {
 });
 
 /**
- * Bokeh is rendered after the sequence exists, by Stage C on a GPU. Its frames are faked
- * here; asking for the same sequence again lists the stream, and a pane opens for it.
+ * The API here renders no bokeh of its own, as without torch, so the stream is written
+ * after the sequence exists, as Stage C writes it. Its frames are faked here; asking for
+ * the same sequence again lists the stream, and a pane opens for it.
  */
 test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
   await page.goto("/");
