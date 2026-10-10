@@ -13,6 +13,10 @@ Disparity is a uint16 PNG (see `core/_streams.py`), not RGB, so it is
 encoded through a colormap (`--colormap`, default `spectral_r`) rather
 than through `Image.convert`.
 
+Flow is a 16-bit KITTI PNG per frame but the last, coloured as optical-flow
+papers colour it (`preview/_flow.py`), at one scale for the whole sequence.
+A still frame stands for the last, so the video is as long as the others.
+
 Layout:
 
     <data-root>/
@@ -48,6 +52,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, cast
 
@@ -56,8 +61,13 @@ import numpy as np
 from PIL import Image
 
 from video_bokeh.core._seq_io import list_sequences
-from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
+from video_bokeh.core._streams import (
+    read_alpha_tiff,
+    read_disparity_png,
+    read_flow_png,
+)
 from video_bokeh.preview._colormap import COLORMAPS, apply_colormap
+from video_bokeh.preview._flow import flow_to_rgb
 from video_bokeh.preview._masks import render_object_masks
 
 # --------------------------------------------------------------------------- #
@@ -103,6 +113,27 @@ def load_frame(path: Path, stream: str, colormap: str) -> np.ndarray:
     return np.asarray(img, dtype=np.uint8)
 
 
+def _flow_frames(paths: list[Path]) -> Iterator[np.ndarray]:
+    """The flow stream in colour, and a still frame after it for the last frame.
+
+    Read twice rather than held: once for the fastest valid motion in the sequence, the
+    scale every frame is coloured at, once to colour them. A vector the file marks
+    invalid is drawn still.
+    """
+    top = 0.0
+    for path in paths:
+        flow, valid = read_flow_png(path)
+        if valid.any():
+            top = max(top, float(np.hypot(*flow[valid].T).max()))
+    flow = None
+    for path in paths:
+        flow, valid = read_flow_png(path)
+        flow[~valid] = 0
+        yield flow_to_rgb(flow, top or 1.0)
+    if flow is not None:
+        yield flow_to_rgb(np.zeros_like(flow), 1.0)
+
+
 def encode_stream(
     frames: list[Path],
     out_path: Path,
@@ -111,7 +142,7 @@ def encode_stream(
     stream: str,
     colormap: str,
 ) -> None:
-    """Encode a sorted list of PNG frames to H.264 MP4."""
+    """Encode a sorted list of frames to H.264 MP4."""
     # libx264 wants even spatial dimensions and yuv420p for broad compatibility.
     # `cast` because imageio's writer is typed as an abstract base class but
     # the concrete subclass exposes `append_data`.
@@ -126,9 +157,14 @@ def encode_stream(
             macro_block_size=1,
         ),
     )
+    images = (
+        _flow_frames(frames)
+        if stream == "flow"
+        else (load_frame(p, stream, colormap) for p in frames)
+    )
     with writer:
-        for p in frames:
-            writer.append_data(load_frame(p, stream, colormap))
+        for image in images:
+            writer.append_data(image)
 
 
 # --------------------------------------------------------------------------- #
