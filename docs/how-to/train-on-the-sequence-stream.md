@@ -30,8 +30,8 @@ uv run python -m video_bokeh.loader.example
 It prints one line per step. On an Apple M3 Pro on 2026-10-10 the 20 steps took 41 s on the
 CPU, twice. The loss fell from 0.5472 to 0.1360 in one run and from 0.4434 to 0.0634 in the
 other. The network's weights start unseeded, so no two runs print the same. On the lab
-machine, from a library built with `da2-large` and with the network on the RTX 5090, the 20
-steps took 21 s. `--library-root` points it at another library.
+machine the same day, from a library built with `da2-large` and with the network on the RTX
+5090, the 20 steps took 21 s. `--library-root` points it at another library.
 
 Read its source as a template for your own loop:
 
@@ -40,9 +40,8 @@ Read its source as a template for your own loop:
   network.
 - **It turns a batch of sequences into a batch of frames** with `flatten(0, 1)`, because the
   network is per frame.
-- **Its loop runs inside `main()` behind `if __name__ == "__main__"`.** Where workers start by
-  spawning, as on macOS and Windows, each imports the module again. Without the guard it would
-  start a loader of its own.
+- **Its loop runs inside `main()` behind `if __name__ == "__main__"`**, which [[loader]] says a
+  script needs.
 - **It leaves the stream's `seed` at 0.** The seed picks the sequences. Give every rank of a
   distributed run its own, far apart, as [[loader]] explains.
 
