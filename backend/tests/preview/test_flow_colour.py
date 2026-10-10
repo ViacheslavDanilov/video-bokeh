@@ -44,6 +44,15 @@ def test_each_direction_lands_on_its_place_on_the_wheel(
     assert tuple(flow_to_rgb(_flow(u, v), 1.0)[0, 0]) == colour
 
 
+def test_the_fastest_motion_is_saturated_at_its_own_speed() -> None:
+    """The scale is the fastest pixel's float32 speed, which can come back a rounding error
+    past 1 for that pixel: it must not darken as a pixel faster than the scale does.
+    """
+    flow = _flow(3, 3)
+    top = float(np.hypot(*flow.reshape(-1, 2).T).max())
+    assert tuple(flow_to_rgb(flow, top)[0, 0]) == (255, 114, 0)
+
+
 def test_slower_is_paler_rather_than_another_hue() -> None:
     assert tuple(flow_to_rgb(_flow(1, 0), 2.0)[0, 0]) == (255, 127, 127)
 

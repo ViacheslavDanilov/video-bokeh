@@ -51,6 +51,9 @@ def flow_to_rgb(flow: np.ndarray, top_speed: float) -> np.ndarray:
     f = (position - k0)[..., None]
     hue = (1 - f) * _WHEEL[k0] + f * _WHEEL[k1]
     speed = np.hypot(u, v)[..., None]
+    # The fastest pixel over its own speed can come back a rounding error past 1. It is the
+    # top, not past it, so it must not darken.
+    speed = np.where(np.isclose(speed, 1), 1, speed)
     # Towards white as the speed falls; past the top, darker, as the reference does.
     rgb = np.where(speed <= 1, 1 - speed * (1 - hue), hue * 0.75)
     return np.floor(255 * rgb).astype(np.uint8)
