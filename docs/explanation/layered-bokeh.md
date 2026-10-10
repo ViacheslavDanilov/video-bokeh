@@ -48,7 +48,9 @@ or one object with its alpha mask, each with its own disparity.
 4. **The renderer corrects each layer for coverage.** Where two bins meet, or at the frame's
    edge, the disks do not add up to exactly one. Without a correction, a solid object turns
    up to 20 % see-through along those lines. So the renderer also blurs a frame of ones the
-   same way, and divides by it.
+   same way, and divides by it where it falls short of one. Around the object, that frame of
+   ones takes the radius of the nearest part of the object, so a blurred edge fades as far as
+   its own blur reaches and an edge in focus stays solid.
 5. **The blur runs in linear light.** The renderer raises colours to the power 2.2 before the
    blur and brings them back after it. A bright highlight then spreads into a brighter disc
    than a plain average gives. 8-bit frames clip their highlights, so the discs stay dimmer
@@ -57,8 +59,9 @@ or one object with its alpha mask, each with its own disparity.
    stacked them. A layer in focus therefore lands exactly where it is in the all-in-focus
    frame.
 
-The convolutions use the fast Fourier transform. Its cost does not grow with the radius,
-where a direct convolution's grows with the radius squared.
+The convolutions use the fast Fourier transform. The cost of one convolution then does not
+grow with the radius, where a direct convolution's grows with the radius squared. Wider
+radii still mean more bins and more padding.
 
 ---
 
@@ -67,7 +70,7 @@ where a direct convolution's grows with the radius squared.
 - **Strength** — how strong the blur is. It means what any-to-bokeh's `k` means, in pixels at
   1024 pixels wide. any-to-bokeh runs at 16 by default.
 - **Radius step** — the width of a radius bin, 1 pixel by default. A wider step means fewer
-  convolutions, and a radius off by up to half the step. A step wider than every radius gives
+  convolutions, and a radius off by up to the step. A step wider than every radius gives
   one blur per layer.
 - **Gamma** — the power for linear light, 2.2 by default. 1 blurs the colours as they are.
 
@@ -80,12 +83,13 @@ Measured on 2026-10-10 on real layers from the development library, 1 to 5 objec
 
 | device | 512 pixels | 1024 pixels |
 |---|---|---|
-| lab CPU, 1 thread | 116 | 654 |
-| lab CPU, 24 threads | 53 | 226 |
-| lab RTX 5090 | 6.6 | 14.6 |
-| Mac M3 Pro GPU | 58 | 134 |
+| lab CPU, 1 thread | 137 | 560 |
+| lab CPU, 24 threads | 53 | 303 |
+| lab RTX 5090 | 2.8 | 11.6 |
+| Mac M3 Pro GPU | 19 | 115 |
 
-One thread is what each worker of a training loader gets.
+One thread is what each worker of a training loader gets. Runs vary: two runs of the same lab
+CPU at 1024 pixels, a few hours apart, took 226 and 303 milliseconds.
 
 ---
 
@@ -96,7 +100,10 @@ One thread is what each worker of a training loader gets.
   so it would cost less. We have not measured how much.
 - **Inside one layer, nothing hides anything.** Two parts of one object at different
   disparities blur into each other without occlusion. Within one object the disparity spans
-  at most about 0.32, which at strength 16 on a 1024-pixel frame is 5 pixels of radius.
+  at most about 0.32, which at strength 16 on a 1024-pixel frame is 5 pixels of radius. So a
+  sharp part beside a blurred part of the same object takes some of its colour: on a
+  synthetic layer, half in focus and half at radius 4, the sharp pixel at the seam drops
+  from white to 0.85.
 - **any-to-bokeh blurs differently in height and width.** It squashes our square frames to
   1024 × 576 and stretches the result back, so its blur is 1.78 times taller than it is wide.
   The same strength in both renderers matches only horizontally.

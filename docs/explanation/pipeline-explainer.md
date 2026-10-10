@@ -183,7 +183,8 @@ can be partly transparent at the same pixel.
 frame was composited from: the whole background, each whole object with its own disparity, and
 the paint order. A layer-wise bokeh renderer needs exactly this, because the composite no longer
 holds what a blurred object in front would let through.
-[[0002-layers-are-stored-not-regenerated]] records why they are stored rather than regenerated.
+[[0002-layers-are-stored-not-regenerated]] records why they are stored rather than regenerated,
+and [[layered-bokeh]] explains the renderer that reads them.
 
 ---
 
