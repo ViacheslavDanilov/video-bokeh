@@ -67,8 +67,9 @@ _MAX_FRAMES = 240
 #:     80 frames at 1024  =  83.9 Mpx   11.2 s            2.9 GB peak
 #:    240 frames at 1024  = 251.7 Mpx   97 s              9.7 GB peak, machine swaps
 #:
-#: With its bokeh, the second took 30 s and peaked at 3.1 GiB on the same machine: the
-#: bokeh pass renders the frames again a few at a time, after the first pass's are freed.
+#: With its bokeh, the second took 69 s and peaked at 4.9 GiB with four objects, against
+#: 3.3 GiB without, on the same machine: the bokeh pass renders the frames again a few at
+#: a time, after the first pass's are freed.
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting

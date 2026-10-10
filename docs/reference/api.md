@@ -12,7 +12,8 @@ from whichever library a request names.
 
 **A generated sequence comes with its bokeh, when torch is installed.** The API renders it in
 the same request with the layered renderer, so `POST /sequences` takes longer: on an Apple M3
-Pro, 80 frames at 512 pixels took 3 to 6 s without bokeh and 8 to 14 s with it. A sequence
+Pro, 80 frames at 512 pixels with four to five objects took 7 to 11 s without bokeh and 16 to
+21 s with it. A sequence
 cached without bokeh gets it when it is asked for again. Without torch, as in the API's own
 install, sequences come without bokeh, and `make bokeh` can still render it with Stage C;
 asking for a sequence again then lists its `bokeh` stream.
@@ -176,12 +177,12 @@ comparing depth estimators means here.
 deterministic, so the same request always names the same sequence. The cache is the directory
 `$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
 
-`cached` says whether this request generated the sequence or found it. On a cache hit the call
-returns in under a millisecond, unless it adds the bokeh a cached sequence lacks: 5 to 11 s for
-80 frames at 512 px on an Apple M3 Pro.
+`cached` says whether this request generated the sequence or found it. A cache hit answers at
+once, 0.02 s over HTTP in the table below, unless it adds the bokeh a cached sequence lacks:
+16 to 19 s for 80 frames at 512 px with four to five objects on an Apple M3 Pro.
 
-**The call blocks while it generates.** Measured against `data/library_dev` at size 512 with
-four to five objects per sequence:
+**The call blocks while it generates.** Measured without bokeh against `data/library_dev` at
+size 512 with four to five objects per sequence:
 
 | Where | 24 frames | 80 frames | cache hit |
 |---|---|---|---|

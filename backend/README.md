@@ -109,7 +109,8 @@ curl -X POST http://localhost:8000/sequences \
   -d '{"seed": 42, "frames": 80, "size": 512, "n_objects_min": 4, "n_objects_max": 5}'
 ```
 
-That takes about 7 seconds on an Apple M3 Pro and answers with a sequence id. The same request
+That takes about 7 seconds on an Apple M3 Pro, or 16 to 21 with its bokeh, and answers with a
+sequence id. The same request
 again returns the same id in 0.02 s — the id is a hash of the parameters and the library, so
 the directory on disk is the cache. Then open
 `http://localhost:8000/sequences/<id>/disparity.mp4`.
