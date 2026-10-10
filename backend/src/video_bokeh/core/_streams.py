@@ -12,6 +12,10 @@ and the object layers, written only on request:
     layers/objects_disparity/<frame>.tif  multi-page uint16 TIFF, one page per object
     layers/paint_order.json               per frame, the object pages far to near
 
+and the forward optical flow, written only on request, one file per frame but the last:
+
+    flow/<frame>.png                      KITTI 16-bit RGB PNG: u, v, valid
+
 and the bokeh stream, written whole or not at all by whatever renders it:
 
     bokeh/<frame>.png                     RGB uint8, beside focus.json
@@ -35,6 +39,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+import imagecodecs
 import numpy as np
 import tifffile
 from PIL import Image, ImageSequence
@@ -146,6 +151,34 @@ def read_disparity_png(path: Path) -> np.ndarray:
             f"an older 8-bit dataset has to be regenerated, not reinterpreted.",
         )
     return arr.astype(np.float32) / _U16_MAX
+
+
+#: KITTI's flow encoding: 1/64 px steps around 2**15, so about +-512 px fit.
+_FLOW_SCALE = 64.0
+_FLOW_ZERO = 2**15
+
+
+def write_flow_png(path: Path, flow: np.ndarray) -> None:
+    """Write ``(H, W, 2)`` float flow in pixels as KITTI's 16-bit RGB PNG.
+
+    Red is ``u * 64 + 2**15``, green ``v * 64 + 2**15``, blue 1 where the vector is valid.
+    A vector beyond the range the encoding holds is written invalid rather than clipped.
+    Pillow cannot write 16-bit colour, so imagecodecs does.
+    """
+    coded = np.round(flow.astype(np.float64) * _FLOW_SCALE) + _FLOW_ZERO
+    valid = ((coded >= 0) & (coded <= _U16_MAX)).all(axis=-1)
+    coded = np.where(valid[..., None], coded, _FLOW_ZERO)
+    pixels = np.dstack([coded, valid]).astype(np.uint16)
+    path.write_bytes(imagecodecs.png_encode(pixels))
+
+
+def read_flow_png(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Read a KITTI flow PNG back: float32 ``(H, W, 2)`` pixels, and where it is valid."""
+    pixels = imagecodecs.png_decode(path.read_bytes())
+    if pixels.dtype != np.uint16 or pixels.ndim != 3 or pixels.shape[2] != 3:
+        raise ValueError(f"{path} is not a 16-bit RGB flow PNG")
+    flow = (pixels[..., :2].astype(np.float32) - _FLOW_ZERO) / _FLOW_SCALE
+    return flow, pixels[..., 2] > 0
 
 
 def write_paint_order(path: Path, orders: list[list[int]]) -> None:
