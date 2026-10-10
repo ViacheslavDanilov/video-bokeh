@@ -210,10 +210,11 @@ def _blur_layer(
     if alpha is None:
         colour = scattered[:, :3] / coverage
         return colour.clamp(0.0, 1.0).pow(1.0 / gamma), ones
-    # Only where the bins and the frame's edge leave a pixel short of full coverage: a
-    # pixel covered more than once is where blurred neighbours spread over it, and
-    # dividing there would thin an edge that is in focus.
-    alpha_out = (scattered[:, 3:4] / coverage.clamp(max=1.0)).clamp(max=1.0)
+    # Divided by the coverage everywhere, so no bin seam shows, but never below a sharp
+    # pixel's own alpha: blurred neighbours spreading over an edge in focus raise its
+    # coverage, and the division would otherwise thin it.
+    sharp = alpha * (bins == 0)
+    alpha_out = torch.maximum((scattered[:, 3:4] / coverage).clamp(max=1.0), sharp)
     colour = scattered[:, :3] / scattered[:, 3:4].clamp(min=_EPS)
     return colour.clamp(0.0, 1.0).pow(1.0 / gamma), alpha_out
 

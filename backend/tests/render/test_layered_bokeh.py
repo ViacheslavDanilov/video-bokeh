@@ -292,3 +292,25 @@ def test_the_blurred_end_of_a_sharp_object_fades_as_a_blurred_object_does() -> N
     )
     edge = slice(42, 54)
     assert torch.allclose(half_blurred[:, 32, edge], blurred[:, 32, edge], atol=0.02)
+
+
+def test_an_opaque_pixel_in_focus_stays_opaque_beside_a_translucent_blurred_part() -> (
+    None
+):
+    # The left half is opaque and in focus; the right half is half see-through and four
+    # pixels out of focus. Its blur reaches into the sharp half without a whole alpha.
+    alpha = _square(16, 48)
+    alpha[..., 16:48, 32:48] = 0.5
+    halves = torch.full((1, 1, SIZE, SIZE), 0.5)
+    halves[..., 32:] = 0.5 + 4.0 / (STRENGTH * SIZE / 1024)
+    out = _render(_flat(BLUE), 0.5, [(_flat(RED), alpha, halves)], focus=0.5)
+    assert float(out[2, 18:46, 16:32].max()) < 1e-3
+
+
+def test_a_translucent_object_keeps_its_alpha_across_its_bins() -> None:
+    # A half see-through square whose disparity ramps across several bins, all blurred.
+    # Inside it the bins' seams must not show as lines of more or less alpha.
+    alpha = _square(8, 56) * 0.5
+    ramp = torch.linspace(0.3, 0.9, SIZE).view(1, 1, 1, SIZE).expand(1, 1, SIZE, SIZE)
+    out = _render(_flat(BLUE), 0.02, [(_flat(RED), alpha, ramp.clone())], focus=0.02)
+    assert torch.allclose(out[2, 32, 16:48], torch.tensor(0.5), atol=1e-3)
