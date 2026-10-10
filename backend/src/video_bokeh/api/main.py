@@ -61,15 +61,16 @@ _MAX_FRAMES = 240
 #:
 #: Each limit alone is harmless and the product is not: `render_scene` holds every
 #: frame of the sequence in memory at once, so cost grows with the area and with the
-#: count together. Measured on an Apple M3 Pro against `data/library_dev`:
+#: count together. Measured on an Apple M3 Pro against `data/library_dev` on 2026-09-26,
+#: before bokeh, with the object count not recorded:
 #:
 #:     80 frames at 512   =  21.0 Mpx    2.6 to 3.3 s     modest
 #:     80 frames at 1024  =  83.9 Mpx   11.2 s            2.9 GB peak
 #:    240 frames at 1024  = 251.7 Mpx   97 s              9.7 GB peak, machine swaps
 #:
-#: With its bokeh, the second took 69 s and peaked at 4.9 GiB with four objects, against
-#: 3.3 GiB without, on the same machine: the bokeh pass renders the frames again a few at
-#: a time, after the first pass's are freed.
+#: On 2026-10-10, with four objects, the second took 69 s and peaked at 4.9 GiB with its
+#: bokeh, against 3.3 GiB without, on the same machine: the bokeh pass renders the frames
+#: again a few at a time, after the first pass's are freed.
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
