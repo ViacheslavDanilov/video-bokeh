@@ -20,7 +20,7 @@ export type LibraryInfo = {
 
 export type StreamInfo = {
   url: string;
-  /** Empty when the stream is already RGB and a colormap would do nothing. */
+  /** Empty when the stream has one rendering and a colormap would do nothing. */
   colormaps: string[];
   /** Which of them `url` already renders, or null when the stream takes none. */
   default: string | null;

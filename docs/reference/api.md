@@ -166,7 +166,8 @@ curl -X POST http://localhost:8000/sequences \
 ```
 
 **Each entry of `streams` is stream info: how the stream can be displayed, not only where it
-is.** `colormaps` is empty when the stream is already RGB. A client that renders
+is.** `colormaps` is empty when the stream has one rendering, as every stream but
+`disparity` has. A client that renders
 what `streams` lists needs no change when a stream is added. `bokeh` and `flow` appear here
 once the sequence has them, in that order, with no colormaps, after the three every sequence
 has.

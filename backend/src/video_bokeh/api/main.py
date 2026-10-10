@@ -169,7 +169,7 @@ class StreamInfo(BaseModel):
     """
 
     url: str
-    #: Colormaps this stream accepts, empty when it is already RGB and the parameter
+    #: Colormaps this stream accepts, empty when it has one rendering and the parameter
     #: would do nothing.
     colormaps: list[str]
     #: Which of them the url above already renders. Named rather than left to the

@@ -149,8 +149,8 @@ to 0.44 MiB for colour and 0.23 MiB for disparity.
 ### The flow stream — optional
 
 `flow/` holds each frame's forward optical flow to the next, written by `scenes.generate --flow`
-in the same pass as the frames. Every layer moves by a known homography per frame, so the flow
-is computed, not estimated.
+in the same pass as the frames, and by the API with every sequence of two frames or more. Every
+layer moves by a known homography per frame, so the flow is computed, not estimated.
 
 | stream | format | dtype | what a pixel means |
 |---|---|---|---|
@@ -168,8 +168,9 @@ is computed, not estimated.
 - **1/64 px steps.** `read_flow_png` in `video_bokeh.core._streams` reads it back as float32.
   **Pillow reads the file as 8-bit colour and loses the flow**, so read it with
   `imagecodecs`, as `read_flow_png` does, or another reader that keeps 16 bits.
-- **It is optional**, and nothing else in the pipeline reads it. The loader hands out the same
-  flow, unquantized, as its `flow` stream.
+- **It is optional.** Only `video_bokeh.preview.pack --streams flow` and the API's flow video
+  read it, to colour it for the eye. The loader hands out the same flow, unquantized, as its
+  `flow` stream.
 - **Writing a sequence again removes its old `flow/` first**, with or without `--flow`, so an
   earlier run's flow never passes for this one's.
 

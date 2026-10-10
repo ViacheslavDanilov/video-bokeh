@@ -301,6 +301,11 @@ named like the `all_in_focus` frames. The interface is
 Disparity is a uint16 PNG, not RGB (see [[dataset-layout]]), so it is packed through
 `--colormap` rather than through the `Image.convert` path the other streams use.
 
+Flow is KITTI's 16-bit PNG, one per frame but the last, so `--streams flow` colours it the
+way optical-flow papers do: the hue is the direction, the saturation the speed, and white is
+still. One scale, the fastest motion in the sequence, serves every frame. `--colormap` does
+not apply. A still frame stands for the last frame, so the video is as long as the others.
+
 The output name doesn't include the colormap, so re-running `--streams disparity` with a
 different `--colormap` overwrites the previous `disparity.mp4` rather than writing a second file.
 
