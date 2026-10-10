@@ -27,19 +27,27 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 from video_bokeh.loader import SequenceStream
 
-stream = SequenceStream(
-    Path("data/library_dev"),
-    n_frames=24,
-    size=512,
-    n_objects_min=1,
-    n_objects_max=5,
-    seed=0,
-)
-batches = DataLoader(stream, batch_size=4, num_workers=4)
-batch = next(iter(batches))
+
+def main() -> None:
+    stream = SequenceStream(
+        Path("data/library_dev"),
+        n_frames=24,
+        size=512,
+        n_objects_min=1,
+        n_objects_max=5,
+        seed=0,
+    )
+    batches = DataLoader(stream, batch_size=4, num_workers=4)
+    batch = next(iter(batches))
+
+
+if __name__ == "__main__":
+    main()
 ```
 
-The stream never ends. Stop after as many batches as a run needs.
+The stream never ends. Stop after as many batches as a run needs. The `__main__` guard is not
+optional in a script: each `DataLoader` worker imports the script again, and without the guard
+it would start workers of its own.
 
 `n_objects_min` must be at least 1 and no more than `n_objects_max`; anything else is refused
 when the stream is created. So is a `library_root` with no foregrounds or no backgrounds, which
@@ -131,15 +139,25 @@ So for training, ask the workers for the layers and render each batch on the GPU
 
 ```python
 from pathlib import Path
-
 from torch.utils.data import DataLoader
 from video_bokeh.loader import SequenceStream, batch_bokeh
 
-stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
-                        streams=("rgb", "object_alphas", "layers", "focus"))
-for batch in DataLoader(stream, batch_size=4, num_workers=8, pin_memory=True):
-    batch = {k: v.cuda(non_blocking=True) for k, v in batch.items()}
-    bokeh = batch_bokeh(batch, strength=16.0)  # (4, 24, 3, 512, 512)
+
+def main() -> None:
+    stream = SequenceStream(
+        Path("data/library_dev"),
+        n_frames=24,
+        size=512,
+        streams=("rgb", "object_alphas", "layers", "focus"),
+    )
+    for batch in DataLoader(stream, batch_size=4, num_workers=8, pin_memory=True):
+        batch = {k: v.cuda(non_blocking=True) for k, v in batch.items()}
+        bokeh = batch_bokeh(batch, strength=16.0)  # (4, 24, 3, 512, 512)
+        ...  # train on batch["rgb"] and bokeh
+
+
+if __name__ == "__main__":
+    main()
 ```
 
 The RTX 5090 renders a 512-pixel frame in about 7 ms, a 24-frame item in 0.16 s. The layers
