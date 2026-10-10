@@ -179,7 +179,8 @@ deterministic, so the same request always names the same sequence. The cache is 
 
 `cached` says whether this request generated the sequence or found it. A cache hit answers at
 once, 0.02 s over HTTP in the table below, unless it adds the bokeh a cached sequence lacks:
-16 to 19 s for 80 frames at 512 px with four to five objects on an Apple M3 Pro.
+16 to 19 s for 80 frames at 512 px with four to five objects on an Apple M3 Pro, on
+2026-10-10.
 
 **The call blocks while it generates.** Measured on 2026-09-24, before bokeh, against
 `data/library_dev` at size 512 with four to five objects per sequence:
