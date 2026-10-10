@@ -45,7 +45,8 @@ if __name__ == "__main__":
     main()
 ```
 
-The stream never ends. Stop after as many batches as a run needs. The `__main__` guard is not
+The stream never ends. Stop after as many batches as a run needs.
+[[train-on-the-sequence-stream]] runs a training loop on it. The `__main__` guard is not
 optional in a script: each `DataLoader` worker imports the script again, and without the guard
 it would start workers of its own.
 
@@ -120,22 +121,23 @@ stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
 - **The worker renders it, on the CPU.** The training loop receives finished batches and the
   GPU stays with the network. CUDA never runs in a worker.
 
-**Rendered in the workers, bokeh costs three quarters of the throughput. Rendered on the GPU,
-it costs about a third, and most of that is carrying the layers.** Measured on the lab machine
-on 2026-10-10, the way the next section measures, two runs each:
+**Rendered in the workers, bokeh costs over two thirds of the throughput, and more workers
+do not win it back. Rendered on the GPU, it costs under a third, most of it for carrying the
+layers.** Measured on the lab machine on 2026-10-10, the way the next section measures:
 
-| streams | where the bokeh renders | items/s |
+| streams | where the bokeh renders | items/s, 8 workers |
 |---|---|---|
-| the default four | no bokeh | 3.47, 3.63 |
-| the default four and `bokeh` | the workers' CPU | 0.88, 0.89 |
-| `rgb`, `object_alphas`, `layers`, `focus` | not rendered | 2.59, 2.58 |
-| `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.43, 2.39 |
+| the default four | no bokeh | 2.96 |
+| the default four and `bokeh` | the workers' CPU | 0.84 |
+| `rgb`, `object_alphas`, `layers`, `focus` | not rendered | 2.27 |
+| `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.07 |
 
-- **The workers cannot keep up.** With bokeh they deliver a quarter of the items they deliver
-  without it.
-- **The GPU route keeps about two thirds.** The layers alone take the loader from 3.55 to 2.59
-  items per second; rendering them on the GPU takes it to 2.41.
-- **The GPU route needs GPU memory**: a batch of 4 peaked at 8.4 GiB allocated, on top of the
+- **The workers cannot keep up.** With bokeh they deliver 0.84 items per second at 8 workers,
+  0.93 at 16 and 0.90 at 24, where without it they deliver 2.96, 3.44 and 3.40. Past 16
+  workers neither gains.
+- **The GPU route keeps 70 %.** The layers alone take the loader to 2.27 items per second.
+  Rendering them on the GPU takes it to 2.07.
+- **The GPU route needs GPU memory**: a batch of 4 peaked at 8.5 GiB allocated, on top of the
   network being trained.
 
 So for training, ask the workers for the layers and render each batch on the GPU:
@@ -169,19 +171,22 @@ cost shared memory too, as the next section says.
 ### What each choice costs
 
 Measured on the lab machine (24 cores) on 2026-10-10: 512 pixels, 24 frames, 1 to 5
-objects, batches of 4, 8 workers, from the 30-asset development library. Each run timed 15
-batches after 4 to warm up, twice.
+objects, batches of 4, 8 workers, from the 30-asset development library. A `DataLoader` keeps
+two batches per worker ready, so each run first drew twice as many batches as there are
+workers, then timed as many again, at least 15. Timed any sooner, the run measures that buffer
+rather than the workers. The figures published here before that change were up to a quarter too
+high.
 
 | streams | items/s | MiB per item |
 |---|---|---|
-| `rgb`, `disparity` | 3.78, 3.84 | 96 |
-| the default four | 3.47, 3.63 | 240 |
-| the default four and `layers` | 2.58, 2.56 | 816 |
+| `rgb`, `disparity` | 3.09 | 96 |
+| the default four | 2.96 | 240 |
+| the default four and `layers` | 2.20 | 816 |
 
-- **Generating the scene is most of the cost.** Dropping to two streams gains 7 %; adding the
-  layers costs 28 %, for carrying them out of the workers.
+- **Generating the scene is most of the cost.** Dropping to two streams gains 4 %; adding the
+  layers costs 26 %, for carrying them out of the workers.
 - **Without workers it is slow.** In the training process itself the default four came at
-  0.55 items per second.
+  0.62 items per second, and with `bokeh` at 0.23.
 - **Memory is what the layers really cost.** A `DataLoader` keeps `prefetch_factor` batches per
   worker in shared memory, 2 by default, so 8 workers with layers can hold 16 batches of 4,
   about 51 GiB. Fewer workers, a smaller `prefetch_factor` or fewer frames bring it down. In a

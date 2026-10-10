@@ -301,6 +301,15 @@ Disparity is a uint16 PNG, not RGB (see [[dataset-layout]]), so it is packed thr
 The output name doesn't include the colormap, so re-running `--streams disparity` with a
 different `--colormap` overwrites the previous `disparity.mp4` rather than writing a second file.
 
+## `video_bokeh.loader.example` — a training loop on the sequence stream
+
+Needs the `loader` extra. [[train-on-the-sequence-stream]] runs it and reads its source.
+
+| flag | type | default | meaning |
+|---|---|---|---|
+| `--library-root` | path | `data/library_dev` | library the stream draws its sequences from |
+| `--steps` | int | `20` | training steps to run before it stops |
+
 ## Acquisition
 
 | module | flags |
