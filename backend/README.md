@@ -12,6 +12,7 @@ backend/src/video_bokeh/
 ├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
 ├── core/           _collision.py  _fusion.py  _library.py  _metadata.py  _plugins.py
 │                   _seq_io.py  _sequence_geometry.py  _streams.py  _trajectory.py  _worker.py
+├── layered/        _renderer.py                      — layer-wise bokeh, any torch device
 ├── library/        build.py  check.py  _device.py  _measure.py  _neutral_bg.py
 │                   _propagation.py  depth/
 ├── loader/         _stream.py                        — on-the-fly training data

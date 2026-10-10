@@ -24,7 +24,8 @@ _SRC = _REPO / "backend" / "src"
 # living there is listed below by hand rather than scanned -- the submodule may not be
 # checked out, and a test that changes its mind based on that is worse than useless.
 _OURS = (_SRC, _REPO / "backend" / "tests", _REPO / "scripts")
-_VENDORED = {"inference_demo.py"}  # third_party/any-to-bokeh/test/inference_demo.py
+# In third_party/any-to-bokeh: test/inference_demo.py and dataset_synthsis.py.
+_VENDORED = {"inference_demo.py", "dataset_synthsis.py"}
 _DOC_ROOTS = ("docs/explanation", "docs/how-to", "docs/reference")
 _DOC_FILES = (
     "AGENTS.md",
