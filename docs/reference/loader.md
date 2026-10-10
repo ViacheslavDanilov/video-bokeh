@@ -120,20 +120,23 @@ stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
 - **The worker renders it, on the CPU.** The training loop receives finished batches and the
   GPU stays with the network. CUDA never runs in a worker.
 
-**Rendered in the workers, bokeh costs two thirds of the throughput. Rendered on the GPU, it
-costs nothing measurable.** Measured on the lab machine on 2026-10-10, 512 pixels, 24 frames,
-1 to 5 objects, batches of 4, two runs each at 8 workers:
+**Rendered in the workers, bokeh costs three quarters of the throughput. Rendered on the GPU,
+it costs about a third, and most of that is carrying the layers.** Measured on the lab machine
+on 2026-10-10, the way the next section measures, two runs each:
 
-| streams | where the bokeh renders | items/s, no workers | items/s, 8 workers |
-|---|---|---|---|
-| the default four | no bokeh | 0.54 | 2.78, 2.73 |
-| the default four and `bokeh` | the workers' CPU | 0.23 | 0.94, 0.92 |
-| `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | | 2.84, 2.73 |
+| streams | where the bokeh renders | items/s |
+|---|---|---|
+| the default four | no bokeh | 3.47, 3.63 |
+| the default four and `bokeh` | the workers' CPU | 0.88, 0.89 |
+| `rgb`, `object_alphas`, `layers`, `focus` | not rendered | 2.59, 2.58 |
+| `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.43, 2.39 |
 
-- **The workers cannot keep up.** With bokeh they deliver a third of the items they deliver
+- **The workers cannot keep up.** With bokeh they deliver a quarter of the items they deliver
   without it.
-- **The GPU can.** Its rate is within the spread between runs of the loader without bokeh,
-  about 10 %: an earlier run of the GPU route gave 2.46.
+- **The GPU route keeps about two thirds.** The layers alone take the loader from 3.55 to 2.59
+  items per second; rendering them on the GPU takes it to 2.41.
+- **The GPU route needs GPU memory**: a batch of 4 peaked at 8.4 GiB allocated, on top of the
+  network being trained.
 
 So for training, ask the workers for the layers and render each batch on the GPU:
 
@@ -160,22 +163,25 @@ if __name__ == "__main__":
     main()
 ```
 
-The RTX 5090 renders a 512-pixel frame in about 7 ms, a 24-frame item in 0.16 s. The layers
-cost memory instead, as the next section says.
+The RTX 5090 renders a 512-pixel frame in about 3 ms, a 24-frame item in 0.07 s. The layers
+cost shared memory too, as the next section says.
 
 ### What each choice costs
 
 Measured on the lab machine (24 cores) on 2026-10-10: 512 pixels, 24 frames, 1 to 5
-objects, batches of 4, from the 30-asset development library.
+objects, batches of 4, 8 workers, from the 30-asset development library. Each run timed 15
+batches after 4 to warm up, twice.
 
-| streams | items/s, no workers | items/s, 8 workers | MiB per item |
-|---|---|---|---|
-| `rgb`, `disparity` | 0.56 | 2.91 | 96 |
-| the default four | 0.56 | 2.82 | 240 |
-| the default four and `layers` | 0.46 | 2.17 | 816 |
+| streams | items/s | MiB per item |
+|---|---|---|
+| `rgb`, `disparity` | 3.78, 3.84 | 96 |
+| the default four | 3.47, 3.63 | 240 |
+| the default four and `layers` | 2.58, 2.56 | 816 |
 
-- **Generating the scene is the cost, not stacking the streams.** Dropping to two streams
-  saves 3 %; adding the layers costs 23 %.
+- **Generating the scene is most of the cost.** Dropping to two streams gains 7 %; adding the
+  layers costs 28 %, for carrying them out of the workers.
+- **Without workers it is slow.** In the training process itself the default four came at
+  0.55 items per second.
 - **Memory is what the layers really cost.** A `DataLoader` keeps `prefetch_factor` batches per
   worker in shared memory, 2 by default, so 8 workers with layers can hold 16 batches of 4,
   about 51 GiB. Fewer workers, a smaller `prefetch_factor` or fewer frames bring it down. In a
