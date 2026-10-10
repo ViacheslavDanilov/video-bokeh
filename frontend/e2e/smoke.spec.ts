@@ -23,6 +23,9 @@ test("generates a sequence and decodes every stream", async ({ page }) => {
   // all_in_focus, alpha, disparity and flow: one pane per stream the sequence has.
   const videos = page.locator("video");
   await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await expect(
+    page.getByRole("combobox", { name: "Stream" }).nth(3),
+  ).toHaveText("Optical flow");
 
   // readyState 2 is HAVE_CURRENT_DATA: the file arrived and a frame was decoded.
   await expect

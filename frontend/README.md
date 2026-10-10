@@ -51,6 +51,9 @@ without rebuilding.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
 
+**Optical flow comes with each sequence**, coloured as optical-flow papers colour it: the hue
+is the direction, rightward red, and white is still. The wheel under its pane is the legend.
+
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.
 Without torch, Stage C can still add any-to-bokeh's on a machine with an NVIDIA card: run
