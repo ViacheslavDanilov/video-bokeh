@@ -35,7 +35,8 @@ import json
 import shutil
 import stat
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -204,6 +205,36 @@ def read_paint_order(path: Path) -> list[list[int]]:
 BOKEH_STRENGTH = 16.0
 
 
+@contextmanager
+def staged_stream(seq: Path, stream: str, replace: bool = True) -> Iterator[Path]:
+    """Write ``seq/<stream>/`` whole or not at all, through the folder this yields.
+
+    The folder is hidden beside the stream, named per run so two runs over one data root
+    cannot delete each other's, and renamed to ``<stream>/`` only when the block finishes.
+    Anything that fails on the way leaves the old ``<stream>/`` untouched.
+
+    ``replace`` replaces a ``<stream>/`` already there, as a new render does. Without it,
+    one that appeared meanwhile, from another request writing the same sequence, is kept
+    and this one dropped: nothing a reader may be reading is deleted.
+    """
+    staging = Path(tempfile.mkdtemp(prefix=f".{stream}-", dir=seq))
+    # mkdtemp makes it private (0700); the stream gets the access its siblings have.
+    staging.chmod(stat.S_IMODE((seq / "all_in_focus").stat().st_mode))
+    try:
+        yield staging
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    if replace:
+        shutil.rmtree(seq / stream, ignore_errors=True)
+    try:
+        staging.rename(seq / stream)
+    except OSError:
+        if replace or not (seq / stream).is_dir():
+            raise
+        shutil.rmtree(staging, ignore_errors=True)
+
+
 def write_bokeh(
     seq: Path,
     frames: Iterable[tuple[str, Image.Image]],
@@ -212,29 +243,9 @@ def write_bokeh(
 ) -> None:
     """Write ``seq/bokeh/``: each named frame as a PNG, and ``record`` as focus.json.
 
-    The frames go to a hidden folder beside it, named per run so two runs over one data
-    root cannot delete each other's, which is renamed to ``bokeh/`` only when every frame
-    is in place. Anything that fails on the way leaves the old ``bokeh/`` untouched.
-
-    ``replace`` replaces a ``bokeh/`` already there, as a new render does. Without it, a
-    ``bokeh/`` that appeared meanwhile, from another request rendering the same sequence,
-    is kept and this render is dropped: nothing a reader may be reading is deleted.
+    Whole or not at all, through ``staged_stream``, whose ``replace`` this is.
     """
-    staging = Path(tempfile.mkdtemp(prefix=".bokeh-", dir=seq))
-    # mkdtemp makes it private (0700); the stream gets the access its siblings have.
-    staging.chmod(stat.S_IMODE((seq / "all_in_focus").stat().st_mode))
-    try:
+    with staged_stream(seq, "bokeh", replace) as staging:
         for name, image in frames:
             image.save(staging / name, compress_level=6)
         (staging / "focus.json").write_text(json.dumps(record) + "\n", encoding="utf-8")
-    except BaseException:
-        shutil.rmtree(staging, ignore_errors=True)
-        raise
-    if replace:
-        shutil.rmtree(seq / "bokeh", ignore_errors=True)
-    try:
-        staging.rename(seq / "bokeh")
-    except OSError:
-        if replace or not (seq / "bokeh").is_dir():
-            raise
-        shutil.rmtree(staging, ignore_errors=True)
