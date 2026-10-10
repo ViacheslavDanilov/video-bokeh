@@ -67,6 +67,9 @@ _MAX_FRAMES = 240
 #:     80 frames at 1024  =  83.9 Mpx   11.2 s            2.9 GB peak
 #:    240 frames at 1024  = 251.7 Mpx   97 s              9.7 GB peak, machine swaps
 #:
+#: With its bokeh, the second took 30 s and peaked at 3.1 GiB on the same machine: the
+#: bokeh pass renders the frames again a few at a time, after the first pass's are freed.
+#:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
 #: it means writing the frames as Stage B renders them, with `iter_frames`, as the dataset
@@ -151,8 +154,8 @@ class StreamInfo(BaseModel):
     """How one stream of a sequence can be displayed.
 
     The client renders whatever stream info a sequence lists rather than knowing the
-    stream names itself, so a stream that appears later -- `bokeh`, once Stage C has
-    rendered the sequence -- shows up in the interface without a frontend change.
+    stream names itself, so a stream that appears later -- `bokeh`, added to a sequence
+    that had none -- shows up in the interface without a frontend change.
     """
 
     url: str

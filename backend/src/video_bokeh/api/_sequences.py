@@ -124,7 +124,11 @@ def _generate_into(
 ) -> int:
     scene = _scene(library_root, request)
     frames = render(scene)
+    focus = [frame_focus(f.object_alphas, f.disparity) for f in frames] if bokeh else []
     write_sequence(work_dir, frames)
+    # The bokeh pass renders the frames again with their layers, a few at a time; holding
+    # these as well would add the whole clip to its peak.
+    del frames
     placed = len(scene.objects)
     (work_dir / _META).write_text(
         json.dumps(
@@ -140,7 +144,6 @@ def _generate_into(
         encoding="utf-8",
     )
     if bokeh:
-        focus = [frame_focus(f.object_alphas, f.disparity) for f in frames]
         write_bokeh_stream(work_dir, scene, request.seed, focus)
     return placed
 
