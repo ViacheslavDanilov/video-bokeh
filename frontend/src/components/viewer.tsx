@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { FlowLegend } from "./flow-legend";
 import { ObjectLegend } from "./object-legend";
 import { SpectralScale } from "./spectral-scale";
 
@@ -56,6 +57,7 @@ const LABELS: Record<string, string> = {
   disparity: "Disparity",
   alpha: "Alpha",
   bokeh: "Bokeh",
+  flow: "Optical flow",
   spectral_r: "Spectral",
   grey: "Grey",
 };
@@ -455,6 +457,7 @@ export function Viewer({
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}
+              {stream === "flow" && <FlowLegend />}
             </figure>
           );
         })}

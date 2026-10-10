@@ -39,7 +39,7 @@ without rebuilding.
   picks a count in that range, so the same five numbers from the same library always name the
   same sequence.
 - **Generate** — one call, and it blocks while it works: on an Apple M3 Pro at the page's
-  defaults, 80 frames at 512 px with four to five objects, 7 to 11 seconds, and 16 to 21 with
+  defaults, 80 frames at 512 px with four to five objects, 8 to 14 seconds, and 16 to 25 with
   the bokeh. Asking twice for the same sequence returns it in milliseconds, because the
   sequence id is a hash and the directory on disk is the cache.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
@@ -50,6 +50,9 @@ without rebuilding.
   280 px wide instead, and the page scrolls with the transport held at the bottom.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
+
+**Optical flow comes with each sequence**, coloured as optical-flow papers colour it: the hue
+is the direction, rightward red, and white is still. The wheel under its pane is the legend.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.

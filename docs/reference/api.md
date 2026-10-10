@@ -12,9 +12,9 @@ from whichever library a request names.
 
 **A generated sequence comes with its bokeh, when torch is installed.** The API renders it in
 the same request with the layered renderer, so `POST /sequences` takes longer: on an Apple M3
-Pro on 2026-10-10, 80 frames at 512 pixels with four to five objects, seeds 0 to 2, took 7 to
-11 s without bokeh and 16 to 21 s with it. A sequence cached without bokeh gets it when it is
-asked for again. Without torch, as in the API's own
+Pro on 2026-10-11, 80 frames at 512 pixels with four to five objects, seeds 0 to 2, took 8 to
+14 s without bokeh and 16 to 25 s with it, optical flow included in both. A sequence cached
+without bokeh gets it when it is asked for again. Without torch, as in the API's own
 install, sequences come without bokeh, and `make bokeh` can still render it with Stage C;
 asking for a sequence again then lists its `bokeh` stream.
 
@@ -155,15 +155,37 @@ curl -X POST http://localhost:8000/sequences \
       "url": "/sequences/499a2ad706800460/disparity.mp4",
       "colormaps": ["grey", "spectral_r"],
       "default": "spectral_r"
+    },
+    "flow": {
+      "url": "/sequences/499a2ad706800460/flow.mp4",
+      "colormaps": [],
+      "default": null
     }
   }
 }
 ```
 
 **Each entry of `streams` is stream info: how the stream can be displayed, not only where it
-is.** `colormaps` is empty when the stream is already RGB. A client that renders
-what `streams` lists needs no change when a stream is added. `bokeh` appears here once the
-sequence has it, with no colormaps, after the three every sequence has.
+is.** `colormaps` is empty when the stream has one rendering, as every stream but
+`disparity` has. A client that renders
+what `streams` lists needs no change when a stream is added. `bokeh` and `flow` appear here
+once the sequence has them, in that order, with no colormaps, after the three every sequence
+has.
+
+**Every sequence of two frames or more comes with its optical flow.** Generation writes
+`flow/` in the same pass as the frames. A cached sequence generated before that gets it on its
+next request, whole or not at all.
+
+Writing the flow costs about 40% more time. Measured on an Apple M3 Pro on 2026-10-11,
+80 frames, four objects, without bokeh, each pair back to back:
+
+| Size | Without flow | With flow |
+|---|---|---|
+| 512 px | 5.9 s, 0.90 GiB peak | 8.5 s, 1.04 GiB peak |
+| 1024 px | 21.8 s, 3.18 GiB peak | 30.4 s, 3.85 GiB peak |
+
+With bokeh, 80 frames at 1024 px took 61.1 s without flow and 67.9 s with it. The peak went
+from 4.67 to 4.68 GiB, set by the bokeh pass after the frames are freed.
 
 **`library` may be left out only while one library is mounted.** With several, leaving it out
 answers 422 and lists the ids. An id that is not mounted answers the same way. The API never
@@ -178,9 +200,9 @@ deterministic, so the same request always names the same sequence. The cache is 
 `$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
 
 `cached` says whether this request generated the sequence or found it. A cache hit answers at
-once, 0.02 s over HTTP in the table below, unless it adds the bokeh a cached sequence lacks:
-16 to 19 s for 80 frames at 512 px with four to five objects on an Apple M3 Pro, on
-2026-10-10.
+once, 0.02 s over HTTP in the table below, unless it adds what a cached sequence lacks. For 80
+frames at 512 px with four to five objects on an Apple M3 Pro, adding the bokeh took 16 to
+19 s on 2026-10-10, and adding the flow 6 to 12 s on 2026-10-11, seeds 0 to 2.
 
 **The call blocks while it generates.** Measured on 2026-09-24, before bokeh, against
 `data/library_dev` at size 512 with four to five objects per sequence:
@@ -204,8 +226,8 @@ when there is no library, or when two cannot be told apart.
 
 ## `GET /sequences/{id}/{stream}.mp4`
 
-Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` when
-the sequence has it.
+Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` and
+`flow` when the sequence has them.
 
 **`alpha` is one colour per object, not one silhouette.** The stream is a multi-page TIFF
 with one page per object, and the page index is that object's identity for the whole clip —
@@ -221,6 +243,13 @@ distance is read.
 `object_colors` in the sequence response names the colour of each object, so a legend cannot
 drift from what the video paints.
 
+**`flow` is coloured the way optical-flow papers colour it:** the wheel of Baker et al., as
+the Middlebury benchmark and RAFT's `flow_viz` draw it. The hue is the direction, rightward
+red, and the saturation the speed, white where nothing moves. One scale serves the whole
+sequence, the fastest valid motion in it, so the colours do not flicker from frame to frame.
+The last frame has no flow, since there is no next frame to move to, so the video shows it
+still. That keeps the video as long as the other streams and in step with them.
+
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
 run a second time replaces `bokeh/`, and the page plays the new render once reloaded.
@@ -228,8 +257,8 @@ run a second time replaces `bokeh/`, and the page plays the new render once relo
 **`?colormap=` applies to `disparity` only.** It is 16-bit greyscale on disk and gets its
 colour when served, so `spectral_r` (the default, matching what `video_bokeh.preview.pack`
 writes) and `grey` are two renderings of one stream. Each is cached as its own file,
-`disparity.mp4` and `disparity.grey.mp4`. Every other stream is already RGB, so the parameter
-is dropped rather than forking that stream's cache into identical copies. An unknown name
+`disparity.mp4` and `disparity.grey.mp4`. Every other stream has one rendering, so the
+parameter is dropped rather than forking that stream's cache into identical copies. An unknown name
 answers 422 and lists the ones that exist.
 
 Answers 404 for an unknown sequence, an unknown stream, or an id that is not a 16-character hex
@@ -244,6 +273,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── alpha/                  multi-page uint8 TIFF, one page per object
 ├── disparity/              uint16 PNG
 ├── bokeh/                  RGB uint8 PNG and focus.json, with torch or once Stage C wrote it
+├── flow/                   KITTI 16-bit PNG, every frame but the last
 ├── all_in_focus.mp4        written on first request
 ├── disparity.mp4           written on first request, Spectral
 └── disparity.grey.mp4      written if grey is ever asked for
