@@ -32,6 +32,7 @@ def main() -> None:
         size=256,
         streams=("rgb", "disparity", "bokeh"),
     )
+    # In: the frame's 3 colour channels and its disparity. Out: the bokeh's 3.
     net = nn.Sequential(
         nn.Conv2d(4, 32, 3, padding=1),
         nn.ReLU(),
