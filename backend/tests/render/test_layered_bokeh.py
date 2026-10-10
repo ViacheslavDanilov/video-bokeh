@@ -224,7 +224,8 @@ def test_mps_renders_what_the_cpu_renders() -> None:
         torch.tensor([0.1, 0.7]),
     )
     cpu = render_bokeh(*args, strength=STRENGTH)
-    mps = render_bokeh(*(t.to("mps") for t in args), strength=STRENGTH)
+    # The focus stays on the CPU, as a list of per-frame values usually is.
+    mps = render_bokeh(*(t.to("mps") for t in args[:-1]), args[-1], strength=STRENGTH)
     assert mps.device.type == "mps"
     # They differ by the devices' rounding, worst where a soft edge divides by a small
     # alpha: a quarter of an 8-bit level at most.
@@ -233,7 +234,13 @@ def test_mps_renders_what_the_cpu_renders() -> None:
 
 @pytest.mark.parametrize(
     ("setting", "value"),
-    [("radius_step", 0.0), ("radius_step", -1.0), ("gamma", 0.0), ("strength", -1.0)],
+    [
+        ("radius_step", 0.0),
+        ("radius_step", -1.0),
+        ("gamma", 0.0),
+        ("strength", -1.0),
+        ("strength", float("nan")),
+    ],
 )
 def test_a_setting_out_of_range_is_refused(setting: str, value: float) -> None:
     with pytest.raises(ValueError, match=setting):

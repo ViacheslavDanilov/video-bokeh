@@ -63,11 +63,12 @@ def render_bokeh(
 
     Returns the frames, (B, 3, H, W) in ``[0, 1]``, on the inputs' device.
     """
-    if radius_step <= 0:
+    # Written so that NaN fails them too.
+    if not radius_step > 0:
         raise ValueError(f"radius_step must be positive, got {radius_step}")
-    if gamma <= 0:
+    if not gamma > 0:
         raise ValueError(f"gamma must be positive, got {gamma}")
-    if strength < 0:
+    if not strength >= 0:
         raise ValueError(f"strength must not be negative, got {strength}")
     scale = strength * background.shape[-1] / REFERENCE_WIDTH
     focus = focus_disparity.reshape(-1, 1, 1, 1).to(background)
