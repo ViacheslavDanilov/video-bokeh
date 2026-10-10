@@ -102,9 +102,10 @@ One thread is what each worker of a training loader gets.
   at most about 0.32, which at strength 16 on a 1024-pixel frame is 5 pixels of radius. So a
   sharp part beside a blurred part of the same object takes some of its colour: on a
   synthetic layer, half in focus and half at radius 4, the sharp pixel at the seam drops
-  from white to 0.85. It can lose some alpha too, when it is itself slightly blurred and its
-  neighbour is see-through and more blurred: on real 1024-pixel layers at strength 16, 51
-  of 2.4 million blurred opaque pixels lose more than 5 % of their alpha, by 17 % at most.
+  from white to 0.85. A pixel just out of focus can lose some alpha too, when its neighbour
+  in the same object is see-through and more blurred. On real 1024-pixel layers at strength
+  16, this takes more than 5 % of the alpha from 51 of 2.4 million blurred opaque pixels,
+  17 % at most, on top of the fading at a blurred edge.
 - **any-to-bokeh blurs differently in height and width.** It squashes our square frames to
   1024 × 576 and stretches the result back, so its blur is 1.78 times taller than it is wide.
   The same strength in both renderers matches only horizontally.
