@@ -43,7 +43,8 @@ flowchart LR
   share our Python environment run in one of its own. [[0001-on-disk-formats-join-the-stages]]
   records why.
 - **Cost rises at both ends.** Stage A runs a neural depth estimator and Stage B never does.
-  Stage C runs a diffusion model and needs an NVIDIA card.
+  Stage C runs either any-to-bokeh, a diffusion model that needs an NVIDIA card, or our
+  layer-wise renderer, which runs on any machine.
 
 ---
 
@@ -198,6 +199,11 @@ Stage C runs it as a separate program and reads its result back. By default the 
 one object per sequence, drawn with odds in proportion to its area, so one object is sharp and
 the others blur by how far they are from it in depth. Stage C first ran end to
 end on 2026-10-07, on an RTX 5090, and [[run-any-to-bokeh-inference]] says where it stands.
+
+The layer-wise renderer is the second, and the one the dataset's bokeh is to come from. It
+blurs each layer Stage B wrote on its own and stacks them again, so a blurred object in front
+thins out at its edges and shows what is behind it. It runs in our own process, on a CPU or a
+GPU, and focuses the way any-to-bokeh does. [[layered-bokeh]] explains it.
 
 ---
 

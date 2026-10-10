@@ -236,13 +236,6 @@ Both follow one object by default: the bridge's `--focus object`, described belo
 `bokeh/focus.json` records the object, each frame's in-focus disparity, the renderer and its
 strength.
 
-**`layered` is the layer-wise renderer** that [[layered-bokeh]] explains. It reads `layers/`,
-`alpha/` and `disparity/` and writes `bokeh/` losslessly. It refuses the whole batch, before
-rendering any, when a sequence has no complete `layers/`. It runs on the CPU unless
-`VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the CPU when that device is
-not there. On the lab machine on 2026-10-10, an 80-frame sequence at 1024 pixels took 40 s on
-its 24 CPU cores and 20 s on the RTX 5090; any-to-bokeh takes 88 s on the same card. Most of
-the 20 s is reading the layers and writing the PNGs.
 `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point at another checkout or interpreter.
 
 `VIDEO_BOKEH_RUNNER=docker` runs it in the `video-bokeh-a2b` image instead of the venv, with the
@@ -258,6 +251,15 @@ four overlapping. Its dataset cannot group eight frames or fewer. Its pipeline d
 trailing frames of a sequence that makes exactly two groups, nine to twelve frames. One such
 sequence would fail the whole batch after the model has loaded, so the renderer refuses the
 whole batch before it starts and names each short sequence.
+
+**`layered` is the layer-wise renderer** that [[layered-bokeh]] explains. It reads `layers/`,
+`alpha/` and `disparity/` and writes `bokeh/` losslessly. It refuses the whole batch, before
+rendering any, when a sequence has no complete `layers/`. It runs on the CPU unless
+`VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the CPU when that device is
+not there. On the lab machine on 2026-10-10, an 80-frame sequence at 512 pixels took 13 s on
+its 24 CPU cores and 6 s on the RTX 5090, where any-to-bokeh takes 88 s on the same card. At
+1024 pixels it took 40 s and 20 s. Most of the time on the GPU is reading the layers and
+writing the PNGs.
 
 ### Your own renderer
 

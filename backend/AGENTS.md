@@ -85,10 +85,11 @@ uv run python -m video_bokeh.library.build \
 
 # 3. Stage B — generate sequences on the fly from the library
 #    Writes all_in_focus/*.png (RGB), alpha/*.tif (one page per object)
-#    and disparity/*.png (uint16). See docs/reference/dataset-layout.md.
+#    and disparity/*.png (uint16), and with --layers the layers/ stream the
+#    layered renderer needs. See docs/reference/dataset-layout.md.
 uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/synth_dev \
-  --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5
+  --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5 --layers
 
 # 4. Stage C — render bokeh into each sequence's bokeh/. any-to-bokeh, the default, is
 #    NVIDIA only and needs scripts/setup_third_party.sh first (first run on an RTX 5090

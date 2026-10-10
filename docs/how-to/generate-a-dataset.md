@@ -163,8 +163,23 @@ A fuller set of checks on the trajectory model is in [[demo-unrestricted-traject
 
 ## 5. Render bokeh
 
-Stage C writes each sequence's `bokeh/` stream. It needs an NVIDIA card, and
-[[run-any-to-bokeh-inference]] has the command and says how far it has been run.
+Stage C writes each sequence's `bokeh/` stream, with one of two renderers.
+
+**The layered renderer runs on any machine**, from sequences written with their layers.
+[[layered-bokeh]] explains it.
+
+```bash
+uv run python -m video_bokeh.scenes.generate \
+  --library-root data/library_dev --output data/demo_layers \
+  --count 2 --frames 24 --size 512 --seed 0 --layers
+uv run --extra render python -m video_bokeh.render.run --data-root data/demo_layers \
+  --renderer layered
+```
+
+The render took 3 s on an Apple M3 Pro, on 2026-10-10.
+
+**any-to-bokeh needs an NVIDIA card.** [[run-any-to-bokeh-inference]] has the command and says
+how far it has been run.
 
 To look at what any-to-bokeh would receive without rendering anything, the bridge converts the
 sequences on any machine:
@@ -178,5 +193,5 @@ uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ## Clean up
 
 ```bash
-rm -rf data/demo data/demo5
+rm -rf data/demo data/demo5 data/demo_layers
 ```
