@@ -177,7 +177,8 @@ deterministic, so the same request always names the same sequence. The cache is 
 `$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
 
 `cached` says whether this request generated the sequence or found it. On a cache hit the call
-returns in milliseconds.
+returns in under a millisecond, unless it adds the bokeh a cached sequence lacks: 5 to 11 s for
+80 frames at 512 px on an Apple M3 Pro.
 
 **The call blocks while it generates.** Measured against `data/library_dev` at size 512 with
 four to five objects per sequence:
@@ -201,8 +202,8 @@ when there is no library, or when two cannot be told apart.
 
 ## `GET /sequences/{id}/{stream}.mp4`
 
-Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` once
-Stage C has rendered the sequence.
+Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` when
+the sequence has it.
 
 **`alpha` is one colour per object, not one silhouette.** The stream is a multi-page TIFF
 with one page per object, and the page index is that object's identity for the whole clip —

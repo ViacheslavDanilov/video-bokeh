@@ -123,13 +123,9 @@ make web
 ```
 
 The script's own sequences are not the page's: the page generates its own and caches them under
-`backend/data/sequences/`. To see bokeh in the page:
-
-1. Pick a depth estimator and press Generate.
-2. In another terminal, `make bokeh` renders every sequence the page has made that has no bokeh
-   yet. It leaves out any of 12 frames or fewer, and says so.
-3. Press Generate again with the same settings. The cached sequence now lists its bokeh, and a
-   pane opens for it.
+`backend/data/sequences/`. Each comes with its bokeh, rendered by the layered renderer in the
+same request, because `make setup` installs torch. `make bokeh` adds any-to-bokeh's only to a
+sequence without bokeh, so in the page it matters only when the API runs without torch.
 
 The script's own bokeh is in the MP4s from step 5: each sequence under
 `backend/data/lab/sequences/<estimator>/sequences/<id>/` holds `all_in_focus.mp4`,

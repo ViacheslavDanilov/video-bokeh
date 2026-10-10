@@ -30,7 +30,7 @@ Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.
 
 ## How It Works
 
-Stage A estimates depth once per asset and stores it as a library. Stage B samples objects, a background and depth trajectories from that library and writes sequences. Stage C renders bokeh from each sequence. The web demo generates sequences on request. [docs/explanation/pipeline-explainer.md](docs/explanation/pipeline-explainer.md) walks through all of it.
+Stage A estimates depth once per asset and stores it as a library. Stage B samples objects, a background and depth trajectories from that library and writes sequences. Bokeh is rendered in the same pass, by our layered renderer, or by Stage C over sequences already written. The web demo generates sequences on request. [docs/explanation/pipeline-explainer.md](docs/explanation/pipeline-explainer.md) walks through all of it.
 
 ## Tech Stack
 
@@ -39,7 +39,7 @@ Stage A estimates depth once per asset and stores it as a library. Stage B sampl
 | Backend | Python 3.13, FastAPI, Uvicorn |
 | Frontend | TypeScript, Next.js, React, Tailwind CSS |
 | Data | NumPy, Pillow, tifffile, matplotlib |
-| Models | PyTorch and Hugging Face transformers for depth (Stage A); any-to-bokeh, or our layer-wise renderer in PyTorch, for bokeh (Stage C) |
+| Models | PyTorch and Hugging Face transformers for depth (Stage A); our layered renderer in PyTorch for bokeh, and any-to-bokeh to compare it with |
 | Package Management | uv (backend), pnpm (frontend) |
 | Build & CI | Docker, Docker Compose, GitHub Actions |
 

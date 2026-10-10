@@ -38,17 +38,18 @@ without rebuilding.
 - **Parameters** — seed, frames, size, and the range of objects a sequence may contain. The seed
   picks a count in that range, so the same five numbers from the same library always name the
   same sequence.
-- **Generate** — one call, and it blocks while it works: about 7 seconds for 80 frames at 512
-  px. Asking twice for the same sequence returns it in milliseconds, because the sequence id is a
+- **Generate** — one call, and it blocks while it works: on an Apple M3 Pro, 3 to 6 seconds for
+  80 frames at 512 px, and 8 to 14 with the bokeh. Asking twice for the same sequence returns it in milliseconds, because the sequence id is a
   hash and the directory on disk is the cache.
 - **Compare** — up to four panes, each showing any stream, all driven by one transport so
   the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
   at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.
 
-**Bokeh shows once Stage C has rendered a sequence.** The page does not render it. On a
-machine with an NVIDIA card, generate a sequence, run `make bokeh` from the repository root, and
-generate the same sequence again: the server lists its bokeh stream, and a pane opens for it.
-The frames slider starts at 16, because Stage C needs 13 frames or more.
+**Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
+the API renders it in the same request with the layered renderer, and a pane opens for it.
+Without torch, Stage C can still add any-to-bokeh's on a machine with an NVIDIA card: run
+`make bokeh` from the repository root and generate the same sequence again. The frames slider
+starts at 16, because any-to-bokeh needs 13 frames or more.
 
 ## Conventions
 

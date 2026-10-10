@@ -145,7 +145,7 @@ Of the 2.03 MiB the layers add, the background's colour is 1.14 MiB: it is a sec
 all-in-focus frame. Its disparity is 0.22 MiB. The object pages are mostly empty and compress
 to 0.44 MiB for colour and 0.23 MiB for disparity.
 
-### The bokeh stream — Stage C
+### The bokeh stream
 
 `bokeh/` holds the rendered bokeh. `scenes.generate --bokeh` writes it in the same run as the
 frames, from the layers it holds in memory, and `video_bokeh.render.run` writes it over
@@ -171,8 +171,8 @@ old one.
 - **With any-to-bokeh it is lossy.** The vendored script writes an mp4 at 1024 × 576, which is
   decoded and resized back to the sequence's size. A lossless path waits for a GPU run that
   can check it.
-- **With the layered renderer it is lossless**, rendered from `layers/` at the sequence's own
-  size.
+- **With the layered renderer it is lossless**, rendered from the layers, held in memory or
+  read from `layers/`, at the sequence's own size.
 
 ### How many objects a scene can hold
 

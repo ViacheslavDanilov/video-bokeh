@@ -223,8 +223,8 @@ has the command. It first ran to completion on an RTX 5090 on 2026-10-07.
 | `--focus-disparity` | float | one object, drawn by area | one in-focus disparity in `[0, 1]` for every frame |
 | `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any the renderer cannot take |
 
-`--missing` is what `make bokeh` runs, over the API's data root, so it renders whatever the page
-has generated since the last run. A sequence shorter than the renderer's minimum, or without
+`--missing` is what `make bokeh` runs, over the API's data root, so it renders any-to-bokeh's
+bokeh for whatever the page generated without bokeh of its own, as it does without torch. A sequence shorter than the renderer's minimum, or without
 the layers `layered` needs, is named and left out rather than handed over, where it would fail
 the whole batch. A directory whose name
 starts with a dot is never a sequence: the API generates under `.tmp-*` and renames.
