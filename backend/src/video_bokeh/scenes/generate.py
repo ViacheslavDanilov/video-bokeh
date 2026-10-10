@@ -36,6 +36,7 @@ from PIL import Image
 from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
 from video_bokeh.core._sequence_geometry import SampleConfig
 from video_bokeh.core._streams import (
+    BOKEH_STRENGTH,
     quantize_alpha,
     write_alpha_tiff,
     write_bokeh,
@@ -52,9 +53,6 @@ from video_bokeh.scenes._compositor import (
     iter_frames,
     sample_scene,
 )
-
-#: The bokeh's strength when none is given: any-to-bokeh's default ``k``.
-BOKEH_STRENGTH = 16.0
 
 _MANIFEST_FIELDS = (
     "seq_id",
@@ -148,7 +146,7 @@ def sample_sequence(
     )
 
 
-def frame_stem(index: int, n_frames: int) -> str:
+def _frame_stem(index: int, n_frames: int) -> str:
     """Frame ``index``'s file stem: 1-based, padded to the width of the frame count."""
     return f"{index + 1:0{max(2, len(str(n_frames)))}d}"
 
@@ -169,10 +167,8 @@ def write_bokeh_stream(
     are never held whole. ``replace`` is ``write_bokeh``'s. Needs torch.
     """
     from video_bokeh.layered import (
-        GAMMA,
-        RADIUS_STEP,
-        RENDERER,
         bokeh_device,
+        bokeh_record,
         layered_frame,
         render_sequence,
     )
@@ -184,15 +180,8 @@ def write_bokeh_stream(
         strength,
         bokeh_device(),
     )
-    names = [f"{frame_stem(i, scene.n_frames)}.png" for i in range(scene.n_frames)]
-    record = {
-        "object": focus_object,
-        "zf": zf,
-        "renderer": RENDERER,
-        "strength": strength,
-        "gamma": GAMMA,
-        "radius_step": RADIUS_STEP,
-    }
+    names = [f"{_frame_stem(i, scene.n_frames)}.png" for i in range(scene.n_frames)]
+    record = bokeh_record(focus_object, zf, strength)
     write_bokeh(seq_dir, zip(names, images, strict=True), record, replace=replace)
 
 
@@ -240,7 +229,7 @@ def write_sequence(
         n_frames = len(frames)
     paint_orders: list[list[int]] = []
     for fi, frame in enumerate(frames):
-        stem = frame_stem(fi, n_frames)
+        stem = _frame_stem(fi, n_frames)
         _save_frame(frame, stem, aif, alp, disp)
         if frame.layers is not None:
             if not paint_orders:

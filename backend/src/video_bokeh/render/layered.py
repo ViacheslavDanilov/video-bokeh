@@ -27,11 +27,10 @@ from video_bokeh.core._streams import (
     write_bokeh,
 )
 from video_bokeh.layered import (
-    GAMMA,
-    RADIUS_STEP,
     RENDERER,
     LayeredFrame,
     bokeh_device,
+    bokeh_record,
     render_sequence,
 )
 
@@ -64,14 +63,7 @@ class Layered:
         for seq in sequence_dirs:
             names = [p.name for p in list_png_frames(seq / "all_in_focus")]
             focus_object, zf = _focus(seq, names, focus_disparity)
-            record = {
-                "object": focus_object,
-                "zf": zf,
-                "renderer": self.name,
-                "strength": strength,
-                "gamma": GAMMA,
-                "radius_step": RADIUS_STEP,
-            }
+            record = bokeh_record(focus_object, zf, strength)
             frames = render_sequence(_read_frames(seq, names), zf, strength, device)
             write_bokeh(seq, zip(names, frames, strict=True), record)
 

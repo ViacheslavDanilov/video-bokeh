@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from video_bokeh.layered._renderer import render_bokeh
+from video_bokeh.layered._renderer import GAMMA, RADIUS_STEP, render_bokeh
 from video_bokeh.library._device import select_device
 from video_bokeh.scenes._compositor import RenderedFrame
 
@@ -53,6 +53,22 @@ def layered_frame(frame: RenderedFrame) -> LayeredFrame:
         object_disparities=np.stack(layers.object_disparities),
         paint_order=layers.paint_order,
     )
+
+
+def bokeh_record(
+    focus_object: int | None,
+    focus_disparity: list[float],
+    strength: float,
+) -> dict[str, object]:
+    """What ``focus.json`` records beside a bokeh this renderer made."""
+    return {
+        "object": focus_object,
+        "zf": focus_disparity,
+        "renderer": RENDERER,
+        "strength": strength,
+        "gamma": GAMMA,
+        "radius_step": RADIUS_STEP,
+    }
 
 
 def bokeh_device() -> torch.device:

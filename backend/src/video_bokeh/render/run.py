@@ -22,6 +22,7 @@ from pathlib import Path
 
 from video_bokeh.bridge.any_to_bokeh import list_png_frames
 from video_bokeh.core._seq_io import has_layers, list_sequences
+from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.render import RENDERERS, resolve_renderer
 
 
@@ -52,7 +53,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strength",
         type=float,
-        default=16.0,
+        default=BOKEH_STRENGTH,
         help="blur strength, as any-to-bokeh's k: the blur radius in pixels, at a "
         "1024-pixel width, one unit of disparity from the focus (default: 16).",
     )

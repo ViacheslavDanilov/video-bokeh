@@ -14,6 +14,7 @@ from torch.utils.data import IterableDataset, get_worker_info
 from video_bokeh.core._focus import focus_seed, focus_track, frame_focus
 from video_bokeh.core._library import list_backgrounds, list_foregrounds
 from video_bokeh.core._sequence_geometry import SampleConfig
+from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.layered import render_bokeh
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
@@ -34,8 +35,6 @@ _MAX_SKIPS_IN_A_ROW = 100
 STREAMS = ("rgb", "disparity", "alpha", "object_alphas", "layers", "focus", "bokeh")
 #: What an item carries when ``streams`` is not given.
 DEFAULT_STREAMS = ("rgb", "disparity", "alpha", "object_alphas")
-#: The bokeh's strength when none is given: any-to-bokeh's default ``k``.
-BOKEH_STRENGTH = 16.0
 #: What ``batch_bokeh`` reads from a batch: the keys of the layers, object_alphas and
 #: focus streams.
 _BATCH_KEYS = (

@@ -165,6 +165,12 @@ def read_paint_order(path: Path) -> list[list[int]]:
     return orders
 
 
+#: The strength the bokeh stream is rendered at unless told otherwise: any-to-bokeh's
+#: default ``k``, the blur radius in pixels at a 1024-pixel width one unit of disparity
+#: from the focus.
+BOKEH_STRENGTH = 16.0
+
+
 def write_bokeh(
     seq: Path,
     frames: Iterable[tuple[str, Image.Image]],
