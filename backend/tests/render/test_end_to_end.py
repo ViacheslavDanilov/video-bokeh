@@ -94,3 +94,54 @@ def test_the_command_line_takes_the_bokeh_and_its_strength(
     assert json.loads((seq / "bokeh" / "focus.json").read_text())["strength"] == 0
     for frame in sorted((seq / "all_in_focus").glob("*.png")):
         assert np.abs(_pixels(seq / "bokeh" / frame.name) - _pixels(frame)).max() <= 1.0
+
+
+def test_focuses_where_the_loader_does_for_the_same_seed(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    from video_bokeh.loader import SequenceStream
+
+    out = tmp_path / "data"
+    generate_dataset(library, out, 1, FRAMES, SIZE, seed=1, n_objects_max=2, bokeh=True)
+    (seq,) = _sequences(out)
+    record = json.loads((seq / "bokeh" / "focus.json").read_text())
+    stream = SequenceStream(
+        library,
+        n_frames=FRAMES,
+        size=SIZE,
+        n_objects_max=2,
+        seed=1,
+        streams=("focus",),
+    )
+    item = next(iter(stream))
+    assert item["focus_object"] == (
+        -1 if record["object"] is None else record["object"]
+    )
+    assert item["focus_disparity"].tolist() == pytest.approx(record["zf"], abs=1e-6)
+
+
+def test_bokeh_without_torch_is_refused_before_anything_is_written(
+    library: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib.util
+
+    real = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name, *a: None if name == "torch" else real(name, *a),
+    )
+    with pytest.raises(ValueError, match="torch"):
+        generate_dataset(
+            library,
+            tmp_path / "data",
+            1,
+            FRAMES,
+            SIZE,
+            seed=0,
+            bokeh=True,
+        )
+    assert not (tmp_path / "data").exists()

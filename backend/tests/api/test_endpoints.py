@@ -578,3 +578,14 @@ def test_a_cached_sequence_without_bokeh_gets_it_when_asked_again(
     body = again.json()
     assert body["cached"] is True
     assert "bokeh" in body["streams"]
+
+
+def test_without_torch_a_sequence_comes_without_bokeh(
+    client_of: Callable[..., TestClient],
+    library: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api_main, "_BOKEH_AVAILABLE", False)
+    client = client_of(library, render_bokeh=True)
+    streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
+    assert "bokeh" not in streams
