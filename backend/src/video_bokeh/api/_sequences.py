@@ -20,13 +20,19 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from video_bokeh.core._focus import frame_focus
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     RenderedFrame,
     Scene,
+    iter_frames,
     render_scene,
 )
-from video_bokeh.scenes.generate import sample_sequence, write_sequence
+from video_bokeh.scenes.generate import (
+    sample_sequence,
+    write_bokeh_stream,
+    write_sequence,
+)
 
 _ID_CHARS = 16
 _META = "sequence.json"
@@ -40,9 +46,9 @@ STREAMS = ("all_in_focus", "alpha", "disparity")
 #: silhouette.
 VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 
-#: Stage C's stream. Nothing here renders it: it needs an NVIDIA card, and Stage C writes it
-#: into a sequence this API generated, `make bokeh`, whole or not at all. It is served
-#: once it is there.
+#: The bokeh stream. Generation renders it with the sequence when asked, with the layered
+#: renderer; Stage C can also write it into a sequence this API generated, whole or not at
+#: all. It is served once it is there.
 BOKEH = "bokeh"
 
 
@@ -114,20 +120,11 @@ def _generate_into(
     library_id: str,
     request: SequenceRequest,
     render: Callable[[Scene], list[RenderedFrame]],
+    bokeh: bool,
 ) -> int:
-    try:
-        scene = sample_sequence(
-            library_root,
-            seed=request.seed,
-            n_frames=request.frames,
-            size=request.size,
-            n_objects_min=request.n_objects_min,
-            n_objects_max=request.n_objects_max,
-        )
-    except CollisionRetriesExhausted as exc:
-        raise SequenceUnsatisfiableError(str(exc)) from exc
-
-    write_sequence(work_dir, render(scene))
+    scene = _scene(library_root, request)
+    frames = render(scene)
+    write_sequence(work_dir, frames)
     placed = len(scene.objects)
     (work_dir / _META).write_text(
         json.dumps(
@@ -142,7 +139,35 @@ def _generate_into(
         ),
         encoding="utf-8",
     )
+    if bokeh:
+        focus = [frame_focus(f.object_alphas, f.disparity) for f in frames]
+        write_bokeh_stream(work_dir, scene, request.seed, focus)
     return placed
+
+
+def _scene(library_root: Path, request: SequenceRequest) -> Scene:
+    try:
+        return sample_sequence(
+            library_root,
+            seed=request.seed,
+            n_frames=request.frames,
+            size=request.size,
+            n_objects_min=request.n_objects_min,
+            n_objects_max=request.n_objects_max,
+        )
+    except CollisionRetriesExhausted as exc:
+        raise SequenceUnsatisfiableError(str(exc)) from exc
+
+
+def _add_bokeh(dest: Path, library_root: Path, request: SequenceRequest) -> None:
+    """Render the bokeh of a sequence already on disk, from its scene, in memory.
+
+    For a sequence generated before bokeh came with it. The stream appears whole or not
+    at all, so whoever is reading the other streams meanwhile is not disturbed.
+    """
+    scene = _scene(library_root, request)
+    focus = [frame_focus(f.object_alphas, f.disparity) for f in iter_frames(scene)]
+    write_bokeh_stream(dest, scene, request.seed, focus)
 
 
 def ensure_sequence(
@@ -151,9 +176,13 @@ def ensure_sequence(
     sequences_root: Path,
     request: SequenceRequest,
     *,
+    bokeh: bool = False,
     _render: Callable[[Scene], list[RenderedFrame]] | None = None,
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
+
+    With ``bokeh``, the sequence comes with its bokeh stream: rendered with it when it is
+    generated, or added to it when a cached one has none. Needs torch.
 
     Generation writes to a temporary directory beside the destination and renames it
     into place, so a sequence is either absent or complete. That is what makes a crashed
@@ -164,6 +193,8 @@ def ensure_sequence(
     dest = sequences_root / sid
     cached = _read_cached(dest, sid)
     if cached is not None:
+        if bokeh and not (dest / BOKEH).is_dir():
+            _add_bokeh(dest, library_root, request)
         return cached
 
     sequences_root.mkdir(parents=True, exist_ok=True)
@@ -175,6 +206,7 @@ def ensure_sequence(
             library_id,
             request,
             _render or render_scene,
+            bokeh,
         )
         try:
             os.replace(work_dir, dest)

@@ -1,6 +1,6 @@
 """Where the API finds the libraries it serves and the sequences it writes.
 
-Three environment variables, all optional:
+Four environment variables, all optional:
 
 ``VIDEO_BOKEH_DATA_ROOT``
     The single directory everything generated lives under. Defaults to ``data``,
@@ -17,6 +17,11 @@ Three environment variables, all optional:
     library -- ``data/library_dev`` holds ``foregrounds/`` and ``backgrounds/`` directly,
     so naming it outright makes an existing checkout usable without moving anything -- or
     a directory with one library per subdirectory, such as one per depth estimator.
+
+``VIDEO_BOKEH_RENDER_BOKEH``
+    Whether a generated sequence gets its bokeh, rendered with it by the layered renderer.
+    On unless it is ``0``, ``false`` or ``no``, and only ever when torch is installed. The
+    browser smoke test turns it off, so it behaves the same with and without torch.
 
 Resolution is lazy, per request, not at import. The container has to be able to start
 before the library volume is populated, and ``/health`` must answer either way.
@@ -50,10 +55,11 @@ class Settings:
     library: Path
     sequences: Path
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
+    render_bokeh: bool = True
 
 
 def load_settings(env: Mapping[str, str] | None = None) -> Settings:
-    """Read the three variables. An empty value counts as unset, because that is what
+    """Read the four variables. An empty value counts as unset, because that is what
     ``docker compose`` passes through for a ``.env`` key with nothing after the ``=``.
     """
     env = os.environ if env is None else env
@@ -67,6 +73,8 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         library=library,
         sequences=data_root / "sequences",
         cors_origins=origins or DEFAULT_CORS_ORIGINS,
+        render_bokeh=(env.get("VIDEO_BOKEH_RENDER_BOKEH") or "1").strip().lower()
+        not in ("0", "false", "no"),
     )
 
 

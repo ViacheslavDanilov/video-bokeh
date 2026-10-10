@@ -151,9 +151,8 @@ export default function Page() {
       </main>
 
       <footer className="text-muted-foreground border-border border-t px-6 py-3 text-xs">
-        Bokeh appears once Stage C has rendered a sequence: run{" "}
-        <code className="font-mono">make bokeh</code> on a machine with an
-        NVIDIA card, then generate the same sequence again.
+        Bokeh comes with each sequence, rendered by our layer-wise renderer,
+        when the API runs with torch installed.
       </footer>
     </div>
   );

@@ -30,6 +30,9 @@ export default defineConfig({
       ].join(" && "),
       url: `http://127.0.0.1:${API_PORT}/health`,
       env: {
+        // Off, as it is without torch in CI, so the run is the same everywhere; the
+        // bokeh pane is still checked, with frames faked into the sequence.
+        VIDEO_BOKEH_RENDER_BOKEH: "0",
         VIDEO_BOKEH_DATA_ROOT: DATA_ROOT,
         VIDEO_BOKEH_LIBRARY: LIBRARY,
         CORS_ORIGINS: `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`,
