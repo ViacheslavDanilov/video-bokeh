@@ -15,9 +15,22 @@ import { Slider } from "@/components/ui/slider";
 import { ObjectLegend } from "./object-legend";
 import { SpectralScale } from "./spectral-scale";
 
-// Four: the frame, the masks, the depth, and the bokeh when the sequence has it. Past
-// four the panes are too small to judge anything on a laptop.
-const MAX_PANES = 4;
+// Every stream a sequence has, and one more to compare two colormaps of the same one.
+// Past what fits in a row the panes wrap rather than shrink; see `gridColumns`.
+const MAX_PANES = 6;
+
+// The grid's gap-4.
+const PANE_GAP_PX = 16;
+// What a pane needs besides its square: the stream picker above, a legend of up to two
+// lines below.
+const PANE_CHROME_PX = 84;
+// Kept free under the grid for the transport and the gap above it.
+const TRANSPORT_PX = 88;
+// Fitting every pane on the screen is worth it down to this size. Smaller, as on a phone,
+// the panes are better big and scrolled through.
+const MIN_FIT_PX = 200;
+// When the panes scroll, narrower than this is too small to judge a frame on.
+const MIN_PANE_PX = 280;
 
 // Independent <video> elements drift apart as they play -- measured at about 1.75
 // frames after a second and a half. A comparison is worthless if the panes are not on
@@ -48,6 +61,42 @@ const LABELS: Record<string, string> = {
 
 function label(name: string): string {
   return LABELS[name] ?? name.replaceAll("_", " ");
+}
+
+/** The room the panes have: the grid's width, and the window's height below its top. */
+type Space = { width: number; height: number };
+
+/**
+ * The grid's columns. Every pane on the screen at once, at the largest square that allows,
+ * since a comparison needs them all in view. Where that square would be too small, panes at
+ * least MIN_PANE_PX wide, in rows the page scrolls through.
+ *
+ * Either way the rows come out even: five panes in two rows are three and two, not four
+ * and one. The search gets that for free, since fewer columns over the same rows are never
+ * smaller and it keeps the first of equals.
+ */
+function gridColumns(panes: number, space: Space): string {
+  if (panes === 0 || space.width === 0) {
+    // Not measured yet: one row, as before the grid could measure.
+    return `repeat(${Math.max(panes, 1)}, minmax(0, 1fr))`;
+  }
+  let best = { columns: panes, size: 0 };
+  for (let columns = 1; columns <= panes; columns++) {
+    const rows = Math.ceil(panes / columns);
+    const size = Math.min(
+      (space.width - (columns - 1) * PANE_GAP_PX) / columns,
+      (space.height - (rows - 1) * PANE_GAP_PX) / rows - PANE_CHROME_PX,
+    );
+    if (size > best.size) best = { columns, size };
+  }
+  if (best.size >= MIN_FIT_PX) {
+    return `repeat(${best.columns}, ${Math.floor(best.size)}px)`;
+  }
+  const fit = Math.floor(
+    (space.width + PANE_GAP_PX) / (MIN_PANE_PX + PANE_GAP_PX),
+  );
+  const rows = Math.ceil(panes / Math.max(1, Math.min(panes, fit)));
+  return `repeat(${Math.ceil(panes / rows)}, minmax(0, 1fr))`;
 }
 
 /** Open on everything the sequence has, in the order the server lists it: the frame,
@@ -87,6 +136,25 @@ export function Viewer({
   // Read when an element attaches, which happens on React's schedule rather than inside
   // the render that chose the speed.
   const speedRef = useRef(1);
+  // The room the pane grid has, which the parameters folding away or the window changes.
+  const [space, setSpace] = useState<Space>({ width: 0, height: 0 });
+  const measureGrid = useCallback((el: HTMLDivElement) => {
+    const measure = () => {
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const width = el.clientWidth;
+      const height = window.innerHeight - top - TRANSPORT_PX;
+      setSpace((was) =>
+        was.width === width && was.height === height ? was : { width, height },
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
 
   // A new sequence rewinds the transport. Adjusting state during render rather than in an
   // effect is React's own recommendation for state that has to follow a prop: an effect
@@ -242,162 +310,155 @@ export function Viewer({
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <div className="flex items-start gap-4 max-lg:flex-col">
-        <div className="grid min-w-0 flex-1 auto-cols-fr grid-flow-col items-start gap-4 max-lg:w-full max-lg:grid-flow-row">
-          {panes.map((pane) => {
-            const stream = streamFor(pane);
-            const info = sequence.streams[stream];
-            // The server names its default. Deriving it from the order of `colormaps`
-            // would make adding one whose name sorts last change this silently.
-            const colormap = pane.colormap || info.default || "";
-            return (
-              <figure key={pane.key} className="flex min-w-0 flex-col gap-2">
-                <figcaption className="flex items-center gap-2">
+      <div
+        ref={measureGrid}
+        className="grid items-start gap-4"
+        style={{
+          gridTemplateColumns: gridColumns(panes.length, space),
+        }}
+      >
+        {panes.map((pane) => {
+          const stream = streamFor(pane);
+          const info = sequence.streams[stream];
+          // The server names its default. Deriving it from the order of `colormaps`
+          // would make adding one whose name sorts last change this silently.
+          const colormap = pane.colormap || info.default || "";
+          return (
+            <figure key={pane.key} className="flex min-w-0 flex-col gap-2">
+              <figcaption className="flex items-center gap-2">
+                <Select
+                  value={stream}
+                  onValueChange={(v) =>
+                    setPanes((c) =>
+                      c.map((p) =>
+                        p.key === pane.key
+                          ? { ...p, stream: v, colormap: "" }
+                          : p,
+                      ),
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    aria-label="Stream"
+                    size="sm"
+                    className="min-w-0"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {names.map((n) => (
+                      <SelectItem key={n} value={n}>
+                        {label(n)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {info.colormaps.length > 0 && (
                   <Select
-                    value={stream}
+                    value={colormap}
                     onValueChange={(v) =>
                       setPanes((c) =>
                         c.map((p) =>
-                          p.key === pane.key
-                            ? { ...p, stream: v, colormap: "" }
-                            : p,
+                          p.key === pane.key ? { ...p, colormap: v } : p,
                         ),
                       )
                     }
                   >
                     <SelectTrigger
-                      aria-label="Stream"
+                      aria-label="Colormap"
                       size="sm"
                       className="min-w-0"
                     >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {names.map((n) => (
-                        <SelectItem key={n} value={n}>
-                          {label(n)}
+                      {info.colormaps.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {label(c)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-
-                  {info.colormaps.length > 0 && (
-                    <Select
-                      value={colormap}
-                      onValueChange={(v) =>
-                        setPanes((c) =>
-                          c.map((p) =>
-                            p.key === pane.key ? { ...p, colormap: v } : p,
-                          ),
-                        )
-                      }
-                    >
-                      <SelectTrigger
-                        aria-label="Colormap"
-                        size="sm"
-                        className="min-w-0"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {info.colormaps.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {label(c)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  {panes.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Close ${label(stream)} pane`}
-                      className="text-muted-foreground ml-auto"
-                      onClick={() => {
-                        videos.current.delete(pane.key);
-                        setPanes((c) => c.filter((p) => p.key !== pane.key));
-                      }}
-                    >
-                      Close
-                    </Button>
-                  )}
-                </figcaption>
-
-                <div className="border-border bg-card aspect-square overflow-hidden rounded-lg border">
-                  <video
-                    key={sequence.id}
-                    ref={(el) => registerVideo(pane.key, el)}
-                    className="h-full w-full object-contain"
-                    src={streamUrl(info, colormap || undefined)}
-                    loop
-                    muted
-                    playsInline
-                    preload="metadata"
-                    onLoadedMetadata={(e) => {
-                      setDuration(e.currentTarget.duration);
-                      if (restoredSequence.current !== sequence.id) {
-                        // First load of a new sequence: the transport is at the start and
-                        // nothing should resume on its own.
-                        restoredSequence.current = sequence.id;
-                        timeRef.current = 0;
-                        playingRef.current = false;
-                        return;
-                      }
-                      // A stream or colormap change swapped src on an element React
-                      // kept, which resets it. Put it back where the transport is and
-                      // resume with the others, or this pane silently stops driving
-                      // the ones that follow it.
-                      e.currentTarget.currentTime = timeRef.current;
-                      if (playingRef.current) void e.currentTarget.play();
-                    }}
-                    onTimeUpdate={(e) => {
-                      // Only the first pane reports, or the panes fight over the value.
-                      const lead = videos.current.values().next().value;
-                      if (lead !== e.currentTarget) return;
-                      const at = e.currentTarget.currentTime;
-                      timeRef.current = at;
-                      setTime(at);
-                      videos.current.forEach((v) => {
-                        if (
-                          v !== e.currentTarget &&
-                          Math.abs(v.currentTime - at) > SYNC_TOLERANCE_SECONDS
-                        ) {
-                          v.currentTime = at;
-                        }
-                      });
-                    }}
-                  />
-                </div>
-
-                {stream === "disparity" && (
-                  <SpectralScale colormap={colormap} />
                 )}
-                {stream === "alpha" && (
-                  <ObjectLegend colors={sequence.object_colors} />
-                )}
-              </figure>
-            );
-          })}
-        </div>
 
-        {panes.length < MAX_PANES && names.length > 0 && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addPane}
-            className="text-muted-foreground mt-9 shrink-0 border-dashed max-lg:mt-0 max-lg:w-full"
-          >
-            Add pane
-          </Button>
-        )}
+                {panes.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Close ${label(stream)} pane`}
+                    className="text-muted-foreground ml-auto"
+                    onClick={() => {
+                      videos.current.delete(pane.key);
+                      setPanes((c) => c.filter((p) => p.key !== pane.key));
+                    }}
+                  >
+                    Close
+                  </Button>
+                )}
+              </figcaption>
+
+              <div className="border-border bg-card aspect-square overflow-hidden rounded-lg border">
+                <video
+                  key={sequence.id}
+                  ref={(el) => registerVideo(pane.key, el)}
+                  className="h-full w-full object-contain"
+                  src={streamUrl(info, colormap || undefined)}
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  onLoadedMetadata={(e) => {
+                    setDuration(e.currentTarget.duration);
+                    if (restoredSequence.current !== sequence.id) {
+                      // First load of a new sequence: the transport is at the start and
+                      // nothing should resume on its own.
+                      restoredSequence.current = sequence.id;
+                      timeRef.current = 0;
+                      playingRef.current = false;
+                      return;
+                    }
+                    // A stream or colormap change swapped src on an element React
+                    // kept, which resets it. Put it back where the transport is and
+                    // resume with the others, or this pane silently stops driving
+                    // the ones that follow it.
+                    e.currentTarget.currentTime = timeRef.current;
+                    if (playingRef.current) void e.currentTarget.play();
+                  }}
+                  onTimeUpdate={(e) => {
+                    // Only the first pane reports, or the panes fight over the value.
+                    const lead = videos.current.values().next().value;
+                    if (lead !== e.currentTarget) return;
+                    const at = e.currentTarget.currentTime;
+                    timeRef.current = at;
+                    setTime(at);
+                    videos.current.forEach((v) => {
+                      if (
+                        v !== e.currentTarget &&
+                        Math.abs(v.currentTime - at) > SYNC_TOLERANCE_SECONDS
+                      ) {
+                        v.currentTime = at;
+                      }
+                    });
+                  }}
+                />
+              </div>
+
+              {stream === "disparity" && <SpectralScale colormap={colormap} />}
+              {stream === "alpha" && (
+                <ObjectLegend colors={sequence.object_colors} />
+              )}
+            </figure>
+          );
+        })}
       </div>
 
       {/* Wraps on a narrow screen, where Play and the speed would otherwise leave the
-          position slider a few pixels wide. The slider and its counter wrap together. */}
-      <div className="flex flex-wrap items-center gap-4">
+          position slider a few pixels wide. The slider and its counter wrap together.
+          Held at the bottom of the window, so it stays in reach when the panes take two
+          rows and the page scrolls. */}
+      <div className="bg-background sticky bottom-0 z-10 flex flex-wrap items-center gap-4 py-3">
         <Button
           type="button"
           variant="outline"
@@ -436,6 +497,17 @@ export function Viewer({
             {frameIndex + 1} / {sequence.frames}
           </span>
         </div>
+        {/* Here rather than beside the panes, where it took a column's width from them. */}
+        {panes.length < MAX_PANES && names.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addPane}
+            className="text-muted-foreground border-dashed"
+          >
+            Add pane
+          </Button>
+        )}
       </div>
 
       <dl className="text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">

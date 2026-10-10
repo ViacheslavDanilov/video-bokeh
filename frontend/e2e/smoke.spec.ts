@@ -194,3 +194,41 @@ test("clears a failed library read once one works", async ({ page }) => {
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
   await expect(alert).toHaveCount(0);
 });
+
+/**
+ * Five panes are too many for one row beside the parameters in a 1280 px window, so they
+ * wrap, and into rows of three and two rather than four and one.
+ */
+test("wraps five panes into rows of three and two", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+
+  const add = page.getByRole("button", { name: "Add pane" });
+  await add.click();
+  await add.click();
+  await expect(videos).toHaveCount(5);
+
+  const rows = async () => {
+    const tops = await videos.evaluateAll((els) =>
+      els.map((el) => Math.round(el.getBoundingClientRect().top)),
+    );
+    return [...new Set(tops)].map(
+      (top) => tops.filter((t) => t === top).length,
+    );
+  };
+  await expect.poll(rows).toEqual([3, 2]);
+
+  // Too low a window to show them all at a useful size: the panes take the width and the
+  // page scrolls instead, and the rows still come out even, where four would fit across.
+  await page.setViewportSize({ width: 1512, height: 450 });
+  await expect
+    .poll(async () => ({
+      rows: await rows(),
+      wide: (await videos.first().boundingBox())!.width > 300,
+    }))
+    .toEqual({ rows: [3, 2], wide: true });
+});

@@ -42,9 +42,11 @@ without rebuilding.
   defaults, 80 frames at 512 px with four to five objects, 7 to 11 seconds, and 16 to 21 with
   the bokeh. Asking twice for the same sequence returns it in milliseconds, because the
   sequence id is a hash and the directory on disk is the cache.
-- **Compare** — up to four panes, each showing any stream, all driven by one transport so
+- **Compare** — up to six panes, each showing any stream, all driven by one transport so
   the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
   at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.
+  The panes are laid out to fit the window together at the largest size that allows, in rows
+  of even length; only on a small screen do they scroll, with the transport held at the bottom.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.
