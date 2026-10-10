@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from pathlib import Path
 
+import imageio.v2 as iio
 import numpy as np
 import pytest
 from fake_bokeh import render_fake_bokeh
@@ -162,7 +163,7 @@ def test_generates_a_sequence_and_lists_its_streams(client: TestClient) -> None:
     assert body["cached"] is False
     assert body["frames"] == 3
     assert 1 <= body["n_objects"] <= 2
-    assert set(body["streams"]) == {"all_in_focus", "alpha", "disparity"}
+    assert set(body["streams"]) == {"all_in_focus", "alpha", "disparity", "flow"}
     assert (
         body["streams"]["disparity"]["url"] == f"/sequences/{body['id']}/disparity.mp4"
     )
@@ -479,7 +480,13 @@ def test_bokeh_joins_the_streams_once_rendered(
 
     again = client.post("/sequences", json=SEQUENCE_BODY).json()
     assert again["cached"] is True
-    assert list(again["streams"]) == ["all_in_focus", "alpha", "disparity", "bokeh"]
+    assert list(again["streams"]) == [
+        "all_in_focus",
+        "alpha",
+        "disparity",
+        "bokeh",
+        "flow",
+    ]
     assert again["streams"]["bokeh"] == {
         "url": f"/sequences/{first['id']}/bokeh.mp4",
         "colormaps": [],
@@ -559,7 +566,13 @@ def test_generating_renders_the_bokeh_with_the_sequence(
 ) -> None:
     client = client_of(library, render_bokeh=True)
     body = client.post("/sequences", json=SEQUENCE_BODY).json()
-    assert list(body["streams"]) == ["all_in_focus", "alpha", "disparity", "bokeh"]
+    assert list(body["streams"]) == [
+        "all_in_focus",
+        "alpha",
+        "disparity",
+        "bokeh",
+        "flow",
+    ]
     record = json.loads(
         (tmp_path / "sequences" / body["id"] / "bokeh" / "focus.json").read_text(),
     )
@@ -589,3 +602,60 @@ def test_without_torch_a_sequence_comes_without_bokeh(
     client = client_of(library, render_bokeh=True)
     streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
     assert "bokeh" not in streams
+
+
+# --- flow ------------------------------------------------------------------ #
+
+
+def test_a_sequence_comes_with_its_flow(client: TestClient) -> None:
+    flow = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]["flow"]
+    assert flow["colormaps"] == []
+    assert flow["default"] is None
+
+
+def _frame_count(video: bytes, tmp_path: Path) -> int:
+    path = tmp_path / "video.mp4"
+    path.write_bytes(video)
+    with iio.get_reader(path) as reader:
+        return sum(1 for _ in reader)
+
+
+def test_the_flow_video_is_as_long_as_the_frames(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """Three frames have two flow fields, and the video still plays three, in step with
+    the panes beside it.
+    """
+    body = client.post("/sequences", json=SEQUENCE_BODY).json()
+    response = client.get(body["streams"]["flow"]["url"])
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp4"
+    frames = client.get(body["streams"]["all_in_focus"]["url"]).content
+    assert _frame_count(response.content, tmp_path) == _frame_count(frames, tmp_path)
+    assert _frame_count(frames, tmp_path) == SEQUENCE_BODY["frames"]
+
+
+def test_a_cached_sequence_without_flow_gets_it_when_asked_again(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """As a sequence generated before flow came with it."""
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    flow_dir = tmp_path / "sequences" / sid / "flow"
+    written = sorted(p.name for p in flow_dir.iterdir())
+    shutil.rmtree(flow_dir)
+
+    again = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert again["cached"] is True
+    assert "flow" in again["streams"]
+    assert sorted(p.name for p in flow_dir.iterdir()) == written
+
+
+def test_a_single_frame_has_no_flow_even_when_asked_again(client: TestClient) -> None:
+    """One frame moves nowhere. Asked again, the sequence must not grow an empty flow/,
+    which the viewer would open a pane for and the video endpoint answer 404 to.
+    """
+    body = {**SEQUENCE_BODY, "frames": 1}
+    assert "flow" not in client.post("/sequences", json=body).json()["streams"]
+    assert "flow" not in client.post("/sequences", json=body).json()["streams"]

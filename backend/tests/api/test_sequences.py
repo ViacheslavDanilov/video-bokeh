@@ -53,6 +53,16 @@ def test_writes_the_three_streams(library: Path, tmp_path: Path) -> None:
         assert len(frames) == BASE.frames, stream
 
 
+def test_writes_the_flow_of_every_frame_but_the_last(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    result = ensure_sequence(library, "libaaa", tmp_path / "sequences", BASE)
+    frames = sorted(p.name for p in (result.path / "all_in_focus").iterdir())
+    flows = sorted(p.name for p in (result.path / "flow").iterdir())
+    assert flows == frames[:-1]
+
+
 def test_reports_how_many_objects_it_placed(library: Path, tmp_path: Path) -> None:
     result = ensure_sequence(library, "libaaa", tmp_path / "sequences", BASE)
     assert BASE.n_objects_min <= result.n_objects <= BASE.n_objects_max

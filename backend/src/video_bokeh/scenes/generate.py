@@ -40,6 +40,7 @@ from video_bokeh.core._sequence_geometry import SampleConfig
 from video_bokeh.core._streams import (
     BOKEH_STRENGTH,
     quantize_alpha,
+    staged_stream,
     write_alpha_tiff,
     write_bokeh,
     write_disparity_png,
@@ -186,6 +187,25 @@ def write_bokeh_stream(
     names = [f"{_frame_stem(i, scene.n_frames)}.png" for i in range(scene.n_frames)]
     record = bokeh_record(focus_object, zf, strength)
     write_bokeh(seq_dir, zip(names, images, strict=True), record, replace=replace)
+
+
+def write_flow_stream(seq_dir: Path, scene: Scene) -> None:
+    """Write a written sequence's optical flow from its scene into ``flow/``.
+
+    For a sequence written without it. The frames are rendered again one at a time, and
+    the stream appears whole or not at all, through ``staged_stream``. A ``flow/`` that
+    appeared meanwhile, from another request for the same sequence, is kept.
+
+    A single frame moves nowhere and writes nothing, as ``write_sequence`` writes no
+    ``flow/`` for it.
+    """
+    if scene.n_frames < 2:
+        return
+    with staged_stream(seq_dir, "flow", replace=False) as staging:
+        for fi, frame in enumerate(iter_frames(scene, flow=True)):
+            if frame.flow is not None:
+                stem = _frame_stem(fi, scene.n_frames)
+                write_flow_png(staging / f"{stem}.png", frame.flow)
 
 
 def _measured(

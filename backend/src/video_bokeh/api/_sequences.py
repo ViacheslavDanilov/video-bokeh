@@ -18,6 +18,7 @@ import tempfile
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
 from video_bokeh.core._focus import frame_focus
@@ -31,13 +32,15 @@ from video_bokeh.scenes._compositor import (
 from video_bokeh.scenes.generate import (
     sample_sequence,
     write_bokeh_stream,
+    write_flow_stream,
     write_sequence,
 )
 
 _ID_CHARS = 16
 _META = "sequence.json"
 
-#: Streams a sequence writes.
+#: Streams every sequence writes, whatever its length. Flow, written with it unless it is a
+#: single frame, and bokeh are `OPTIONAL_STREAMS`.
 STREAMS = ("all_in_focus", "alpha", "disparity")
 
 #: Servable as video, in the order a person reads them: the frame, who is in it, and
@@ -51,12 +54,22 @@ VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 #: all. It is served once it is there.
 BOKEH = "bokeh"
 
+#: The optical flow stream, written with every sequence, and added to one generated before
+#: flow came with it. Listed once it is there, as bokeh is.
+FLOW = "flow"
+
+#: Served once a sequence has them, after `VIDEO_STREAMS`, in this order.
+OPTIONAL_STREAMS = (BOKEH, FLOW)
+
 
 def video_streams(sequence_dir: Path) -> list[str]:
-    """The streams of this sequence that can be served, bokeh among them once rendered."""
+    """The streams of this sequence that can be served, the optional ones among them once
+    they are written.
+    """
     streams = list(VIDEO_STREAMS)
-    if (sequence_dir / BOKEH).is_dir():
-        streams.append(BOKEH)
+    for optional in OPTIONAL_STREAMS:
+        if (sequence_dir / optional).is_dir():
+            streams.append(optional)
     return streams
 
 
@@ -173,6 +186,13 @@ def _add_bokeh(dest: Path, library_root: Path, request: SequenceRequest) -> None
     write_bokeh_stream(dest, scene, request.seed, focus, replace=False)
 
 
+def _add_flow(dest: Path, library_root: Path, request: SequenceRequest) -> None:
+    """Write the flow of a sequence already on disk, from its scene: for one generated
+    before flow came with it.
+    """
+    write_flow_stream(dest, _scene(library_root, request))
+
+
 def ensure_sequence(
     library_root: Path,
     library_id: str,
@@ -184,8 +204,9 @@ def ensure_sequence(
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
 
-    With ``bokeh``, the sequence comes with its bokeh stream: rendered with it when it is
-    generated, or added to it when a cached one has none. Needs torch.
+    The sequence comes with its optical flow, written with it, or added to a cached one
+    that has none. With ``bokeh``, which needs torch, it comes with its bokeh stream the
+    same way.
 
     Generation writes to a temporary directory beside the destination and renames it
     into place, so a sequence is either absent or complete. That is what makes a crashed
@@ -196,6 +217,9 @@ def ensure_sequence(
     dest = sequences_root / sid
     cached = _read_cached(dest, sid)
     if cached is not None:
+        # A single frame has no flow, so it is never missing one.
+        if request.frames > 1 and not (dest / FLOW).is_dir():
+            _add_flow(dest, library_root, request)
         if bokeh and not (dest / BOKEH).is_dir():
             _add_bokeh(dest, library_root, request)
         return cached
@@ -208,7 +232,7 @@ def ensure_sequence(
             library_root,
             library_id,
             request,
-            _render or render_scene,
+            _render or partial(render_scene, flow=True),
             bokeh,
         )
         try:

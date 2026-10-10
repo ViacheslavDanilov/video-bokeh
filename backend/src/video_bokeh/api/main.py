@@ -4,10 +4,12 @@ Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B i
 CPU work measured in seconds, and the sequence id is a hash of the request and the
 library, so the cache is the directory on disk and there is no database.
 
-A generated sequence comes with its bokeh, rendered in the same request by the layered
-renderer, when torch is installed and ``VIDEO_BOKEH_RENDER_BOKEH`` does not turn it off.
-Without torch, as in the browser smoke test's install, sequences come without it, and a
-bokeh stream Stage C writes into one later is served once it is there.
+A generated sequence comes with its optical flow, written in the same request.
+
+It comes with its bokeh too, rendered in the same request by the layered renderer, when
+torch is installed and ``VIDEO_BOKEH_RENDER_BOKEH`` does not turn it off. Without torch,
+as in the browser smoke test's install, sequences come without bokeh, and a bokeh stream
+Stage C writes into one later is served once it is there.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from video_bokeh.api._library import (
     summarize_all,
 )
 from video_bokeh.api._sequences import (
-    BOKEH,
+    OPTIONAL_STREAMS,
     VIDEO_STREAMS,
     SequenceRequest,
     SequenceUnsatisfiableError,
@@ -71,6 +73,12 @@ _MAX_FRAMES = 240
 #: On 2026-10-10, with four objects, the second took 31 s and peaked at 3.3 GiB without
 #: bokeh, and 69 s and 4.9 GiB with it, on the same machine: the bokeh pass renders the
 #: frames again a few at a time, after the first pass's are freed.
+#:
+#: On 2026-10-11 the optical flow every sequence now carries, eight bytes a pixel held with
+#: each frame, raised the second's peak from 3.18 to 3.85 GiB without bokeh, and its time
+#: from 21.8 to 30.4 s, each pair measured back to back on the same machine. Timings move
+#: by a third between sessions, hence the 31 s above. With bokeh, the peak stayed at
+#: 4.67 GiB, against 4.68 without flow: it is the bokeh pass's, after the frames are freed.
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
@@ -290,10 +298,11 @@ def read_sequence_video(
     itself, which is also what keeps it from naming a path outside `sequences/`.
 
     `colormap` applies to `disparity` only -- it is 16-bit grey on disk and gets its
-    colour here. Every other stream is already RGB, so the parameter is dropped
-    rather than forking that stream's cache into identical copies.
+    colour here. Every other stream has one rendering, RGB already or, for `flow`, the
+    colours optical-flow papers use, so the parameter is dropped rather than forking
+    that stream's cache into identical copies.
     """
-    if stream not in (*VIDEO_STREAMS, BOKEH):
+    if stream not in (*VIDEO_STREAMS, *OPTIONAL_STREAMS):
         raise HTTPException(status_code=404, detail=f"no video for stream {stream!r}")
     if colormap not in COLORMAPS:
         raise HTTPException(

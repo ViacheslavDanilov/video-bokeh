@@ -20,9 +20,9 @@ test("generates a sequence and decodes every stream", async ({ page }) => {
 
   await page.getByRole("button", { name: "Generate sequence" }).click();
 
-  // all_in_focus, alpha and disparity: one pane per stream the sequence has.
+  // all_in_focus, alpha, disparity and flow: one pane per stream the sequence has.
   const videos = page.locator("video");
-  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
   // readyState 2 is HAVE_CURRENT_DATA: the file arrived and a frame was decoded.
   await expect
@@ -53,7 +53,7 @@ test("sets every pane to the chosen speed", async ({ page }) => {
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
   await page.getByRole("button", { name: "Generate sequence" }).click();
   const videos = page.locator("video");
-  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
   const rates = () =>
     videos.evaluateAll((els) =>
@@ -62,7 +62,7 @@ test("sets every pane to the chosen speed", async ({ page }) => {
 
   await page.getByRole("combobox", { name: "Playback speed" }).click();
   await page.getByRole("option", { name: "0.5×" }).click();
-  await expect.poll(rates).toEqual([0.5, 0.5, 0.5]);
+  await expect.poll(rates).toEqual([0.5, 0.5, 0.5, 0.5]);
 
   await page.getByRole("combobox", { name: "Stream" }).first().click();
   await page.getByRole("option", { name: "Disparity" }).click();
@@ -71,7 +71,7 @@ test("sets every pane to the chosen speed", async ({ page }) => {
       videos.first().evaluate((el) => (el as HTMLVideoElement).currentSrc),
     )
     .toContain("disparity");
-  await expect.poll(rates).toEqual([0.5, 0.5, 0.5]);
+  await expect.poll(rates).toEqual([0.5, 0.5, 0.5, 0.5]);
 });
 
 /**
@@ -90,7 +90,7 @@ test("generates from the depth estimator picked", async ({ page }) => {
   await expect(header.getByText("depth-pro")).toBeVisible();
 
   await page.getByRole("button", { name: "Generate sequence" }).click();
-  await expect(page.locator("video")).toHaveCount(3, { timeout: 60_000 });
+  await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
   const shown = page.getByRole("definition").filter({ hasText: "depth-pro" });
   await expect(shown).toBeVisible();
 
@@ -113,7 +113,7 @@ test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
   const generate = page.getByRole("button", { name: "Generate sequence" });
   await generate.click();
   const videos = page.locator("video");
-  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
   const id = await page
     .locator("dt", { hasText: /^sequence$/ })
@@ -131,13 +131,14 @@ test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
   ]);
 
   await generate.click();
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  // After the panes already open, flow among them.
+  await expect(videos).toHaveCount(5, { timeout: 60_000 });
   await expect(
-    page.getByRole("combobox", { name: "Stream" }).nth(3),
+    page.getByRole("combobox", { name: "Stream" }).nth(4),
   ).toHaveText("Bokeh");
   await expect
     .poll(
-      () => videos.nth(3).evaluate((el) => (el as HTMLVideoElement).readyState),
+      () => videos.nth(4).evaluate((el) => (el as HTMLVideoElement).readyState),
       { timeout: 60_000 },
     )
     .toBeGreaterThanOrEqual(2);
@@ -171,7 +172,7 @@ test("lists a library built while the page is open", async ({ page }) => {
     await page.getByRole("option", { name: /extra/ }).click();
     await page.getByRole("spinbutton", { name: "Seed" }).fill("11");
     await page.getByRole("button", { name: "Generate sequence" }).click();
-    await expect(page.locator("video")).toHaveCount(3, { timeout: 60_000 });
+    await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
     await expect(
       page.getByRole("definition").filter({ hasText: "da2-large, extra" }),
     ).toBeVisible();
@@ -258,11 +259,9 @@ test("wraps five panes into rows of three and two", async ({ page }) => {
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
   await page.getByRole("button", { name: "Generate sequence" }).click();
   const videos = page.locator("video");
-  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
-  const add = page.getByRole("button", { name: "Add pane" });
-  await add.click();
-  await add.click();
+  await page.getByRole("button", { name: "Add pane" }).click();
   await expect(videos).toHaveCount(5);
 
   const rows = async () => {
