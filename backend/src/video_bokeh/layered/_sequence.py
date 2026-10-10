@@ -102,7 +102,7 @@ def _render_chunk(
     device: torch.device,
 ) -> Iterator[Image.Image]:
     def stacked(arrays: list[np.ndarray]) -> torch.Tensor:
-        return torch.from_numpy(np.stack(arrays).astype(np.float32)).to(device)
+        return torch.from_numpy(np.stack(arrays, dtype=np.float32)).to(device)
 
     out = render_bokeh(
         stacked([f.background for f in frames]),
