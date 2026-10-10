@@ -31,9 +31,16 @@ class FrameFocus:
     fallback: float
 
 
-def frame_focus(masks: Sequence[np.ndarray], disparity: np.ndarray) -> FrameFocus:
-    """Measure one frame. ``masks`` are boolean, one per object in page order."""
-    visible = visible_masks(list(masks))
+#: An alpha above this counts as the object's pixel.
+_SHOWN = 0.5
+
+
+def frame_focus(alphas: Sequence[np.ndarray], disparity: np.ndarray) -> FrameFocus:
+    """Measure one frame. ``alphas`` are the objects' alpha masks in ``[0, 1]``, in page
+    order; a pixel above one half belongs to its object.
+    """
+    masks = [a > _SHOWN for a in alphas]
+    visible = visible_masks(masks)
     union = np.zeros(disparity.shape, dtype=bool)
     for mask in masks:
         union |= mask
@@ -66,7 +73,7 @@ def focus_track(
     return chosen, held
 
 
-def focus_seed(scene_seed: int | None, name: str) -> int:
+def focus_seed(scene_seed: int | None, name: str = "") -> int:
     """The seed of the focus draw.
 
     The scene's own seed, so a scene focuses on the same object wherever it is rendered:

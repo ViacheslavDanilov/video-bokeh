@@ -86,7 +86,7 @@ def _focus(
         return None, [focus_disparity] * len(names)
     stats = [
         frame_focus(
-            [page > 0.5 for page in read_alpha_tiff(seq / "alpha" / _tif(name))],
+            read_alpha_tiff(seq / "alpha" / _tif(name)),
             read_disparity_png(seq / "disparity" / name),
         )
         for name in names

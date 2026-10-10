@@ -135,13 +135,13 @@ class SequenceInputs:
 
 def _frame_focus(alpha_path: Path, disp_u8: np.ndarray) -> FrameFocus:
     """The focus rule's view of one frame, from its alpha pages and 8-bit disparity."""
-    masks = [page > 0.5 for page in read_alpha_tiff(alpha_path)]
-    if masks and masks[0].shape != disp_u8.shape:
+    pages = read_alpha_tiff(alpha_path)
+    if pages and pages[0].shape != disp_u8.shape:
         raise ValueError(
-            f"alpha shape {masks[0].shape} does not match disparity shape "
+            f"alpha shape {pages[0].shape} does not match disparity shape "
             f"{disp_u8.shape}: {alpha_path}",
         )
-    return frame_focus(masks, disp_u8 / 255.0)
+    return frame_focus(pages, disp_u8 / 255.0)
 
 
 def _write_sequence(
