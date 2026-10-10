@@ -173,13 +173,15 @@ that holds it, written by Stage B in the same pass or by Stage C afterwards.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
-What renders a sequence's bokeh stream: the layered renderer, which blurs each layer on its
-own in Stage B's pass or in Stage C, or any-to-bokeh, in Stage C only.
+What renders a sequence's bokeh stream: the layered renderer, the default, which blurs each
+layer on its own in Stage B's pass or in Stage C, or any-to-bokeh, in Stage C only, for
+comparison.
 _Avoid_: bokeh model
 
 **any-to-bokeh**:
 The first bokeh renderer: external code that turns an all-in-focus stream and its disparity
-into bokeh.
+into bokeh. It runs offline only, so it cannot join the end-to-end pass, and it stays for
+comparison.
 
 **Focus disparity**:
 The disparity that stays sharp in a bokeh render.

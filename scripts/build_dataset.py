@@ -71,8 +71,13 @@ def _summarize(dataset: Path) -> None:
     )
     print("\nNext, if you want bokeh:\n")
     print(
-        f"  cd backend && uv run python -m video_bokeh.bridge.any_to_bokeh "
-        f"--data-root {dataset.relative_to(_BACKEND)}",
+        "  Ours needs the layers, which this script does not write: run Stage B with\n"
+        "  --bokeh, as section 5 of docs/how-to/generate-a-dataset.md shows. any-to-bokeh,\n"
+        "  kept for comparison, renders this tree as it is on an NVIDIA card:\n",
+    )
+    print(
+        f"  cd backend && uv run --extra render python -m video_bokeh.render.run "
+        f"--data-root {dataset.relative_to(_BACKEND)} --renderer any-to-bokeh",
     )
 
 

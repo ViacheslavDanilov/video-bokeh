@@ -21,7 +21,8 @@ On the machine with the NVIDIA card, after `scripts/setup_third_party.sh`, Stage
 conversion and the inference in one go and writes each sequence's `bokeh/` stream:
 
 ```bash
-uv run --extra render python -m video_bokeh.render.run --data-root data/demo
+uv run --extra render python -m video_bokeh.render.run --data-root data/demo \
+  --renderer any-to-bokeh
 ```
 
 It keeps its inputs and the script's `output/` in a temporary directory, so the submodule stays

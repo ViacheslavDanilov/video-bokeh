@@ -82,9 +82,11 @@ time, `docs/how-to/generate-a-dataset.md`.
 
 ### Render bokeh after the pipeline finishes
 
-Stage C writes each sequence's `bokeh/` stream through any-to-bokeh, on a machine with an NVIDIA
-card and after `setup_third_party.sh`. The command, and how far it has been run, are in
-`docs/how-to/run-any-to-bokeh-inference.md`.
+`build_dataset.py` writes no `layers/`, so Stage C's default, the layered renderer, refuses its
+output. For our bokeh, run Stage B with `--bokeh`, or with `--layers` and then Stage C, as
+section 5 of `docs/how-to/generate-a-dataset.md` shows. any-to-bokeh, kept for comparison,
+renders the output as it is, with `--renderer any-to-bokeh` on a machine with an NVIDIA card
+after `setup_third_party.sh`: `docs/how-to/run-any-to-bokeh-inference.md`.
 
 ## Run everything on the lab machine
 
