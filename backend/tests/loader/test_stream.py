@@ -17,6 +17,7 @@ from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
     read_disparity_tiff,
+    read_flow_png,
     read_paint_order,
     read_rgb_tiff,
 )
@@ -329,6 +330,28 @@ def test_the_bokeh_stream_has_fixed_shapes(library: Path) -> None:
     assert 0.0 <= float(item["bokeh"].min()) and float(item["bokeh"].max()) <= 1.0
     assert item["focus_disparity"].shape == (FRAMES,)
     assert item["focus_object"] in range(-1, item["n_objects"])
+
+
+def test_the_flow_stream_is_the_written_flow(library: Path, tmp_path: Path) -> None:
+    generate_dataset(
+        library,
+        tmp_path / "out",
+        1,
+        FRAMES,
+        SIZE,
+        seed=1,
+        n_objects_max=2,
+        flow=True,
+    )
+    flow_dir = tmp_path / "out" / "sequences" / "0001" / "flow"
+    item = next(iter(_stream(library, seed=1, streams=("flow",))))
+    assert item["flow"].shape == (FRAMES - 1, 2, SIZE, SIZE)
+    assert item["flow"].dtype == torch.float32
+    written = np.stack(
+        [read_flow_png(p)[0] for p in sorted(flow_dir.iterdir())],
+    ).transpose(0, 3, 1, 2)
+    assert np.abs(written - item["flow"].numpy()).max() <= 0.5 / 64 + 1e-6
+    assert set(item) == {"flow", "n_objects", "seed"}
 
 
 def test_the_bokeh_is_the_renderer_on_the_item_s_own_layers(library: Path) -> None:
