@@ -87,7 +87,8 @@ uv run python -m video_bokeh.library.build \
 #    Writes all_in_focus/*.png (RGB), alpha/*.tif (one page per object)
 #    and disparity/*.png (uint16), and with --layers the layers/ stream the
 #    layered renderer needs. --bokeh renders each sequence's bokeh in the same
-#    run, from the layers in memory. See docs/reference/dataset-layout.md.
+#    run, from the layers in memory, and --flow writes its exact optical flow.
+#    See docs/reference/dataset-layout.md.
 uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev --output data/synth_dev \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5 --layers

@@ -65,6 +65,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_boke
     ├── alpha/<frame>.tif          multi-page uint8, one page per object
     ├── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
     ├── layers/                                   optional, written with --layers
+    ├── flow/<frame>.png           RGB    uint16  optional, written with --flow
     └── bokeh/<frame>.png          RGB    uint8   optional, by --bokeh or Stage C
 ```
 
@@ -144,6 +145,34 @@ machine on 2026-10-10, five 80-frame sequences at 1024 × 1024 with 1 to 5 objec
 Of the 2.03 MiB the layers add, the background's colour is 1.14 MiB: it is a second
 all-in-focus frame. Its disparity is 0.22 MiB. The object pages are mostly empty and compress
 to 0.44 MiB for colour and 0.23 MiB for disparity.
+
+### The flow stream — optional
+
+`flow/` holds each frame's forward optical flow to the next, written by `scenes.generate --flow`
+in the same pass as the frames. Every layer moves by a known homography per frame, so the flow
+is computed, not estimated.
+
+| stream | format | dtype | what a pixel means |
+|---|---|---|---|
+| `flow` | PNG, RGB | uint16 | KITTI's encoding: red `u · 64 + 2¹⁵`, green `v · 64 + 2¹⁵`, blue 1 where valid |
+
+- **Forward, frame t to t + 1, in pixels.** `(u, v)` is where the pixel's surface is in the
+  next frame minus where it is now, x to the right and y down.
+- **One file per frame but the last, named after the frame it starts from.** An 80-frame
+  sequence has `01` … `79`.
+- **The front-most surface at each pixel:** the last-painted object whose alpha is at least
+  0.5 there, else the background. The focus rule uses the same 0.5.
+- **Occlusion is not marked.** A pixel whose surface is hidden in the next frame still carries
+  its surface's motion. Valid is 0 only where a vector falls outside the ±512 px the encoding
+  holds; it is never clipped.
+- **1/64 px steps.** `read_flow_png` in `video_bokeh.core._streams` reads it back as float32.
+  **Pillow reads the file as 8-bit colour and loses the flow**, so read it with
+  `imagecodecs`, as `read_flow_png` does, or another reader that keeps 16 bits.
+- **It is optional**, and nothing else in the pipeline reads it. The loader hands out the same
+  flow, unquantized, as its `flow` stream.
+
+An 80-frame sequence at 512 px with one object took 2.2 MiB of `flow` against 37 MiB of
+`all_in_focus`, on 2026-10-10.
 
 ### The bokeh stream
 

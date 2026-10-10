@@ -115,6 +115,21 @@ Five places every scene; six starts losing them. The measured sweep is in
 [[demo-unrestricted-trajectories]], and [[dataset-layout]] says what to raise if you need
 more.
 
+### Optical flow
+
+`--flow` writes each frame's exact forward optical flow to the next into `flow/`, in the same
+pass as the frames:
+
+```bash
+uv run python -m video_bokeh.scenes.generate \
+  --library-root data/library_dev --output data/demo_flow \
+  --count 3 --frames 80 --size 512 --seed 0 --flow
+```
+
+It took 20 s on an Apple M3 Pro on 2026-10-10, against 14 s for the same three sequences
+without `--flow`. Each sequence's `flow/` holds 79 files, 2.2 to 3.5 MiB in all.
+[[dataset-layout]] has the format.
+
 ---
 
 ## 3. Read the manifest

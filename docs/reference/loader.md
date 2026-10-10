@@ -62,8 +62,8 @@ writer's defaults.
 An item holds the streams `streams` names, plus `n_objects` and `seed`. Without `streams` it
 holds `rgb`, `disparity`, `alpha` and `object_alphas`, as it always did.
 
-All tensors are float32 in `[0, 1]`, frames first, except `paint_order`. `T` is `n_frames`,
-`H` and `W` are `size`, and `N` is `n_objects_max`.
+All tensors are float32 in `[0, 1]`, frames first, except `paint_order` and `flow`. `T` is
+`n_frames`, `H` and `W` are `size`, and `N` is `n_objects_max`.
 
 | stream | key | shape | meaning |
 |---|---|---|---|
@@ -80,6 +80,7 @@ All tensors are float32 in `[0, 1]`, frames first, except `paint_order`. `T` is 
 | | `focus_object` | int | the object the focus follows, by page, or -1 when none does |
 | `bokeh` | `bokeh` | (T, 3, H, W) | the frames as the layered renderer blurs them |
 | | `focus_disparity`, `focus_object` | | the focus it blurred them at, as for `focus` |
+| `flow` | `flow` | (T − 1, 2, H, W) | each frame's forward optical flow to the next, `(u, v)` in pixels: the motion of the front-most surface, as `scenes.generate --flow` writes it, unquantized |
 | always | `n_objects` | int | objects actually placed |
 | always | `seed` | int | the seed this sequence came from |
 
@@ -102,6 +103,9 @@ stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
   `paint_order` gives back `rgb`. The layers hold `4 · (1 + n_objects_max) / 3` times as many
   floats as `rgb`, eight times at the default of five, so ask for them only when the loop uses
   them.
+- **`flow` is exact**, computed from the homographies every layer moves by, and off by default.
+  It has one field fewer than there are frames, because the last frame has no next. The
+  dataset's `flow` stream in [[dataset-layout]] holds the same flow, in 1/64 px steps.
 
 ### Bokeh
 
