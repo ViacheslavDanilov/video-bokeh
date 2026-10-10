@@ -160,7 +160,8 @@ Stage C writes with it.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
-A model that writes a sequence's bokeh stream in Stage C — any-to-bokeh so far.
+What writes a sequence's bokeh stream in Stage C: any-to-bokeh, or the layered renderer that
+blurs each layer on its own.
 _Avoid_: bokeh model
 
 **any-to-bokeh**:

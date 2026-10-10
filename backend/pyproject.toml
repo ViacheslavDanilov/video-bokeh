@@ -36,6 +36,7 @@ loader = [
 ]
 render = [
     "imageio[ffmpeg]>=2.34.0",
+    "torch>=2.5.0",
 ]
 api = [
     "video-bokeh[preview]",

@@ -24,7 +24,7 @@ Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.
 ## Features
 
 - **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity.
-- **Three swappable stages** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own), sequence generation, and bokeh (any-to-bokeh or your own).
+- **Three swappable stages** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own), sequence generation, and bokeh (any-to-bokeh, our layer-wise renderer, or your own).
 - **Training on the fly** – A PyTorch stream that generates a new sequence for every item.
 - **Web demo** – Generate a sequence and compare its streams side by side.
 
@@ -39,7 +39,7 @@ Stage A estimates depth once per asset and stores it as a library. Stage B sampl
 | Backend | Python 3.13, FastAPI, Uvicorn |
 | Frontend | TypeScript, Next.js, React, Tailwind CSS |
 | Data | NumPy, Pillow, tifffile, matplotlib |
-| Models | PyTorch and Hugging Face transformers for depth (Stage A), any-to-bokeh for bokeh (Stage C) |
+| Models | PyTorch and Hugging Face transformers for depth (Stage A); any-to-bokeh, or our layer-wise renderer in PyTorch, for bokeh (Stage C) |
 | Package Management | uv (backend), pnpm (frontend) |
 | Build & CI | Docker, Docker Compose, GitHub Actions |
 

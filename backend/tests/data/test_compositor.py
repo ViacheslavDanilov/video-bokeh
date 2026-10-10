@@ -751,9 +751,10 @@ def test_written_layers_give_back_the_written_frame(tmp_path) -> None:
             # and a half levels apart, measured under one.
             assert np.abs(rgb - aif).max() < 1.5
             written = read_disparity_png(seq / "disparity" / f"{stem}.png")
-            # The stored alpha is off by up to half an 8-bit step, which moves a soft
-            # edge's disparity by at most that much; each map adds one 16-bit step.
-            assert np.abs(disparity - written).max() <= 0.5 / 255 + 2 / 65535
+            # The fixture's alpha comes from 8-bit images, so the stored alpha is exact.
+            # Each disparity map is off by half a 16-bit step at most, so the two sides
+            # differ by one step.
+            assert np.abs(disparity - written).max() <= 1 / 65535 + 1e-6
 
 
 def test_no_layers_are_written_unless_asked(tmp_path) -> None:

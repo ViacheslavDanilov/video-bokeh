@@ -10,7 +10,8 @@ Usage:
     uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
 
 With ``--missing`` it renders only the sequences that have no ``bokeh/`` yet, and leaves
-out any shorter than the renderer can take, saying which. Pointed at the API's data root,
+out any the renderer cannot take, saying which: shorter than any-to-bokeh can group, or
+without the layers ``--renderer layered`` needs. Pointed at the API's data root,
 that renders whatever the page has generated since the last run: ``make bokeh``.
 """
 
@@ -20,7 +21,7 @@ import argparse
 from pathlib import Path
 
 from video_bokeh.bridge.any_to_bokeh import list_png_frames
-from video_bokeh.core._seq_io import list_sequences
+from video_bokeh.core._seq_io import has_layers, list_sequences
 from video_bokeh.render import RENDERERS, resolve_renderer
 
 
@@ -52,14 +53,15 @@ def _build_parser() -> argparse.ArgumentParser:
         "--strength",
         type=float,
         default=16.0,
-        help="blur strength; any-to-bokeh takes it as its k (default: 16).",
+        help="blur strength, as any-to-bokeh's k: the blur radius in pixels, at a "
+        "1024-pixel width, one unit of disparity from the focus (default: 16).",
     )
     parser.add_argument(
         "--focus-disparity",
         type=float,
         default=None,
         help="fixed in-focus disparity in [0, 1] for every frame. Default: the "
-        "renderer chooses; any-to-bokeh focuses on the objects.",
+        "focus follows one object, drawn by area.",
     )
     parser.add_argument(
         "--missing",
@@ -70,11 +72,18 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _still_missing(seq_dirs: list[Path], min_frames: int) -> list[Path]:
+def _still_missing(
+    seq_dirs: list[Path],
+    min_frames: int,
+    needs_layers: bool,
+) -> list[Path]:
     """The sequences with no bokeh yet that the renderer can take, saying what it skips."""
     todo: list[Path] = []
     for seq in seq_dirs:
         if (seq / "bokeh").is_dir():
+            continue
+        if needs_layers and not has_layers(seq):
+            print(f"  skip {seq.name}: no complete layers/, which the renderer needs")
             continue
         frames = len(list_png_frames(seq / "all_in_focus"))
         if frames < min_frames:
@@ -108,9 +117,16 @@ def main(argv: list[str] | None = None) -> int:
 
     renderer = resolve_renderer(args.renderer)()
     if args.missing:
-        seq_dirs = _still_missing(seq_dirs, getattr(renderer, "min_frames", 0))
+        seq_dirs = _still_missing(
+            seq_dirs,
+            getattr(renderer, "min_frames", 0),
+            getattr(renderer, "needs_layers", False),
+        )
         if not seq_dirs:
-            print("Nothing to render: every sequence has bokeh or is too short.")
+            print(
+                "Nothing to render: every sequence has bokeh or is one the renderer "
+                "cannot take.",
+            )
             return 0
     print(f"Rendering {len(seq_dirs)} sequence(s) with {args.renderer}")
     renderer.render(seq_dirs, args.strength, args.focus_disparity)

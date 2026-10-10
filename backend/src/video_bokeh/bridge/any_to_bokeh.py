@@ -22,15 +22,14 @@ from __future__ import annotations
 
 import argparse
 import csv
-import zlib
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
-from video_bokeh.core._seq_io import list_sequences
+from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
+from video_bokeh.core._seq_io import list_sequences, sequence_seed
 from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
 
 
@@ -134,78 +133,15 @@ class SequenceInputs:
     zf: list[float]
 
 
-def choose_focus_object(areas: Sequence[float], seed: int) -> int | None:
-    """One object, drawn with probability proportional to its area; None without any.
-
-    By area rather than the largest: large objects are usually the near ones, so the
-    largest would put the focus on the foreground almost every time. A tiny object in
-    focus leaves next to nothing sharp, which the weighting makes rare.
-    """
-    weights = np.asarray(areas, dtype=np.float64)
-    if weights.size == 0 or weights.sum() <= 0:
-        return None
-    rng = np.random.default_rng(seed)
-    return int(rng.choice(weights.size, p=weights / weights.sum()))
-
-
-def visible_masks(masks: list[np.ndarray]) -> list[np.ndarray]:
-    """Each object's pixels that no other object's mask covers.
-
-    Stage B writes each mask whole, before occlusion, and the disparity shows whichever
-    object is nearest. Where two masks overlap, the disparity may belong to either, so
-    only the pixels one mask holds alone are surely that object's. A small object in front
-    of a large one, wholly inside its mask, reads as hidden then, as a covered one does.
-    """
-    visible = []
-    for i, mask in enumerate(masks):
-        others = np.zeros_like(mask)
-        for j, other in enumerate(masks):
-            if j != i:
-                others |= other
-        visible.append(mask & ~others)
-    return visible
-
-
-def _object_focus(
-    seq_dir: Path,
-    alpha_paths: list[Path],
-    disps: list[np.ndarray],
-) -> tuple[int | None, list[float | None]]:
-    """The object the focus follows and its mean disparity per frame, None where hidden.
-
-    Both count only the pixels the object holds alone, so another object over it neither
-    pulls the focus nor adds to its area. The draw is seeded by the sequence's name, so a
-    sequence keeps its focus across runs.
-    """
-    areas: list[list[int]] = []
-    means: list[list[float | None]] = []
-    for path, disp in zip(alpha_paths, disps, strict=True):
-        masks = [page > 0.5 for page in read_alpha_tiff(path)]
-        visible = visible_masks(masks)
-        areas.append([int(v.sum()) for v in visible])
-        means.append(
-            [float(disp[v].mean()) / 255 if v.any() else None for v in visible],
+def _frame_focus(alpha_path: Path, disp_u8: np.ndarray) -> FrameFocus:
+    """The focus rule's view of one frame, from its alpha pages and 8-bit disparity."""
+    pages = read_alpha_tiff(alpha_path)
+    if pages and pages[0].shape != disp_u8.shape:
+        raise ValueError(
+            f"alpha shape {pages[0].shape} does not match disparity shape "
+            f"{disp_u8.shape}: {alpha_path}",
         )
-    n_objects = max((len(a) for a in areas), default=0)
-    totals = [
-        sum(frame[i] for frame in areas if i < len(frame)) / len(areas)
-        for i in range(n_objects)
-    ]
-    chosen = choose_focus_object(totals, zlib.crc32(seq_dir.name.encode()))
-    if chosen is None:
-        return None, [None] * len(disps)
-    return chosen, [frame[chosen] if chosen < len(frame) else None for frame in means]
-
-
-def _held(zfs: list[float | None]) -> list[float | None]:
-    """Each hidden frame keeps the last focus seen; frames before the first take it."""
-    first = next((z for z in zfs if z is not None), None)
-    held: list[float | None] = []
-    last = first
-    for z in zfs:
-        last = z if z is not None else last
-        held.append(last)
-    return held
+    return frame_focus(pages, disp_u8 / 255.0)
 
 
 def _write_sequence(
@@ -243,8 +179,14 @@ def _write_sequence(
     focus_object: int | None = None
     object_zf: list[float | None] = [None] * len(image_paths)
     if focus_disparity is None and focus == "object" and alpha_paths:
-        focus_object, object_zf = _object_focus(seq_dir, alpha_paths, disp_pngs)
-        object_zf = _held(object_zf)
+        focus_object, held_zf = focus_track(
+            [
+                _frame_focus(path, disp)
+                for path, disp in zip(alpha_paths, disp_pngs, strict=True)
+            ],
+            focus_seed(sequence_seed(seq_dir), seq_dir.name),
+        )
+        object_zf = list(held_zf)
     zfs: list[float] = []
 
     for idx, (image_path, disp_u8) in enumerate(
