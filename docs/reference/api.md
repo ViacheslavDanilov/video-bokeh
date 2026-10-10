@@ -12,9 +12,9 @@ from whichever library a request names.
 
 **A generated sequence comes with its bokeh, when torch is installed.** The API renders it in
 the same request with the layered renderer, so `POST /sequences` takes longer: on an Apple M3
-Pro on 2026-10-10, 80 frames at 512 pixels with four to five objects, seeds 0 to 2, took 7 to
-11 s without bokeh and 16 to 21 s with it. A sequence cached without bokeh gets it when it is
-asked for again. Without torch, as in the API's own
+Pro on 2026-10-11, 80 frames at 512 pixels with four to five objects, seeds 0 to 2, took 8 to
+14 s without bokeh and 16 to 25 s with it, optical flow included in both. A sequence cached
+without bokeh gets it when it is asked for again. Without torch, as in the API's own
 install, sequences come without bokeh, and `make bokeh` can still render it with Stage C;
 asking for a sequence again then lists its `bokeh` stream.
 
@@ -175,7 +175,7 @@ has.
 `flow/` in the same pass as the frames. A cached sequence generated before that gets it on its
 next request, whole or not at all.
 
-Writing the flow costs about a third more time. Measured on an Apple M3 Pro on 2026-10-11,
+Writing the flow costs about 40% more time. Measured on an Apple M3 Pro on 2026-10-11,
 80 frames, four objects, without bokeh, each pair back to back:
 
 | Size | Without flow | With flow |
@@ -183,8 +183,8 @@ Writing the flow costs about a third more time. Measured on an Apple M3 Pro on 2
 | 512 px | 5.9 s, 0.90 GiB peak | 8.5 s, 1.04 GiB peak |
 | 1024 px | 21.8 s, 3.18 GiB peak | 30.4 s, 3.85 GiB peak |
 
-With bokeh, 80 frames at 1024 px took 61.1 s without flow and 67.9 s with it. The peak stayed
-at 4.67 and 4.68 GiB, set by the bokeh pass after the frames are freed.
+With bokeh, 80 frames at 1024 px took 61.1 s without flow and 67.9 s with it. The peak went
+from 4.67 to 4.68 GiB, set by the bokeh pass after the frames are freed.
 
 **`library` may be left out only while one library is mounted.** With several, leaving it out
 answers 422 and lists the ids. An id that is not mounted answers the same way. The API never
@@ -199,9 +199,9 @@ deterministic, so the same request always names the same sequence. The cache is 
 `$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
 
 `cached` says whether this request generated the sequence or found it. A cache hit answers at
-once, 0.02 s over HTTP in the table below, unless it adds the bokeh a cached sequence lacks:
-16 to 19 s for 80 frames at 512 px with four to five objects on an Apple M3 Pro, on
-2026-10-10.
+once, 0.02 s over HTTP in the table below, unless it adds what a cached sequence lacks. For 80
+frames at 512 px with four to five objects on an Apple M3 Pro, adding the bokeh took 16 to
+19 s on 2026-10-10, and adding the flow 6 to 12 s on 2026-10-11, seeds 0 to 2.
 
 **The call blocks while it generates.** Measured on 2026-09-24, before bokeh, against
 `data/library_dev` at size 512 with four to five objects per sequence:

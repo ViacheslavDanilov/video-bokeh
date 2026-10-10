@@ -39,7 +39,7 @@ without rebuilding.
   picks a count in that range, so the same five numbers from the same library always name the
   same sequence.
 - **Generate** — one call, and it blocks while it works: on an Apple M3 Pro at the page's
-  defaults, 80 frames at 512 px with four to five objects, 7 to 11 seconds, and 16 to 21 with
+  defaults, 80 frames at 512 px with four to five objects, 8 to 14 seconds, and 16 to 25 with
   the bokeh. Asking twice for the same sequence returns it in milliseconds, because the
   sequence id is a hash and the directory on disk is the cache.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so

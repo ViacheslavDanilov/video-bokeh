@@ -77,8 +77,8 @@ _MAX_FRAMES = 240
 #: On 2026-10-11 the optical flow every sequence now carries, eight bytes a pixel held with
 #: each frame, raised the second's peak from 3.18 to 3.85 GiB without bokeh, and its time
 #: from 21.8 to 30.4 s, each pair measured back to back on the same machine. Timings move
-#: by a third between sessions, hence the 31 s above. With bokeh, the peak stayed at
-#: 4.67 GiB, against 4.68 without flow: it is the bokeh pass's, after the frames are freed.
+#: by a third between sessions, hence the 31 s above. With bokeh, the peak went from 4.67
+#: to 4.68 GiB: it is the bokeh pass's, after the frames are freed.
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
