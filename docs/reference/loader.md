@@ -133,10 +133,10 @@ layers.** Measured on the lab machine on 2026-10-10, the way the next section me
 | `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.07 |
 
 - **The workers cannot keep up.** With bokeh they deliver 0.84 items per second at 8 workers,
-  0.93 at 16 and 0.90 at 24, where without it they deliver 2.96, 3.44 and 3.40. More workers
-  do not help: the blur's transforms share the machine's memory bandwidth.
-- **The GPU route keeps 70 %.** The layers alone take the loader to 2.27 items per second;
-  rendering them on the GPU takes it to 2.07.
+  0.93 at 16 and 0.90 at 24, where without it they deliver 2.96, 3.44 and 3.40. Neither route
+  gains past 16 workers.
+- **The GPU route keeps 70 %.** The layers alone take the loader to 2.27 items per second.
+  Rendering them on the GPU takes it to 2.07.
 - **The GPU route needs GPU memory**: a batch of 4 peaked at 8.5 GiB allocated, on top of the
   network being trained.
 
@@ -174,7 +174,7 @@ Measured on the lab machine (24 cores) on 2026-10-10: 512 pixels, 24 frames, 1 t
 objects, batches of 4, 8 workers, from the 30-asset development library. A `DataLoader` keeps
 two batches per worker ready, so each run first drew twice as many batches as there are
 workers, then timed as many again, at least 15. Timed any sooner, the run measures that buffer
-rather than the workers; the figures published here before that change were up to a fifth too
+rather than the workers. The figures published here before that change were up to a quarter too
 high.
 
 | streams | items/s | MiB per item |
