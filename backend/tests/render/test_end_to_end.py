@@ -147,7 +147,7 @@ def test_bokeh_without_torch_is_refused_before_anything_is_written(
     assert not (tmp_path / "data").exists()
 
 
-@pytest.mark.parametrize("strength", [-1.0, float("nan")])
+@pytest.mark.parametrize("strength", [-1.0, float("nan"), float("inf")])
 def test_a_bad_strength_is_refused_before_anything_is_written(
     library: Path,
     tmp_path: Path,
@@ -167,15 +167,29 @@ def test_a_bad_strength_is_refused_before_anything_is_written(
     assert not (tmp_path / "data").exists()
 
 
-def test_a_sequence_longer_than_a_chunk_renders_every_frame(
+def test_rendering_in_chunks_matches_rendering_at_once(
     library: Path,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Eleven frames: one chunk of eight, then three, each at its own focus.
-    out = tmp_path / "data"
-    generate_dataset(library, out, 1, 11, SIZE, seed=0, bokeh=True, bokeh_strength=0.0)
-    (seq,) = _sequences(out)
-    frames = sorted((seq / "all_in_focus").glob("*.png"))
-    assert len(frames) == 11
-    for frame in frames:
-        assert np.abs(_pixels(seq / "bokeh" / frame.name) - _pixels(frame)).max() <= 1.0
+    # A whole chunk and three frames more, so the second chunk takes the focus of its own
+    # frames, not the first chunk's.
+    from video_bokeh.layered import _sequence
+
+    frames = _sequence.CHUNK + 3
+    chunked = tmp_path / "chunked"
+    # Strong enough that the focus of the wrong frames would show at 64 pixels.
+    kwargs = {"seed": 0, "bokeh": True, "bokeh_strength": 256.0}
+    generate_dataset(library, chunked, 1, frames, SIZE, **kwargs)
+    monkeypatch.setattr(_sequence, "CHUNK", 1000)
+    whole = tmp_path / "whole"
+    generate_dataset(library, whole, 1, frames, SIZE, **kwargs)
+
+    (a,), (b,) = _sequences(chunked), _sequences(whole)
+    names = sorted(p.name for p in (a / "bokeh").glob("*.png"))
+    assert len(names) == frames
+    for name in names:
+        assert (
+            np.abs(_pixels(a / "bokeh" / name) - _pixels(b / "bokeh" / name)).max()
+            <= 1.0
+        )
