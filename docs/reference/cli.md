@@ -240,7 +240,7 @@ strength.
 `alpha/` and `disparity/` and writes `bokeh/` losslessly. It refuses the whole batch, before
 rendering any, when a sequence has no complete `layers/`. It runs on the CPU unless
 `VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the CPU when that device is
-not there. On the lab machine on 2026-10-10, an 80-frame sequence at 1024 pixels took 35 s on
+not there. On the lab machine on 2026-10-10, an 80-frame sequence at 1024 pixels took 40 s on
 its 24 CPU cores and 20 s on the RTX 5090; any-to-bokeh takes 88 s on the same card. Most of
 the 20 s is reading the layers and writing the PNGs.
 `VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point at another checkout or interpreter.

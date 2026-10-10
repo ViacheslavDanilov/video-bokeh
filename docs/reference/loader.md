@@ -112,15 +112,20 @@ stream = SequenceStream(Path("data/library_dev"), n_frames=24, size=512,
 - **The worker renders it, on the CPU.** The training loop receives finished batches and the
   GPU stays with the network. CUDA never runs in a worker.
 
-**Rendered in the workers, bokeh costs nearly two thirds of the throughput. Rendered on the
-GPU, it costs nothing measurable.** Measured on the lab machine on 2026-10-10, 512 pixels, 24
-frames, 1 to 5 objects, batches of 4, 8 workers:
+**Rendered in the workers, bokeh costs two thirds of the throughput. Rendered on the GPU, it
+costs nothing measurable.** Measured on the lab machine on 2026-10-10, 512 pixels, 24 frames,
+1 to 5 objects, batches of 4, two runs each at 8 workers:
 
-| streams | where the bokeh renders | items/s |
-|---|---|---|
-| the default four | no bokeh | 2.81 |
-| the default four and `bokeh` | the workers' CPU | 1.02 |
-| `rgb`, `disparity`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.87 |
+| streams | where the bokeh renders | items/s, no workers | items/s, 8 workers |
+|---|---|---|---|
+| the default four | no bokeh | 0.54 | 2.78, 2.73 |
+| the default four and `bokeh` | the workers' CPU | 0.23 | 0.94, 0.92 |
+| `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | | 2.84, 2.73 |
+
+- **The workers cannot keep up.** With bokeh they deliver a third of the items they deliver
+  without it.
+- **The GPU can.** Its rate is within the spread between runs of the loader without bokeh,
+  about 10 %: an earlier run of the GPU route gave 2.46.
 
 So for training, ask the workers for the layers and render each batch on the GPU:
 
