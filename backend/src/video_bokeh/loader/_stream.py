@@ -36,7 +36,8 @@ STREAMS = ("rgb", "disparity", "alpha", "object_alphas", "layers", "focus", "bok
 DEFAULT_STREAMS = ("rgb", "disparity", "alpha", "object_alphas")
 #: The bokeh's strength when none is given: any-to-bokeh's default ``k``.
 BOKEH_STRENGTH = 16.0
-#: What ``batch_bokeh`` reads from a batch, and the streams that carry it.
+#: What ``batch_bokeh`` reads from a batch: the keys of the layers, object_alphas and
+#: focus streams.
 _BATCH_KEYS = (
     "background",
     "background_disparity",
@@ -187,18 +188,31 @@ class SequenceStream(IterableDataset):
             item["disparity"] = _maps([f.disparity for f in frames])
         if "alpha" in self.streams:
             item["alpha"] = _maps([f.alpha for f in frames])
-        if "object_alphas" in self.streams:
-            item["object_alphas"] = torch.from_numpy(
+        rendering = "bokeh" in self.streams
+        if {"object_alphas", "bokeh"} & self.streams:
+            object_alphas = torch.from_numpy(
                 _padded([f.object_alphas for f in frames], self.n_objects_max),
             )
+            if "object_alphas" in self.streams:
+                item["object_alphas"] = object_alphas
+        layers = (
+            self._layers(frames, placed) if {"layers", "bokeh"} & self.streams else {}
+        )
         if "layers" in self.streams:
-            item.update(self._layers(frames, placed))
+            item.update(layers)
         if {"focus", "bokeh"} & self.streams:
             focus_object, zf = self._focus(frames, seq_seed)
             item["focus_disparity"] = torch.tensor(zf, dtype=torch.float32)
             item["focus_object"] = -1 if focus_object is None else focus_object
-            if "bokeh" in self.streams:
-                item["bokeh"] = self._bokeh(frames, item["focus_disparity"])
+        if rendering:
+            # The item's own layers, rendered as a batch of one, here in the worker.
+            own = {
+                **layers,
+                "object_alphas": object_alphas,
+                "focus_disparity": item["focus_disparity"],
+            }
+            batch = {key: value[None] for key, value in own.items()}
+            item["bokeh"] = batch_bokeh(batch, self.bokeh_strength)[0]
         return item
 
     def _focus(
@@ -209,29 +223,8 @@ class SequenceStream(IterableDataset):
         """The focus rule Stage C follows, drawn from the scene's seed as Stage C draws it."""
         if self.focus_disparity is not None:
             return None, [self.focus_disparity] * len(frames)
-        stats = [
-            frame_focus([a > 0.5 for a in f.object_alphas], f.disparity) for f in frames
-        ]
-        return focus_track(stats, focus_seed(seq_seed, ""))
-
-    def _bokeh(self, frames: list[RenderedFrame], focus: torch.Tensor) -> torch.Tensor:
-        """The frames' bokeh, rendered here, in the worker, on the CPU."""
-        frame_layers = [f.layers for f in frames if f.layers is not None]
-
-        def objects(arrays: list[list[np.ndarray]]) -> torch.Tensor:
-            return torch.from_numpy(np.stack([np.stack(a) for a in arrays]))
-
-        return render_bokeh(
-            _colours([fl.background_rgb for fl in frame_layers]),
-            _maps([fl.background_disparity for fl in frame_layers]),
-            objects([fl.object_rgbs for fl in frame_layers]).permute(0, 1, 4, 2, 3)
-            / 255.0,
-            objects([f.object_alphas for f in frames]),
-            objects([fl.object_disparities for fl in frame_layers]),
-            torch.tensor([fl.paint_order for fl in frame_layers]),
-            focus,
-            self.bokeh_strength,
-        )
+        stats = [frame_focus(f.object_alphas, f.disparity) for f in frames]
+        return focus_track(stats, focus_seed(seq_seed))
 
     def _layers(self, frames: list[RenderedFrame], placed: int) -> dict[str, Any]:
         frame_layers = [f.layers for f in frames if f.layers is not None]
