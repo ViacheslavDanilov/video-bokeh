@@ -45,8 +45,9 @@ without rebuilding.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
   the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
   at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.
-  The panes are laid out to fit the window together at the largest size that allows, in rows
-  of even length; only on a small screen do they scroll, with the transport held at the bottom.
+  The panes fit the window together, at the largest size that allows, in rows of even length.
+  Where that size would be under 200 px, as on a phone or in a low window, they are at least
+  280 px wide instead, and the page scrolls with the transport held at the bottom.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
 

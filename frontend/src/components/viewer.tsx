@@ -15,16 +15,17 @@ import { Slider } from "@/components/ui/slider";
 import { ObjectLegend } from "./object-legend";
 import { SpectralScale } from "./spectral-scale";
 
-// Every stream a sequence has, and one more to compare two colormaps of the same one.
-// Past what fits in a row the panes wrap rather than shrink; see `gridColumns`.
+// Room for every stream with one repeat, such as disparity under two colormaps. Past what
+// fits in a row the panes wrap rather than shrink; see `gridColumns`.
 const MAX_PANES = 6;
 
-// The grid's gap-4.
+// Between panes. The grid's style sets its gap from this, so the two cannot disagree.
 const PANE_GAP_PX = 16;
 // What a pane needs besides its square: the stream picker above, a legend of up to two
 // lines below.
 const PANE_CHROME_PX = 84;
-// Kept free under the grid for the transport and the gap above it.
+// Kept free under the grid for the transport: its 36 px controls, its py-3 and the gap-5
+// above it.
 const TRANSPORT_PX = 88;
 // Fitting every pane on the screen is worth it down to this size. Smaller, as on a phone,
 // the panes are better big and scrolled through.
@@ -92,10 +93,10 @@ function gridColumns(panes: number, space: Space): string {
   if (best.size >= MIN_FIT_PX) {
     return `repeat(${best.columns}, ${Math.floor(best.size)}px)`;
   }
-  const fit = Math.floor(
+  const maxColumns = Math.floor(
     (space.width + PANE_GAP_PX) / (MIN_PANE_PX + PANE_GAP_PX),
   );
-  const rows = Math.ceil(panes / Math.max(1, Math.min(panes, fit)));
+  const rows = Math.ceil(panes / Math.max(1, Math.min(panes, maxColumns)));
   return `repeat(${Math.ceil(panes / rows)}, minmax(0, 1fr))`;
 }
 
@@ -136,9 +137,10 @@ export function Viewer({
   // Read when an element attaches, which happens on React's schedule rather than inside
   // the render that chose the speed.
   const speedRef = useRef(1);
-  // The room the pane grid has, which the parameters folding away or the window changes.
+  // The room the pane grid has, which the parameters folding away, the window, or an alert
+  // appearing above the grid changes.
   const [space, setSpace] = useState<Space>({ width: 0, height: 0 });
-  const measureGrid = useCallback((el: HTMLDivElement) => {
+  const observeGrid = useCallback((el: HTMLDivElement) => {
     const measure = () => {
       const top = el.getBoundingClientRect().top + window.scrollY;
       const width = el.clientWidth;
@@ -149,6 +151,9 @@ export function Viewer({
     };
     const observer = new ResizeObserver(measure);
     observer.observe(el);
+    // Anything above the grid that grows or shrinks moves its top without resizing it, and
+    // changes the page's height.
+    observer.observe(document.body);
     window.addEventListener("resize", measure);
     return () => {
       observer.disconnect();
@@ -311,9 +316,10 @@ export function Viewer({
   return (
     <div className="flex flex-1 flex-col gap-5">
       <div
-        ref={measureGrid}
-        className="grid items-start gap-4"
+        ref={observeGrid}
+        className="grid items-start"
         style={{
+          gap: PANE_GAP_PX,
           gridTemplateColumns: gridColumns(panes.length, space),
         }}
       >
