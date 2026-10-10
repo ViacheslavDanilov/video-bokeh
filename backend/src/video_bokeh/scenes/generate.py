@@ -159,13 +159,14 @@ def write_bokeh_stream(
     scene_seed: int,
     focus: list[FrameFocus],
     strength: float = BOKEH_STRENGTH,
+    replace: bool = True,
 ) -> None:
     """Render a written sequence's bokeh from its scene, in memory, into ``bokeh/``.
 
     ``focus`` is each frame's focus statistics, gathered while the frames were written;
     the focused object is drawn from the scene's seed, as the loader and Stage C draw
     it. The frames are rendered again with their layers, a few at a time, so the layers
-    are never held whole. Needs torch.
+    are never held whole. ``replace`` is ``write_bokeh``'s. Needs torch.
     """
     from video_bokeh.layered import (
         GAMMA,
@@ -192,7 +193,7 @@ def write_bokeh_stream(
         "gamma": GAMMA,
         "radius_step": RADIUS_STEP,
     }
-    write_bokeh(seq_dir, zip(names, images, strict=True), record)
+    write_bokeh(seq_dir, zip(names, images, strict=True), record, replace=replace)
 
 
 def _measured(

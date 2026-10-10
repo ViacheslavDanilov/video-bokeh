@@ -167,7 +167,7 @@ def _add_bokeh(dest: Path, library_root: Path, request: SequenceRequest) -> None
     """
     scene = _scene(library_root, request)
     focus = [frame_focus(f.object_alphas, f.disparity) for f in iter_frames(scene)]
-    write_bokeh_stream(dest, scene, request.seed, focus)
+    write_bokeh_stream(dest, scene, request.seed, focus, replace=False)
 
 
 def ensure_sequence(

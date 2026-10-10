@@ -169,12 +169,17 @@ def write_bokeh(
     seq: Path,
     frames: Iterable[tuple[str, Image.Image]],
     record: dict[str, Any],
+    replace: bool = True,
 ) -> None:
     """Write ``seq/bokeh/``: each named frame as a PNG, and ``record`` as focus.json.
 
     The frames go to a hidden folder beside it, named per run so two runs over one data
     root cannot delete each other's, which is renamed to ``bokeh/`` only when every frame
     is in place. Anything that fails on the way leaves the old ``bokeh/`` untouched.
+
+    ``replace`` replaces a ``bokeh/`` already there, as a new render does. Without it, a
+    ``bokeh/`` that appeared meanwhile, from another request rendering the same sequence,
+    is kept and this render is dropped: nothing a reader may be reading is deleted.
     """
     staging = Path(tempfile.mkdtemp(prefix=".bokeh-", dir=seq))
     # mkdtemp makes it private (0700); the stream gets the access its siblings have.
@@ -186,5 +191,11 @@ def write_bokeh(
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
         raise
-    shutil.rmtree(seq / "bokeh", ignore_errors=True)
-    staging.rename(seq / "bokeh")
+    if replace:
+        shutil.rmtree(seq / "bokeh", ignore_errors=True)
+    try:
+        staging.rename(seq / "bokeh")
+    except OSError:
+        if replace or not (seq / "bokeh").is_dir():
+            raise
+        shutil.rmtree(staging, ignore_errors=True)
