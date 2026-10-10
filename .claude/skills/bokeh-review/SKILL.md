@@ -207,9 +207,10 @@ analysis, up to the per-file audit: its later steps edit files, and its last one
 an AI trailer, pushes and rewrites the PR body even when nothing changed. **Pushing** in the
 same file has the details. Step 9 fixes the drift it reports.
 
-Run lens #7 as `codex exec -s read-only -m gpt-6-sol` from the worktree. The model is named
-rather than left to `~/.codex/config.toml`, whose default is an older one. `gpt-6.1-sol` is
-refused for a ChatGPT account (codex 0.155.1, 2026-10-10). The prompt names the diff
+Run lens #7 as `codex exec -s read-only -m gpt-6.1-sol` from the worktree. The model is
+named rather than left to `~/.codex/config.toml`, whose default is an older one. Codex
+0.162.1 or newer is needed: 0.155.1 refuses `gpt-6.1-sol` for a ChatGPT account, and
+`npm i -g @openai/codex@latest` updates it. The prompt names the diff
 command, `git diff <baseline>...HEAD`, the high-risk files the diff touches, and what to look
 for there. gstack's `codex review --base` takes no custom instructions, so it cannot be
 pointed at the risk. The gstack `codex` skill also keeps codex out of `.claude/skills/` by
