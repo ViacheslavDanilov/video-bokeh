@@ -262,3 +262,30 @@ def test_a_frame_renders_the_same_alone_as_in_a_batch() -> None:
     for f in range(3):
         alone = render_bokeh(*(t[f : f + 1] for t in args), strength=STRENGTH)
         assert torch.allclose(batch[f], alone[0], atol=1e-4)
+
+
+def test_an_object_s_edge_in_focus_stays_opaque_while_the_rest_blurs() -> None:
+    # The square's disparity ramps away from the focus, which sits on its left edge. That
+    # edge is sharp, so none of the sharp background behind it may show through.
+    alpha = _square(16, 48)
+    ramp = torch.linspace(0.3, 0.9, SIZE).view(1, 1, 1, SIZE).expand(1, 1, SIZE, SIZE)
+    focus = float(ramp[0, 0, 0, 16])
+    out = _render(_flat(BLUE), focus, [(_flat(RED), alpha, ramp.clone())], focus=focus)
+    assert float(out[2, 18:46, 16].max()) < 1e-3
+
+
+def test_the_blurred_end_of_a_sharp_object_fades_as_a_blurred_object_does() -> None:
+    # The left half is in focus and the right half four pixels out of it. At the right
+    # edge, far from the left half, the object has to fade as if it were all that blurred.
+    alpha = _square(16, 48)
+    halves = torch.full((1, 1, SIZE, SIZE), 0.5)
+    halves[..., 32:] = 0.5 + 4.0 / (STRENGTH * SIZE / 1024)
+    half_blurred = _render(_flat(BLUE), 0.5, [(_flat(RED), alpha, halves)], focus=0.5)
+    blurred = _render(
+        _flat(BLUE),
+        0.5,
+        [(_flat(RED), alpha, float(halves[0, 0, 0, 40]))],
+        focus=0.5,
+    )
+    edge = slice(42, 54)
+    assert torch.allclose(half_blurred[:, 32, edge], blurred[:, 32, edge], atol=0.02)

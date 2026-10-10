@@ -188,11 +188,9 @@ def _blur_layer(
         source = torch.cat([linear, ones], dim=1)
     else:
         # Outside its alpha mask a pixel scatters no colour, but it still counts
-        # towards how much of the layer covers each pixel, at the layer's mean radius
-        # in that frame.
-        total = alpha.sum(dim=(2, 3), keepdim=True)
-        mean = (radius * alpha).sum(dim=(2, 3), keepdim=True) / total.clamp(min=_EPS)
-        radius = torch.where(alpha > 0, radius, mean)
+        # towards how much of the layer covers each pixel, at the radius of the mask
+        # beside it.
+        radius = _spread_radius(radius, alpha)
         # Premultiplied colour, alpha, and the layer's coverage.
         source = torch.cat([linear * alpha, alpha, ones], dim=1)
     bins = torch.where(
@@ -208,9 +206,36 @@ def _blur_layer(
     if alpha is None:
         colour = scattered[:, :3] / coverage
         return colour.clamp(0.0, 1.0).pow(1.0 / gamma), ones
-    alpha_out = (scattered[:, 3:4] / coverage).clamp(max=1.0)
+    # Only where the bins and the frame's edge leave a pixel short of full coverage: a
+    # pixel covered more than once is where blurred neighbours spread over it, and
+    # dividing there would thin an edge that is in focus.
+    alpha_out = (scattered[:, 3:4] / coverage.clamp(max=1.0)).clamp(max=1.0)
     colour = scattered[:, :3] / scattered[:, 3:4].clamp(min=_EPS)
     return colour.clamp(0.0, 1.0).pow(1.0 / gamma), alpha_out
+
+
+def _spread_radius(radius: Tensor, alpha: Tensor) -> Tensor:
+    """``radius`` inside the alpha mask, and outside it the largest radius of the mask
+    within reach, so the coverage around an edge is the edge's own.
+
+    It grows out one pixel a step, as far as the widest disk reaches twice, which is as
+    far as coverage matters. Pixels beyond take the layer's mean radius. A maximum,
+    rather than an average, is the same on every device.
+    """
+    inside = alpha > 0
+    total = alpha.sum(dim=(2, 3), keepdim=True)
+    mean = (radius * alpha).sum(dim=(2, 3), keepdim=True) / total.clamp(min=_EPS)
+    if not bool(inside.any()):
+        return mean.expand_as(radius)
+    filled = torch.where(inside, radius, 0.0)
+    known = inside.to(radius.dtype)
+    steps = 2 * math.ceil(float(radius[inside].max()) + _HALF_PIXEL) + 1
+    for _ in range(steps):
+        reached = F.max_pool2d(known, 3, stride=1, padding=1)
+        grown = F.max_pool2d(filled, 3, stride=1, padding=1)
+        filled = torch.where(known > 0, filled, torch.where(reached > 0, grown, filled))
+        known = reached
+    return torch.where(known > 0, filled, mean)
 
 
 def _scatter(
@@ -223,8 +248,8 @@ def _scatter(
     """The sum over ``bin_ids`` of each bin's pixels convolved with its own disk.
 
     A bin's disk takes the mean radius of its pixels, weighted by ``weight`` and frame by
-    frame: the alpha mask, so pixels outside it cannot pull the radius. A bin that holds only such
-    pixels takes theirs, the layer's mean. The bins' spectra are summed before one
+    frame: the alpha mask, so pixels outside it cannot pull the radius. A bin that holds
+    only such pixels takes their plain mean. The bins' spectra are summed before one
     inverse transform. The padding makes the convolution linear: nothing wraps from one
     edge of the frame to the other.
     """
