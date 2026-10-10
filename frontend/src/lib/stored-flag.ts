@@ -8,6 +8,9 @@ import { useCallback, useSyncExternalStore } from "react";
  * to what is stored as it hydrates, without a hydration warning. A stored value other than
  * the fallback still shows the fallback for the first paint of a reload. A browser that
  * refuses storage keeps the choice until the reload.
+ *
+ * Storage is read once per page load. Read on every render, a choice made in another tab
+ * would show here at the next unrelated render, such as an edit to a parameter.
  */
 
 const listeners = new Set<() => void>();
@@ -21,13 +24,18 @@ function subscribe(listener: () => void) {
 }
 
 function read(key: string, fallback: boolean): boolean {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored !== null) return stored === "1";
-  } catch {
-    // Storage blocked: fall through to what this page load remembers.
+  let value = memory.get(key);
+  if (value === undefined) {
+    value = fallback;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored !== null) value = stored === "1";
+    } catch {
+      // Storage blocked: the fallback until the button is clicked.
+    }
+    memory.set(key, value);
   }
-  return memory.get(key) ?? fallback;
+  return value;
 }
 
 export function useStoredFlag(

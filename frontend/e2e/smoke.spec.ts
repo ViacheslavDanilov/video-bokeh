@@ -221,6 +221,34 @@ test("hides the parameters and keeps them hidden after a reload", async ({
 });
 
 /**
+ * Folding the parameters in one tab leaves another tab as it is until that one reloads:
+ * the choice changes only when its own button is clicked, not at the next render.
+ */
+test("leaves the parameters in another tab as they are", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+
+  const other = await context.newPage();
+  await other.goto("/");
+  await other.getByRole("button", { name: "Parameters" }).click();
+  await expect(
+    other.getByRole("button", { name: "Generate sequence" }),
+  ).toBeHidden();
+
+  // Any render of the first tab, here editing a parameter.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("11");
+  await expect(
+    page.getByRole("button", { name: "Parameters" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("button", { name: "Generate sequence" }),
+  ).toBeVisible();
+});
+
+/**
  * Five panes are too many for one row beside the parameters in a 1280 px window, so they
  * wrap, and into rows of three and two rather than four and one.
  */
