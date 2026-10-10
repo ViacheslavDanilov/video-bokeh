@@ -166,8 +166,8 @@ old one.
   `.bokeh-` and a random suffix, a new one per run. It renames that folder to `bokeh/` only
   when every frame is in place. A run that was killed can leave one behind, and deleting it
   loses nothing.
-- **It is optional.** A sequence without it is still a complete Stage B sequence. Nothing in
-  Stage B or the demo reads it yet.
+- **It is optional.** A sequence without it is still a complete Stage B sequence. The demo
+  serves it; nothing in Stage B reads it.
 - **With any-to-bokeh it is lossy.** The vendored script writes an mp4 at 1024 × 576, which is
   decoded and resized back to the sequence's size. A lossless path waits for a GPU run that
   can check it.
