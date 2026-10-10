@@ -21,6 +21,9 @@ from video_bokeh.render.any_to_bokeh import AnyToBokeh
 # fake that accepts what the real script rejects.
 FRAMES, SIZE = 13, 32
 
+# Stage C's command runs the layered renderer unless told otherwise.
+A2B = ["--renderer", "any-to-bokeh"]
+
 # Reads the CSV the way the real demo does and writes one mp4 per row into output/ in its
 # working directory, at the demo's fixed 1024x576. Frame t of row i is grey level
 # 40 + 100 * i + 8 * t, so a test can tell which output went where. It records what it
@@ -195,7 +198,7 @@ def test_missing_checkpoints_name_the_setup_script(
 
 @pytest.mark.usefixtures("fake_a2b")
 def test_the_command_renders_the_chosen_sequences(dataset: Path) -> None:
-    assert cli.main(["--data-root", str(dataset), "--seqs", "0002"]) == 0
+    assert cli.main([*A2B, "--data-root", str(dataset), "--seqs", "0002"]) == 0
     assert (dataset / "sequences" / "0002" / "bokeh").is_dir()
     assert not (dataset / "sequences" / "0001" / "bokeh").exists()
 
@@ -239,8 +242,8 @@ def test_missing_renders_only_the_sequences_without_bokeh(
     dataset: Path,
     tmp_path: Path,
 ) -> None:
-    cli.main(["--data-root", str(dataset), "--seqs", "0001"])
-    assert cli.main(["--data-root", str(dataset), "--missing"]) == 0
+    cli.main([*A2B, "--data-root", str(dataset), "--seqs", "0001"])
+    assert cli.main([*A2B, "--data-root", str(dataset), "--missing"]) == 0
     assert _rendered(tmp_path) == ["0002"]
 
 
@@ -254,7 +257,7 @@ def test_missing_skips_what_the_renderer_cannot_take(
     sequences beside it, as handing it over would.
     """
     _write_sequence(dataset / "sequences" / "0003", frames=12)
-    assert cli.main(["--data-root", str(dataset), "--missing"]) == 0
+    assert cli.main([*A2B, "--data-root", str(dataset), "--missing"]) == 0
     assert _rendered(tmp_path) == ["0001", "0002"]
     assert not (dataset / "sequences" / "0003" / "bokeh").exists()
     assert "0003" in capsys.readouterr().out
@@ -265,9 +268,9 @@ def test_missing_with_nothing_left_starts_nothing(
     dataset: Path,
     tmp_path: Path,
 ) -> None:
-    cli.main(["--data-root", str(dataset)])
+    cli.main([*A2B, "--data-root", str(dataset)])
     (tmp_path / "fake_log.json").unlink()
-    assert cli.main(["--data-root", str(dataset), "--missing"]) == 0
+    assert cli.main([*A2B, "--data-root", str(dataset), "--missing"]) == 0
     assert not (tmp_path / "fake_log.json").exists()
 
 
@@ -279,7 +282,7 @@ def test_a_sequence_still_being_written_is_not_a_sequence(
 ) -> None:
     """The API generates into `.tmp-*` beside the finished ones and renames it."""
     _write_sequence(dataset / "sequences" / ".tmp-abc123")
-    assert cli.main(["--data-root", str(dataset)]) == 0
+    assert cli.main([*A2B, "--data-root", str(dataset)]) == 0
     assert _rendered(tmp_path) == ["0001", "0002"]
     assert ".tmp-abc123: still being written" in capsys.readouterr().out
 
@@ -288,7 +291,7 @@ def test_a_sequence_still_being_written_is_not_a_sequence(
 def test_missing_before_the_page_made_anything_renders_nothing(
     tmp_path: Path,
 ) -> None:
-    assert cli.main(["--data-root", str(tmp_path / "empty"), "--missing"]) == 0
+    assert cli.main([*A2B, "--data-root", str(tmp_path / "empty"), "--missing"]) == 0
 
 
 @pytest.mark.usefixtures("fake_a2b")
@@ -298,7 +301,7 @@ def test_missing_over_a_page_still_writing_its_first_renders_nothing(
     """The API makes sequences/ before its first generation is renamed into place."""
     root = tmp_path / "api"
     _write_sequence(root / "sequences" / ".tmp-first")
-    assert cli.main(["--data-root", str(root), "--missing"]) == 0
+    assert cli.main([*A2B, "--data-root", str(root), "--missing"]) == 0
 
 
 @pytest.mark.usefixtures("fake_a2b")

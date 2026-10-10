@@ -277,7 +277,7 @@ if [ "$RENDER" = 1 ]; then
             continue
         fi
         timed "bokeh, $estimator" uv run --directory "$BACKEND" --extra render \
-            python -m video_bokeh.render.run --data-root "$dest" ||
+            python -m video_bokeh.render.run --data-root "$dest" --renderer any-to-bokeh ||
             FAILED+=("bokeh $estimator")
     done
 else

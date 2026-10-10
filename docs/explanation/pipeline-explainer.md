@@ -238,8 +238,8 @@ sequences as it likes, from the same distribution as the written dataset.
 ## Related
 
 - [[dataset-layout]] — the on-disk contract, with formats and bit depths
-- [[generate-a-dataset]] — how to run Stages A and B
-- [[run-any-to-bokeh-inference]] — how to run Stage C
+- [[generate-a-dataset]] — how to run Stages A, B and C
+- [[run-any-to-bokeh-inference]] — how to run any-to-bokeh, for comparison
 - [[loader]] — the sequence stream, for training on the fly
 - [[demo-unrestricted-trajectories]] — how to judge the result by eye
 - [[meetings/2026-06-26-unrestricted-pipeline-algorithm]] — where the unrestricted design was agreed

@@ -9,11 +9,15 @@ stream beside them:
 Usage:
     uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
 
+The layered renderer is the default, over sequences written with ``--layers``.
+``--renderer any-to-bokeh`` runs any-to-bokeh instead, offline and on an NVIDIA card, for
+comparison.
+
 With ``--missing`` it renders only the sequences that have no ``bokeh/`` yet, and leaves
-out any the renderer cannot take, saying which: shorter than any-to-bokeh can group, or
-without the layers ``--renderer layered`` needs. Pointed at the API's data root, that
-renders any-to-bokeh's bokeh for whatever the page generated without bokeh of its own, as
-it does without torch: ``make bokeh``.
+out any the renderer cannot take, saying which: without the layers the layered renderer
+needs, or shorter than any-to-bokeh can group. Pointed at the API's data root with
+any-to-bokeh, that renders its bokeh for whatever the page generated without bokeh of its
+own, as it does without torch: ``make bokeh``.
 """
 
 from __future__ import annotations
@@ -47,9 +51,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--renderer",
         type=_validated_renderer,
-        default="any-to-bokeh",
+        default="layered",
         help=f"one of {', '.join(sorted(RENDERERS))}, or package.module:ClassName "
-        "for a renderer of your own (default: any-to-bokeh).",
+        "for a renderer of your own (default: layered).",
     )
     parser.add_argument(
         "--strength",
@@ -68,8 +72,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--missing",
         action="store_true",
-        help="render only the sequences without bokeh/, leaving out any shorter than "
-        "the renderer can take",
+        help="render only the sequences without bokeh/, leaving out any the renderer "
+        "cannot take",
     )
     return parser
 
@@ -118,11 +122,21 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"no sequences to render under {seq_root}")
 
     renderer = resolve_renderer(args.renderer)()
+    needs_layers = getattr(renderer, "needs_layers", False)
+    if needs_layers and not args.missing:
+        bare = [seq.name for seq in seq_dirs if not has_layers(seq)]
+        if bare:
+            raise SystemExit(
+                f"no complete layers/ in {', '.join(bare)}, which the {args.renderer} "
+                "renderer needs. Write the sequences again with scenes.generate --layers, "
+                "or --bokeh to render their bokeh in the same run, or pass "
+                "--renderer any-to-bokeh.",
+            )
     if args.missing:
         seq_dirs = _still_missing(
             seq_dirs,
             getattr(renderer, "min_frames", 0),
-            getattr(renderer, "needs_layers", False),
+            needs_layers,
         )
         if not seq_dirs:
             print(

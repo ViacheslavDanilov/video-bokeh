@@ -264,5 +264,5 @@ with `--layers`. Anything that shrinks the dataset meaningfully has to address
 
 - [[pipeline-explainer]] — why the pipeline is built this way
 - [[generate-a-dataset]] — how to produce this tree
-- [[run-any-to-bokeh-inference]] — how to feed it to the renderer
+- [[run-any-to-bokeh-inference]] — how to run any-to-bokeh over it, for comparison
 - [[cli]] — every flag of every module

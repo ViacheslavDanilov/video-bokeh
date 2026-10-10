@@ -211,24 +211,26 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 ## `video_bokeh.render.run` — Stage C
 
 Renders bokeh for written sequences and writes each one's `bokeh/` stream, as
-[[dataset-layout]] describes. It needs the `render` extra, and [[run-any-to-bokeh-inference]]
-has the command. It first ran to completion on an RTX 5090 on 2026-10-07.
+[[dataset-layout]] describes. It needs the `render` extra. The layered renderer is the default,
+and [[generate-a-dataset]] has its command. any-to-bokeh is there for comparison, and
+[[run-any-to-bokeh-inference]] has its command. It first ran to completion on an RTX 5090 on
+2026-10-07.
 
 | flag | type | default | meaning |
 |---|---|---|---|
 | `--data-root` | path | **required** | dataset root containing `sequences/` |
 | `--seqs` | list | all | comma-separated sequence ids, e.g. `0001,0003` |
-| `--renderer` | str | `any-to-bokeh` | a renderer below, or `package.module:ClassName` for your own |
+| `--renderer` | str | `layered` | a renderer below, or `package.module:ClassName` for your own |
 | `--strength` | float | `16` | blur strength, any-to-bokeh's `k`: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 | `--focus-disparity` | float | one object, drawn by area | one in-focus disparity in `[0, 1]` for every frame |
 | `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any the renderer cannot take |
 
-`--missing` is what `make bokeh` runs, over the API's data root, so it renders any-to-bokeh's
-bokeh for whatever the page generated without bokeh of its own, as it does without torch. A
-sequence shorter than the renderer's minimum, or without the layers `layered` needs, is named
-and left out rather than handed over, where it would fail the whole batch. A directory whose
-name
-starts with a dot is never a sequence: the API generates under `.tmp-*` and renames.
+`make bokeh` runs `--renderer any-to-bokeh --missing` over the API's data root, so it renders
+any-to-bokeh's bokeh for whatever the page generated without bokeh of its own, as it does
+without torch. A sequence shorter than the renderer's minimum, or without the layers `layered`
+needs, is named and left out rather than handed over, where it would fail the whole batch. A
+directory whose name starts with a dot is never a sequence: the API generates under `.tmp-*`
+and renames.
 
 | `--renderer` | runs in | setup |
 |---|---|---|
