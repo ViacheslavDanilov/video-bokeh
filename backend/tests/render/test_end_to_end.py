@@ -145,3 +145,23 @@ def test_bokeh_without_torch_is_refused_before_anything_is_written(
             bokeh=True,
         )
     assert not (tmp_path / "data").exists()
+
+
+@pytest.mark.parametrize("strength", [-1.0, float("nan")])
+def test_a_bad_strength_is_refused_before_anything_is_written(
+    library: Path,
+    tmp_path: Path,
+    strength: float,
+) -> None:
+    with pytest.raises(ValueError, match="strength"):
+        generate_dataset(
+            library,
+            tmp_path / "data",
+            1,
+            FRAMES,
+            SIZE,
+            seed=0,
+            bokeh=True,
+            bokeh_strength=strength,
+        )
+    assert not (tmp_path / "data").exists()

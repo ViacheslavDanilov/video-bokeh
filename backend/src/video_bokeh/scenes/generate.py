@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib.util
+import math
 import random
 import shutil
 from collections.abc import Iterable, Iterator
@@ -269,6 +270,8 @@ def generate_dataset(
         raise ValueError(
             "bokeh needs torch: install the render or the loader extra",
         )
+    if bokeh and not (math.isfinite(bokeh_strength) and bokeh_strength >= 0):
+        raise ValueError(f"bokeh strength must be 0 or more, got {bokeh_strength}")
     output.mkdir(parents=True, exist_ok=True)
     rows: list[list[str]] = []
     skipped: list[int] = []
@@ -342,7 +345,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--bokeh-strength",
         type=float,
         default=BOKEH_STRENGTH,
-        help="the bokeh's strength, as any-to-bokeh's k (default: 16)",
+        help=f"the bokeh's strength, as any-to-bokeh's k (default: {BOKEH_STRENGTH:g})",
     )
     parser.add_argument(
         "--layers",
