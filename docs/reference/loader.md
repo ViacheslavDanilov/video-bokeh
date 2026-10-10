@@ -47,8 +47,9 @@ if __name__ == "__main__":
 
 The stream never ends. Stop after as many batches as a run needs.
 [[train-on-the-sequence-stream]] runs a training loop on it. The `__main__` guard is not
-optional in a script: each `DataLoader` worker imports the script again, and without the guard
-it would start workers of its own.
+optional in a script. Where workers start by spawn or forkserver, as on macOS, on Windows and
+on Linux from Python 3.14, a new process imports the script again: each worker, or the fork
+server that starts them. Without the guard that import would start workers of its own.
 
 `n_objects_min` must be at least 1 and no more than `n_objects_max`; anything else is refused
 when the stream is created. So is a `library_root` with no foregrounds or no backgrounds, which
