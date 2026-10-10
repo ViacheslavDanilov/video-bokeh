@@ -29,6 +29,7 @@ from video_bokeh.core._streams import (
 from video_bokeh.layered import (
     GAMMA,
     RADIUS_STEP,
+    RENDERER,
     LayeredFrame,
     bokeh_device,
     render_sequence,
@@ -42,7 +43,7 @@ class Layered:
     any-to-bokeh's does; ``bokeh/focus.json`` records which.
     """
 
-    name: ClassVar[str] = "layered"
+    name: ClassVar[str] = RENDERER
     #: It renders from the ``layers/`` stream; ``render.run --missing`` leaves out the
     #: sequences without it instead of handing them over.
     needs_layers: ClassVar[bool] = True

@@ -65,7 +65,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_boke
     ├── alpha/<frame>.tif          multi-page uint8, one page per object
     ├── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
     ├── layers/                                   optional, written with --layers
-    └── bokeh/<frame>.png          RGB    uint8   optional, written by Stage C
+    └── bokeh/<frame>.png          RGB    uint8   optional, by --bokeh or Stage C
 ```
 
 - `<seq-id>` is 4 digits, 1-based: `0001`, `0002`.
@@ -147,7 +147,10 @@ to 0.44 MiB for colour and 0.23 MiB for disparity.
 
 ### The bokeh stream — Stage C
 
-`bokeh/` holds the rendered bokeh, written by `video_bokeh.render.run` after Stage B.
+`bokeh/` holds the rendered bokeh. `scenes.generate --bokeh` writes it in the same run as the
+frames, from the layers it holds in memory, and `video_bokeh.render.run` writes it over
+sequences already written. Both write the same stream; writing a sequence again removes the
+old one.
 
 | stream | format | dtype | what a pixel means |
 |---|---|---|---|

@@ -19,6 +19,8 @@ from video_bokeh.layered._renderer import render_bokeh
 from video_bokeh.library._device import select_device
 from video_bokeh.scenes._compositor import RenderedFrame
 
+#: The renderer's name, as ``focus.json`` and Stage C's ``--renderer`` give it.
+RENDERER = "layered"
 #: Names the torch device that renders a sequence's bokeh: ``cuda``, ``mps`` or ``cpu``.
 DEVICE_VARIABLE = "VIDEO_BOKEH_LAYERED_DEVICE"
 #: Frames rendered at once. Eight 1024-pixel frames with five objects hold about 1 GiB of
