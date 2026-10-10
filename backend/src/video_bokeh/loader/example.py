@@ -51,6 +51,7 @@ def main() -> None:
         print(f"step {step:2d}  loss {loss.item():.4f}")
 
 
-# The guard is not optional: each DataLoader worker imports this module again.
+# The guard is not optional: under spawn or forkserver, each DataLoader worker imports
+# this module again.
 if __name__ == "__main__":
     main()
