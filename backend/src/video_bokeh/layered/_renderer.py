@@ -30,7 +30,7 @@ from torch import Tensor
 #: disparity from the focus. any-to-bokeh renders 1024 pixels wide and calls it ``k``.
 REFERENCE_WIDTH = 1024
 
-#: The width of a radius bin, in pixels: a radius is off by at most half of it.
+#: The width of a radius bin, in pixels: a radius is off by up to it.
 RADIUS_STEP = 1.0
 #: The power that makes colours linear for the blur.
 GAMMA = 2.2
