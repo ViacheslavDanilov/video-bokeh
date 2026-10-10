@@ -170,6 +170,8 @@ is computed, not estimated.
   `imagecodecs`, as `read_flow_png` does, or another reader that keeps 16 bits.
 - **It is optional**, and nothing else in the pipeline reads it. The loader hands out the same
   flow, unquantized, as its `flow` stream.
+- **Writing a sequence again removes its old `flow/` first**, with or without `--flow`, so an
+  earlier run's flow never passes for this one's.
 
 An 80-frame sequence at 512 px with one object took 2.2 MiB of `flow` against 37 MiB of
 `all_in_focus`, on 2026-10-10.
