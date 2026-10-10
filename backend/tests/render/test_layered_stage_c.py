@@ -70,6 +70,19 @@ def test_is_what_stage_c_runs_unless_told_otherwise(dataset: Path) -> None:
         assert record["renderer"] == "layered"
 
 
+def test_stage_c_without_layers_says_what_to_do_instead_of_a_traceback(
+    dataset: Path,
+) -> None:
+    seqs = _sequences(dataset)
+    shutil.rmtree(seqs[1] / "layers")
+    with pytest.raises(SystemExit) as exit_:
+        cli.main(["--data-root", str(dataset)])
+    message = str(exit_.value)
+    assert seqs[1].name in message and seqs[0].name not in message
+    assert "--layers" in message and "--renderer any-to-bokeh" in message
+    assert not any((seq / "bokeh").exists() for seq in seqs)
+
+
 def test_zero_strength_gives_back_the_all_in_focus_frames(dataset: Path) -> None:
     cli.main(["--data-root", str(dataset), "--renderer", "layered", "--strength", "0"])
     for seq in _sequences(dataset):

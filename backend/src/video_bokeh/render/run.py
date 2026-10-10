@@ -72,8 +72,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--missing",
         action="store_true",
-        help="render only the sequences without bokeh/, leaving out any shorter than "
-        "the renderer can take",
+        help="render only the sequences without bokeh/, leaving out any the renderer "
+        "cannot take",
     )
     return parser
 
@@ -122,11 +122,21 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"no sequences to render under {seq_root}")
 
     renderer = resolve_renderer(args.renderer)()
+    needs_layers = getattr(renderer, "needs_layers", False)
+    if needs_layers and not args.missing:
+        bare = [seq.name for seq in seq_dirs if not has_layers(seq)]
+        if bare:
+            raise SystemExit(
+                f"no complete layers/ in {', '.join(bare)}, which the {args.renderer} "
+                "renderer needs. Write the sequences again with scenes.generate --layers, "
+                "or --bokeh to render their bokeh in the same run, or pass "
+                "--renderer any-to-bokeh.",
+            )
     if args.missing:
         seq_dirs = _still_missing(
             seq_dirs,
             getattr(renderer, "min_frames", 0),
-            getattr(renderer, "needs_layers", False),
+            needs_layers,
         )
         if not seq_dirs:
             print(
