@@ -165,3 +165,17 @@ def test_a_bad_strength_is_refused_before_anything_is_written(
             bokeh_strength=strength,
         )
     assert not (tmp_path / "data").exists()
+
+
+def test_a_sequence_longer_than_a_chunk_renders_every_frame(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    # Eleven frames: one chunk of eight, then three, each at its own focus.
+    out = tmp_path / "data"
+    generate_dataset(library, out, 1, 11, SIZE, seed=0, bokeh=True, bokeh_strength=0.0)
+    (seq,) = _sequences(out)
+    frames = sorted((seq / "all_in_focus").glob("*.png"))
+    assert len(frames) == 11
+    for frame in frames:
+        assert np.abs(_pixels(seq / "bokeh" / frame.name) - _pixels(frame)).max() <= 1.0
