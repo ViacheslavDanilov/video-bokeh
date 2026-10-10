@@ -32,8 +32,8 @@ _Avoid_: artifact library, asset store, cache
 
 **Depth estimator**:
 Any model behind Stage A's interface that turns an asset into one disparity map — Depth
-Anything V2 by default, Depth Pro, or one of the user's own. The only term in this project
-where the word "depth" survives.
+Anything V2 by default, Depth Pro, or one of the user's own. With depth motion, one of the
+only two terms in this project where the word "depth" survives.
 _Avoid_: depth model
 
 **Trusted core**:
@@ -107,6 +107,12 @@ An object's path through a sequence: its on-screen motion and its active band on
 frame, sampled together.
 _Avoid_: motion path, depth track
 
+**Depth motion**:
+An object approaching or receding over a sequence: its active band and its size on screen
+change by the same factor. An object whose trajectory falls back to its start scale has
+none.
+_Avoid_: z-motion, depth change
+
 **Occlusion**:
 A nearer object covering a farther one on screen while their active bands stay apart.
 Expected and allowed.
@@ -130,6 +136,11 @@ determines the sequence exactly.
 **Dataset**:
 The sequences Stage B writes, with their manifest.
 _Avoid_: asset pool, library
+
+**Fixed set**:
+The dataset we release: the sequences Stage B writes once from the released library, over a
+recorded range of seeds and settings, with the bokeh Stage C renders for them.
+_Avoid_: benchmark, offline dataset
 
 **Manifest**:
 The dataset's table with one row per written sequence.
