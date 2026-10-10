@@ -194,3 +194,94 @@ test("clears a failed library read once one works", async ({ page }) => {
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
   await expect(alert).toHaveCount(0);
 });
+
+/**
+ * The parameters fold away to give the panes the width, and stay folded across a reload:
+ * hiding them is a choice about the page, not about one sequence.
+ */
+test("hides the parameters and keeps them hidden after a reload", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const toggle = page.getByRole("button", { name: "Parameters" });
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(generate).toBeVisible();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(generate).toBeHidden();
+
+  await page.reload();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(generate).toBeHidden();
+
+  await toggle.click();
+  await expect(generate).toBeVisible();
+});
+
+/**
+ * Folding the parameters in one tab leaves another tab as it is until that one reloads:
+ * the choice changes only when its own button is clicked, not at the next render.
+ */
+test("leaves the parameters in another tab as they are", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+
+  const other = await context.newPage();
+  await other.goto("/");
+  await other.getByRole("button", { name: "Parameters" }).click();
+  await expect(
+    other.getByRole("button", { name: "Generate sequence" }),
+  ).toBeHidden();
+
+  // Any render of the first tab, here editing a parameter.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("11");
+  await expect(
+    page.getByRole("button", { name: "Parameters" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("button", { name: "Generate sequence" }),
+  ).toBeVisible();
+});
+
+/**
+ * Five panes are too many for one row beside the parameters in a 1280 px window, so they
+ * wrap, and into rows of three and two rather than four and one.
+ */
+test("wraps five panes into rows of three and two", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(3, { timeout: 60_000 });
+
+  const add = page.getByRole("button", { name: "Add pane" });
+  await add.click();
+  await add.click();
+  await expect(videos).toHaveCount(5);
+
+  const rows = async () => {
+    const tops = await videos.evaluateAll((els) =>
+      els.map((el) => Math.round(el.getBoundingClientRect().top)),
+    );
+    return [...new Set(tops)].map(
+      (top) => tops.filter((t) => t === top).length,
+    );
+  };
+  await expect.poll(rows).toEqual([3, 2]);
+
+  // Too low a window to show them all at a useful size: the panes take the width and the
+  // page scrolls instead, and the rows still come out even, where four would fit across.
+  await page.setViewportSize({ width: 1512, height: 450 });
+  await expect
+    .poll(async () => ({
+      rows: await rows(),
+      wide: (await videos.first().boundingBox())!.width > 300,
+    }))
+    .toEqual({ rows: [3, 2], wide: true });
+});
