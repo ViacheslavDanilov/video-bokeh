@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Controls } from "@/components/controls";
+import { Button } from "@/components/ui/button";
 import { Viewer } from "@/components/viewer";
 import type { LibraryInfo, Sequence, SequenceParams } from "@/lib/api";
 import {
@@ -10,6 +12,8 @@ import {
   fetchLibraries,
   libraryLabel,
 } from "@/lib/api";
+import { useStoredFlag } from "@/lib/stored-flag";
+import { cn } from "@/lib/utils";
 
 const DEFAULTS: SequenceParams = {
   // Filled with the first library once the list arrives.
@@ -31,6 +35,11 @@ export default function Page() {
   const [listError, setListError] = useState<string | null>(null);
   // The list as last read, for the effect's handler, which outlives any one render.
   const librariesRef = useRef<LibraryInfo[]>([]);
+  // Folded away, the parameters leave their width to the panes.
+  const [parametersShown, setParametersShown] = useStoredFlag(
+    "video-bokeh.parameters-shown",
+    true,
+  );
 
   useEffect(() => {
     let controller = new AbortController();
@@ -91,7 +100,24 @@ export default function Page() {
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="border-border flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b px-6 py-4">
-        <h1 className="text-lg font-medium tracking-tight">Video Bokeh</h1>
+        <div className="flex items-center gap-2">
+          {/* Only where the parameters sit beside the panes: stacked above them on a
+              narrow screen, folding them away would give the panes nothing. */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Parameters"
+            aria-expanded={parametersShown}
+            aria-controls="parameters"
+            title={parametersShown ? "Hide parameters" : "Show parameters"}
+            className="text-muted-foreground -ml-1.5 self-center max-lg:hidden"
+            onClick={() => setParametersShown(!parametersShown)}
+          >
+            {parametersShown ? <PanelLeftClose /> : <PanelLeftOpen />}
+          </Button>
+          <h1 className="text-lg font-medium tracking-tight">Video Bokeh</h1>
+        </div>
         {library ? (
           <p className="text-muted-foreground flex flex-wrap items-baseline gap-x-4 text-xs">
             <span>
@@ -113,7 +139,13 @@ export default function Page() {
       </header>
 
       <main className="flex flex-1 flex-col gap-6 p-6 lg:flex-row">
-        <aside className="lg:border-border w-full shrink-0 lg:w-64 lg:border-r lg:pr-6">
+        <aside
+          id="parameters"
+          className={cn(
+            "lg:border-border w-full shrink-0 lg:w-64 lg:border-r lg:pr-6",
+            !parametersShown && "lg:hidden",
+          )}
+        >
           <Controls
             libraries={libraries}
             params={params}

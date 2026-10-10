@@ -196,6 +196,31 @@ test("clears a failed library read once one works", async ({ page }) => {
 });
 
 /**
+ * The parameters fold away to give the panes the width, and stay folded across a reload:
+ * hiding them is a choice about the page, not about one sequence.
+ */
+test("hides the parameters and keeps them hidden after a reload", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const toggle = page.getByRole("button", { name: "Parameters" });
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(generate).toBeVisible();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(generate).toBeHidden();
+
+  await page.reload();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(generate).toBeHidden();
+
+  await toggle.click();
+  await expect(generate).toBeVisible();
+});
+
+/**
  * Five panes are too many for one row beside the parameters in a 1280 px window, so they
  * wrap, and into rows of three and two rather than four and one.
  */
