@@ -369,45 +369,60 @@ test("keeps the panes in place while the next sequence generates", async ({
   await expect(progress).toBeHidden({ timeout: 60_000 });
 });
 
-/**
- * One bar for the whole generation: it fills once, never going back at a new step, stays
- * where it is while the step's name changes beside it, and is seen full before the caption
- * takes its place. Watched in the line above the panes, where the next sequence's progress
- * shows while one is on screen; the empty screen lays the same line out larger.
- */
-test("fills one progress bar for the whole generation", async ({ page }) => {
-  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
-  test.slow();
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  const seed = page.getByRole("spinbutton", { name: "Seed" });
-  const generate = page.getByRole("button", { name: "Generate sequence" });
-  await seed.fill("61");
-  await generate.click();
-  // Shown once the progress has left its place.
-  await expect(
-    page.getByRole("group", { name: "Sequence on screen" }),
-  ).toBeVisible({ timeout: 60_000 });
+/** What the progress bar did: every value it took, however briefly; how far into its line,
+ *  and where on the page, it sat at each; and how long it stayed full where it filled. */
+type BarSeen = {
+  values: number[];
+  offsets: number[];
+  places: string[];
+  fullFor: number;
+};
 
-  // Every value the bar takes, as the page sets it, however briefly; how far into its line
-  // it sits at each; and how long it is full before it goes.
+/** Start recording the progress bar, for `takeBar` to read. */
+async function watchBar(page: Page) {
   await page.evaluate(() => {
-    const bar = { values: [] as number[], offsets: [] as number[], fullFor: 0 };
-    let fullAt = 0;
-    Object.assign(window, { bar });
+    const fresh = () => ({
+      values: [] as number[],
+      offsets: [] as number[],
+      places: [] as string[],
+      fullFor: 0,
+      fullAt: 0,
+      fullPlace: "",
+    });
+    const w = window as unknown as {
+      bar: ReturnType<typeof fresh>;
+      freshBar: typeof fresh;
+    };
+    w.bar = fresh();
+    w.freshBar = fresh;
     new MutationObserver(() => {
+      const bar = w.bar;
       const element = document.querySelector('[role="progressbar"]');
       const value = element?.getAttribute("aria-valuenow");
-      if (element == null || value == null) {
-        if (fullAt && !bar.fullFor) bar.fullFor = performance.now() - fullAt;
-      } else if (Number(value) !== bar.values.at(-1)) {
-        bar.values.push(Number(value));
-        const line = element.closest('[role="status"]')!;
-        bar.offsets.push(
-          element.getBoundingClientRect().left -
-            line.getBoundingClientRect().left,
-        );
-        if (Number(value) === 100) fullAt = performance.now();
+      // A sequence's panes on screen, or the empty card.
+      const place = document.querySelector("video") ? "panes" : "empty";
+      if (
+        bar.fullAt &&
+        !bar.fullFor &&
+        (value == null || place !== bar.fullPlace)
+      )
+        bar.fullFor = performance.now() - bar.fullAt;
+      if (
+        element == null ||
+        value == null ||
+        Number(value) === bar.values.at(-1)
+      )
+        return;
+      const line = element.closest('[role="status"]')!;
+      bar.values.push(Number(value));
+      bar.offsets.push(
+        element.getBoundingClientRect().left -
+          line.getBoundingClientRect().left,
+      );
+      bar.places.push(place);
+      if (Number(value) === 100) {
+        bar.fullAt = performance.now();
+        bar.fullPlace = place;
       }
     }).observe(document.body, {
       subtree: true,
@@ -416,26 +431,60 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
       attributeFilter: ["aria-valuenow"],
     });
   });
-  await seed.fill("62");
-  await generate.click();
+}
+
+/** What the bar did since `watchBar`, or since the last take, which starts it afresh. */
+async function takeBar(page: Page): Promise<BarSeen> {
+  return page.evaluate(() => {
+    const w = window as unknown as {
+      bar: BarSeen;
+      freshBar: () => BarSeen;
+    };
+    const seen = w.bar;
+    w.bar = w.freshBar();
+    return seen;
+  });
+}
+
+/** One bar that fills once, without going back, in one place on the page and at one offset
+ *  in its line, and stays full there long enough to be seen. */
+function expectOneSteadyBar(seen: BarSeen, place: string) {
+  expect(seen.values.length).toBeGreaterThan(2);
+  expect(seen.values).toEqual([...seen.values].sort((a, b) => a - b));
+  expect(seen.values.at(-1)).toBe(100);
+  expect(new Set(seen.places)).toEqual(new Set([place]));
+  expect(new Set(seen.offsets).size).toBe(1);
+  // Where on its own it would last a frame or none.
+  expect(seen.fullFor).toBeGreaterThanOrEqual(400);
+}
+
+/**
+ * One bar for the whole generation: it fills once, never going back at a new step, stays
+ * where it is while the step's name changes beside it, and is seen full there before the
+ * sequence takes the screen. On the empty screen first, then in the line above the panes,
+ * where the next sequence's progress shows while one is on screen.
+ */
+test("fills one progress bar for the whole generation", async ({ page }) => {
+  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
+  test.slow();
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await watchBar(page);
+  const seed = page.getByRole("spinbutton", { name: "Seed" });
+  const generate = page.getByRole("button", { name: "Generate sequence" });
   const progress = page.getByRole("status", { name: "Generation progress" });
+
+  await seed.fill("61");
+  await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
+  expectOneSteadyBar(await takeBar(page), "empty");
 
-  const { values, offsets, fullFor } = await page.evaluate(
-    () =>
-      (
-        window as unknown as {
-          bar: { values: number[]; offsets: number[]; fullFor: number };
-        }
-      ).bar,
-  );
-  expect(values.length).toBeGreaterThan(2);
-  expect(values).toEqual([...values].sort((a, b) => a - b));
-  expect(values.at(-1)).toBe(100);
-  expect(new Set(offsets).size).toBe(1);
-  // Long enough to be seen, where on its own it would last a frame or none.
-  expect(fullFor).toBeGreaterThanOrEqual(400);
+  await seed.fill("62");
+  await generate.click();
+  await expect(progress).toBeVisible();
+  await expect(progress).toBeHidden({ timeout: 60_000 });
+  expectOneSteadyBar(await takeBar(page), "panes");
 });
 
 /** A pane goes where it is dropped: dragged by its grip onto another, it takes that place. */
