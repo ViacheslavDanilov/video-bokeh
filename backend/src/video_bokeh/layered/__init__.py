@@ -4,7 +4,7 @@ A package of its own rather than part of ``render``, Stage C's renderers, becaus
 training loader renders with it too: it needs torch and nothing of Stage C's.
 """
 
-from video_bokeh.layered._renderer import GAMMA, RADIUS_STEP, render_bokeh
+from video_bokeh.layered._renderer import render_bokeh
 from video_bokeh.layered._sequence import (
     RENDERER,
     LayeredFrame,
@@ -15,8 +15,6 @@ from video_bokeh.layered._sequence import (
 )
 
 __all__ = [
-    "GAMMA",
-    "RADIUS_STEP",
     "RENDERER",
     "LayeredFrame",
     "bokeh_device",

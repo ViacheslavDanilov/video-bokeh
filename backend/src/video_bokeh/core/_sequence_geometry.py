@@ -2,7 +2,7 @@
 
 This private module is the single source of truth for pose math, easing
 functions, homography construction, foreground/background warping, asset
-preparation, object-track construction, and deterministic scene replay.
+preparation, and pose sampling.
 """
 
 from __future__ import annotations
@@ -222,7 +222,6 @@ class SampleConfig:
     max_tilt: float = 15.0
     bg_pan: float = 0.10
     bg_zoom: float = 0.10
-    bg_margin: float = 0.15
     easings: tuple[str, ...] = EASING_NAMES_DEFAULT
 
 

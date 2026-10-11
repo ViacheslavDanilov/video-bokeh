@@ -272,8 +272,8 @@ def create_sequence(
     library = _pick_library(_mounted_libraries(settings), params.library)
 
     def generate(
-        progress: Progress | None = None,
-        plan: Plan | None = None,
+        progress: Progress = lambda step, done, total: None,
+        plan: Plan = lambda steps: None,
     ) -> SequenceResponse:
         result = ensure_sequence(
             library.root,

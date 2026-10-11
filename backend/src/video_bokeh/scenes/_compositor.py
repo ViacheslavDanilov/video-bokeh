@@ -295,12 +295,12 @@ def iter_frames(
         object_disparities = [np.zeros((size, size), dtype=np.float32)] * n_kept
         background_disparity = disparity
 
-        def _band(idx: int, _t: float = t) -> tuple[float, float, float]:
-            """Target disparity band and its width for object ``idx`` at ``_t``."""
+        def _band(idx: int, _t: float = t) -> tuple[float, float]:
+            """Target disparity band for object ``idx`` at ``_t``."""
             o = scene.objects[idx]
             ease = EASING_FNS[o.easing](_t)
             r = o.depth_start.lerp(o.depth_end, ease)
-            return r.mind, r.maxd, r.width
+            return r.mind, r.maxd
 
         bands = [_band(idx) for idx in range(len(scene.objects))]
         # Far (low disparity) first.
@@ -312,7 +312,7 @@ def iter_frames(
             obj = scene.objects[idx]
             ease = EASING_FNS[obj.easing](t)
             pose = obj.pose_start.lerp(obj.pose_end, ease)
-            band_lo, band_hi, band_width = bands[idx]
+            band_lo, band_hi = bands[idx]
             fg_h = build_fg_homography(pose, obj.asset.rgb.size[0], size)
 
             warped_rgba = np.asarray(
@@ -327,7 +327,6 @@ def iter_frames(
                 a,
                 band_lo,
                 band_hi,
-                band_width=band_width,
             )
 
             a3 = a[..., None]

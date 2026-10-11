@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Pack per-frame PNG streams into per-sequence MP4 files.
+"""Pack per-frame streams into per-sequence MP4 files.
 
-For each sequence under `<data-root>/sequences/<id>/`, reads `<stream>/*.png`
+For each sequence under `<data-root>/sequences/<id>/`, reads each stream's frames
 and writes `<stream>.mp4` alongside the frames. Streams named on the CLI
 must be directories under each sequence (e.g. `all_in_focus`, later `bokeh`).
 
-Alpha is a multi-page `.tif`, not a `.png` (see `core/_streams.py`), so this
-packer's `*.png` glob finds no frames for `--streams alpha`: it prints
-"no PNG frames, skip" and writes nothing.
+Alpha is a multi-page `.tif`, with one page per object (see `core/_streams.py`).
+`render_object_masks` colors each object for the preview.
 
 Disparity is a uint16 PNG (see `core/_streams.py`), not RGB, so it is
 encoded through a colormap (`--colormap`, default `spectral_r`) rather
@@ -24,7 +23,7 @@ Layout:
         └── 0001/
             ├── all_in_focus/01.png … 80.png
             ├── all_in_focus.mp4               # written here
-            ├── alpha/01.png        … 80.png
+            ├── alpha/01.tif        … 80.tif
             └── alpha.mp4                       # written here
 
 Usage:

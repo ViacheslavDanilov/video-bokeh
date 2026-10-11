@@ -6,7 +6,6 @@ import numpy as np
 
 _P_LO = 1.0
 _P_HI = 99.0
-_DEGENERATE_BAND_FRAC = 0.25
 
 
 def place_in_band(
@@ -14,13 +13,11 @@ def place_in_band(
     alpha: np.ndarray,
     band_lo: float,
     band_hi: float,
-    band_width: float = 0.10,
 ) -> np.ndarray:
     """Percentile-stretch in-object disparity into the explicit [lo, hi] band.
 
-    Pixels outside ``alpha > 0`` are set to ``band_lo``. ``band_width`` is only
-    used to decide when a band is too degenerate to stretch into, in which case
-    the whole object falls back to the band midpoint.
+    Pixels outside ``alpha > 0`` are set to ``band_lo``. A constant disparity
+    map falls back to the band midpoint.
     """
     out = np.full_like(disp, band_lo, dtype=np.float32)
     mask = alpha > 0
@@ -33,7 +30,7 @@ def place_in_band(
     band_size = band_hi - band_lo
     band_mid = (band_lo + band_hi) / 2.0
 
-    if band_size < _DEGENERATE_BAND_FRAC * band_width or src_range <= 1e-8:
+    if src_range <= 1e-8:
         out[mask] = band_mid
         return out
 

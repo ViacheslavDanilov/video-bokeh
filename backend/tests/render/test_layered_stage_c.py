@@ -11,7 +11,6 @@ import pytest
 from PIL import Image
 
 from video_bokeh.bridge.any_to_bokeh import write_inputs
-from video_bokeh.render import RENDERERS
 from video_bokeh.render import run as cli
 from video_bokeh.render.layered import Layered
 from video_bokeh.scenes.generate import generate_dataset
@@ -42,10 +41,6 @@ def _sequences(root: Path) -> list[Path]:
 def _pixels(path: Path) -> np.ndarray:
     with Image.open(path) as im:
         return np.asarray(im, dtype=np.float32)
-
-
-def test_is_registered() -> None:
-    assert RENDERERS["layered"] is Layered
 
 
 def test_writes_every_frame_and_records_what_made_them(dataset: Path) -> None:

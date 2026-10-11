@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import ClassVar, Protocol
 
 import numpy as np
 import torch
 from PIL import Image
 
 
-@runtime_checkable
 class DepthEstimator(Protocol):
     """Stateful estimator: call load(device) once, then infer(...) repeatedly.
 

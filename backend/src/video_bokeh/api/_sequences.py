@@ -15,7 +15,7 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -24,7 +24,6 @@ from pathlib import Path
 from video_bokeh.core._focus import frame_focus
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
-    RenderedFrame,
     Scene,
     iter_frames,
 )
@@ -38,10 +37,6 @@ from video_bokeh.scenes.generate import (
 
 _ID_CHARS = 16
 _META = "sequence.json"
-
-#: Streams every sequence writes, whatever its length. Flow, written with it unless it is a
-#: single frame, and bokeh are `OPTIONAL_STREAMS`.
-STREAMS = ("all_in_focus", "alpha", "disparity")
 
 #: Servable as video, in the order a person reads them: the frame, who is in it, and
 #: how far away they are. `alpha` is multi-page TIFF with one page per object, which
@@ -141,7 +136,6 @@ def _generate_into(
     library_root: Path,
     library_id: str,
     request: SequenceRequest,
-    render: Callable[[Scene], Iterable[RenderedFrame]],
     bokeh: bool,
     progress: Progress,
     plan: Plan,
@@ -152,7 +146,9 @@ def _generate_into(
         + ([("bokeh", n)] if bokeh else []),
     )
     scene = _scene(library_root, request, progress)
-    frames = list(counted(render(scene), n, partial(progress, "frames")))
+    frames = list(
+        counted(iter_frames(scene, flow=True), n, partial(progress, "frames")),
+    )
     focus = [frame_focus(f.object_alphas, f.disparity) for f in frames] if bokeh else []
     write_sequence(work_dir, counted(frames, n, partial(progress, "writing")), n)
     # The bokeh pass renders the frames again with their layers, a few at a time; holding
@@ -164,7 +160,7 @@ def _generate_into(
             {
                 "library_id": library_id,
                 "n_objects": placed,
-                "streams": list(STREAMS),
+                "streams": list(VIDEO_STREAMS),
                 "created": datetime.now(UTC).isoformat(),
                 **asdict(request),
             },
@@ -241,14 +237,6 @@ def _complete(
         )
 
 
-def _unheard(step: str, done: int, total: int) -> None:
-    """Progress nobody asked for."""
-
-
-def _unplanned(steps: list[tuple[str, int]]) -> None:
-    """A plan nobody asked for."""
-
-
 def ensure_sequence(
     library_root: Path,
     library_id: str,
@@ -256,9 +244,8 @@ def ensure_sequence(
     request: SequenceRequest,
     *,
     bokeh: bool = False,
-    progress: Progress | None = None,
-    plan: Plan | None = None,
-    _render: Callable[[Scene], Iterable[RenderedFrame]] | None = None,
+    progress: Progress = lambda step, done, total: None,
+    plan: Plan = lambda steps: None,
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
 
@@ -272,10 +259,6 @@ def ensure_sequence(
     or concurrent generation harmless: there is no window in which a half-written
     directory looks like a cache hit.
     """
-    if progress is None:
-        progress = _unheard
-    if plan is None:
-        plan = _unplanned
     sid = sequence_id(library_id, request)
     dest = sequences_root / sid
     cached = _read_cached(dest, sid)
@@ -303,7 +286,6 @@ def ensure_sequence(
             library_root,
             library_id,
             request,
-            _render or partial(iter_frames, flow=True),
             bokeh,
             progress,
             plan,

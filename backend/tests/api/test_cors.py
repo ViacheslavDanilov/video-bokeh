@@ -11,7 +11,6 @@ from video_bokeh.api.main import create_app
 def _settings(tmp_path: Path, origins: tuple[str, ...] | None = None) -> Settings:
     kwargs = {} if origins is None else {"cors_origins": origins}
     return Settings(
-        data_root=tmp_path,
         library=tmp_path / "library",
         sequences=tmp_path / "sequences",
         **kwargs,
