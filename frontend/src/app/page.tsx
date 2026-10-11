@@ -30,9 +30,9 @@ const DEFAULTS: SequenceParams = {
   n_objects_max: 4,
 };
 
-// How long the bar stays full once the sequence is in, before the caption takes its place.
-// The last step's final count and the sequence arrive together, so without it the bar is
-// never seen full.
+// How long the bar stays full once the sequence is in, before the sequence is shown. The
+// last step's final count and the sequence arrive together, so without it the bar is never
+// seen full. The sequence waits too, or on an empty screen it would take the bar's place.
 const FULL_BAR_MS = 500;
 
 export default function Page() {
@@ -105,13 +105,12 @@ export default function Page() {
     setStartedAt(Date.now());
     try {
       let heard = false;
-      setSequence(
-        await createSequence(params, (seen) => {
-          heard = true;
-          setSteps(seen);
-        }),
-      );
+      const made = await createSequence(params, (seen) => {
+        heard = true;
+        setSteps(seen);
+      });
       if (heard) await new Promise((done) => setTimeout(done, FULL_BAR_MS));
+      setSequence(made);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : String(cause));
     } finally {
