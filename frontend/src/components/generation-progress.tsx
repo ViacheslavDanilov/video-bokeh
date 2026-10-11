@@ -123,7 +123,12 @@ export function GenerationProgress({
         text={`${percent}%`}
         widest={["100%"]}
       />
-      <span className="tabular-nums">{seconds} s</span>
+      {/* Centered on the empty screen, the line would move with each digit added. */}
+      <Steady
+        className="tabular-nums"
+        text={`${seconds} s`}
+        widest={["000 s"]}
+      />
     </div>
   );
 }
