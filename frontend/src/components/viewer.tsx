@@ -110,12 +110,6 @@ function gridColumns(panes: number, space: Space): string {
   return `repeat(${Math.ceil(panes / rows)}, minmax(0, 1fr))`;
 }
 
-/** Open on everything the sequence has, in the order the server lists it: the frame,
- *  who is in it, and how far away they are. */
-function initialPanes(streams: string[]): Pane[] {
-  return streams.slice(0, MAX_PANES).map((stream, i) => ({ key: i, stream }));
-}
-
 export function Viewer({
   sequence,
   library,
@@ -196,12 +190,6 @@ export function Viewer({
     setDuration(0);
   }
 
-  // Mounting happens before any sequence exists, so there are no stream names to lay out
-  // until the first one arrives.
-  if (panes.length === 0 && names.length > 0) {
-    setPanes(initialPanes(names));
-  }
-
   // A stream the server did not list for the last sequence gets a pane of its own while
   // there is room: bokeh appears this way, when a sequence that had none is asked for again
   // with it. Only a stream new since the last sequence, so a closed pane stays
@@ -213,7 +201,7 @@ export function Viewer({
       (n) => !knownStreams.includes(n) && !panes.some((p) => p.stream === n),
     );
     const room = MAX_PANES - panes.length;
-    if (panes.length > 0 && appeared.length > 0 && room > 0) {
+    if (appeared.length > 0 && room > 0) {
       const nextKey = Math.max(0, ...panes.map((p) => p.key)) + 1;
       setPanes([
         ...panes,
@@ -231,70 +219,51 @@ export function Viewer({
       ? pane.stream
       : (names[0] ?? pane.stream);
 
-  const eachVideo = useCallback((fn: (v: HTMLVideoElement) => void) => {
-    videos.current.forEach(fn);
-  }, []);
-
   // One transport drives every pane, the way vpv drives its panes: a comparison is only
   // worth anything if the frames line up.
   // Side effects live outside the updater: React may call an updater twice under
   // StrictMode, and pausing or playing twice is not what it is for.
-  const togglePlay = useCallback(() => {
+  function togglePlay() {
     const next = !playingRef.current;
     playingRef.current = next;
     setPlaying(next);
     if (!next) {
-      eachVideo((v) => v.pause());
+      videos.current.forEach((v) => v.pause());
       return;
     }
     const lead = videos.current.values().next().value;
     const at = lead ? lead.currentTime : 0;
     timeRef.current = at;
-    eachVideo((v) => {
+    videos.current.forEach((v) => {
       v.currentTime = at;
       void v.play();
     });
-  }, [eachVideo]);
-
-  const seek = useCallback(
-    (to: number) => {
-      timeRef.current = to;
-      setTime(to);
-      eachVideo((v) => {
-        v.currentTime = to;
-      });
-    },
-    [eachVideo],
-  );
+  }
 
   // Loading a new src resets an element's rate to its default rate, so both are set: a
   // stream switch then keeps the speed without any handler of its own.
-  const applySpeed = useCallback((v: HTMLVideoElement) => {
+  function applySpeed(v: HTMLVideoElement) {
     v.defaultPlaybackRate = speedRef.current;
     v.playbackRate = speedRef.current;
-  }, []);
+  }
 
-  const changeSpeed = useCallback(
-    (to: number) => {
-      speedRef.current = to;
-      setSpeed(to);
-      eachVideo(applySpeed);
-    },
-    [eachVideo, applySpeed],
-  );
+  function changeSpeed(to: number) {
+    speedRef.current = to;
+    setSpeed(to);
+    videos.current.forEach(applySpeed);
+  }
 
-  const registerVideo = useCallback(
-    (key: number, el: HTMLVideoElement | null) => {
-      if (el) {
-        // A pane added later, or remounted for a new sequence, starts at the chosen speed.
-        applySpeed(el);
-        videos.current.set(key, el);
-      } else {
-        videos.current.delete(key);
-      }
-    },
-    [applySpeed],
-  );
+  function registerVideo(key: number, el: HTMLVideoElement | null) {
+    if (el) {
+      // A pane added later, or remounted for a new sequence, starts at the chosen speed.
+      applySpeed(el);
+      videos.current.set(key, el);
+    } else {
+      videos.current.delete(key);
+    }
+  }
+
+  const showingProgress = generating && steps.length > 0;
 
   if (!sequence) {
     return (
@@ -302,7 +271,7 @@ export function Viewer({
         <div className="w-64">
           <SpectralScale sweeping={generating} />
         </div>
-        {generating && steps.length > 0 ? (
+        {showingProgress ? (
           <div className="text-muted-foreground text-sm">
             <GenerationProgress steps={steps} startedAt={startedAt} />
           </div>
@@ -352,8 +321,14 @@ export function Viewer({
   const frameIndex = duration
     ? Math.min(Math.round((time / duration) * sequence.frames), lastFrame)
     : 0;
-  const seekToFrame = (frame: number) =>
-    seek(duration ? (frame / sequence.frames) * duration : 0);
+  const seekToFrame = (frame: number) => {
+    const to = duration ? (frame / sequence.frames) * duration : 0;
+    timeRef.current = to;
+    setTime(to);
+    videos.current.forEach((v) => {
+      v.currentTime = to;
+    });
+  };
 
   const copyId = () => {
     // Only in a secure context, which the page on localhost is; elsewhere the id is
@@ -374,7 +349,7 @@ export function Viewer({
           the panes below do not move. The library is the sequence's own, which the picker
           may have left since. */}
       <div className="text-muted-foreground relative -mb-1 text-xs">
-        {generating && steps.length > 0 && (
+        {showingProgress && (
           <div className="absolute inset-0 flex items-center">
             <GenerationProgress steps={steps} startedAt={startedAt} />
           </div>
@@ -384,7 +359,7 @@ export function Viewer({
           aria-label="Sequence on screen"
           className={cn(
             "flex flex-wrap items-center gap-x-4 gap-y-1",
-            generating && steps.length > 0 && "invisible",
+            showingProgress && "invisible",
           )}
         >
           <span className="text-foreground">{library}</span>
@@ -526,10 +501,9 @@ export function Viewer({
                     size="sm"
                     aria-label={`Close ${label(stream)} pane`}
                     className="text-muted-foreground ml-auto"
-                    onClick={() => {
-                      videos.current.delete(pane.key);
-                      setPanes((c) => c.filter((p) => p.key !== pane.key));
-                    }}
+                    onClick={() =>
+                      setPanes((c) => c.filter((p) => p.key !== pane.key))
+                    }
                   >
                     Close
                   </Button>
