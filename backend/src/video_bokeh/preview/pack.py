@@ -59,7 +59,7 @@ import imageio.v2 as iio
 import numpy as np
 from PIL import Image
 
-from video_bokeh.core._seq_io import list_sequences
+from video_bokeh.core._seq_io import list_sequences, parse_names
 from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
@@ -181,7 +181,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--streams",
-        type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
+        type=parse_names,
         default=["all_in_focus"],
         help="Comma-separated stream subdir names. Default: 'all_in_focus'.",
     )
@@ -195,7 +195,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--seqs",
-        type=lambda s: [c.strip() for c in s.split(",") if c.strip()],
+        type=parse_names,
         default=None,
         help="Comma-separated sequence ids (e.g. '0001,0003'). Default: all.",
     )

@@ -56,6 +56,8 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
+from video_bokeh.acquire.magick import image_path, read_metadata
+
 # fmt: off
 SUBJECT_TAXONOMY: dict[str, list[str]] = {
     "person": [
@@ -167,10 +169,6 @@ STYLE_TEMPLATES: list[str] = [
 ]
 
 
-def image_path(root: Path, page_id: str) -> Path:
-    return root / "images" / page_id[:2] / f"{page_id}.png"
-
-
 def pick_device(preferred: str) -> str:
     if preferred != "auto":
         return preferred
@@ -200,27 +198,6 @@ class MagickImageDataset(Dataset):
         path = image_path(self.data_root, row["page_id"])
         image = Image.open(path).convert("RGB")
         return self.preprocess(image), index
-
-
-def read_metadata(
-    metadata_csv: Path,
-    data_root: Path,
-) -> tuple[list[str], list[dict[str, str]]]:
-    with metadata_csv.open("r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames is None:
-            raise ValueError(f"{metadata_csv}: missing header row")
-        fieldnames = list(reader.fieldnames)
-        rows = [r for r in reader if r.get("page_id", "").strip()]
-
-    present = [r for r in rows if image_path(data_root, r["page_id"]).exists()]
-    missing = len(rows) - len(present)
-    if missing:
-        print(
-            f"  WARN {missing}/{len(rows)} images missing on disk; skipping",
-            file=sys.stderr,
-        )
-    return fieldnames, present
 
 
 def read_predictions(predictions_csv: Path) -> list[dict[str, str]]:
@@ -301,7 +278,15 @@ def main() -> int:
     metadata_csv = args.data_root / "metadata.csv"
     output_csv = args.output or (args.data_root / "predictions.csv")
 
-    _, rows = read_metadata(metadata_csv, args.data_root)
+    _, rows = read_metadata(metadata_csv)
+    present = [r for r in rows if image_path(args.data_root, r["page_id"]).exists()]
+    missing = len(rows) - len(present)
+    if missing:
+        print(
+            f"  WARN {missing}/{len(rows)} images missing on disk; skipping",
+            file=sys.stderr,
+        )
+    rows = present
     if not rows:
         print(f"No images found under {args.data_root}/images", file=sys.stderr)
         return 1

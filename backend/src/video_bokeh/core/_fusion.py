@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+BG_BAND_TOP = 0.05
+
 _P_LO = 1.0
 _P_HI = 99.0
 
@@ -41,7 +43,7 @@ def place_in_band(
     return out
 
 
-def bg_normalize(disp: np.ndarray, bg_band_top: float = 0.05) -> np.ndarray:
+def bg_normalize(disp: np.ndarray, bg_band_top: float = BG_BAND_TOP) -> np.ndarray:
     """Rescale full-frame background disparity into [0, bg_band_top]."""
     p_lo, p_hi = np.percentile(disp, [_P_LO, _P_HI])
     src_range = float(p_hi - p_lo)
@@ -55,7 +57,7 @@ def bg_normalize(disp: np.ndarray, bg_band_top: float = 0.05) -> np.ndarray:
 
 def assign_depth_slots(
     n_objects: int,
-    bg_band_top: float = 0.05,
+    bg_band_top: float = BG_BAND_TOP,
     gap: float = 0.02,
 ) -> list[tuple[float, float]]:
     """Partition the disparity axis above the background into disjoint slots.

@@ -18,7 +18,12 @@ from pathlib import Path
 import numpy as np
 
 from video_bokeh.core._collision import pair_collides
-from video_bokeh.core._fusion import assign_depth_slots, bg_normalize, place_in_band
+from video_bokeh.core._fusion import (
+    BG_BAND_TOP,
+    assign_depth_slots,
+    bg_normalize,
+    place_in_band,
+)
 from video_bokeh.core._library import (
     BackgroundAsset,
     ForegroundAsset,
@@ -77,7 +82,7 @@ class Scene:
     bg_easing: str
     n_frames: int
     size: int
-    bg_band_top: float = 0.05
+    bg_band_top: float = BG_BAND_TOP
     n_rejections: int = 0
     n_range_fallbacks: int = 0
 
@@ -119,7 +124,7 @@ def sample_scene(
     size: int,
     n_objects: int,
     cfg: SampleConfig | None = None,
-    bg_band_top: float = 0.05,
+    bg_band_top: float = BG_BAND_TOP,
 ) -> Scene:
     """Sample objects, a background, poses, easings, and depth trajectories."""
     cfg = cfg or SampleConfig()

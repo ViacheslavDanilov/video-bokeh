@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +26,8 @@ from PIL import Image
 
 from video_bokeh.core._library import FOREGROUNDS, write_background, write_foreground
 from video_bokeh.core._metadata import write_asset_metadata
+from video_bokeh.core._plugins import validated_spec
+from video_bokeh.core._seq_io import parse_names
 from video_bokeh.core._sequence_geometry import prepare_background, prepare_foreground
 from video_bokeh.library._device import select_device
 from video_bokeh.library._neutral_bg import composite_on_neutral, make_textured_bg
@@ -82,15 +85,6 @@ def _list_background_refs(bg_root: Path) -> list[str]:
     return sorted(refs)
 
 
-def _validated_model(spec: str) -> str:
-    # Checked at parse time, but the string is kept: the metadata records it.
-    try:
-        resolve_estimator(spec)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(str(exc)) from exc
-    return spec
-
-
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fg-data-root", type=Path, required=True)
@@ -99,7 +93,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--size", type=int, default=DEFAULT_SIZE)
     parser.add_argument(
         "--model",
-        type=_validated_model,
+        type=partial(validated_spec, resolve=resolve_estimator),
         default="da2-large",
         help=f"one of {', '.join(sorted(ESTIMATORS))}, or package.module:ClassName "
         "for a model of your own (default: da2-large).",
@@ -130,12 +124,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit-bg", type=int, default=None, help="cap backgrounds")
     parser.add_argument(
         "--subjects",
-        type=lambda s: tuple(c.strip() for c in s.split(",") if c.strip()),
+        type=lambda s: tuple(parse_names(s)),
         default=DEFAULT_KEEP_SUBJECTS,
     )
     parser.add_argument(
         "--styles",
-        type=lambda s: tuple(c.strip() for c in s.split(",") if c.strip()),
+        type=lambda s: tuple(parse_names(s)),
         default=DEFAULT_KEEP_STYLES,
     )
     parser.add_argument("--subject-thr", type=float, default=0.50)
