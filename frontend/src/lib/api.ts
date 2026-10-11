@@ -137,15 +137,16 @@ export async function fetchLibraries(
 const NDJSON = "application/x-ndjson";
 
 /**
- * Generate a sequence, hearing each step as the API takes it.
+ * Generate a sequence, hearing how it goes.
  *
- * The API streams one JSON object a line when asked for NDJSON: progress, then the
- * sequence or an error. One that answers plain JSON, as an older API does, is read as
- * before, with no progress on the way.
+ * The API streams one JSON object a line when asked for NDJSON: the steps it will take,
+ * progress, then the sequence or an error. `onSteps` hears all the steps each time one
+ * moves, each at its latest count, the ones still to come at zero. One that answers plain
+ * JSON, as an older API does, is read as before, with no progress on the way.
  */
 export async function createSequence(
   params: SequenceParams,
-  onStep?: (step: GenerationStep) => void,
+  onSteps?: (steps: GenerationStep[]) => void,
   signal?: AbortSignal,
 ): Promise<Sequence> {
   let response: Response;
@@ -170,16 +171,17 @@ export async function createSequence(
     !response.body
   )
     return response.json();
-  return readGeneration(response.body, onStep);
+  return readGeneration(response.body, onSteps);
 }
 
 async function readGeneration(
   body: ReadableStream<Uint8Array>,
-  onStep?: (step: GenerationStep) => void,
+  onSteps?: (steps: GenerationStep[]) => void,
 ): Promise<Sequence> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffered = "";
+  let steps: GenerationStep[] = [];
   for (;;) {
     let chunk: ReadableStreamReadResult<Uint8Array>;
     try {
@@ -202,7 +204,18 @@ async function readGeneration(
       if ("sequence" in event) return event.sequence;
       if ("error" in event)
         throw new ApiError(event.error.status, event.error.detail);
-      onStep?.(event);
+      if ("steps" in event) {
+        steps = event.steps.map((planned: Omit<GenerationStep, "done">) => ({
+          ...planned,
+          done: 0,
+        }));
+      } else {
+        // A step the API did not announce still counts, after the others.
+        steps = steps.some((s) => s.step === event.step)
+          ? steps.map((s) => (s.step === event.step ? event : s))
+          : [...steps, event];
+      }
+      onSteps?.(steps);
     }
     if (done) break;
   }

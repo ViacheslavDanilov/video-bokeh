@@ -127,7 +127,7 @@ export function Viewer({
   /** The library this sequence came from, as the page names libraries. */
   library: string;
   generating: boolean;
-  /** The steps of the generation under way so far, and when it began. */
+  /** The steps of the generation under way, each at its latest count, and when it began. */
   steps: GenerationStep[];
   startedAt: number;
 }) {
@@ -303,7 +303,9 @@ export function Viewer({
           <SpectralScale sweeping={generating} />
         </div>
         {generating && steps.length > 0 ? (
-          <GenerationProgress steps={steps} startedAt={startedAt} />
+          <div className="text-muted-foreground text-sm">
+            <GenerationProgress steps={steps} startedAt={startedAt} />
+          </div>
         ) : (
           <p className="text-muted-foreground max-w-xs text-center text-sm">
             {generating
@@ -374,7 +376,7 @@ export function Viewer({
       <div className="text-muted-foreground relative -mb-1 text-xs">
         {generating && steps.length > 0 && (
           <div className="absolute inset-0 flex items-center">
-            <GenerationProgress steps={steps} startedAt={startedAt} line />
+            <GenerationProgress steps={steps} startedAt={startedAt} />
           </div>
         )}
         <div

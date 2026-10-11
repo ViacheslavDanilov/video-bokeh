@@ -364,6 +364,53 @@ test("keeps the panes in place while the next sequence generates", async ({
   await expect(progress).toBeHidden({ timeout: 60_000 });
 });
 
+/**
+ * One bar for the whole generation: it fills once, never going back at a new step, and is
+ * seen full before the caption takes its place.
+ */
+test("fills one progress bar for the whole generation", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  // Every value the bar takes, as the page sets it, however briefly, and how long it is
+  // full before it goes.
+  await page.evaluate(() => {
+    const bar = { values: [] as number[], fullFor: 0 };
+    let fullAt = 0;
+    Object.assign(window, { bar });
+    new MutationObserver(() => {
+      const value = document
+        .querySelector('[role="progressbar"]')
+        ?.getAttribute("aria-valuenow");
+      if (value == null) {
+        if (fullAt && !bar.fullFor) bar.fullFor = performance.now() - fullAt;
+      } else if (Number(value) !== bar.values.at(-1)) {
+        bar.values.push(Number(value));
+        if (Number(value) === 100) fullAt = performance.now();
+      }
+    }).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["aria-valuenow"],
+    });
+  });
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("61");
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const progress = page.getByRole("status", { name: "Generation progress" });
+  await expect(progress).toBeVisible();
+  await expect(progress).toBeHidden({ timeout: 60_000 });
+
+  const { values, fullFor } = await page.evaluate(
+    () =>
+      (window as unknown as { bar: { values: number[]; fullFor: number } }).bar,
+  );
+  expect(values.length).toBeGreaterThan(2);
+  expect(values).toEqual([...values].sort((a, b) => a - b));
+  expect(values.at(-1)).toBe(100);
+  // Long enough to be seen, where on its own it would last a frame or none.
+  expect(fullFor).toBeGreaterThanOrEqual(400);
+});
+
 /** A pane goes where it is dropped: dragged by its grip onto another, it takes that place. */
 test("moves a pane by dragging its grip onto another", async ({ page }) => {
   await page.goto("/");

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Controls } from "@/components/controls";
-import { addStep } from "@/components/generation-progress";
 import { Button } from "@/components/ui/button";
 import { Viewer } from "@/components/viewer";
 import type {
@@ -31,12 +30,17 @@ const DEFAULTS: SequenceParams = {
   n_objects_max: 5,
 };
 
+// How long the bar stays full once the sequence is in, before the caption takes its place.
+// The last step's final count and the sequence arrive together, so without it the bar is
+// never seen full.
+const FULL_BAR_MS = 500;
+
 export default function Page() {
   const [libraries, setLibraries] = useState<LibraryInfo[]>([]);
   const [params, setParams] = useState<SequenceParams>(DEFAULTS);
   const [sequence, setSequence] = useState<Sequence | null>(null);
   const [busy, setBusy] = useState(false);
-  // The steps of the generation under way, as the API reports them, and when it began.
+  // The steps of the generation under way, each at its latest count, and when it began.
   const [steps, setSteps] = useState<GenerationStep[]>([]);
   const [startedAt, setStartedAt] = useState(0);
   // Apart, so a list read that works again clears its own error and not a Generate's.
@@ -100,11 +104,14 @@ export default function Page() {
     setSteps([]);
     setStartedAt(Date.now());
     try {
+      let heard = false;
       setSequence(
-        await createSequence(params, (step) =>
-          setSteps((seen) => addStep(seen, step)),
-        ),
+        await createSequence(params, (seen) => {
+          heard = true;
+          setSteps(seen);
+        }),
       );
+      if (heard) await new Promise((done) => setTimeout(done, FULL_BAR_MS));
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : String(cause));
     } finally {
