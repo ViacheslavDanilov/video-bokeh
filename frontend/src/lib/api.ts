@@ -20,10 +20,6 @@ export type LibraryInfo = {
 
 export type StreamInfo = {
   url: string;
-  /** Empty when the stream has one rendering and a colormap would do nothing. */
-  colormaps: string[];
-  /** Which of them `url` already renders, or null when the stream takes none. */
-  default: string | null;
 };
 
 export type Sequence = {
@@ -61,12 +57,9 @@ export type SequenceParams = {
 
 /** An error the interface can show verbatim. The API puts its reason in `detail`. */
 export class ApiError extends Error {
-  readonly status: number;
-
-  constructor(status: number, message: string) {
+  constructor(message: string) {
     super(message);
     this.name = "ApiError";
-    this.status = status;
   }
 }
 
@@ -83,13 +76,12 @@ async function readError(response: Response): Promise<never> {
   } catch {
     // A response with no JSON body leaves the status text, which is better than nothing.
   }
-  throw new ApiError(response.status, detail);
+  throw new ApiError(detail);
 }
 
 /** Turn a failed connection into the one thing the person can act on. */
 function unreachable(cause: unknown): never {
   throw new ApiError(
-    0,
     `Cannot reach the API at ${BASE}. Start it with "uv run uvicorn video_bokeh.api.main:app" ` +
       `from backend/, or set NEXT_PUBLIC_API_URL. (${String(cause)})`,
   );
@@ -141,13 +133,11 @@ const NDJSON = "application/x-ndjson";
  *
  * The API streams one JSON object a line when asked for NDJSON: the steps it will take,
  * progress, then the sequence or an error. `onSteps` hears all the steps each time one
- * moves, each at its latest count, the ones still to come at zero. One that answers plain
- * JSON, as an older API does, is read as before, with no progress on the way.
+ * moves, each at its latest count, the ones still to come at zero.
  */
 export async function createSequence(
   params: SequenceParams,
   onSteps?: (steps: GenerationStep[]) => void,
-  signal?: AbortSignal,
 ): Promise<Sequence> {
   let response: Response;
   try {
@@ -158,20 +148,12 @@ export async function createSequence(
         accept: `${NDJSON}, application/json`,
       },
       body: JSON.stringify(params),
-      signal,
     });
   } catch (cause) {
-    if (cause instanceof DOMException && cause.name === "AbortError")
-      throw cause;
     unreachable(cause);
   }
   if (!response.ok) await readError(response);
-  if (
-    !response.headers.get("content-type")?.startsWith(NDJSON) ||
-    !response.body
-  )
-    return response.json();
-  return readGeneration(response.body, onSteps);
+  return readGeneration(response.body!, onSteps);
 }
 
 async function readGeneration(
@@ -189,7 +171,6 @@ async function readGeneration(
     } catch (cause) {
       // The connection dropped mid-generation: the API stopped, or the network did.
       throw new ApiError(
-        0,
         `Lost the API at ${BASE} while it generated. (${String(cause)})`,
       );
     }
@@ -202,25 +183,20 @@ async function readGeneration(
       if (!line.trim()) continue;
       const event = JSON.parse(line);
       if ("sequence" in event) return event.sequence;
-      if ("error" in event)
-        throw new ApiError(event.error.status, event.error.detail);
+      if ("error" in event) throw new ApiError(event.error.detail);
       if ("steps" in event) {
         steps = event.steps.map((planned: Omit<GenerationStep, "done">) => ({
           ...planned,
           done: 0,
         }));
       } else {
-        // A step the API did not announce still counts, after the others.
-        steps = steps.some((s) => s.step === event.step)
-          ? steps.map((s) => (s.step === event.step ? event : s))
-          : [...steps, event];
+        steps = steps.map((s) => (s.step === event.step ? event : s));
       }
       onSteps?.(steps);
     }
     if (done) break;
   }
   throw new ApiError(
-    0,
     "The API closed the stream before the sequence was ready.",
   );
 }
@@ -234,5 +210,3 @@ async function readGeneration(
 export function streamUrl(stream: StreamInfo): string {
   return new URL(stream.url, BASE).toString();
 }
-
-export const apiBase = BASE;
