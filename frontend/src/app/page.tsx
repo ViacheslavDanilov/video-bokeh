@@ -120,16 +120,15 @@ export default function Page() {
         </div>
         {library ? (
           <p className="text-muted-foreground flex flex-wrap items-baseline gap-x-4 text-xs">
-            <span>
-              library{" "}
-              <span className="text-foreground font-mono">{library.id}</span>
-            </span>
-            <span>{libraryLabel(library)}</span>
+            <span className="text-foreground">{libraryLabel(library)}</span>
             <span>
               {library.n_foregrounds} objects, {library.n_backgrounds}{" "}
               backgrounds
             </span>
             {library.asset_size && <span>{library.asset_size} px assets</span>}
+            <span title="The library's id: a hash of its list of assets, its depth estimator and its asset size. Every cached sequence is keyed on it, so a rebuilt library never serves an old sequence.">
+              id <span className="font-mono">{library.id}</span>
+            </span>
           </p>
         ) : (
           <p className="text-muted-foreground text-xs">
@@ -181,11 +180,6 @@ export default function Page() {
           />
         </section>
       </main>
-
-      <footer className="text-muted-foreground border-border border-t px-6 py-3 text-xs">
-        Bokeh comes with each sequence, rendered by the layered renderer, when
-        the API runs with torch installed.
-      </footer>
     </div>
   );
 }
