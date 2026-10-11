@@ -58,7 +58,6 @@ const SPEEDS = [0.25, 0.5, 1, 2];
 type Pane = {
   key: number;
   stream: string;
-  colormap: string;
 };
 
 // Presentation only: an unknown name still reads sensibly, so a stream the server adds
@@ -69,8 +68,6 @@ const LABELS: Record<string, string> = {
   alpha: "Alpha",
   bokeh: "Bokeh",
   flow: "Optical flow",
-  spectral_r: "Spectral",
-  grey: "Gray",
 };
 
 function label(name: string): string {
@@ -116,9 +113,7 @@ function gridColumns(panes: number, space: Space): string {
 /** Open on everything the sequence has, in the order the server lists it: the frame,
  *  who is in it, and how far away they are. */
 function initialPanes(streams: string[]): Pane[] {
-  return streams
-    .slice(0, MAX_PANES)
-    .map((stream, i) => ({ key: i, stream, colormap: "" }));
+  return streams.slice(0, MAX_PANES).map((stream, i) => ({ key: i, stream }));
 }
 
 export function Viewer({
@@ -224,7 +219,7 @@ export function Viewer({
         ...panes,
         ...appeared
           .slice(0, room)
-          .map((stream, i) => ({ key: nextKey + i, stream, colormap: "" })),
+          .map((stream, i) => ({ key: nextKey + i, stream })),
       ]);
     }
   }
@@ -273,7 +268,7 @@ export function Viewer({
   );
 
   // Loading a new src resets an element's rate to its default rate, so both are set: a
-  // stream or colormap switch then keeps the speed without any handler of its own.
+  // stream switch then keeps the speed without any handler of its own.
   const applySpeed = useCallback((v: HTMLVideoElement) => {
     v.defaultPlaybackRate = speedRef.current;
     v.playbackRate = speedRef.current;
@@ -332,8 +327,8 @@ export function Viewer({
       return next;
     });
 
-  // A stream no pane shows. Once every stream is on screen there is nothing to add; a repeat,
-  // such as disparity under two colormaps, comes from switching a pane's stream instead.
+  // A stream no pane shows. Once every stream is on screen there is nothing to add; a repeat
+  // comes from switching a pane's stream instead.
   // By what each pane shows, which for a stream this sequence lacks is the first one.
   const unshown = names.find((n) => !panes.some((p) => streamFor(p) === n));
   const addPane = () => {
@@ -343,7 +338,6 @@ export function Viewer({
       {
         key: Math.max(0, ...current.map((p) => p.key)) + 1,
         stream: unshown,
-        colormap: "",
       },
     ]);
   };
@@ -437,10 +431,7 @@ export function Viewer({
         {panes.map((pane, index) => {
           const stream = streamFor(pane);
           const info = sequence.streams[stream];
-          // The server names its default. Deriving it from the order of `colormaps`
-          // would make adding one whose name sorts last change this silently.
-          const colormap = pane.colormap || info.default || "";
-          const src = streamUrl(info, colormap || undefined);
+          const src = streamUrl(info);
           const readyKey = `${pane.key} ${src}`;
           return (
             <figure
@@ -505,9 +496,7 @@ export function Viewer({
                   onValueChange={(v) =>
                     setPanes((c) =>
                       c.map((p) =>
-                        p.key === pane.key
-                          ? { ...p, stream: v, colormap: "" }
-                          : p,
+                        p.key === pane.key ? { ...p, stream: v } : p,
                       ),
                     )
                   }
@@ -527,34 +516,6 @@ export function Viewer({
                     ))}
                   </SelectContent>
                 </Select>
-
-                {info.colormaps.length > 0 && (
-                  <Select
-                    value={colormap}
-                    onValueChange={(v) =>
-                      setPanes((c) =>
-                        c.map((p) =>
-                          p.key === pane.key ? { ...p, colormap: v } : p,
-                        ),
-                      )
-                    }
-                  >
-                    <SelectTrigger
-                      aria-label="Colormap"
-                      size="sm"
-                      className="min-w-0"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {info.colormaps.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {label(c)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
 
                 {panes.length > 1 && (
                   <Button
@@ -604,7 +565,7 @@ export function Viewer({
                       playingRef.current = false;
                       return;
                     }
-                    // A stream or colormap change swapped src on an element React
+                    // A stream change swapped src on an element React
                     // kept, which resets it. Put it back where the transport is and
                     // resume with the others, or this pane silently stops driving
                     // the ones that follow it.
@@ -630,7 +591,7 @@ export function Viewer({
                 />
               </div>
 
-              {stream === "disparity" && <SpectralScale colormap={colormap} />}
+              {stream === "disparity" && <SpectralScale />}
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}
