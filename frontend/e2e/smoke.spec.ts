@@ -347,6 +347,8 @@ test("shows the steps of a generation, then what is on screen", async ({
 test("keeps the panes in place while the next sequence generates", async ({
   page,
 }) => {
+  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
+  test.slow();
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
   const seed = page.getByRole("spinbutton", { name: "Seed" });
@@ -532,6 +534,8 @@ test("offers no pane once every stream is on screen", async ({ page }) => {
  * showing it: "Add pane" must not offer that stream a second time.
  */
 test("counts the stream a pane falls back to as shown", async ({ page }) => {
+  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
+  test.slow();
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
   const seed = page.getByRole("spinbutton", { name: "Seed" });
