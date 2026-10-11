@@ -38,10 +38,12 @@ without rebuilding.
 - **Parameters** — seed, frames, size, and the range of objects a sequence may contain. The seed
   picks a count in that range, so the same five numbers from the same library always name the
   same sequence.
-- **Generate** — one call, which shows each step as the API reports it: choosing the
-  trajectories, rendering the frames, writing them, and rendering the bokeh, with a count and
-  a bar for the one under way. On an Apple M3 Pro at the page's defaults, 80 frames at 512 px
-  with four to five objects, it takes 8 to 14 seconds, and 16 to 25 with the bokeh. Asking
+- **Generate** — one call, with one bar for the whole of it. The API names its steps first:
+  choosing the trajectories, rendering the frames, writing them, and rendering the bokeh. The
+  bar fills by their counts, beside the step under way, and stays full for half a second
+  before the caption takes its place. On an Apple M3 Pro at the page's defaults, 80 frames at
+  512 px with two to four objects, it took 6.1 to 7.3 seconds on 2026-10-11, seeds 0 to 2,
+  and 12.0 to 15.4 with the bokeh. Asking
   twice for the same sequence returns it in milliseconds, because the sequence id is a hash
   and the directory on disk is the cache. Each pane says it is preparing its video until the
   API starts sending it, since the API encodes a stream the first time it is asked for, and
