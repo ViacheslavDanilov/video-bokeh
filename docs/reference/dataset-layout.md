@@ -176,8 +176,30 @@ layer moves by a known homography per frame, so the flow is computed, not estima
 - **Writing a sequence again removes its old `flow/` first**, with or without `--flow`, so an
   earlier run's flow never passes for this one's.
 
-An 80-frame sequence at 512 px with one object took 2.2 MiB of `flow` against 37 MiB of
-`all_in_focus`, on 2026-10-10.
+The writer uses PNG compression level 3. It preserves the same 16-bit pixels as the
+old imagecodecs default, level 6, while spending less time compressing them.
+
+On an Apple M3 Pro on 2026-10-12, the 79 flow frames from an 80-frame, 512 × 512
+sequence from `da2-large`, seed 3, with one object gave these results. Each time is the
+median of three passes over all frames, with imagecodecs 2026.3.6. Writer time includes
+quantization, pixel packing, PNG compression and file writing. Source loading and
+verification are outside the timer. PNG time measures compression alone.
+
+| compression level | PNG ms/frame | writer ms/frame | bytes/frame |
+|---|---:|---:|---:|
+| old default (6) | 9.60 | 13.44 | 22,663 |
+| 1 | 5.86 | 9.62 | 44,094 |
+| 3 | 6.14 | 9.87 | 35,384 |
+| 6 | 9.66 | 13.30 | 22,663 |
+
+Level 3 reduced writer time by 26.6% against the default, at a 56.1% size increase.
+Across 79 frames, that saved 0.28 s and added 1,004,955 bytes, from 1.71 to 2.67 MiB.
+Level 1 saved only another 0.02 s and used 3.32 MiB. Every decoded 16-bit pixel was
+asserted equal to the source for all four settings, including the validity channel.
+Default and explicit level 6 also produced identical encoded bytes on all 79 frames.
+
+The earlier one-object sequence measured on 2026-10-10 used the old default compression:
+2.2 MiB of `flow` against 37 MiB of `all_in_focus`.
 
 ### The bokeh stream
 

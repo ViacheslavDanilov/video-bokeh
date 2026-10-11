@@ -170,7 +170,8 @@ def write_flow_png(path: Path, flow: np.ndarray) -> None:
     valid = ((coded >= 0) & (coded <= _U16_MAX)).all(axis=-1)
     coded = np.where(valid[..., None], coded, _FLOW_ZERO)
     pixels = np.dstack([coded, valid]).astype(np.uint16)
-    path.write_bytes(imagecodecs.png_encode(pixels))
+    # Level 3 cuts compression time while keeping KITTI's 16-bit pixels lossless.
+    path.write_bytes(imagecodecs.png_encode(pixels, level=3))
 
 
 def read_flow_png(path: Path) -> tuple[np.ndarray, np.ndarray]:
