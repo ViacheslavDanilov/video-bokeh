@@ -80,7 +80,7 @@ tags: [transcript, fathom, <topic tags>]
 
 Then the heading, a one-line pointer to the digest, and the transcript **verbatim**. Keep
 Fathom's own `ACTION ITEM:` and `SCREEN SHARING:` markers where they fall. Do not clean up,
-reorder or summarise here — this file exists precisely so the digest can be checked against
+reorder or summarize here — this file exists precisely so the digest can be checked against
 it.
 
 ## 5. Write the digest
@@ -119,7 +119,7 @@ Rules that make the difference:
 1. **Follow `docs/STYLE.md`.** Lead each section with its conclusion, one idea per sentence,
    plain verbs, concrete numbers, jargon unpacked on first use. Pablo and Valery read this
    vault too.
-2. **A decision, an open question or a trade-off gets its own labelled bullet.** Never bury
+2. **A decision, an open question or a trade-off gets its own labeled bullet.** Never bury
    one inside prose — that is the single rule this note exists to serve.
 3. **Deep sections carry the mechanism, not the vibe.** Formats, thresholds, file paths,
    who argued what and why the alternative was rejected. A table beats a paragraph for
@@ -128,7 +128,7 @@ Rules that make the difference:
    whoever was speaking, which is often the person *asking*, not the owner. Assign from
    context and fold them into the per-person lists.
 5. **Transcription is lossy — repair the obvious, flag the rest.** Known technical terms get
-   normalised silently (`Twif` → TIFF, `VPB` → VPV, `Hug and Face` → Hugging Face,
+   normalized silently (`Twif` → TIFF, `VPB` → VPV, `Hug and Face` → Hugging Face,
    `any2bokeh` → any-to-bokeh). Genuinely garbled cross-talk is marked as unclear or left
    out, never smoothed into a confident claim. If two readings are possible, say so.
 6. **Link, do not restate.** Wikilink to `docs/explanation/` for background and to the

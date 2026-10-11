@@ -7,8 +7,8 @@ as objects move past each other in depth.
 
 Two consequences shape this rendering:
 
-**Colour means identity, not depth.** Object 2 keeps its colour from the first frame to
-the last, so watching which colour covers which is watching the depth ordering change.
+**Color means identity, not depth.** Object 2 keeps its color from the first frame to
+the last, so watching which color covers which is watching the depth ordering change.
 The depth itself is the pane next door.
 
 **The masks are amodal.** `_compositor` stores each object's own warped alpha, not the
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import numpy as np
 
-#: ColorBrewer Set1, a qualitative scheme: neighbouring entries are as unlike each other
+#: ColorBrewer Set1, a qualitative scheme: neighboring entries are as unlike each other
 #: as the space allows, because these are labels rather than a measurement. Deliberately
 #: nothing like `Spectral`, which is a ramp and carries an order — mixing the two up is
 #: exactly the mistake this pane could invite.
@@ -39,17 +39,17 @@ OBJECT_COLORS: tuple[tuple[int, int, int], ...] = (
 )
 
 #: Anything under this is a stray edge sample rather than the object, and painting it
-#: leaves a halo of colour where the warp filtered against the background.
+#: leaves a halo of color where the warp filtered against the background.
 _COVERAGE_FLOOR = 0.5
 
 
 def object_color(index: int) -> tuple[int, int, int]:
-    """The colour for object `index`, wrapping once the scheme runs out."""
+    """The color for object `index`, wrapping once the scheme runs out."""
     return OBJECT_COLORS[index % len(OBJECT_COLORS)]
 
 
 def object_color_hex(index: int) -> str:
-    """The same colour as CSS hex, for a legend that must match the video."""
+    """The same color as CSS hex, for a legend that must match the video."""
     red, green, blue = object_color(index)
     return f"#{red:02x}{green:02x}{blue:02x}"
 

@@ -99,7 +99,7 @@ def _save_layers(
     root: Path,
 ) -> None:
     # Zero wherever the alpha page will read 0, not only where the float alpha is: an
-    # alpha below half a level rounds to 0 on disk, and its colour would be left behind.
+    # alpha below half a level rounds to 0 on disk, and its color would be left behind.
     shown = [quantize_alpha(a) > 0 for a in object_alphas]
     _write_rgb_png(root / "background" / f"{stem}.png", layers.background_rgb)
     write_disparity_png(

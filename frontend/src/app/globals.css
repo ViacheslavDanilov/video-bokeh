@@ -6,10 +6,10 @@
 
 /*
  * Tokens from DESIGN.md — the Vercel style reference: a near-white canvas, black
- * typography, hairline borders, and no decorative colour at all.
+ * typography, hairline borders, and no decorative color at all.
  *
  * Monochrome is the right call for this page rather than a fashion: every frame and
- * depth map on screen is already saturated, so the only colour a viewer should have to
+ * depth map on screen is already saturated, so the only color a viewer should have to
  * read is the data's. The one place hue survives is the Spectral scale under the depth
  * pane, which is a legend, not decoration.
  */
@@ -36,7 +36,7 @@
   --accent-foreground: #171717;
 
   /*
-   * DESIGN.md has no error colour — it describes a marketing site, which has no
+   * DESIGN.md has no error color — it describes a marketing site, which has no
    * failure states. An interface needs one, so this is an extension of the reference,
    * not a quotation from it: the least saturated red that still clears 4.5:1 on the
    * canvas, used only for the rule beside a message.
@@ -49,7 +49,7 @@
 }
 
 /*
- * Tailwind needs every semantic variable mapped to a colour utility before
+ * Tailwind needs every semantic variable mapped to a color utility before
  * `bg-background`, `border-border` and friends exist. Trimmed to what is used.
  */
 @theme inline {
@@ -107,7 +107,7 @@
 
 /*
  * The signature border of the system: a hairline that survives any background, made
- * from an inset ring plus an outer ring in the canvas colour rather than a plain
+ * from an inset ring plus an outer ring in the canvas color rather than a plain
  * 1px border. Depth here comes from value, never from shadow.
  */
 .hairline {
@@ -125,7 +125,7 @@
 
 /*
  * The one piece of motion nobody asked for: a sweep along the depth axis while a sequence
- * generates, on the same scale that afterwards explains the depth map's colours.
+ * generates, on the same scale that afterwards explains the depth map's colors.
  */
 @keyframes depth-sweep {
   from {

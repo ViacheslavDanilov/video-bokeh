@@ -34,11 +34,11 @@ def test_values_clustered_around_midgray() -> None:
 def test_composite_on_neutral_opaque_object_overwrites_bg() -> None:
     neutral = Image.fromarray(make_textured_bg(size=16, seed=0), mode="RGB")
     fg = np.zeros((16, 16, 4), dtype=np.uint8)
-    fg[..., 0] = 200  # red, fully opaque centre
+    fg[..., 0] = 200  # red, fully opaque center
     fg[6:10, 6:10, 3] = 255
     out = np.asarray(composite_on_neutral(Image.fromarray(fg, mode="RGBA"), neutral))
     assert out.shape == (16, 16, 3)
-    assert int(out[7, 7, 0]) == 200  # opaque pixel kept the object colour
+    assert int(out[7, 7, 0]) == 200  # opaque pixel kept the object color
 
 
 def test_composite_on_neutral_transparent_keeps_bg() -> None:

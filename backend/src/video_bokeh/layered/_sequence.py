@@ -30,7 +30,7 @@ CHUNK = 8
 
 @dataclass(frozen=True)
 class LayeredFrame:
-    """One frame's layers as the renderer takes them, colours in ``[0, 1]``."""
+    """One frame's layers as the renderer takes them, colors in ``[0, 1]``."""
 
     background: np.ndarray  # (3, H, W)
     background_disparity: np.ndarray  # (1, H, W)

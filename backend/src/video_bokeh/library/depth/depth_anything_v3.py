@@ -116,7 +116,7 @@ class DepthAnything3Estimator:
             raise RuntimeError(f"{type(self).__name__}.load() not called")
         out: list[np.ndarray] = []
         with tempfile.TemporaryDirectory() as tmp:
-            # One image per request: a batch of different sizes is centre-cropped to the
+            # One image per request: a batch of different sizes is center-cropped to the
             # smallest before inference, and every map here must match its own image.
             for img in images:
                 image_path = Path(tmp) / "image.png"
@@ -150,7 +150,7 @@ class DepthAnything3MonoLarge(DepthAnything3Estimator):
 
 class DepthAnything3MetricLarge(DepthAnything3Estimator):
     """Predicts depth divided by the focal length, a factor per image that the library's
-    min/max normalisation removes, so the reciprocal is disparity all the same.
+    min/max normalization removes, so the reciprocal is disparity all the same.
     """
 
     name: ClassVar[str] = "da3-metric-large"

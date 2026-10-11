@@ -69,7 +69,7 @@ _Avoid_: channel, modality
 
 **Layer**:
 What a frame is composited from: the whole background, or one whole object, each with its
-own colour and disparity, and an object with its alpha mask, nothing in front hiding any of
+own color and disparity, and an object with its alpha mask, nothing in front hiding any of
 it. An object has one layer per frame; the object itself is not a layer.
 _Avoid_: plane, slice
 
@@ -197,7 +197,7 @@ A stream encoded as video for a person to watch; never part of the dataset.
 _Avoid_: render
 
 **Colormap**:
-How a preview paints disparity for a person — Spectral or grey.
+How a preview paints disparity for a person — Spectral or gray.
 
 **Stream info**:
 What the API reports for one stream of a generated sequence: where to fetch its preview and

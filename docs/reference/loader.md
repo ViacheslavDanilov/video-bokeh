@@ -73,7 +73,7 @@ All tensors are float32 in `[0, 1]`, frames first, except `paint_order` and `flo
 | `object_alphas` | `object_alphas` | (T, N, H, W) | one matte per object, in the alpha stream's page order, zero past `n_objects` |
 | `layers` | `background` | (T, 3, H, W) | the whole background, nothing in front of it |
 | | `background_disparity` | (T, 1, H, W) | its disparity |
-| | `object_rgbs` | (T, N, 3, H, W) | each whole object's colour, zero outside its alpha mask |
+| | `object_rgbs` | (T, N, 3, H, W) | each whole object's color, zero outside its alpha mask |
 | | `object_disparities` | (T, N, H, W) | each whole object's disparity, zero outside its alpha mask |
 | | `paint_order` | (T, N), int64 | the objects far to near in each frame, then the padding |
 | `focus` | `focus_disparity` | (T,) | the in-focus disparity of each frame |

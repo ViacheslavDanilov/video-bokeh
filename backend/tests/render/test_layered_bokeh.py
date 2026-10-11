@@ -22,8 +22,8 @@ GREEN = (0.0, 1.0, 0.0)
 BLUE = (0.0, 0.0, 1.0)
 
 
-def _flat(colour: tuple[float, float, float]) -> torch.Tensor:
-    return torch.tensor(colour).view(1, 3, 1, 1).expand(1, 3, SIZE, SIZE).clone()
+def _flat(color: tuple[float, float, float]) -> torch.Tensor:
+    return torch.tensor(color).view(1, 3, 1, 1).expand(1, 3, SIZE, SIZE).clone()
 
 
 def _square(lo: int, hi: int, cols: tuple[int, int] | None = None) -> torch.Tensor:
@@ -42,7 +42,7 @@ def _render(
     order: list[int] | None = None,
     **kwargs: float,
 ) -> torch.Tensor:
-    """One frame: ``objects`` is (colour, alpha, disparity) per object, far to near."""
+    """One frame: ``objects`` is (color, alpha, disparity) per object, far to near."""
 
     def as_map(d: float | torch.Tensor) -> torch.Tensor:
         return d if isinstance(d, torch.Tensor) else torch.full((1, 1, SIZE, SIZE), d)
@@ -117,9 +117,9 @@ def test_an_object_in_focus_stays_sharp_and_the_background_stays_out_of_it() -> 
 
 
 def test_a_flat_background_stays_flat_to_the_frame_edge() -> None:
-    colour = (0.2, 0.5, 0.7)
-    out = _render(_flat(colour), 0.0, [], focus=1.0)
-    assert torch.allclose(out, _flat(colour)[0], atol=1e-5)
+    color = (0.2, 0.5, 0.7)
+    out = _render(_flat(color), 0.0, [], focus=1.0)
+    assert torch.allclose(out, _flat(color)[0], atol=1e-5)
 
 
 @pytest.mark.parametrize("gamma", [2.2, 1.0])
@@ -133,13 +133,13 @@ def test_a_bright_pixel_keeps_its_energy_in_linear_light(gamma: float) -> None:
 
 def test_a_bright_pixel_spreads_into_a_flat_disk() -> None:
     background = torch.zeros(1, 3, SIZE, SIZE)
-    centre = SIZE // 2
-    background[..., centre, centre] = 1.0
+    center = SIZE // 2
+    background[..., center, center] = 1.0
     # Radius 6: strength * 0.5 * 64 / 1024 = 6.
     out = _render(background, 0.0, [], focus=0.5, strength=192.0, gamma=1.0)
 
     ys, xs = torch.meshgrid(torch.arange(SIZE), torch.arange(SIZE), indexing="ij")
-    distance = torch.sqrt((ys - centre) ** 2 + (xs - centre) ** 2.0)
+    distance = torch.sqrt((ys - center) ** 2 + (xs - center) ** 2.0)
     assert bool((out[0][distance <= 5.0] > 0).all())
     assert float(out[0][distance >= 7.0].abs().max()) < 1e-6
     lit = out[0][distance <= 5.0]
@@ -178,7 +178,7 @@ def test_the_blur_does_not_wrap_around_the_frame() -> None:
     background = _flat(RED)
     background[..., SIZE // 2 :, :] = torch.tensor(BLUE).view(1, 3, 1, 1)
     out = _render(background, 0.0, [], focus=1.0)
-    # Wrapping would bring the other half's full colour. What is left is the transform's
+    # Wrapping would bring the other half's full color. What is left is the transform's
     # rounding, about 1e-7, which the inverse gamma lifts to about 1e-3, a quarter of an
     # 8-bit level.
     assert float(out[2, :4].max()) < 1e-3  # no blue at the top

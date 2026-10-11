@@ -1,4 +1,4 @@
-"""Generate a sequence, or recognise that it already exists.
+"""Generate a sequence, or recognize that it already exists.
 
 Decision 7: the sequence id is a hash of the request parameters together with the id of
 the mounted library. Stage B is deterministic, so the same request always produces the
@@ -45,7 +45,7 @@ STREAMS = ("all_in_focus", "alpha", "disparity")
 
 #: Servable as video, in the order a person reads them: the frame, who is in it, and
 #: how far away they are. `alpha` is multi-page TIFF with one page per object, which
-#: `preview` renders by colouring each object rather than flattening them into one
+#: `preview` renders by coloring each object rather than flattening them into one
 #: silhouette.
 VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 

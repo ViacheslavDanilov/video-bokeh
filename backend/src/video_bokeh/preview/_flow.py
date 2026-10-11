@@ -1,6 +1,6 @@
-"""Optical flow in colour, the way optical-flow papers draw it.
+"""Optical flow in color, the way optical-flow papers draw it.
 
-The colour wheel of Baker et al., "A Database and Evaluation Methodology for Optical Flow"
+The color wheel of Baker et al., "A Database and Evaluation Methodology for Optical Flow"
 (IJCV 2011), which the Middlebury benchmark introduced and RAFT's ``flow_viz`` draws: the
 hue is the direction, the saturation the speed, and white is still. Researchers read it
 without a legend; the demo draws one anyway, from the anchors below.
@@ -16,7 +16,7 @@ _ARCS = (15, 6, 4, 11, 13, 6)
 
 
 def _wheel() -> np.ndarray:
-    """The 55 colours around the wheel, as floats in [0, 1]."""
+    """The 55 colors around the wheel, as floats in [0, 1]."""
     rising = [np.floor(255 * np.arange(n) / n) / 255 for n in _ARCS]
     falling = [1 - r for r in rising]
     full = [np.ones(n) for n in _ARCS]
@@ -36,14 +36,14 @@ _WHEEL = _wheel()
 
 
 def flow_to_rgb(flow: np.ndarray, top_speed: float) -> np.ndarray:
-    """Colour an ``(H, W, 2)`` flow in pixels per frame as uint8 RGB.
+    """Color an ``(H, W, 2)`` flow in pixels per frame as uint8 RGB.
 
     ``top_speed`` is the speed drawn fully saturated. A video passes the fastest of the
     whole sequence, so that its frames share one scale and do not flicker.
     """
     u = flow[..., 0] / top_speed
     v = flow[..., 1] / top_speed
-    # Rightward is the wheel's first colour, red, and it turns from there through down,
+    # Rightward is the wheel's first color, red, and it turns from there through down,
     # left and up, as image rows count downwards.
     position = (np.arctan2(-v, -u) / np.pi + 1) / 2 * (len(_WHEEL) - 1)
     k0 = np.floor(position).astype(int)
@@ -54,6 +54,6 @@ def flow_to_rgb(flow: np.ndarray, top_speed: float) -> np.ndarray:
     # The fastest pixel over its own speed can come back a rounding error past 1. It is the
     # top, not past it, so it must not darken.
     speed = np.where(np.isclose(speed, 1), 1, speed)
-    # Towards white as the speed falls; past the top, darker, as the reference does.
+    # Toward white as the speed falls; past the top, darker, as the reference does.
     rgb = np.where(speed <= 1, 1 - speed * (1 - hue), hue * 0.75)
     return np.floor(255 * rgb).astype(np.uint8)

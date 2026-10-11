@@ -81,7 +81,7 @@ def test_every_object_count_writes_that_many_pages(tmp_path: Path, n: int) -> No
 
     A (3, H, W) array became one RGB page and (4, H, W) one RGBA page, so three and
     four masks -- the commonest counts -- were silently interleaved into a single
-    colour image and read back as one mask. Only sweeping the count catches it: the
+    color image and read back as one mask. Only sweeping the count catches it: the
     boundary is invisible at 1, 2 and 5.
     """
     masks = [np.full((16, 16), (i + 1) / 10.0, dtype=np.float32) for i in range(n)]
@@ -171,8 +171,8 @@ def test_disparity_reader_rejects_an_8_bit_png(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("n", [1, 3, 4, 5])
-def test_object_colours_round_trip_one_page_each(tmp_path: Path, n: int) -> None:
-    """Page k is object k's colour, at any count, read back exactly by Pillow.
+def test_object_colors_round_trip_one_page_each(tmp_path: Path, n: int) -> None:
+    """Page k is object k's color, at any count, read back exactly by Pillow.
 
     Three and four pages are the counts a shape-guessing writer folds into one image.
     """

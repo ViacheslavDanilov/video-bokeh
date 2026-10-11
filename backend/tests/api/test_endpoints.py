@@ -294,7 +294,7 @@ def test_serves_a_stream_as_video(client: TestClient) -> None:
     assert len(response.content) > 0
 
 
-def test_disparity_is_served_in_colour(client: TestClient) -> None:
+def test_disparity_is_served_in_color(client: TestClient) -> None:
     sequence = client.post("/sequences", json=SEQUENCE_BODY).json()
     assert client.get(f"/sequences/{sequence['id']}/disparity.mp4").status_code == 200
 
@@ -313,7 +313,7 @@ def test_the_encode_is_kept_for_the_next_request(
     assert encoded.stat().st_mtime_ns == stamp
 
 
-def test_alpha_is_served_with_one_colour_per_object(client: TestClient) -> None:
+def test_alpha_is_served_with_one_color_per_object(client: TestClient) -> None:
     """Each page is an object, so the video shows identity rather than one silhouette."""
     sequence = client.post("/sequences", json=SEQUENCE_BODY).json()
     response = client.get(f"/sequences/{sequence['id']}/alpha.mp4")
@@ -355,8 +355,8 @@ def test_a_sequence_id_that_is_not_a_hash_never_reaches_the_filesystem(
 # --- colormaps -------------------------------------------------------------- #
 
 
-def test_disparity_can_be_asked_for_in_grey(client: TestClient, tmp_path: Path) -> None:
-    """The frames on disk are 16-bit grey; the colour is applied when serving."""
+def test_disparity_can_be_asked_for_in_gray(client: TestClient, tmp_path: Path) -> None:
+    """The frames on disk are 16-bit gray; the color is applied when serving."""
     sequence = client.post("/sequences", json=SEQUENCE_BODY).json()
     response = client.get(
         f"/sequences/{sequence['id']}/disparity.mp4",
@@ -392,7 +392,7 @@ def test_the_colormap_is_ignored_for_a_stream_that_is_not_depth(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    """all_in_focus is already RGB, so asking for grey must not fork its cache."""
+    """all_in_focus is already RGB, so asking for ``grey`` must not fork its cache."""
     sequence = client.post("/sequences", json=SEQUENCE_BODY).json()
     client.get(
         f"/sequences/{sequence['id']}/all_in_focus.mp4",
@@ -452,7 +452,7 @@ def test_the_loopback_spelling_of_the_dev_frontend_is_allowed_too() -> None:
     assert "http://127.0.0.1:3000" in load_settings({}).cors_origins
 
 
-def test_the_sequence_names_a_colour_for_every_object(client: TestClient) -> None:
+def test_the_sequence_names_a_color_for_every_object(client: TestClient) -> None:
     """The legend reads these rather than keeping its own copy of the palette, so it
     cannot drift from what the alpha video paints.
     """

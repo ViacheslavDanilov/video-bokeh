@@ -13,8 +13,8 @@ Disparity is a uint16 PNG (see `core/_streams.py`), not RGB, so it is
 encoded through a colormap (`--colormap`, default `spectral_r`) rather
 than through `Image.convert`.
 
-Flow is a 16-bit KITTI PNG per frame but the last, coloured as optical-flow
-papers colour it (`preview/_flow.py`), at one scale for the whole sequence.
+Flow is a 16-bit KITTI PNG per frame but the last, colored as optical-flow
+papers color it (`preview/_flow.py`), at one scale for the whole sequence.
 A still frame stands for the last, so the video is as long as the others.
 
 Layout:
@@ -104,7 +104,7 @@ def load_frame(path: Path, stream: str, colormap: str) -> np.ndarray:
     if stream == "disparity":
         return apply_colormap(read_disparity_png(path), colormap)
     if stream == "alpha":
-        # One page per object, coloured by identity. See preview/_masks.py for why the
+        # One page per object, colored by identity. See preview/_masks.py for why the
         # page index is the object and not its distance.
         return render_object_masks(read_alpha_tiff(path))
     img = Image.open(path)
@@ -114,10 +114,10 @@ def load_frame(path: Path, stream: str, colormap: str) -> np.ndarray:
 
 
 def _flow_frames(paths: list[Path]) -> Iterator[np.ndarray]:
-    """The flow stream in colour, and a still frame after it for the last frame.
+    """The flow stream in color, and a still frame after it for the last frame.
 
     Read twice rather than held: once for the fastest valid motion in the sequence, the
-    scale every frame is coloured at, once to colour them. A vector the file marks
+    scale every frame is colored at, once to color them. A vector the file marks
     invalid is drawn still.
     """
     top = 0.0

@@ -2,7 +2,7 @@
 
 `Spectral_r` is the ColorBrewer diverging palette the Depth Anything V2 repository
 draws its qualitative figures with; matching it lets our disparity renders sit next
-to the published ones without a reader re-learning the colour coding. Built here as
+to the published ones without a reader re-learning the color coding. Built here as
 a 256-entry lookup table rather than through matplotlib -- see
 tests/preview/test_colormap.py for the fidelity check against the real thing.
 """
@@ -38,7 +38,7 @@ def _interpolate(anchors: np.ndarray, n: int = 256) -> np.ndarray:
     return np.stack(channels, axis=-1).round().astype(np.uint8)
 
 
-def _grey_table(n: int = 256) -> np.ndarray:
+def _gray_table(n: int = 256) -> np.ndarray:
     ramp = np.linspace(0.0, 255.0, n).round().astype(np.uint8)
     return np.stack([ramp, ramp, ramp], axis=-1)
 
@@ -47,7 +47,7 @@ def _grey_table(n: int = 256) -> np.ndarray:
 # dark red, matching how Depth Anything V2 renders its own figures.
 COLORMAPS: dict[str, np.ndarray] = {
     "spectral_r": _interpolate(_SPECTRAL_ANCHORS)[::-1],
-    "grey": _grey_table(),
+    "grey": _gray_table(),
 }
 
 

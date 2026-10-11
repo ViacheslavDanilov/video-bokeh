@@ -32,7 +32,7 @@ class DepthRange:
         return self.maxd - self.mind
 
     @property
-    def centre(self) -> float:
+    def center(self) -> float:
         return (self.mind + self.maxd) / 2.0
 
     def lerp(self, other: DepthRange, t: float) -> DepthRange:
@@ -80,13 +80,13 @@ def sample_start_range(
     """Sample the frame-1 range inside the object's assigned band.
 
     The band constrains this call and nothing after it. ``width`` is capped at
-    the slot width so the range always fits, and a centre is drawn uniformly
+    the slot width so the range always fits, and a center is drawn uniformly
     among the positions where it does.
     """
     slot_lo, slot_hi = slot
     half = min(width, slot_hi - slot_lo) / 2.0
-    centre = rng.uniform(slot_lo + half, slot_hi - half)
-    return DepthRange(mind=centre - half, maxd=centre + half)
+    center = rng.uniform(slot_lo + half, slot_hi - half)
+    return DepthRange(mind=center - half, maxd=center + half)
 
 
 def sample_end_pose(

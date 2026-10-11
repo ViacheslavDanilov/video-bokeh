@@ -380,7 +380,7 @@ def test_the_command_succeeds_when_every_estimator_is_ready(plugins: str) -> Non
 
 
 @pytest.mark.usefixtures("fake_cache", "hub")
-def test_a_load_that_had_weights_to_fetch_is_labelled(
+def test_a_load_that_had_weights_to_fetch_is_labeled(
     plugins: str,
     capsys: pytest.CaptureFixture[str],
 ) -> None:

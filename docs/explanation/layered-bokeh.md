@@ -40,9 +40,9 @@ or one object with its alpha mask, each with its own disparity.
    setting spreads 4.
 2. **The renderer blurs each layer on its own.** A pixel spreads only within its own layer.
    So the background never bleeds into an object, and the renderer blurs an object's alpha
-   mask with its colour. That blurred alpha mask makes the object see-through at its edges.
+   mask with its color. That blurred alpha mask makes the object see-through at its edges.
 3. **Every pixel spreads its own disk.** This is called scatter: the pixel sends its light
-   out, rather than each output pixel averaging its neighbours. The renderer groups radii
+   out, rather than each output pixel averaging its neighbors. The renderer groups radii
    into bins 1 pixel wide and runs one convolution per bin, with a disk of the bin's average
    radius. A radius under half a pixel leaves the pixel sharp.
 4. **The renderer corrects each layer for coverage.** Where two bins meet, or at the frame's
@@ -51,7 +51,7 @@ or one object with its alpha mask, each with its own disparity.
    same way, and divides by it. Around the object, that frame of ones takes the radius of the
    nearest part of the object, so a blurred edge fades as far as its own blur reaches. A pixel
    in focus never ends up more see-through than it was, so an edge in focus stays solid.
-5. **The blur runs in linear light.** The renderer raises colours to the power 2.2 before the
+5. **The blur runs in linear light.** The renderer raises colors to the power 2.2 before the
    blur and brings them back after it. A bright highlight then spreads into a brighter disc
    than a plain average gives. 8-bit frames clip their highlights, so the discs stay dimmer
    than a real lens makes them.
@@ -72,7 +72,7 @@ radii still mean more bins and more padding.
 - **Radius step** — the width of a radius bin, 1 pixel by default. A wider step means fewer
   convolutions, and a radius off by up to the step. A step wider than every radius gives
   one blur per layer.
-- **Gamma** — the power for linear light, 2.2 by default. 1 blurs the colours as they are.
+- **Gamma** — the power for linear light, 2.2 by default. 1 blurs the colors as they are.
 
 ---
 
@@ -100,9 +100,9 @@ One thread is what each worker of a training loader gets.
 - **Inside one layer, nothing hides anything.** Two parts of one object at different
   disparities blur into each other without occlusion. Within one object the disparity spans
   at most about 0.32, which at strength 16 on a 1024-pixel frame is 5 pixels of radius. So a
-  sharp part beside a blurred part of the same object takes some of its colour: on a
+  sharp part beside a blurred part of the same object takes some of its color: on a
   synthetic layer, half in focus and half at radius 4, the sharp pixel at the seam drops
-  from white to 0.85. A pixel just out of focus can lose some alpha too, when its neighbour
+  from white to 0.85. A pixel just out of focus can lose some alpha too, when its neighbor
   in the same object is see-through and more blurred. On real 1024-pixel layers at strength
   16, this takes more than 5 % of the alpha from 51 of 2.4 million blurred opaque pixels,
   17 % at most, on top of the fading at a blurred edge.

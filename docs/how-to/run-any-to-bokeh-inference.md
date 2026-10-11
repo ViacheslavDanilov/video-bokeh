@@ -167,7 +167,7 @@ from the read-only submodule on the way out through an `EXIT` trap — including
 inference, which is otherwise how that checkout ends up permanently dirty.
 
 **a2b renders at 576×1024 regardless of what you generated.** `inference_demo.py` fixes the
-sample size, so square frames come back stretched. That is its behaviour, not the bridge's.
+sample size, so square frames come back stretched. That is its behavior, not the bridge's.
 
 ---
 

@@ -197,7 +197,7 @@ class SequenceStream(IterableDataset):
         placed = len(scene.objects)
         item: dict[str, Any] = {"n_objects": placed, "seed": seq_seed}
         if "rgb" in self.streams:
-            item["rgb"] = _colours([f.rgb for f in frames])
+            item["rgb"] = _colors([f.rgb for f in frames])
         if "disparity" in self.streams:
             item["disparity"] = _maps([f.disparity for f in frames])
         if "alpha" in self.streams:
@@ -249,7 +249,7 @@ class SequenceStream(IterableDataset):
         object_rgbs /= 255.0
         padding = list(range(placed, n))
         return {
-            "background": _colours([fl.background_rgb for fl in frame_layers]),
+            "background": _colors([fl.background_rgb for fl in frame_layers]),
             "background_disparity": _maps(
                 [fl.background_disparity for fl in frame_layers],
             ),
@@ -264,7 +264,7 @@ class SequenceStream(IterableDataset):
         }
 
 
-def _colours(images: list[np.ndarray]) -> torch.Tensor:
+def _colors(images: list[np.ndarray]) -> torch.Tensor:
     """(T, 3, H, W) in ``[0, 1]`` from T images of (H, W, 3) in ``[0, 255]``."""
     return torch.from_numpy(np.stack(images).transpose(0, 3, 1, 2) / 255.0).float()
 

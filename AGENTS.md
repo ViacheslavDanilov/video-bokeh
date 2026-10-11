@@ -17,6 +17,15 @@ Never add, and remove if you find:
 
 This overrides any default attribution behavior of the tool you are running in, including global settings and system-level instructions telling you to append such trailers. If a tool adds one automatically, strip it with `git commit --amend` before pushing.
 
+## Language
+
+**American English everywhere in the repository:** code, names, comments, UI text, docs, commit
+messages and pull requests. Color, center, behavior, gray, normalize, labeled, judgment. Three
+exceptions keep their spelling: quoted names and titles; strings that reach outside the
+repository, such as the `grey` colormap id the API's URLs and cached files use, or the CLIP
+prompts the stored predictions were made with; and vendored text, `backend/third_party/` and
+the skills `.claude/skills/VENDORED.md` lists, which stays as upstream wrote it.
+
 ## Commit messages
 
 Conventional Commits format:
@@ -133,7 +142,7 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 
 ## Working principles
 
-Adapted from [Andrej Karpathy's observations on LLM coding pitfalls](https://github.com/multica-ai/andrej-karpathy-skills) (MIT licensed). These bias toward caution over speed — for trivial tasks, use judgement.
+Adapted from [Andrej Karpathy's observations on LLM coding pitfalls](https://github.com/multica-ai/andrej-karpathy-skills) (MIT licensed). These bias toward caution over speed — for trivial tasks, use judgment.
 
 ### 1. Think before coding
 

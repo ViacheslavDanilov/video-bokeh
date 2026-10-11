@@ -51,7 +51,7 @@ without rebuilding.
   button. The header names the library picked; its `id` is a hash of the asset list, the depth
   estimator and the asset size, which every cached sequence is keyed on.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
-  the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
+  the frames line up. Disparity can be shown in Spectral or gray. The transport plays every pane
   at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.
   The panes fit the window together, at the largest size that allows, in rows of even length.
   Where that size would be under 200 px, as on a phone or in a low window, they are at least
@@ -64,7 +64,7 @@ without rebuilding.
 - **Arrange** — drag a pane by the grip in its header onto another to take that place, or
   focus the grip and press the left or right arrow; playback goes on in step.
 
-**Optical flow comes with each sequence**, coloured as optical-flow papers colour it: the hue
+**Optical flow comes with each sequence**, colored as optical-flow papers color it: the hue
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:

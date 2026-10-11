@@ -2,7 +2,7 @@
 
 `Spectral_r` is what the Depth Anything V2 repository draws its qualitative figures
 with, so our disparity renders sit next to the published ones without a reader
-re-learning the colour coding. matplotlib is a dev dependency and is used here, and
+re-learning the color coding. matplotlib is a dev dependency and is used here, and
 only here, to prove the table is faithful -- the runtime must not import it.
 """
 
@@ -30,7 +30,7 @@ def test_near_is_red_and_far_is_blue() -> None:
     assert far[2] > far[0], "disparity 0.0 (farthest) must read blue"
 
 
-def test_grey_is_linear_and_monotone() -> None:
+def test_gray_is_linear_and_monotone() -> None:
     x = np.linspace(0.0, 1.0, 64, dtype=np.float32)
     got = apply_colormap(x.reshape(1, -1), "grey")[0]
     assert (np.diff(got[:, 0].astype(int)) >= 0).all()

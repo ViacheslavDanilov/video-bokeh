@@ -86,19 +86,19 @@ def _focus(
 
 
 def _read_frames(seq: Path, names: list[str]) -> Iterator[LayeredFrame]:
-    """Each frame's layers as ``layers/`` and ``alpha/`` hold them, colours in [0, 1]."""
+    """Each frame's layers as ``layers/`` and ``alpha/`` hold them, colors in [0, 1]."""
     layers = seq / "layers"
     orders = read_paint_order(layers / "paint_order.json")
     for name, order in zip(names, orders, strict=True):
         with Image.open(layers / "background" / name) as im:
             background = np.asarray(im.convert("RGB"), dtype=np.float32) / 255.0
-        colours = np.stack(read_rgb_tiff(layers / "objects" / _tif(name))) / 255.0
+        colors = np.stack(read_rgb_tiff(layers / "objects" / _tif(name))) / 255.0
         yield LayeredFrame(
             background=background.transpose(2, 0, 1),
             background_disparity=read_disparity_png(
                 layers / "background_disparity" / name,
             )[None],
-            object_rgbs=colours.transpose(0, 3, 1, 2),
+            object_rgbs=colors.transpose(0, 3, 1, 2),
             object_alphas=np.stack(read_alpha_tiff(seq / "alpha" / _tif(name))),
             object_disparities=np.stack(
                 read_disparity_tiff(layers / "objects_disparity" / _tif(name)),

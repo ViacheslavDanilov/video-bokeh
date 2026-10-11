@@ -12,7 +12,7 @@ def _square(size: int, lo: int, hi: int) -> np.ndarray:
     return a
 
 
-def test_each_object_gets_its_own_colour() -> None:
+def test_each_object_gets_its_own_color() -> None:
     masks = render_object_masks([_square(16, 0, 4), _square(16, 8, 12)])
     assert tuple(masks[1, 1]) == OBJECT_COLORS[0]
     assert tuple(masks[9, 9]) == OBJECT_COLORS[1]
@@ -23,9 +23,9 @@ def test_everything_outside_every_mask_is_black() -> None:
     assert tuple(masks[15, 15]) == (0, 0, 0)
 
 
-def test_colour_follows_the_page_index_not_the_order_on_screen() -> None:
+def test_color_follows_the_page_index_not_the_order_on_screen() -> None:
     """The page index is the object's identity for the whole clip, so an object that
-    moves must keep its colour. That is what makes a crossing readable.
+    moves must keep its color. That is what makes a crossing readable.
     """
     first = render_object_masks([_square(16, 0, 4), _square(16, 8, 12)])
     # The same two objects, having swapped places on screen.
@@ -43,7 +43,7 @@ def test_a_later_page_covers_an_earlier_one_where_they_overlap() -> None:
 
 def test_a_soft_edge_does_not_leave_a_halo() -> None:
     """Warping filters the alpha against the background, so the fringe is not the
-    object and painting it would outline everything in its own colour.
+    object and painting it would outline everything in its own color.
     """
     a = np.zeros((8, 8), dtype=np.float32)
     a[2:6, 2:6] = 1.0
@@ -53,7 +53,7 @@ def test_a_soft_edge_does_not_leave_a_halo() -> None:
     assert tuple(masks[1, 1]) == (0, 0, 0)
 
 
-def test_more_objects_than_colours_wrap_rather_than_crash() -> None:
+def test_more_objects_than_colors_wrap_rather_than_crash() -> None:
     assert object_color(len(OBJECT_COLORS)) == OBJECT_COLORS[0]
 
 

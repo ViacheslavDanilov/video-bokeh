@@ -110,7 +110,7 @@ without the flag no layers are written, and any left from an earlier run are rem
 layers/
 ├── background/<frame>.png            RGB   uint8    the whole background, nothing in front
 ├── background_disparity/<frame>.png  I;16  uint16   its disparity
-├── objects/<frame>.tif               multi-page RGB uint8, page k = object k's colour
+├── objects/<frame>.tif               multi-page RGB uint8, page k = object k's color
 ├── objects_disparity/<frame>.tif     multi-page uint16, page k = object k's disparity
 └── paint_order.json                  one list per frame: the object pages, far to near
 ```
@@ -122,14 +122,14 @@ layers/
   complete. Writing a sequence again removes its old `layers/` first, with or without
   `--layers`.
 - **Object `k`'s alpha is page `k` of `alpha/<frame>.tif`.** It is not written twice.
-- **An object layer is zero wherever its alpha page reads 0**, colour and disparity both.
-  That is where the stored alpha rounds to 0, so no colour hides under a transparent pixel.
+- **An object layer is zero wherever its alpha page reads 0**, color and disparity both.
+  That is where the stored alpha rounds to 0, so no color hides under a transparent pixel.
 - **Compositing the layers gives back the frame.** Start from the background, then paint each
   object over it in the frame's `paint_order`, `out = a · object + (1 − a) · out`. The result
   is `all_in_focus`, and the same with the disparities gives `disparity`, up to the rounding of
   each file. The order is recorded because it changes from frame to frame, and because soft
   edges of objects at similar disparity may overlap.
-- **Quantized like the other streams.** Colour is truncated to 8 bits as `all_in_focus` is, so
+- **Quantized like the other streams.** Color is truncated to 8 bits as `all_in_focus` is, so
   a pixel no object covers matches it exactly. Disparity is 16-bit as `disparity` is.
 - **The TIFFs follow the alpha stream's rules**: multi-page, deflate, read with Pillow.
   `src/video_bokeh/core/_streams.py` holds both sides of both formats.
@@ -142,9 +142,9 @@ machine on 2026-10-10, five 80-frame sequences at 1024 × 1024 with 1 to 5 objec
 | without `--layers` | 1.746 | 31.4 |
 | with `--layers` | 3.773 | 52.6 |
 
-Of the 2.03 MiB the layers add, the background's colour is 1.14 MiB: it is a second
+Of the 2.03 MiB the layers add, the background's color is 1.14 MiB: it is a second
 all-in-focus frame. Its disparity is 0.22 MiB. The object pages are mostly empty and compress
-to 0.44 MiB for colour and 0.23 MiB for disparity.
+to 0.44 MiB for color and 0.23 MiB for disparity.
 
 ### The flow stream — optional
 
@@ -166,10 +166,10 @@ layer moves by a known homography per frame, so the flow is computed, not estima
   its surface's motion. Valid is 0 only where a vector falls outside the ±512 px the encoding
   holds; it is never clipped.
 - **1/64 px steps.** `read_flow_png` in `video_bokeh.core._streams` reads it back as float32.
-  **Pillow reads the file as 8-bit colour and loses the flow**, so read it with
+  **Pillow reads the file as 8-bit color and loses the flow**, so read it with
   `imagecodecs`, as `read_flow_png` does, or another reader that keeps 16 bits.
 - **It is optional.** Only `video_bokeh.preview.pack --streams flow` and the API's flow video
-  read it, to colour it for the eye. The loader hands out the same flow, unquantized, as its
+  read it, to color it for the eye. The loader hands out the same flow, unquantized, as its
   `flow` stream.
 - **Writing a sequence again removes its old `flow/` first**, with or without `--flow`, so an
   earlier run's flow never passes for this one's.

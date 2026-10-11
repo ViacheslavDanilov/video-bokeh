@@ -70,7 +70,7 @@ const LABELS: Record<string, string> = {
   bokeh: "Bokeh",
   flow: "Optical flow",
   spectral_r: "Spectral",
-  grey: "Grey",
+  grey: "Gray",
 };
 
 function label(name: string): string {

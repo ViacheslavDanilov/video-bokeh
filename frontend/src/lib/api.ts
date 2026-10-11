@@ -35,7 +35,7 @@ export type Sequence = {
   frames: number;
   size: number;
   n_objects: number;
-  /** One hex colour per object, in alpha page order. The mask legend reads these
+  /** One hex color per object, in alpha page order. The mask legend reads these
    *  rather than keeping a copy of the palette, so it cannot drift from the video. */
   object_colors: string[];
   streams: Record<string, StreamInfo>;

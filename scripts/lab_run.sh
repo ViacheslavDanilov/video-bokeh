@@ -83,7 +83,7 @@ if [ "${#ESTIMATORS[@]}" -eq 0 ]; then
     read -r -a ESTIMATORS <<< "$(py -c \
         "from video_bokeh.library.depth import ESTIMATORS; print(' '.join(sorted(ESTIMATORS)))")"
 else
-    # A misspelt name would otherwise surface an hour in, as one failed library.
+    # A misspelled name would otherwise surface an hour in, as one failed library.
     py -c "import sys; from video_bokeh.library.depth import resolve_estimator; [resolve_estimator(s) for s in sys.argv[1:]]" \
         "${ESTIMATORS[@]}"
 fi

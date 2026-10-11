@@ -67,7 +67,7 @@ def write_alpha_tiff(path: Path, masks: list[np.ndarray]) -> None:
     # photometric="minisblack" is load-bearing, not decoration. Without it tifffile
     # infers meaning from the shape: (3, H, W) becomes one RGB page and (4, H, W)
     # one RGBA page, so three or four masks -- the commonest counts -- would be
-    # silently interleaved into a single colour image and read back as one mask.
+    # silently interleaved into a single color image and read back as one mask.
     _write_pages(path, pages, "minisblack")
 
 
@@ -164,7 +164,7 @@ def write_flow_png(path: Path, flow: np.ndarray) -> None:
 
     Red is ``u * 64 + 2**15``, green ``v * 64 + 2**15``, blue 1 where the vector is valid.
     A vector beyond the range the encoding holds is written invalid rather than clipped.
-    Pillow cannot write 16-bit colour, so imagecodecs does.
+    Pillow cannot write 16-bit color, so imagecodecs does.
     """
     coded = np.round(flow.astype(np.float64) * _FLOW_SCALE) + _FLOW_ZERO
     valid = ((coded >= 0) & (coded <= _U16_MAX)).all(axis=-1)

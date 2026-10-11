@@ -46,7 +46,7 @@ Estimates depth once per asset and writes the artifact library.
 Every model returns disparity, near larger than far, so a library built with any of them works
 the same in Stage B. The library records the `--model` string in each foreground's metadata.
 
-| `--model` | checkpoint | weights licence |
+| `--model` | checkpoint | weights license |
 |---|---|---|
 | `da2-small` | `depth-anything/Depth-Anything-V2-Small-hf` | Apache-2.0 |
 | `da2-base` | `depth-anything/Depth-Anything-V2-Base-hf` | CC BY-NC 4.0 |
@@ -55,7 +55,7 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da3-mono-large` | `depth-anything/DA3MONO-LARGE` | Apache-2.0 |
 | `da3-metric-large` | `depth-anything/DA3METRIC-LARGE` | Apache-2.0 |
 
-Licences as checked on 2026-09-30, and on 2026-10-01 for `da3-metric-large`. Non-commercial
+Licenses as checked on 2026-09-30, and on 2026-10-01 for `da3-metric-large`. Non-commercial
 weights are fine for a research dataset. Both `da3-*` need an environment of their own first, as
 the next section says. `da3-metric-large` has not run yet; the lab machine runs it first.
 
@@ -249,7 +249,7 @@ GPU. The image holds the dependencies alone: the repository, the checkpoints, th
 directory and the Hugging Face cache are mounted at their own paths, and the container runs as
 you. The setup script still provides the checkpoints and the cached base model. On the RTX 5090
 on 2026-10-07 one 80-frame sequence took 88 s in the image and 90 s in the venv, and the two
-differed by 0.83 grey levels on average, as much as two runs in the venv differ from each other.
+differed by 0.83 gray levels on average, as much as two runs in the venv differ from each other.
 `local`, the venv, is the default.
 
 **any-to-bokeh needs thirteen frames or more per sequence.** It groups frames eight at a time,
@@ -301,7 +301,7 @@ named like the `all_in_focus` frames. The interface is
 Disparity is a uint16 PNG, not RGB (see [[dataset-layout]]), so it is packed through
 `--colormap` rather than through the `Image.convert` path the other streams use.
 
-Flow is KITTI's 16-bit PNG, one per frame but the last, so `--streams flow` colours it the
+Flow is KITTI's 16-bit PNG, one per frame but the last, so `--streams flow` colors it the
 way optical-flow papers do: the hue is the direction, the saturation the speed, and white is
 still. One scale, the fastest motion in the sequence, serves every frame. `--colormap` does
 not apply. A still frame stands for the last frame, so the video is as long as the others.

@@ -62,8 +62,8 @@ If the ask is ambiguous, ask once. Never infer scope from a slug.
 
 | Route | When | Ends with |
 |---|---|---|
-| **feature** | new behaviour someone can observe | PR |
-| **bug** | behaviour that already worked is wrong | repro test → PR |
+| **feature** | new behavior someone can observe | PR |
+| **bug** | behavior that already worked is wrong | repro test → PR |
 | **investigate** | a question, an unknown cause, or "does the code match what we recorded" | a written finding, no code |
 | **docs** | a runbook, an explanation page, a reference, a README | PR |
 | **paper** | manuscript text, section structure, revisions, literature for the paper | a hand-off to the paper repository: go straight to 6e |
@@ -157,7 +157,7 @@ the hypothesis that turned out right, so the next person debugging learns from i
 Read-only. **No branch, no code, no PR.** The deliverable is understanding.
 
 Gather evidence — code paths, `git log` and `git blame`, the generated artifacts, the
-documented behaviour in `docs/explanation/` and `docs/reference/`. For an unknown cause, run
+documented behavior in `docs/explanation/` and `docs/reference/`. For an unknown cause, run
 the first three phases of `diagnosing-bugs` and stop before the fix. `fact-checker` when a
 claim about the outside world is in dispute.
 
@@ -169,7 +169,7 @@ Land on exactly one outcome:
 | **No divergence** | Say what the system actually does, cite the file and line that settles it. "The note was mis-transcribed" is a legitimate, publishable answer. |
 | **Needs a decision from Pablo or Valery** | State both readings and what each costs. Draft the email; do not send it. |
 
-Write the finding to `docs/reports/YYYY-MM-DD-<slug>.md`, or append a clearly labelled
+Write the finding to `docs/reports/YYYY-MM-DD-<slug>.md`, or append a clearly labeled
 section to the meeting note saying it was added later and checked against code. Then go to
 step 11. **A task that ends here with no code is a successful run.**
 
@@ -268,7 +268,7 @@ rather than what you meant. Like every delegation, the prompt carries the limits
 **Delegating** in the conventions file.
 
 Fix every hard standards violation and every spec gap, each fix a further commit. Fix a
-judgement-call smell when it is cheap, otherwise name it in the PR body. One round only —
+judgment-call smell when it is cheap, otherwise name it in the PR body. One round only —
 the full review is `/bokeh-review`'s job.
 
 ## 10. Commit and open the PR
@@ -285,7 +285,7 @@ and open the pull request without asking, per root `AGENTS.md` rule 2:
 characters, the `## What` / `## Why` / `## Verified` body from `AGENTS.md`, and the assignee
 and labels its **Pull requests** section asks for.
 `Verified` carries measured numbers only, and names pre-existing failures as pre-existing.
-A judgement call left from step 9 goes in the body as a named follow-up.
+A judgment call left from step 9 goes in the body as a named follow-up.
 
 ## 11. Record the outcome
 
