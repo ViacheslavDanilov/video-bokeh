@@ -26,10 +26,10 @@ pipeline is shaped this way, see [[pipeline-explainer]].
 4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says
    whether each depth estimator can run there, before a build finds out. See [[cli]].
 
-If `data/library_dev/` already holds `foregrounds/` and `backgrounds/`, Stage A is done and
-you can skip to Stage B. Built with the default class filter from the pools as of 2026-10-01,
-it holds 17 foregrounds and 30 backgrounds; one built before then holds 12 and 20. Either is
-enough for every recipe below.
+If `data/library/da2-large/` already holds `foregrounds/` and `backgrounds/`, as `make
+libraries` leaves it, Stage A is done and you can skip to Stage B. Built with the default class
+filter from the pools as of 2026-10-01, it holds 17 foregrounds and 30 backgrounds, and 30 and
+30 with the filter off. Either is enough for every recipe below.
 
 ### How the dev pools were grown to 30 and 30
 
@@ -55,7 +55,7 @@ The pools grew by 20.8 MiB.
 ```bash
 uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output data/library_dev --size 1024 --model da2-large
+  --output data/library/da2-large --size 1024 --model da2-large
 ```
 
 **`--size` need not match Stage B.** Stage B maps each asset onto the frame whatever its
@@ -82,7 +82,7 @@ uv run python -m video_bokeh.library.build \
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/demo \
+  --library-root data/library/da2-large --output data/demo \
   --count 4 --frames 80 --size 512 --seed 0
 ```
 
@@ -90,7 +90,7 @@ uv run python -m video_bokeh.scenes.generate \
 together. Every sampled trajectory set is checked against collisions, and one that cannot be
 made collision-free is resampled rather than written.
 
-Measured on `library_dev`, 4 sequences of 80 frames at size 512: **18 s** on an Apple M3 Pro.
+4 sequences of 80 frames at size 512 took **18 s** on an Apple M3 Pro.
 Most of that is the collision validator, which warps every mask on every frame and pays that
 cost again for each rejected attempt.
 
@@ -105,7 +105,7 @@ it is given. `--n-objects-max` defaults to 5.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/demo5 \
+  --library-root data/library/da2-large --output data/demo5 \
   --count 3 --frames 8 --size 512 --n-objects-min 5 --n-objects-max 5
 ```
 
@@ -122,7 +122,7 @@ pass as the frames:
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/demo_flow \
+  --library-root data/library/da2-large --output data/demo_flow \
   --count 3 --frames 80 --size 512 --seed 0 --flow
 ```
 
@@ -183,7 +183,7 @@ explains. It runs on any machine with torch installed.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/demo_bokeh \
+  --library-root data/library/da2-large --output data/demo_bokeh \
   --count 2 --frames 24 --size 512 --seed 0 --bokeh
 ```
 
@@ -194,7 +194,7 @@ It took 7 s on an Apple M3 Pro, on 2026-10-10.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/demo_layers \
+  --library-root data/library/da2-large --output data/demo_layers \
   --count 2 --frames 24 --size 512 --seed 0 --layers
 uv run --extra render python -m video_bokeh.render.run --data-root data/demo_layers \
   --renderer layered

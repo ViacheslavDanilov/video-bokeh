@@ -34,11 +34,10 @@ bokeh renders on.
 | `VIDEO_BOKEH_LAYERED_DEVICE` | `cpu` | the torch device the bokeh renders on: `cpu`, `mps` or `cuda` |
 
 **The second one names a library or a directory of libraries.** A directory holding
-`foregrounds/` and `backgrounds/` is one library, which is what makes an existing checkout work
-without moving anything:
+`foregrounds/` and `backgrounds/` is one library:
 
 ```bash
-VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --port 8000
+VIDEO_BOKEH_LIBRARY=data/library/da2-large uv run uvicorn video_bokeh.api.main:app --port 8000
 ```
 
 Any other directory is read one level down, and every subdirectory holding both is a library.
@@ -205,7 +204,7 @@ frames at 512 px with four to five objects on an Apple M3 Pro, adding the bokeh 
 19 s on 2026-10-10, and adding the flow 6 to 12 s on 2026-10-11, seeds 0 to 2.
 
 **Without NDJSON, the call blocks while it generates.** Measured on 2026-09-24, before
-bokeh, against `data/library_dev` at size 512 with four to five objects per sequence:
+bokeh, at size 512 with four to five objects per sequence:
 
 | Where | 24 frames | 80 frames | cache hit |
 |---|---|---|---|

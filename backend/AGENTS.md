@@ -21,7 +21,7 @@ Run from `backend/` unless noted.
 | Install Stage A | `uv sync --no-dev --extra library` |
 | Install the training loader | `uv sync --no-dev --extra loader` |
 | Install Stage C | `uv sync --no-dev --extra render` |
-| Run API (reload) | `VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
+| Run API (reload) | `uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
 | Tests | `uv run pytest` |
 | Type check | `uv run ty check src/` |
 | Lint | `uv run ruff check src/` |
@@ -81,7 +81,7 @@ uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
 # 2. Stage A — build the artifact library (depth runs once per asset)
 uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output data/library_dev --size 1024 --model da2-large
+  --output data/library/da2-large --size 1024 --model da2-large
 
 # 3. Stage B — generate sequences on the fly from the library
 #    Writes all_in_focus/*.png (RGB), alpha/*.tif (one page per object)
@@ -90,7 +90,7 @@ uv run python -m video_bokeh.library.build \
 #    run, from the layers in memory, and --flow writes its exact optical flow.
 #    See docs/reference/dataset-layout.md.
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/synth_dev \
+  --library-root data/library/da2-large --output data/synth_dev \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5 --layers
 
 # 4. Stage C — render bokeh into each sequence's bokeh/. layered, the default, runs

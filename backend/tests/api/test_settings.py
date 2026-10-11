@@ -24,7 +24,7 @@ def test_data_root_moves_library_and_sequences_together() -> None:
 
 
 def test_library_can_be_named_independently() -> None:
-    """A flat library like data/library_dev is named directly, not under the root."""
+    """A flat library like data/library/da2-large is named directly, not under the root."""
     settings = load_settings(
         {
             "VIDEO_BOKEH_DATA_ROOT": "/mnt/big",
@@ -57,7 +57,7 @@ def _library(root: Path) -> Path:
 
 
 def test_a_flat_library_is_the_one_library(tmp_path: Path) -> None:
-    library = _library(tmp_path / "library_dev")
+    library = _library(tmp_path / "da2-large")
     assert find_libraries(_settings(library)) == [library]
 
 
