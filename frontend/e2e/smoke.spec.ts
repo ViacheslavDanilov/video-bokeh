@@ -364,6 +364,75 @@ test("keeps the panes in place while the next sequence generates", async ({
   await expect(progress).toBeHidden({ timeout: 60_000 });
 });
 
+/** A pane goes where it is dropped: dragged by its grip onto another, it takes that place. */
+test("moves a pane by dragging its grip onto another", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
+  expect(await streamsInOrder(page)).toEqual([
+    "All in focus",
+    "Alpha",
+    "Disparity",
+    "Optical flow",
+  ]);
+
+  await page
+    .getByRole("button", { name: "Move Optical flow pane" })
+    .dragTo(page.getByRole("figure").first());
+  await expect
+    .poll(() => streamsInOrder(page))
+    .toEqual(["Optical flow", "All in focus", "Alpha", "Disparity"]);
+
+  // And rightwards: onto the last pane, it takes the last place.
+  await page
+    .getByRole("button", { name: "Move Optical flow pane" })
+    .dragTo(page.getByRole("figure").last());
+  await expect
+    .poll(() => streamsInOrder(page))
+    .toEqual(["All in focus", "Alpha", "Disparity", "Optical flow"]);
+});
+
+/**
+ * The grip moves its pane with the arrow keys too, keeps the focus for the next press, and
+ * the panes play on in step: a reorder moves the video elements, it does not reload them.
+ */
+test("moves a pane with the arrow keys while the panes play", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await page.getByRole("button", { name: "Play" }).click();
+
+  const grip = page.getByRole("button", { name: "Move All in focus pane" });
+  await grip.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(() => streamsInOrder(page))
+    .toEqual(["Alpha", "Disparity", "All in focus", "Optical flow"]);
+  await expect(grip).toBeFocused();
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    ),
+  ).toEqual([false, false, false, false]);
+
+  // In step: still on one frame, give or take the transport's tolerance, and moving.
+  const times = () =>
+    videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).currentTime),
+    );
+  const before = await times();
+  await page.waitForTimeout(400);
+  const after = await times();
+  expect(Math.max(...after) - Math.min(...after)).toBeLessThan(0.15);
+  expect(Math.min(...after)).toBeGreaterThan(Math.max(...before));
+});
+
 /** With every stream on screen there is nothing left to add, and the button says so. */
 test("offers no pane once every stream is on screen", async ({ page }) => {
   await page.goto("/");

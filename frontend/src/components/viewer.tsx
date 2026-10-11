@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, GripVertical } from "lucide-react";
 import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,13 @@ import { SpectralScale } from "./spectral-scale";
 // another already shows makes room for one more, which would otherwise have no end. Past
 // what fits in a row the panes wrap rather than shrink; see `gridColumns`.
 const MAX_PANES = 6;
+
+// What a dragged pane carries, so that a pane drops only on another pane and nothing else
+// dropped on the page, such as a file, moves one.
+const PANE_DRAG = "application/x-video-bokeh-pane";
+
+// How far an arrow key on a pane's grip moves the pane.
+const ARROW_MOVES: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
 // Between panes. The grid's style sets its gap from this, so the two cannot disagree.
 const PANE_GAP_PX = 16;
@@ -138,6 +145,9 @@ export function Viewer({
   const [speed, setSpeed] = useState(1);
 
   const videos = useRef(new Map<number, HTMLVideoElement>());
+  // The pane being dragged, and the one it would land on, outlined while it hovers.
+  const dragged = useRef<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<number | null>(null);
   // Read inside onLoadedMetadata, which fires long after the render that set the
   // src, so state captured by closure would be stale.
   const timeRef = useRef(0);
@@ -310,6 +320,18 @@ export function Viewer({
     );
   }
 
+  // Takes the pane out and puts it back at `to`, so the panes between shift by one. Each
+  // keeps its key, so React moves its video element rather than loading it again.
+  const movePane = (key: number, to: number) =>
+    setPanes((current) => {
+      const from = current.findIndex((p) => p.key === key);
+      if (from < 0 || to < 0 || to >= current.length || from === to)
+        return current;
+      const next = [...current];
+      next.splice(to, 0, ...next.splice(from, 1));
+      return next;
+    });
+
   // A stream no pane shows. Once every stream is on screen there is nothing to add; a repeat,
   // such as disparity under two colormaps, comes from switching a pane's stream instead.
   // By what each pane shows, which for a stream this sequence lacks is the first one.
@@ -412,7 +434,7 @@ export function Viewer({
           gridTemplateColumns: gridColumns(panes.length, space),
         }}
       >
-        {panes.map((pane) => {
+        {panes.map((pane, index) => {
           const stream = streamFor(pane);
           const info = sequence.streams[stream];
           // The server names its default. Deriving it from the order of `colormaps`
@@ -421,8 +443,63 @@ export function Viewer({
           const src = streamUrl(info, colormap || undefined);
           const readyKey = `${pane.key} ${src}`;
           return (
-            <figure key={pane.key} className="flex min-w-0 flex-col gap-2">
+            <figure
+              key={pane.key}
+              className={cn(
+                "flex min-w-0 flex-col gap-2 rounded-lg",
+                dropTarget === pane.key &&
+                  "ring-ring ring-offset-background ring-2 ring-offset-4",
+              )}
+              onDragOver={(e) => {
+                if (!e.dataTransfer.types.includes(PANE_DRAG)) return;
+                // Over itself a pane has nowhere to go.
+                if (dragged.current === pane.key) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropTarget(pane.key);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+                  setDropTarget(null);
+              }}
+              onDrop={(e) => {
+                setDropTarget(null);
+                if (!e.dataTransfer.types.includes(PANE_DRAG)) return;
+                e.preventDefault();
+                movePane(Number(e.dataTransfer.getData(PANE_DRAG)), index);
+              }}
+            >
               <figcaption className="flex items-center gap-2">
+                {panes.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Move ${label(stream)} pane`}
+                    title="Drag onto another pane, or press the left or right arrow, to move this pane"
+                    className="text-muted-foreground -ml-1.5 cursor-grab active:cursor-grabbing"
+                    draggable
+                    onDragStart={(e) => {
+                      dragged.current = pane.key;
+                      e.dataTransfer.setData(PANE_DRAG, String(pane.key));
+                      e.dataTransfer.effectAllowed = "move";
+                      const figure = e.currentTarget.closest("figure");
+                      if (figure) e.dataTransfer.setDragImage(figure, 24, 16);
+                    }}
+                    onDragEnd={() => {
+                      dragged.current = null;
+                      setDropTarget(null);
+                    }}
+                    onKeyDown={(e) => {
+                      const by = ARROW_MOVES[e.key];
+                      if (by === undefined) return;
+                      e.preventDefault();
+                      movePane(pane.key, index + by);
+                    }}
+                  >
+                    <GripVertical />
+                  </Button>
+                )}
                 <Select
                   value={stream}
                   onValueChange={(v) =>
