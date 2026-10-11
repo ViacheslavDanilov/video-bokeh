@@ -26,8 +26,8 @@ const DEFAULTS: SequenceParams = {
   seed: 0,
   frames: 80,
   size: 512,
-  n_objects_min: 4,
-  n_objects_max: 5,
+  n_objects_min: 2,
+  n_objects_max: 4,
 };
 
 // How long the bar stays full once the sequence is in, before the caption takes its place.
