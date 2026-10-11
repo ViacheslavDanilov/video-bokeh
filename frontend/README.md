@@ -44,7 +44,7 @@ without rebuilding.
   with four to five objects, it takes 8 to 14 seconds, and 16 to 25 with the bokeh. Asking
   twice for the same sequence returns it in milliseconds, because the sequence id is a hash
   and the directory on disk is the cache. Each pane says it is preparing its video until the
-  first frame arrives, since the API encodes a stream the first time it is asked for, and
+  API starts sending it, since the API encodes a stream the first time it is asked for, and
   says so if the video fails to load.
 - **What is on screen** — a line above the panes names the sequence's library, seed, object
   count, frame count and size, says when it came from the cache, and gives its id with a copy

@@ -150,9 +150,10 @@ export function Viewer({
   // The room the pane grid has, which the parameters folding away, the window, or an alert
   // appearing above the grid changes.
   const [space, setSpace] = useState<Space>({ width: 0, height: 0 });
-  // Which pane has a frame of its current video, or failed to get one. The API encodes a
+  // Which pane has its current video from the API, or failed to get it. The API encodes a
   // video the first time it is asked for, up to two seconds, and a pane says so meanwhile
-  // rather than sit blank.
+  // rather than sit blank. Its metadata is the sign, not its first frame: with
+  // `preload="metadata"`, WebKit loads no frame until the video plays.
   const [loaded, setLoaded] = useState<ReadonlyMap<string, "ready" | "failed">>(
     new Map(),
   );
@@ -506,9 +507,6 @@ export function Viewer({
                   ref={(el) => registerVideo(pane.key, el)}
                   className="h-full w-full object-contain"
                   src={src}
-                  onLoadedData={() =>
-                    setLoaded((seen) => new Map(seen).set(readyKey, "ready"))
-                  }
                   onError={() =>
                     setLoaded((seen) => new Map(seen).set(readyKey, "failed"))
                   }
@@ -517,6 +515,7 @@ export function Viewer({
                   playsInline
                   preload="metadata"
                   onLoadedMetadata={(e) => {
+                    setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
                     setDuration(e.currentTarget.duration);
                     if (restoredSequence.current !== sequence.id) {
                       // First load of a new sequence: the transport is at the start and
