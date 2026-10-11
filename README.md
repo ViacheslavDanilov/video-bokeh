@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".assets/logo.png" width="100" alt="Video Bokeh Logo">
+<img src="frontend/src/app/icon.svg" width="100" alt="Video Bokeh logo">
 
 # Video Bokeh
 
@@ -14,12 +14,6 @@
 Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.js frontend.
 
 </div>
-
-## Preview
-
-<p align="center">
-<img src=".assets/video-bokeh.png" width="80%" alt="Video Bokeh Preview">
-</p>
 
 ## Features
 
