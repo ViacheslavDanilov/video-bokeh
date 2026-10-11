@@ -369,11 +369,12 @@ test("keeps the panes in place while the next sequence generates", async ({
   await expect(progress).toBeHidden({ timeout: 60_000 });
 });
 
-/** What the progress bar did: every value it took, however briefly; how far into its line,
- *  and where on the page, it sat at each; and how long it stayed full where it filled. */
+/** What the progress bar did: every value it took, however briefly; where on the page it sat
+ *  at each, over the empty card or the panes, and how far from the left edge; and how long it
+ *  stayed full where it filled. */
 type BarSeen = {
   values: number[];
-  offsets: number[];
+  lefts: number[];
   places: string[];
   fullFor: number;
 };
@@ -383,7 +384,7 @@ async function watchBar(page: Page) {
   await page.evaluate(() => {
     const fresh = () => ({
       values: [] as number[],
-      offsets: [] as number[],
+      lefts: [] as number[],
       places: [] as string[],
       fullFor: 0,
       fullAt: 0,
@@ -413,12 +414,10 @@ async function watchBar(page: Page) {
         Number(value) === bar.values.at(-1)
       )
         return;
-      const line = element.closest('[role="status"]')!;
       bar.values.push(Number(value));
-      bar.offsets.push(
-        element.getBoundingClientRect().left -
-          line.getBoundingClientRect().left,
-      );
+      // From the page's edge rather than the line's: on the empty screen the line is
+      // centered, and a line that grew after the bar would move the bar but not its offset.
+      bar.lefts.push(element.getBoundingClientRect().left);
       bar.places.push(place);
       if (Number(value) === 100) {
         bar.fullAt = performance.now();
@@ -446,14 +445,14 @@ async function takeBar(page: Page): Promise<BarSeen> {
   });
 }
 
-/** One bar that fills once, without going back, in one place on the page and at one offset
- *  in its line, and stays full there long enough to be seen. */
+/** One bar that fills once, without going back, in one place on the page and without moving
+ *  in it, and stays full there long enough to be seen. */
 function expectOneSteadyBar(seen: BarSeen, place: string) {
   expect(seen.values.length).toBeGreaterThan(2);
   expect(seen.values).toEqual([...seen.values].sort((a, b) => a - b));
   expect(seen.values.at(-1)).toBe(100);
   expect(new Set(seen.places)).toEqual(new Set([place]));
-  expect(new Set(seen.offsets).size).toBe(1);
+  expect(new Set(seen.lefts).size).toBe(1);
   // Where on its own it would last a frame or none.
   expect(seen.fullFor).toBeGreaterThanOrEqual(400);
 }
