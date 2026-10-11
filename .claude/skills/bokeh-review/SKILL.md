@@ -252,10 +252,10 @@ Report as **must-fix**:
   The harness injects these by default and `AGENTS.md` forbids them, so this is the single
   most likely finding. Naming the file `CLAUDE.md` is not a hit — match the tool, not the
   filename.
-- A commit subject over 72 characters, not imperative, capitalised after the colon, ending
+- A commit subject over 72 characters, not imperative, capitalized after the colon, ending
   in a period, or outside the allowed types.
 - One commit bundling unrelated changes.
-- A PR title carrying a `type:` prefix, not capitalised, or long enough that GitHub's
+- A PR title carrying a `type:` prefix, not capitalized, or long enough that GitHub's
   appended ` (#NN)` pushes it past 72.
 - A body missing `## What`, `## Why` or `## Verified`, or whose sections are out of order.
 - `## Why` restating `## What` instead of naming the problem.
