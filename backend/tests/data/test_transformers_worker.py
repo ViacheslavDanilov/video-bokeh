@@ -160,7 +160,7 @@ def test_an_estimator_without_an_image_says_so(
 
 
 @pytest.mark.parametrize("key", ["da2-small", "depth-pro", "da3-mono-large"])
-def test_a_misspelt_runner_is_a_reason_not_a_crash(
+def test_a_misspelled_runner_is_a_reason_not_a_crash(
     key: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
