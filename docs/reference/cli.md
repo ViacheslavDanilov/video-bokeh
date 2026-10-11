@@ -295,9 +295,32 @@ named like the `all_in_focus` frames. The interface is
 | `--data-root` | path | **required** | dataset root containing `sequences/` |
 | `--streams` | list | `all_in_focus` | which stream directories to encode |
 | `--fps` | int | `24` | frame rate |
-| `--quality` | int | `10` | imageio quality, 10 is visually lossless |
+| `--quality` | int | `10` | 0–10, higher is better. CRF = `round(51 - 3.4 * quality)`, so 10 is CRF 17 |
 | `--seqs` | list | all | comma-separated sequence ids |
 | `--colormap` | str | `spectral_r` | `spectral_r`, `grey` |
+
+Videos use H.264 High with `yuv420p` pixels for browser playback, including Firefox.
+Quality 10 uses lossy CRF 17. The old imageio quality 10 used CRF 0 and produced the High
+4:4:4 Predictive profile, which Firefox cannot decode.
+
+On an Apple M3 Pro on 2026-10-12, one 80-frame, 512 × 512 sequence from `da2-large`,
+seed 3, with one object gave the results below. Encoding times include frame loading and
+preview coloring. Each time is the median of three runs at 24 fps, using imageio's
+FFmpeg 7.1 and libx264. PSNR (peak signal-to-noise ratio) compares decoded RGB with the
+RGB frames passed to the encoder, over all pixels and frames. Higher is better.
+
+| stream | old bytes | CRF 17 bytes | old seconds | CRF 17 seconds | old PSNR, dB | CRF 17 PSNR, dB |
+|---|---:|---:|---:|---:|---:|---:|
+| `all_in_focus` | 3,896,230 | 517,831 | 0.267 | 0.328 | 41.57 | 39.12 |
+| `disparity` | 607,846 | 121,944 | 0.336 | 0.367 | 38.39 | 37.96 |
+| `bokeh` | 3,450,942 | 485,625 | 0.265 | 0.295 | 41.90 | 39.57 |
+| `flow` | 670,999 | 180,115 | 1.754 | 1.863 | 40.69 | 40.31 |
+| `alpha` | 162,087 | 109,891 | 0.168 | 0.185 | 36.86 | 36.59 |
+
+`ffprobe` reported High 4:4:4 Predictive before and High after for every stream, with
+`yuv420p` pixels and 80 frames in each. CRF 0 was lossless only after conversion to
+`yuv420p`, which discards color detail. That is why its RGB PSNR is finite. CRF 17
+reduced file size at a small fidelity cost and took longer to encode in this run.
 
 Disparity is a uint16 PNG, not RGB (see [dataset-layout](dataset-layout.md)), so it is packed
 through `--colormap` rather than through the `Image.convert` path the other streams use.

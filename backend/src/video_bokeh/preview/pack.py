@@ -27,7 +27,7 @@ Layout:
             └── alpha.mp4                       # written here
 
 Usage:
-    # Default: all sequences, all_in_focus stream, visually lossless
+    # Default: all sequences, all_in_focus stream, CRF 17
     uv run python -m video_bokeh.preview.pack \\
         --data-root backend/data/synth_dev
 
@@ -141,8 +141,13 @@ def encode_stream(
     stream: str,
     colormap: str,
 ) -> None:
-    """Encode a sorted list of frames to H.264 MP4."""
+    """Encode frames as H.264 High, mapping quality 0..10 to CRF 51..17."""
+    if not 0 <= quality <= 10:
+        raise ValueError("quality must be between 0 and 10")
+    crf = round(51 - 3.4 * quality)
     # libx264 wants even spatial dimensions and yuv420p for broad compatibility.
+    # imageio quality=10 means CRF 0, which forces High 4:4:4 Predictive even
+    # with yuv420p. Firefox cannot decode that profile, so set CRF and High explicitly.
     # `cast` because imageio's writer is typed as an abstract base class but
     # the concrete subclass exposes `append_data`.
     writer = cast(
@@ -151,7 +156,8 @@ def encode_stream(
             out_path,
             fps=fps,
             codec="libx264",
-            quality=quality,
+            quality=None,
+            output_params=["-crf", str(crf), "-profile:v", "high"],
             pixelformat="yuv420p",
             macro_block_size=1,
         ),
@@ -189,9 +195,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--quality",
         type=int,
+        choices=range(11),
         default=10,
-        help="imageio/ffmpeg quality 0-10 (higher = better). Default 10 "
-        "(visually lossless, ~CRF 17). Lower if you need smaller files.",
+        help="quality 0-10 (higher = better), mapped to CRF round(51 - 3.4 * quality). "
+        "Default 10 is CRF 17. Lower if you need smaller files.",
     )
     parser.add_argument(
         "--seqs",

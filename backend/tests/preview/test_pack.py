@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import subprocess
+
+import imageio.v2 as iio
+import imageio_ffmpeg
 import numpy as np
+import pytest
 from PIL import Image
 
 from video_bokeh.core._streams import write_disparity_png
-from video_bokeh.preview.pack import encode_stream, load_frame
+from video_bokeh.preview.pack import _build_parser, encode_stream, load_frame
 
 
 def _write_ramp(path, height=8, width=16):
@@ -38,7 +43,8 @@ def test_other_streams_are_unchanged(tmp_path):
     assert (load_frame(p, "all_in_focus", "spectral_r") == 37).all()
 
 
-def test_encodes_a_disparity_video(tmp_path):
+@pytest.mark.parametrize("quality", [0, 5, 10])
+def test_encodes_a_disparity_video(tmp_path, quality):
     seq = tmp_path / "sequences" / "0001" / "disparity"
     seq.mkdir(parents=True)
     for i in range(1, 5):
@@ -48,8 +54,46 @@ def test_encodes_a_disparity_video(tmp_path):
         sorted(seq.glob("*.png")),
         out,
         fps=24,
-        quality=10,
+        quality=quality,
         stream="disparity",
         colormap="spectral_r",
     )
     assert out.exists() and out.stat().st_size > 0
+    probe = subprocess.run(
+        [imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(out), "-f", "null", "-"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "Video: h264 (High)" in probe.stderr
+    assert "yuv420p" in probe.stderr
+
+
+def test_lower_quality_reduces_size_and_fidelity(tmp_path):
+    rng = np.random.default_rng(0)
+    source = np.repeat(rng.integers(0, 256, (64, 64, 1), dtype=np.uint8), 3, axis=2)
+    frame = tmp_path / "01.png"
+    Image.fromarray(source).save(frame)
+    errors = {}
+    sizes = {}
+    for quality in (0, 10):
+        out = tmp_path / f"quality-{quality}.mp4"
+        encode_stream([frame], out, 24, quality, "all_in_focus", "spectral_r")
+        with iio.get_reader(out) as reader:
+            decoded = np.asarray(reader.get_data(0), dtype=np.float64)
+        errors[quality] = np.square(decoded - source).mean()
+        sizes[quality] = out.stat().st_size
+    assert errors[10] < errors[0]
+    assert sizes[10] > sizes[0]
+
+
+@pytest.mark.parametrize("quality", [-1, 11])
+def test_rejects_quality_outside_the_cli_scale(tmp_path, quality):
+    with pytest.raises(SystemExit):
+        _build_parser().parse_args(
+            ["--data-root", str(tmp_path), "--quality", str(quality)]
+        )
+    with pytest.raises(ValueError, match="quality must be between 0 and 10"):
+        encode_stream(
+            [], tmp_path / "bad.mp4", 24, quality, "all_in_focus", "spectral_r"
+        )
