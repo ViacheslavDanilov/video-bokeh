@@ -2,12 +2,36 @@ import { execFileSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 // Where playwright.config.ts points the API, so a test can write into a sequence as
 // Stage C would.
 const SEQUENCES = path.join(os.tmpdir(), "video-bokeh-e2e", "sequences");
 const LIBRARIES = path.join(os.tmpdir(), "video-bokeh-e2e", "library");
+
+/** Write bokeh into the sequence on screen, as Stage C would: the API here renders none of
+ *  its own, as without torch, so the stream is faked into the sequence on disk. */
+async function fakeBokeh(page: Page) {
+  const id = await page
+    .getByRole("group", { name: "Sequence on screen" })
+    .getByText(/^[0-9a-f]{16}$/)
+    .innerText();
+  execFileSync("uv", [
+    "run",
+    "--directory",
+    "../backend",
+    "--extra",
+    "api",
+    "python",
+    "tests/api/fake_bokeh.py",
+    path.join(SEQUENCES, id),
+  ]);
+}
+
+/** The streams of the panes, left to right. */
+function streamsInOrder(page: Page): Promise<string[]> {
+  return page.getByRole("combobox", { name: "Stream" }).allInnerTexts();
+}
 
 /**
  * One path through the page, against the real API and a tiny real library: the library
@@ -118,20 +142,7 @@ test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
   const videos = page.locator("video");
   await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
-  const id = await page
-    .getByRole("group", { name: "Sequence on screen" })
-    .getByText(/^[0-9a-f]{16}$/)
-    .innerText();
-  execFileSync("uv", [
-    "run",
-    "--directory",
-    "../backend",
-    "--extra",
-    "api",
-    "python",
-    "tests/api/fake_bokeh.py",
-    path.join(SEQUENCES, id),
-  ]);
+  await fakeBokeh(page);
 
   await generate.click();
   // After the panes already open, flow among them.
@@ -260,12 +271,17 @@ test("wraps five panes into rows of three and two", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  await page.getByRole("button", { name: "Generate sequence" }).click();
+  // A seed of its own: this test writes into its sequence.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("41");
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  await generate.click();
   const videos = page.locator("video");
   await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
-  await page.getByRole("button", { name: "Add pane" }).click();
-  await expect(videos).toHaveCount(5);
+  // A fifth stream, since a pane is added only for a stream not on screen.
+  await fakeBokeh(page);
+  await generate.click();
+  await expect(videos).toHaveCount(5, { timeout: 60_000 });
 
   const rows = async () => {
     const tops = await videos.evaluateAll((els) =>
@@ -346,4 +362,54 @@ test("keeps the panes in place while the next sequence generates", async ({
   await expect(progress).toBeVisible();
   expect(await top()).toBe(before);
   await expect(progress).toBeHidden({ timeout: 60_000 });
+});
+
+/** With every stream on screen there is nothing left to add, and the button says so. */
+test("offers no pane once every stream is on screen", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await expect(
+    page.getByRole("button", { name: "All streams shown" }),
+  ).toBeDisabled();
+
+  await page.getByRole("button", { name: "Close Alpha pane" }).click();
+  await page.getByRole("button", { name: "Add pane" }).click();
+  await expect(videos).toHaveCount(4);
+  expect((await streamsInOrder(page)).at(-1)).toBe("Alpha");
+  await expect(
+    page.getByRole("button", { name: "All streams shown" }),
+  ).toBeDisabled();
+});
+
+/**
+ * A pane whose stream the next sequence lacks shows the first stream instead, and counts as
+ * showing it: "Add pane" must not offer that stream a second time.
+ */
+test("counts the stream a pane falls back to as shown", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  const seed = page.getByRole("spinbutton", { name: "Seed" });
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  // A seed of its own: this test writes into its sequence.
+  await seed.fill("51");
+  await generate.click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await fakeBokeh(page);
+  await generate.click();
+  await expect(videos).toHaveCount(5, { timeout: 60_000 });
+
+  await page.getByRole("button", { name: "Close All in focus pane" }).click();
+  await expect(page.getByRole("button", { name: "Add pane" })).toBeEnabled();
+
+  // No bokeh here, so the bokeh pane falls back to all in focus.
+  await seed.fill("52");
+  await generate.click();
+  await expect(page.getByText("seed 52")).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("button", { name: "All streams shown" }),
+  ).toBeDisabled();
 });

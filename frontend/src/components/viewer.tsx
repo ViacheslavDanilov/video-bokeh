@@ -19,8 +19,9 @@ import { GenerationProgress } from "./generation-progress";
 import { ObjectLegend } from "./object-legend";
 import { SpectralScale } from "./spectral-scale";
 
-// Room for every stream with one repeat, such as disparity under two colormaps. Past what
-// fits in a row the panes wrap rather than shrink; see `gridColumns`.
+// A ceiling. "Add pane" adds only a stream not on screen, but a pane switched to a stream
+// another already shows makes room for one more, which would otherwise have no end. Past
+// what fits in a row the panes wrap rather than shrink; see `gridColumns`.
 const MAX_PANES = 6;
 
 // Between panes. The grid's style sets its gap from this, so the two cannot disagree.
@@ -309,16 +310,17 @@ export function Viewer({
     );
   }
 
+  // A stream no pane shows. Once every stream is on screen there is nothing to add; a repeat,
+  // such as disparity under two colormaps, comes from switching a pane's stream instead.
+  // By what each pane shows, which for a stream this sequence lacks is the first one.
+  const unshown = names.find((n) => !panes.some((p) => streamFor(p) === n));
   const addPane = () => {
-    // Prefer a stream not on screen yet; falling back to a repeat is deliberate, since
-    // two panes of disparity under different colormaps is a real comparison.
-    const unused =
-      names.find((n) => !panes.some((p) => p.stream === n)) ?? names[0];
+    if (unshown === undefined) return;
     setPanes((current) => [
       ...current,
       {
         key: Math.max(0, ...current.map((p) => p.key)) + 1,
-        stream: unused,
+        stream: unshown,
         colormap: "",
       },
     ]);
@@ -605,14 +607,19 @@ export function Viewer({
           </span>
         </div>
         {/* Here rather than beside the panes, where it took a column's width from them. */}
-        {panes.length < MAX_PANES && names.length > 0 && (
+        {names.length > 0 && (
           <Button
             type="button"
             variant="outline"
             onClick={addPane}
+            disabled={unshown === undefined || panes.length >= MAX_PANES}
             className="text-muted-foreground border-dashed"
           >
-            Add pane
+            {unshown === undefined
+              ? "All streams shown"
+              : panes.length >= MAX_PANES
+                ? `${MAX_PANES} panes at most`
+                : "Add pane"}
           </Button>
         )}
       </div>
