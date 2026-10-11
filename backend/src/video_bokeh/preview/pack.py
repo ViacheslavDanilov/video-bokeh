@@ -146,8 +146,11 @@ def encode_stream(
         raise ValueError("quality must be between 0 and 10")
     crf = round(51 - 3.4 * quality)
     # libx264 wants even spatial dimensions and yuv420p for broad compatibility.
-    # imageio quality=10 means CRF 0, which forces High 4:4:4 Predictive even
-    # with yuv420p. Firefox cannot decode that profile, so set CRF and High explicitly.
+    # The old default, imageio quality=10, meant lossless H.264 at CRF 0, which
+    # uses High 4:4:4 Predictive even with yuv420p. Firefox's decoders refuse that
+    # profile on Windows and macOS (dom/media/platforms/PDMFactory.cpp).
+    # Explicit CRF and High now produce the High profile, confirmed by ffprobe.
+    # Firefox playback was not tested here.
     # `cast` because imageio's writer is typed as an abstract base class but
     # the concrete subclass exposes `append_data`.
     writer = cast(

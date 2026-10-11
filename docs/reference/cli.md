@@ -299,9 +299,12 @@ named like the `all_in_focus` frames. The interface is
 | `--seqs` | list | all | comma-separated sequence ids |
 | `--colormap` | str | `spectral_r` | `spectral_r`, `grey` |
 
-Videos use H.264 High with `yuv420p` pixels for browser playback, including Firefox.
-Quality 10 uses lossy CRF 17. The old imageio quality 10 used CRF 0 and produced the High
-4:4:4 Predictive profile, which Firefox cannot decode.
+Videos use H.264 High with `yuv420p` pixels. Quality 10 uses lossy CRF 17, and
+`ffprobe` confirms the High profile. The old default, imageio quality 10, meant
+lossless H.264 at CRF 0, which uses the High 4:4:4 Predictive profile even with
+`yuv420p`. Firefox's decoders refuse that profile on Windows and macOS, as Mozilla's
+[`dom/media/platforms/PDMFactory.cpp`](https://raw.githubusercontent.com/mozilla-firefox/firefox/main/dom/media/platforms/PDMFactory.cpp)
+specifies. Firefox playback was not tested here.
 
 On an Apple M3 Pro on 2026-10-12, one 80-frame, 512 × 512 sequence from `da2-large`,
 seed 3, with one object gave the results below. Encoding times include frame loading and

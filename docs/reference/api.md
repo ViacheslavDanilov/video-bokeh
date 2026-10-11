@@ -293,9 +293,15 @@ Encoded on the first request at 24 fps and kept next to the frames, so the secon
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
 run a second time replaces `bokeh/`, and the page plays the new render once reloaded.
 
-New encodes use H.264 High, `yuv420p` and CRF 17 for Firefox playback. Existing cached
-MP4s keep their original encoding. The API re-encodes only when a video is missing or its
-stream directory's modification or change time is newer than the video. Changing the
+New encodes use H.264 High, `yuv420p` and CRF 17, and `ffprobe` confirms the High
+profile. The old default meant lossless H.264 at CRF 0, which uses the High 4:4:4
+Predictive profile. Firefox's decoders refuse that profile on Windows and macOS, as
+Mozilla's
+[`dom/media/platforms/PDMFactory.cpp`](https://raw.githubusercontent.com/mozilla-firefox/firefox/main/dom/media/platforms/PDMFactory.cpp)
+specifies. Firefox playback was not tested here.
+
+Existing cached MP4s keep their original encoding. The API re-encodes only when a video
+is missing or its stream directory's modification or change time is newer than the video. Changing the
 encoder settings alone does not invalidate cached files. The
 [CLI reference](cli.md#video_bokehpreviewpack--png-streams-to-mp4) measures file sizes,
 encoding times and fidelity for all five streams.
