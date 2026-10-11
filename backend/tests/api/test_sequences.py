@@ -91,11 +91,13 @@ def test_leaves_no_temporary_directories_behind(library: Path, tmp_path: Path) -
 def test_a_half_written_sequence_is_never_visible(
     library: Path,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A crash during generation must not leave a directory that later looks cached."""
+    monkeypatch.setattr("video_bokeh.api._sequences.iter_frames", _explode)
     sequences = tmp_path / "sequences"
     with pytest.raises(RuntimeError, match="boom"):
-        ensure_sequence(library, "libaaa", sequences, BASE, _render=_explode)
+        ensure_sequence(library, "libaaa", sequences, BASE)
     assert list(sequences.iterdir()) == []
 
 

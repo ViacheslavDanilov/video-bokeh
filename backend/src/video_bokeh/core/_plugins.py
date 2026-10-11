@@ -3,8 +3,9 @@ the user's own named by import path."""
 
 from __future__ import annotations
 
+import argparse
 import importlib
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 
 def missing_methods(cls: type, methods: tuple[str, ...]) -> list[str]:
@@ -45,3 +46,12 @@ def resolve_class(
     if missing:
         raise ValueError(f"{spec} is not a {kind}: it lacks {', '.join(missing)}")
     return cls
+
+
+def validated_spec(spec: str, resolve: Callable[[str], type]) -> str:
+    """Resolve a CLI plugin spec at parse time, keeping its string for metadata."""
+    try:
+        resolve(spec)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+    return spec

@@ -39,7 +39,9 @@ Built once per asset pool by `video_bokeh.library.build`. Depth is estimated her
 percentile-stretches every map into a band, so only relative structure survives, and 16 bits
 carry it without visible banding.
 
-`depth_raw.png` is optional. Libraries built before it existed load with `raw_depth=None`.
+`depth_raw.png` and `depth_input.png` are optional diagnostics written by Stage A.
+`load_foreground` reads only RGB, matte, and propagated disparity. The diagnostics
+stay on disk for inspection. Libraries built without them still load.
 
 `meta.json` records the `--model` string Stage A ran with, the propagation parameters, and
 raw-depth statistics such as `core_frac` — the fraction of the object the trusted core covered.

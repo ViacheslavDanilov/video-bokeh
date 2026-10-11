@@ -12,7 +12,6 @@ from video_bokeh.api._settings import (
 
 def test_defaults_to_the_data_directory() -> None:
     settings = load_settings({})
-    assert settings.data_root == Path("data")
     assert settings.library == Path("data/library")
     assert settings.sequences == Path("data/sequences")
 
@@ -38,13 +37,11 @@ def test_library_can_be_named_independently() -> None:
 def test_empty_variable_is_treated_as_unset() -> None:
     """Compose writes an empty value when a .env key exists with no value."""
     settings = load_settings({"VIDEO_BOKEH_DATA_ROOT": "", "VIDEO_BOKEH_LIBRARY": ""})
-    assert settings.data_root == Path("data")
     assert settings.library == Path("data/library")
 
 
 def _settings(library: Path) -> Settings:
     return Settings(
-        data_root=library.parent,
         library=library,
         sequences=library.parent / "sequences",
     )

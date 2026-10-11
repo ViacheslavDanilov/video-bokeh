@@ -6,8 +6,6 @@ start interval and the scale ratio, never sampled: growing on screen by a factor
 k must bring the object k times closer, which on the disparity axis (larger =
 closer) means multiplying the interval by k. The assigned depth band constrains
 only the start interval; every later frame is free.
-
-See docs/superpowers/specs/2026-09-09-unrestricted-trajectories-design.md.
 """
 
 from __future__ import annotations

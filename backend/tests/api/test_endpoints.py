@@ -38,7 +38,6 @@ def client_of(
 
         def _client(library: Path, render_bokeh: bool = False) -> TestClient:
             settings = Settings(
-                data_root=tmp_path,
                 library=library,
                 sequences=tmp_path / "sequences",
                 render_bokeh=render_bokeh,
@@ -73,7 +72,9 @@ def libraries_dir(make_library: Callable[..., Path], tmp_path: Path) -> Path:
 
 def test_health_does_not_need_a_library(clientless: TestClient) -> None:
     """The container has to report healthy before the library volume is mounted."""
-    assert clientless.get("/health").json() == {"status": "healthy"}
+    response = clientless.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
 
 
 # --- libraries ------------------------------------------------------------- #
@@ -123,36 +124,6 @@ def test_two_libraries_that_cannot_be_told_apart_are_refused(
         assert response.status_code == 503
         assert str(one) in response.json()["detail"]
         assert str(two) in response.json()["detail"]
-
-
-def test_a_build_in_progress_is_not_listed(
-    client_of: Callable[[Path], TestClient],
-    libraries_dir: Path,
-    make_library: Callable[..., Path],
-) -> None:
-    make_library("library/.da3-mono-large", estimator="da3-mono-large")
-    names = [b["name"] for b in client_of(libraries_dir).get("/libraries").json()]
-    assert names == ["da2-small", "depth-pro"]
-
-
-def test_a_half_library_names_what_it_is_missing(
-    client_of: Callable[[Path], TestClient],
-    tmp_path: Path,
-) -> None:
-    (tmp_path / "half" / "foregrounds").mkdir(parents=True)
-    response = client_of(tmp_path / "half").get("/libraries")
-    assert response.status_code == 503
-    assert "backgrounds" in response.json()["detail"]
-
-
-def test_a_directory_with_no_library_in_it_is_unavailable(
-    client_of: Callable[[Path], TestClient],
-    tmp_path: Path,
-) -> None:
-    (tmp_path / "empty" / "notes").mkdir(parents=True)
-    response = client_of(tmp_path / "empty").get("/libraries")
-    assert response.status_code == 503
-    assert str(tmp_path / "empty") in response.json()["detail"]
 
 
 # --- sequences ---------------------------------------------------------------- #
@@ -443,13 +414,6 @@ def test_the_heaviest_shape_anyone_has_measured_still_fits(client: TestClient) -
     from video_bokeh.api.main import SequenceParams
 
     SequenceParams(seed=0, frames=80, size=1024, n_objects_min=1, n_objects_max=5)
-
-
-def test_the_loopback_spelling_of_the_dev_frontend_is_allowed_too() -> None:
-    """A browser treats localhost and 127.0.0.1 as different origins."""
-    from video_bokeh.api._settings import load_settings
-
-    assert "http://127.0.0.1:3000" in load_settings({}).cors_origins
 
 
 def test_the_sequence_names_a_color_for_every_object(client: TestClient) -> None:

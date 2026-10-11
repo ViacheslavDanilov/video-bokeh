@@ -18,12 +18,14 @@ import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import huggingface_hub
 import torch
 
+from video_bokeh.core._plugins import validated_spec
 from video_bokeh.library._device import select_device
 from video_bokeh.library.build import DEFAULT_SIZE
 from video_bokeh.library.depth import ESTIMATORS, DepthEstimator, resolve_estimator
@@ -290,15 +292,6 @@ _CAVEAT = (
 )
 
 
-def _model_spec(spec: str) -> str:
-    """A ``--model`` value, refused at parse time the way Stage A refuses it."""
-    try:
-        resolve_estimator(spec)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(str(exc)) from exc
-    return spec
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -308,7 +301,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--model",
         action="append",
-        type=_model_spec,
+        type=partial(validated_spec, resolve=resolve_estimator),
         help="a registered estimator or package.module:ClassName, repeatable "
         "(default: every registered estimator)",
     )

@@ -51,7 +51,6 @@ class LibraryUnavailableError(RuntimeError):
 
 @dataclass(frozen=True)
 class Settings:
-    data_root: Path
     library: Path
     sequences: Path
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
@@ -69,7 +68,6 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         o.strip() for o in env.get("CORS_ORIGINS", "").split(",") if o.strip()
     )
     return Settings(
-        data_root=data_root,
         library=library,
         sequences=data_root / "sequences",
         cors_origins=origins or DEFAULT_CORS_ORIGINS,

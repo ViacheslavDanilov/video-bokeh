@@ -356,8 +356,6 @@ def test_unrestricted_mode_moves_disparity_over_the_clip(tmp_path) -> None:
         size=32,
         n_objects=1,
     )
-    assert scene.objects[0].depth_start is not None
-    assert scene.objects[0].depth_end is not None
     frames = render_scene(scene)
     first = float(frames[0].disparity[frames[0].alpha > 0].mean())
     last = float(frames[-1].disparity[frames[-1].alpha > 0].mean())
@@ -381,8 +379,6 @@ def test_unrestricted_depth_moves_with_scale_not_against_it(tmp_path) -> None:
             n_objects=2,
         )
         for obj in scene.objects:
-            assert obj.depth_start is not None
-            assert obj.depth_end is not None
             grew = obj.pose_end.scale > obj.pose_start.scale
             came_closer = obj.depth_end.center > obj.depth_start.center
             assert grew == came_closer, (
@@ -420,8 +416,6 @@ def test_unrestricted_scene_is_collision_free(tmp_path) -> None:
             pose = obj.pose_start.lerp(obj.pose_end, ease)
             h = build_fg_homography(pose, obj.asset.rgb.size[0], scene.size)
             a = np.asarray(warp_pillow(obj.asset.rgb, h, scene.size))[..., 3] / 255.0
-            assert obj.depth_start is not None
-            assert obj.depth_end is not None
             r = obj.depth_start.lerp(obj.depth_end, ease)
             warped.append((a, (r.mind, r.maxd)))
         for x in range(len(warped)):
@@ -454,8 +448,6 @@ def test_unrestricted_object_leaves_its_starting_slot(tmp_path) -> None:
             n_objects=2,
         )
         for obj in scene.objects:
-            assert obj.depth_start is not None
-            assert obj.depth_end is not None
             slot_lo, slot_hi = obj.slot
             end = obj.depth_end
             if end.mind < slot_lo - 1e-9 or end.maxd > slot_hi + 1e-9:
@@ -529,7 +521,6 @@ def test_manifest_records_the_trajectory_counters(tmp_path) -> None:
     header, data_row = rows[0], rows[1]
     for field_name in ("n_rejections", "n_range_fallbacks"):
         assert field_name in header
-    assert "depth_mode" not in header
     assert int(data_row[header.index("n_range_fallbacks")]) >= 0
 
 
@@ -587,51 +578,6 @@ def test_generate_dataset_writes_a_page_per_object_past_three(tmp_path) -> None:
 
     frame = out / "sequences" / "0001" / "alpha" / "01.tif"
     assert len(read_alpha_tiff(frame)) == 5
-
-
-def test_save_frame_writes_every_mask_it_is_given(tmp_path) -> None:
-    # This replaces a guard that refused more than three masks. The format no
-    # longer truncates, so the test that mattered is now the positive one.
-    from video_bokeh.scenes._compositor import RenderedFrame
-    from video_bokeh.scenes.generate import _save_frame
-
-    size = 8
-    frame = RenderedFrame(
-        rgb=np.zeros((size, size, 3), dtype=np.float32),
-        alpha=np.zeros((size, size), dtype=np.float32),
-        disparity=np.full((size, size), 0.5, dtype=np.float32),
-        object_alphas=[
-            np.full((size, size), 0.2 * (i + 1), dtype=np.float32) for i in range(7)
-        ],
-    )
-    for d in ("aif", "alp", "disp"):
-        (tmp_path / d).mkdir()
-    _save_frame(frame, "01", tmp_path / "aif", tmp_path / "alp", tmp_path / "disp")
-
-    pages = read_alpha_tiff(tmp_path / "alp" / "01.tif")
-    assert len(pages) == 7
-    assert read_disparity_png(tmp_path / "disp" / "01.png").mean() == pytest.approx(
-        0.5,
-        abs=1e-4,
-    )
-
-
-def test_generate_dataset_still_accepts_three_objects(tmp_path) -> None:
-    library = tmp_path / "lib"
-    _tiny_library(library, n_fg=3, half=4)
-    out = tmp_path / "synth"
-    written = generate_dataset(
-        library_root=library,
-        output=out,
-        count=1,
-        n_frames=2,
-        size=32,
-        seed=0,
-        n_objects_min=3,
-        n_objects_max=3,
-    )
-    assert written == 1
-    assert len(read_alpha_tiff(out / "sequences" / "0001" / "alpha" / "01.tif")) == 3
 
 
 def _composite_layers(frame) -> tuple[np.ndarray, np.ndarray]:

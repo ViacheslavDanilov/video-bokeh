@@ -15,9 +15,8 @@ from typing import ClassVar
 import numpy as np
 from PIL import Image
 
-from video_bokeh.bridge.any_to_bokeh import list_png_frames
 from video_bokeh.core._focus import focus_seed, focus_track, frame_focus
-from video_bokeh.core._seq_io import has_layers, sequence_seed
+from video_bokeh.core._seq_io import frame_names, has_layers, sequence_seed
 from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
@@ -61,7 +60,7 @@ class Layered:
             )
         device = bokeh_device()
         for seq in sequence_dirs:
-            names = [p.name for p in list_png_frames(seq / "all_in_focus")]
+            names = frame_names(seq)
             focus_object, zf = _focus(seq, names, focus_disparity)
             record = bokeh_record(focus_object, zf, strength)
             frames = render_sequence(_read_frames(seq, names), zf, strength, device)

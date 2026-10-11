@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import ClassVar, Protocol
 
 
-@runtime_checkable
 class BokehRenderer(Protocol):
     """Writes the bokeh stream of sequences Stage B has written.
 

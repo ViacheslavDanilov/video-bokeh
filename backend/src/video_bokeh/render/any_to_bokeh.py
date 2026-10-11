@@ -24,9 +24,9 @@ from PIL import Image
 
 from video_bokeh.bridge.any_to_bokeh import (
     SequenceInputs,
-    list_png_frames,
     write_inputs,
 )
+from video_bokeh.core._seq_io import frame_names
 from video_bokeh.core._streams import write_bokeh
 from video_bokeh.core._worker import model_command, run_script
 
@@ -122,10 +122,6 @@ class AnyToBokeh:
                 _write_bokeh(video, seq, inputs, strength)
 
 
-def _frame_names(seq: Path) -> list[str]:
-    return [p.name for p in list_png_frames(seq / "all_in_focus")]
-
-
 def _refuse_short(sequence_dirs: list[Path]) -> None:
     """Refuse the batch up front if any sequence is too short for the demo to group.
 
@@ -135,7 +131,7 @@ def _refuse_short(sequence_dirs: list[Path]) -> None:
     short = [
         f"{seq.name} has {n} frames"
         for seq in sequence_dirs
-        if (n := len(_frame_names(seq))) < _MIN_FRAMES
+        if (n := len(frame_names(seq))) < _MIN_FRAMES
     ]
     if short:
         raise ValueError(
@@ -153,7 +149,7 @@ def _check_length(video: Path, seq: Path) -> None:
         frames = cast(Any, reader).count_frames()
     finally:
         reader.close()
-    expected = len(_frame_names(seq))
+    expected = len(frame_names(seq))
     if frames != expected:
         raise RuntimeError(
             f"any-to-bokeh returned {frames} frames for {expected} in {seq.name}",
@@ -172,7 +168,7 @@ def _write_bokeh(
     or null, and each frame's in-focus disparity. It also names the renderer and the
     strength it ran at.
     """
-    names = _frame_names(seq)
+    names = frame_names(seq)
     with Image.open(seq / "all_in_focus" / names[0]) as first:
         size = first.size
     reader = imageio.get_reader(video)
