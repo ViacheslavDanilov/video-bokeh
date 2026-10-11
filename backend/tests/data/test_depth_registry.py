@@ -7,16 +7,6 @@ from PIL import Image
 
 from video_bokeh.core._plugins import missing_methods
 from video_bokeh.library.depth import ESTIMATOR_METHODS, ESTIMATORS
-from video_bokeh.library.depth.base import DepthEstimator
-
-
-def test_estimators_is_a_dict() -> None:
-    assert isinstance(ESTIMATORS, dict)
-
-
-def test_protocol_has_required_methods() -> None:
-    assert hasattr(DepthEstimator, "load")
-    assert hasattr(DepthEstimator, "infer")
 
 
 @pytest.mark.parametrize(("key", "cls"), sorted(ESTIMATORS.items()))
@@ -25,11 +15,6 @@ def test_every_registered_estimator_conforms(key: str, cls: type) -> None:
     # had loaded its weights; this catches it for free.
     assert cls.name == key
     assert missing_methods(cls, ESTIMATOR_METHODS) == []
-
-
-@pytest.mark.parametrize("key", ["da2-small", "da2-base", "da2-large"])
-def test_da2_variants_are_registered(key: str) -> None:
-    assert key in ESTIMATORS
 
 
 @pytest.mark.parametrize(

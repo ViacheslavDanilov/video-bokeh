@@ -10,9 +10,8 @@
         ├── layers/                    with --layers: what each frame was composited from
         └── flow/<frame>.png           with --flow: forward optical flow, KITTI 16-bit
 
-This layout matches what bridge/any_to_bokeh.py consumes. Replaces the old
-generate_sequences.py + estimate_disparity.py pair: depth is now sampled and
-transformed from the library, not estimated per frame.
+This layout matches what bridge/any_to_bokeh.py consumes. Disparity is sampled
+and transformed from the library, not estimated per frame.
 
 Usage:
     uv run python -m video_bokeh.scenes.generate \\
@@ -255,7 +254,7 @@ def _measured(
 def write_sequence(
     seq_dir: Path,
     frames: Iterable[RenderedFrame],
-    n_frames: int | None = None,
+    n_frames: int,
 ) -> None:
     """Write one sequence's three streams into ``seq_dir``, and its layers and flow if it
     has them.
@@ -285,9 +284,6 @@ def write_sequence(
     shutil.rmtree(seq_dir / "bokeh", ignore_errors=True)
     flow_dir = seq_dir / "flow"
     shutil.rmtree(flow_dir, ignore_errors=True)
-    if n_frames is None:
-        frames = list(frames)
-        n_frames = len(frames)
     paint_orders: list[list[int]] = []
     for fi, frame in enumerate(frames):
         stem = _frame_stem(fi, n_frames)
@@ -314,7 +310,6 @@ def generate_dataset(
     seed: int,
     n_objects_min: int = 1,
     n_objects_max: int = 5,
-    cfg: SampleConfig | None = None,
     layers: bool = False,
     bokeh: bool = False,
     bokeh_strength: float = BOKEH_STRENGTH,
@@ -330,7 +325,6 @@ def generate_dataset(
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
     numbering rather than shifting every later sequence onto a different seed.
     """
-    cfg = cfg or SampleConfig()
     if bokeh and importlib.util.find_spec("torch") is None:
         raise ValueError(
             "bokeh needs torch: install the render or the loader extra",
@@ -351,7 +345,6 @@ def generate_dataset(
                 size=size,
                 n_objects_min=n_objects_min,
                 n_objects_max=n_objects_max,
-                cfg=cfg,
             )
         except CollisionRetriesExhausted as exc:
             skipped.append(seq_seed)

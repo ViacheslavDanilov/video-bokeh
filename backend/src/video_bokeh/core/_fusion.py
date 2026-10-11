@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import numpy as np
 
+BG_BAND_TOP = 0.05
+
 _P_LO = 1.0
 _P_HI = 99.0
-_DEGENERATE_BAND_FRAC = 0.25
 
 
 def place_in_band(
@@ -14,13 +15,11 @@ def place_in_band(
     alpha: np.ndarray,
     band_lo: float,
     band_hi: float,
-    band_width: float = 0.10,
 ) -> np.ndarray:
     """Percentile-stretch in-object disparity into the explicit [lo, hi] band.
 
-    Pixels outside ``alpha > 0`` are set to ``band_lo``. ``band_width`` is only
-    used to decide when a band is too degenerate to stretch into, in which case
-    the whole object falls back to the band midpoint.
+    Pixels outside ``alpha > 0`` are set to ``band_lo``. A constant disparity
+    map falls back to the band midpoint.
     """
     out = np.full_like(disp, band_lo, dtype=np.float32)
     mask = alpha > 0
@@ -33,7 +32,7 @@ def place_in_band(
     band_size = band_hi - band_lo
     band_mid = (band_lo + band_hi) / 2.0
 
-    if band_size < _DEGENERATE_BAND_FRAC * band_width or src_range <= 1e-8:
+    if src_range <= 1e-8:
         out[mask] = band_mid
         return out
 
@@ -44,7 +43,7 @@ def place_in_band(
     return out
 
 
-def bg_normalize(disp: np.ndarray, bg_band_top: float = 0.05) -> np.ndarray:
+def bg_normalize(disp: np.ndarray, bg_band_top: float = BG_BAND_TOP) -> np.ndarray:
     """Rescale full-frame background disparity into [0, bg_band_top]."""
     p_lo, p_hi = np.percentile(disp, [_P_LO, _P_HI])
     src_range = float(p_hi - p_lo)
@@ -58,7 +57,7 @@ def bg_normalize(disp: np.ndarray, bg_band_top: float = 0.05) -> np.ndarray:
 
 def assign_depth_slots(
     n_objects: int,
-    bg_band_top: float = 0.05,
+    bg_band_top: float = BG_BAND_TOP,
     gap: float = 0.02,
 ) -> list[tuple[float, float]]:
     """Partition the disparity axis above the background into disjoint slots.

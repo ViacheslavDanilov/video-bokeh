@@ -18,7 +18,12 @@ from pathlib import Path
 import numpy as np
 
 from video_bokeh.core._collision import pair_collides
-from video_bokeh.core._fusion import assign_depth_slots, bg_normalize, place_in_band
+from video_bokeh.core._fusion import (
+    BG_BAND_TOP,
+    assign_depth_slots,
+    bg_normalize,
+    place_in_band,
+)
 from video_bokeh.core._library import (
     BackgroundAsset,
     ForegroundAsset,
@@ -77,7 +82,7 @@ class Scene:
     bg_easing: str
     n_frames: int
     size: int
-    bg_band_top: float = 0.05
+    bg_band_top: float = BG_BAND_TOP
     n_rejections: int = 0
     n_range_fallbacks: int = 0
 
@@ -119,7 +124,7 @@ def sample_scene(
     size: int,
     n_objects: int,
     cfg: SampleConfig | None = None,
-    bg_band_top: float = 0.05,
+    bg_band_top: float = BG_BAND_TOP,
 ) -> Scene:
     """Sample objects, a background, poses, easings, and depth trajectories."""
     cfg = cfg or SampleConfig()
@@ -295,12 +300,12 @@ def iter_frames(
         object_disparities = [np.zeros((size, size), dtype=np.float32)] * n_kept
         background_disparity = disparity
 
-        def _band(idx: int, _t: float = t) -> tuple[float, float, float]:
-            """Target disparity band and its width for object ``idx`` at ``_t``."""
+        def _band(idx: int, _t: float = t) -> tuple[float, float]:
+            """Target disparity band for object ``idx`` at ``_t``."""
             o = scene.objects[idx]
             ease = EASING_FNS[o.easing](_t)
             r = o.depth_start.lerp(o.depth_end, ease)
-            return r.mind, r.maxd, r.width
+            return r.mind, r.maxd
 
         bands = [_band(idx) for idx in range(len(scene.objects))]
         # Far (low disparity) first.
@@ -312,7 +317,7 @@ def iter_frames(
             obj = scene.objects[idx]
             ease = EASING_FNS[obj.easing](t)
             pose = obj.pose_start.lerp(obj.pose_end, ease)
-            band_lo, band_hi, band_width = bands[idx]
+            band_lo, band_hi = bands[idx]
             fg_h = build_fg_homography(pose, obj.asset.rgb.size[0], size)
 
             warped_rgba = np.asarray(
@@ -327,7 +332,6 @@ def iter_frames(
                 a,
                 band_lo,
                 band_hi,
-                band_width=band_width,
             )
 
             a3 = a[..., None]

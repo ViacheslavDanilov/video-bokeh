@@ -20,8 +20,8 @@ composited onto the neutral texture, since the model cannot read a transparent
 cut-out. It is what separates a model failure from a compositing failure, which
 ``meta.json``'s statistics cannot do on their own.
 
-Both diagnostics are optional, so libraries built before they existed load with
-``raw_depth=None`` and ``depth_input=None``.
+Both diagnostics are optional and remain on disk for inspection. Loading a
+foreground reads only its RGB, matte, and propagated disparity.
 """
 
 from __future__ import annotations
@@ -64,8 +64,6 @@ class ForegroundAsset:
     rgb: Image.Image  # RGBA
     alpha: np.ndarray  # (H, W) float32 in [0, 1]
     depth: np.ndarray  # (H, W) float32, propagated full-frame disparity
-    raw_depth: np.ndarray | None = None  # (H, W) float32, estimator output (diagnostic)
-    depth_input: Image.Image | None = None  # RGB, what the estimator saw (diagnostic)
 
 
 @dataclass
@@ -128,18 +126,7 @@ def load_foreground(library_root: Path, asset_id: str) -> ForegroundAsset:
     alpha = np.asarray(Image.open(base / "alpha.png").convert("L"), dtype=np.float32)
     alpha /= 255.0
     depth = _read_depth_png(base / "depth.png")
-    raw_path = base / "depth_raw.png"
-    raw_depth = _read_depth_png(raw_path) if raw_path.exists() else None
-    input_path = base / "depth_input.png"
-    depth_input = Image.open(input_path).convert("RGB") if input_path.exists() else None
-    return ForegroundAsset(
-        asset_id,
-        rgb,
-        alpha,
-        depth,
-        raw_depth=raw_depth,
-        depth_input=depth_input,
-    )
+    return ForegroundAsset(asset_id, rgb, alpha, depth)
 
 
 def load_background(library_root: Path, asset_id: str) -> BackgroundAsset:

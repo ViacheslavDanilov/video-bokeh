@@ -23,20 +23,18 @@ own, as it does without torch: ``make bokeh``.
 from __future__ import annotations
 
 import argparse
+from functools import partial
 from pathlib import Path
 
-from video_bokeh.bridge.any_to_bokeh import list_png_frames
-from video_bokeh.core._seq_io import has_layers, list_sequences
+from video_bokeh.core._plugins import validated_spec
+from video_bokeh.core._seq_io import (
+    has_layers,
+    list_png_frames,
+    list_sequences,
+    parse_names,
+)
 from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.render import RENDERERS, resolve_renderer
-
-
-def _validated_renderer(spec: str) -> str:
-    try:
-        resolve_renderer(spec)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(str(exc)) from exc
-    return spec
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -44,13 +42,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument(
         "--seqs",
-        type=lambda s: [p.strip() for p in s.split(",") if p.strip()],
+        type=parse_names,
         default=None,
         help="comma-separated sequence ids (e.g. '0001,0003'). Default: all.",
     )
     parser.add_argument(
         "--renderer",
-        type=_validated_renderer,
+        type=partial(validated_spec, resolve=resolve_renderer),
         default="layered",
         help=f"one of {', '.join(sorted(RENDERERS))}, or package.module:ClassName "
         "for a renderer of your own (default: layered).",

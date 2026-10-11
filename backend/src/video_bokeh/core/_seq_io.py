@@ -9,6 +9,28 @@ from pathlib import Path
 from video_bokeh.core._streams import read_paint_order
 
 
+def parse_names(value: str) -> list[str]:
+    """Parse comma-separated names, ignoring padding and empty entries."""
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def numeric_frame_stem(path: Path) -> int:
+    """The frame number before any filename suffix."""
+    return int(path.stem.split("_", maxsplit=1)[0])
+
+
+def list_png_frames(path: Path) -> list[Path]:
+    """List a stream's PNG frames in numeric order."""
+    if not path.exists():
+        raise FileNotFoundError(f"frame directory missing: {path}")
+    return sorted(path.glob("*.png"), key=numeric_frame_stem)
+
+
+def frame_names(seq_dir: Path) -> list[str]:
+    """A sequence's frame names, in numeric order."""
+    return [p.name for p in list_png_frames(seq_dir / "all_in_focus")]
+
+
 def list_sequences(root: Path, seqs: list[str] | None) -> list[Path]:
     """Return sequence subdirectories under ``<root>/sequences``, optionally filtered.
 

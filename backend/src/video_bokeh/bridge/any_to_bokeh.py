@@ -29,22 +29,14 @@ import numpy as np
 from PIL import Image
 
 from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
-from video_bokeh.core._seq_io import list_sequences, sequence_seed
+from video_bokeh.core._seq_io import (
+    list_png_frames,
+    list_sequences,
+    numeric_frame_stem,
+    parse_names,
+    sequence_seed,
+)
 from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
-
-
-def _parse_seqs(value: str) -> list[str]:
-    return [part.strip() for part in value.split(",") if part.strip()]
-
-
-def _numeric_stem(path: Path) -> int:
-    return int(path.stem.split("_", maxsplit=1)[0])
-
-
-def list_png_frames(path: Path) -> list[Path]:
-    if not path.exists():
-        raise FileNotFoundError(f"frame directory missing: {path}")
-    return sorted(path.glob("*.png"), key=_numeric_stem)
 
 
 def _list_tif_frames(path: Path) -> list[Path]:
@@ -57,7 +49,7 @@ def _list_tif_frames(path: Path) -> list[Path]:
     """
     if not path.exists():
         raise FileNotFoundError(f"frame directory missing: {path}")
-    frames = sorted(path.glob("*.tif"), key=_numeric_stem)
+    frames = sorted(path.glob("*.tif"), key=numeric_frame_stem)
     if not frames:
         raise ValueError(
             f"{path} exists but has no .tif frames. The alpha stream is multi-page "
@@ -294,7 +286,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--k", default="16", help="blur strength column for CSV")
     parser.add_argument(
         "--seqs",
-        type=_parse_seqs,
+        type=parse_names,
         default=None,
         help="Comma-separated sequence ids (e.g. '0001,0003'). Default: all.",
     )

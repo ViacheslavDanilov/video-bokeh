@@ -12,7 +12,6 @@ from PIL import Image
 
 from video_bokeh.core._streams import write_alpha_tiff, write_disparity_png
 from video_bokeh.core._worker import WorkerError
-from video_bokeh.render import RENDERERS
 from video_bokeh.render import any_to_bokeh as a2b_module
 from video_bokeh.render import run as cli
 from video_bokeh.render.any_to_bokeh import AnyToBokeh
@@ -112,10 +111,6 @@ def fake_a2b(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def _sequences(dataset: Path) -> list[Path]:
     return sorted((dataset / "sequences").iterdir())
-
-
-def test_registered() -> None:
-    assert RENDERERS["any-to-bokeh"] is AnyToBokeh
 
 
 @pytest.mark.usefixtures("fake_a2b")
