@@ -21,8 +21,9 @@ commit or PR rule here — point at `AGENTS.md` instead.
 ## Language
 
 - **Chat with the user: Russian.** Checkpoints, questions, hand-offs, verdicts.
-- **Everything written down: English.** Commits, branches, PR text, GitHub reviews, code,
-  docs, vault notes, specs and tickets.
+- **Everything written down: American English.** Commits, branches, PR text, GitHub reviews,
+  code, docs, vault notes, specs and tickets. Root `AGENTS.md`, section **Language**, has the
+  exceptions.
 
 Never mix the two inside one artifact.
 
