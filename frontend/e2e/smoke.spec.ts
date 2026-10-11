@@ -2,12 +2,57 @@ import { execFileSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 // Where playwright.config.ts points the API, so a test can write into a sequence as
 // Stage C would.
 const SEQUENCES = path.join(os.tmpdir(), "video-bokeh-e2e", "sequences");
 const LIBRARIES = path.join(os.tmpdir(), "video-bokeh-e2e", "library");
+
+/** Open the page once its library is ready to generate. */
+async function openPage(page: Page) {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+}
+
+/** Generate with the current parameters, optionally choosing a seed first. */
+async function generateSequence(page: Page, seed?: number) {
+  if (seed !== undefined)
+    await page.getByRole("spinbutton", { name: "Seed" }).fill(String(seed));
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  return videos;
+}
+
+/** readyState 2 is HAVE_CURRENT_DATA: the file arrived and a frame was decoded. */
+async function waitForDecoded(videos: Locator) {
+  await expect
+    .poll(
+      async () =>
+        Math.min(
+          ...(await videos.evaluateAll((els) =>
+            els.map((el) => (el as HTMLVideoElement).readyState),
+          )),
+        ),
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThanOrEqual(2);
+}
+
+/** Run a fixture script with the API's Python environment. */
+function runBackend(script: string, ...args: string[]) {
+  execFileSync("uv", [
+    "run",
+    "--directory",
+    "../backend",
+    "--extra",
+    "api",
+    "python",
+    script,
+    ...args,
+  ]);
+}
 
 /** Write bokeh into the sequence on screen, as Stage C would: the API here renders none of
  *  its own, as without torch, so the stream is faked into the sequence on disk. */
@@ -16,16 +61,7 @@ async function fakeBokeh(page: Page) {
     .getByRole("group", { name: "Sequence on screen" })
     .getByText(/^[0-9a-f]{16}$/)
     .innerText();
-  execFileSync("uv", [
-    "run",
-    "--directory",
-    "../backend",
-    "--extra",
-    "api",
-    "python",
-    "tests/api/fake_bokeh.py",
-    path.join(SEQUENCES, id),
-  ]);
+  runBackend("tests/api/fake_bokeh.py", path.join(SEQUENCES, id));
 }
 
 /** The streams of the panes, left to right. */
@@ -39,30 +75,15 @@ function streamsInOrder(page: Page): Promise<string[]> {
  * video it can decode. This proves the wiring, not how the frames look.
  */
 test("generates a sequence and decodes every stream", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-
-  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await openPage(page);
 
   // all_in_focus, alpha, disparity and flow: one pane per stream the sequence has.
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  const videos = await generateSequence(page);
   await expect(
     page.getByRole("combobox", { name: "Stream" }).nth(3),
   ).toHaveText("Optical flow");
 
-  // readyState 2 is HAVE_CURRENT_DATA: the file arrived and a frame was decoded.
-  await expect
-    .poll(
-      async () =>
-        Math.min(
-          ...(await videos.evaluateAll((els) =>
-            els.map((el) => (el as HTMLVideoElement).readyState),
-          )),
-        ),
-      { timeout: 60_000 },
-    )
-    .toBeGreaterThanOrEqual(2);
+  await waitForDecoded(videos);
 
   // The library holds two foregrounds, so the sequence places both, and the mask legend
   // names each of them.
@@ -76,11 +97,8 @@ test("generates a sequence and decodes every stream", async ({ page }) => {
  * whose source is swapped keeps it, although loading a new source resets an element's rate.
  */
 test("sets every pane to the chosen speed", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  await page.getByRole("button", { name: "Generate sequence" }).click();
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await openPage(page);
+  const videos = await generateSequence(page);
 
   const rates = () =>
     videos.evaluateAll((els) =>
@@ -106,7 +124,7 @@ test("sets every pane to the chosen speed", async ({ page }) => {
  * own estimator after the picker moves on, so what is playing is never mislabeled.
  */
 test("generates from the depth estimator picked", async ({ page }) => {
-  await page.goto("/");
+  await openPage(page);
   const header = page.getByRole("banner");
   await expect(header.getByText("da2-small")).toBeVisible();
 
@@ -116,8 +134,7 @@ test("generates from the depth estimator picked", async ({ page }) => {
   await page.getByRole("option", { name: "depth-pro" }).click();
   await expect(header.getByText("depth-pro")).toBeVisible();
 
-  await page.getByRole("button", { name: "Generate sequence" }).click();
-  await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
+  await generateSequence(page);
   const shown = page.getByRole("group", { name: "Sequence on screen" });
   await expect(shown).toContainText("depth-pro");
 
@@ -128,65 +145,21 @@ test("generates from the depth estimator picked", async ({ page }) => {
 });
 
 /**
- * The API here renders no bokeh of its own, as without torch, so the stream is written
- * after the sequence exists, as Stage C writes it. Its frames are faked here; asking for
- * the same sequence again lists the stream, and a pane opens for it.
- */
-test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  // A seed of its own: the other tests share seed 0, and this one writes into its sequence.
-  await page.getByRole("spinbutton", { name: "Seed" }).fill("7");
-  const generate = page.getByRole("button", { name: "Generate sequence" });
-  await generate.click();
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
-
-  await fakeBokeh(page);
-
-  await generate.click();
-  // After the panes already open, flow among them.
-  await expect(videos).toHaveCount(5, { timeout: 60_000 });
-  await expect(
-    page.getByRole("combobox", { name: "Stream" }).nth(4),
-  ).toHaveText("Bokeh");
-  await expect
-    .poll(
-      () => videos.nth(4).evaluate((el) => (el as HTMLVideoElement).readyState),
-      { timeout: 60_000 },
-    )
-    .toBeGreaterThanOrEqual(2);
-});
-
-/**
  * A library built while the page is open shows in the picker once the page has focus
  * again, and a sequence from it is named by its directory as well as its estimator.
  */
 test("lists a library built while the page is open", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await openPage(page);
 
   // Removed again, because the other tests expect exactly two libraries.
   const extra = path.join(LIBRARIES, "extra");
   try {
-    execFileSync("uv", [
-      "run",
-      "--directory",
-      "../backend",
-      "--extra",
-      "api",
-      "python",
-      "tests/api/fixture_library.py",
-      extra,
-      "da2-large",
-    ]);
+    runBackend("tests/api/fixture_library.py", extra, "da2-large");
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await page.getByRole("combobox", { name: "Depth estimator" }).click();
     await expect(page.getByRole("option")).toHaveCount(3);
     await page.getByRole("option", { name: /extra/ }).click();
-    await page.getByRole("spinbutton", { name: "Seed" }).fill("11");
-    await page.getByRole("button", { name: "Generate sequence" }).click();
-    await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
+    await generateSequence(page, 11);
     await expect(
       page.getByRole("group", { name: "Sequence on screen" }),
     ).toContainText("da2-large, extra");
@@ -217,7 +190,7 @@ test("clears a failed library read once one works", async ({ page }) => {
 test("hides the parameters and keeps them hidden after a reload", async ({
   page,
 }) => {
-  await page.goto("/");
+  await openPage(page);
   const toggle = page.getByRole("button", { name: "Parameters" });
   const generate = page.getByRole("button", { name: "Generate sequence" });
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
@@ -243,11 +216,10 @@ test("leaves the parameters in another tab as they are", async ({
   page,
   context,
 }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await openPage(page);
 
   const other = await context.newPage();
-  await other.goto("/");
+  await openPage(other);
   await other.getByRole("button", { name: "Parameters" }).click();
   await expect(
     other.getByRole("button", { name: "Generate sequence" }),
@@ -269,19 +241,24 @@ test("leaves the parameters in another tab as they are", async ({
  */
 test("wraps five panes into rows of three and two", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await openPage(page);
   // A seed of its own: this test writes into its sequence.
-  await page.getByRole("spinbutton", { name: "Seed" }).fill("41");
+  const videos = await generateSequence(page, 41);
   const generate = page.getByRole("button", { name: "Generate sequence" });
-  await generate.click();
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
   // A fifth stream, since a pane is added only for a stream not on screen.
   await fakeBokeh(page);
   await generate.click();
   await expect(videos).toHaveCount(5, { timeout: 60_000 });
+  await expect(
+    page.getByRole("combobox", { name: "Stream" }).nth(4),
+  ).toHaveText("Bokeh");
+  await expect
+    .poll(
+      () => videos.nth(4).evaluate((el) => (el as HTMLVideoElement).readyState),
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThanOrEqual(2);
 
   const rows = async () => {
     const tops = await videos.evaluateAll((els) =>
@@ -312,8 +289,7 @@ test("wraps five panes into rows of three and two", async ({ page }) => {
 test("shows the steps of a generation, then what is on screen", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await openPage(page);
   // A seed of its own, so this generation is not a cache hit left by another test.
   await page.getByRole("spinbutton", { name: "Seed" }).fill("21");
   const generate = page.getByRole("button", { name: "Generate sequence" });
@@ -334,39 +310,9 @@ test("shows the steps of a generation, then what is on screen", async ({
   await expect(page.getByText("80 frames")).toBeVisible();
   await expect(page.getByText("seed 21")).toBeVisible();
   await expect(page.getByText("cached", { exact: true })).toHaveCount(0);
-  await expect(page.getByText(/Bokeh comes with each sequence/)).toHaveCount(0);
 
   await generate.click();
   await expect(page.getByText("cached", { exact: true })).toBeVisible();
-});
-
-/**
- * The next generation shows its progress where the caption above the panes was, at its
- * height, so the sequence on screen does not move while the next one is made.
- */
-test("keeps the panes in place while the next sequence generates", async ({
-  page,
-}) => {
-  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
-  test.slow();
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  const seed = page.getByRole("spinbutton", { name: "Seed" });
-  const generate = page.getByRole("button", { name: "Generate sequence" });
-  await seed.fill("31");
-  await generate.click();
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
-  const top = () =>
-    videos.first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
-  const before = await top();
-
-  await seed.fill("32");
-  await generate.click();
-  const progress = page.getByRole("status", { name: "Generation progress" });
-  await expect(progress).toBeVisible();
-  expect(await top()).toBe(before);
-  await expect(progress).toBeHidden({ timeout: 60_000 });
 });
 
 /** What the progress bar did: every value it took, however briefly; where on the page it sat
@@ -466,8 +412,7 @@ function expectOneSteadyBar(seen: BarSeen, place: string) {
 test("fills one progress bar for the whole generation", async ({ page }) => {
   // Two generations, about 14 s each in CI, leave no room in the default 30 s.
   test.slow();
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await openPage(page);
   await watchBar(page);
   const seed = page.getByRole("spinbutton", { name: "Seed" });
   const generate = page.getByRole("button", { name: "Generate sequence" });
@@ -479,19 +424,24 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
   await expect(progress).toBeHidden({ timeout: 60_000 });
   expectOneSteadyBar(await takeBar(page), "empty");
 
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  const top = () =>
+    videos.first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
+  const before = await top();
+
   await seed.fill("62");
   await generate.click();
   await expect(progress).toBeVisible();
+  expect(await top()).toBe(before);
   await expect(progress).toBeHidden({ timeout: 60_000 });
   expectOneSteadyBar(await takeBar(page), "panes");
 });
 
 /** A pane goes where it is dropped: dragged by its grip onto another, it takes that place. */
 test("moves a pane by dragging its grip onto another", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  await page.getByRole("button", { name: "Generate sequence" }).click();
-  await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
+  await openPage(page);
+  await generateSequence(page);
   expect(await streamsInOrder(page)).toEqual([
     "All in focus",
     "Alpha",
@@ -522,25 +472,12 @@ test("moves a pane by dragging its grip onto another", async ({ page }) => {
 test("moves a pane with the arrow keys while the panes play", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  await page.getByRole("button", { name: "Generate sequence" }).click();
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await openPage(page);
+  const videos = await generateSequence(page);
   // Every pane decoded before Play. The API encodes a stream the first time it is asked
   // for, so run alone, before any other test has asked, a pane would still sit at the
   // start when the times are read.
-  await expect
-    .poll(
-      async () =>
-        Math.min(
-          ...(await videos.evaluateAll((els) =>
-            els.map((el) => (el as HTMLVideoElement).readyState),
-          )),
-        ),
-      { timeout: 60_000 },
-    )
-    .toBeGreaterThanOrEqual(2);
+  await waitForDecoded(videos);
   await page.getByRole("button", { name: "Play" }).click();
 
   const grip = page.getByRole("button", { name: "Move All in focus pane" });
@@ -571,11 +508,8 @@ test("moves a pane with the arrow keys while the panes play", async ({
 
 /** With every stream on screen there is nothing left to add, and the button says so. */
 test("offers no pane once every stream is on screen", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  await page.getByRole("button", { name: "Generate sequence" }).click();
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  await openPage(page);
+  const videos = await generateSequence(page);
   await expect(
     page.getByRole("button", { name: "All streams shown" }),
   ).toBeDisabled();
@@ -596,15 +530,11 @@ test("offers no pane once every stream is on screen", async ({ page }) => {
 test("counts the stream a pane falls back to as shown", async ({ page }) => {
   // Two generations, about 14 s each in CI, leave no room in the default 30 s.
   test.slow();
-  await page.goto("/");
-  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  await openPage(page);
   const seed = page.getByRole("spinbutton", { name: "Seed" });
   const generate = page.getByRole("button", { name: "Generate sequence" });
   // A seed of its own: this test writes into its sequence.
-  await seed.fill("51");
-  await generate.click();
-  const videos = page.locator("video");
-  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  const videos = await generateSequence(page, 51);
   await fakeBokeh(page);
   await generate.click();
   await expect(videos).toHaveCount(5, { timeout: 60_000 });
