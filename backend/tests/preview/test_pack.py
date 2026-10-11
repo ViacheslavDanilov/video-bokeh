@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from unittest.mock import MagicMock
 
 import imageio.v2 as iio
 import imageio_ffmpeg
@@ -41,6 +42,25 @@ def test_other_streams_are_unchanged(tmp_path):
     p = tmp_path / "01.png"
     Image.fromarray(np.full((8, 16, 3), 37, dtype=np.uint8)).save(p)
     assert (load_frame(p, "all_in_focus", "spectral_r") == 37).all()
+
+
+@pytest.mark.parametrize("quality,crf", [(0, "51"), (5, "34"), (10, "17")])
+def test_quality_maps_to_explicit_crf_and_high_profile(
+    tmp_path, monkeypatch, quality, crf
+):
+    writer_factory = MagicMock()
+    monkeypatch.setattr("video_bokeh.preview.pack.iio.get_writer", writer_factory)
+    frame = tmp_path / "01.png"
+    _write_ramp(frame)
+
+    encode_stream(
+        [frame], tmp_path / "disparity.mp4", 24, quality, "disparity", "spectral_r"
+    )
+
+    kwargs = writer_factory.call_args.kwargs
+    assert kwargs["output_params"] == ["-crf", crf, "-profile:v", "high"]
+    assert kwargs["quality"] is None
+    assert writer_factory.return_value.append_data.call_count == 1
 
 
 @pytest.mark.parametrize("quality", [0, 5, 10])
