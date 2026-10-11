@@ -244,7 +244,7 @@ def ensure_sequence(
 
     The sequence comes with its optical flow, written with it, or added to a cached one
     that has none. With ``bokeh``, which needs torch, it comes with its bokeh stream the
-    same way. ``progress`` hears of each stage as it goes, frame by frame; a cached
+    same way. ``progress`` hears of each step as it goes, frame by frame; a cached
     sequence that lacks nothing reports none.
 
     Generation writes to a temporary directory beside the destination and renames it

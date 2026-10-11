@@ -157,7 +157,7 @@ Report = Callable[[int, int], None]
 def counted[T](items: Iterable[T], total: int, report: Report | None) -> Iterator[T]:
     """Pass ``items`` through, reporting ``(done, total)`` after each one is used.
 
-    ``(0, total)`` comes as the first is asked for, so a stage whose first step is slow,
+    ``(0, total)`` comes as the first is asked for, so a step whose first item is slow,
     as bokeh's first chunk is, is heard of when it starts rather than after.
     """
     if report is not None:

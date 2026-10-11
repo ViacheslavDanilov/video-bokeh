@@ -90,8 +90,8 @@ _MAX_FRAMES = 240
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
-#: it means writing the frames as Stage B renders them, with `iter_frames`, as the dataset
-#: writer already does, instead of accumulating them with `render_scene`.
+#: it means writing the frames as Stage B renders them, as the dataset writer already
+#: does, instead of collecting them all into a list first, as `_generate_into` does.
 _MAX_PIXELS = 96_000_000
 
 #: Rendering bokeh takes torch, which the API's own install leaves out.

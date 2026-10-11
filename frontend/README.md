@@ -48,7 +48,7 @@ without rebuilding.
   says so if the video fails to load.
 - **What is on screen** — a line above the panes names the sequence's library, seed, object
   count, frame count and size, says when it came from the cache, and gives its id with a copy
-  button. The header names the mounted library; its `id` is a hash of the asset list, the depth
+  button. The header names the library picked; its `id` is a hash of the asset list, the depth
   estimator and the asset size, which every cached sequence is keyed on.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
   the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane

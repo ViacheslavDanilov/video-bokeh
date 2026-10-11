@@ -204,8 +204,8 @@ once, 0.02 s over HTTP in the table below, unless it adds what a cached sequence
 frames at 512 px with four to five objects on an Apple M3 Pro, adding the bokeh took 16 to
 19 s on 2026-10-10, and adding the flow 6 to 12 s on 2026-10-11, seeds 0 to 2.
 
-**The call blocks while it generates.** Measured on 2026-09-24, before bokeh, against
-`data/library_dev` at size 512 with four to five objects per sequence:
+**Without NDJSON, the call blocks while it generates.** Measured on 2026-09-24, before
+bokeh, against `data/library_dev` at size 512 with four to five objects per sequence:
 
 | Where | 24 frames | 80 frames | cache hit |
 |---|---|---|---|
@@ -236,7 +236,7 @@ curl -N -X POST http://localhost:8000/sequences \
 {"step": "bokeh", "done": 0, "total": 24}
 ...
 {"step": "bokeh", "done": 24, "total": 24}
-{"sequence": {"id": "35a2c79dfc65efdf", "library": "747c2380d504", "cached": false, ...}}
+{"sequence": {"id": "bfc884ca50c1f8fd", "library": "747c2380d504", "cached": false, ...}}
 ```
 
 - **The steps come in order, each counted from 0 to its total:** `sampling` (choosing
