@@ -405,6 +405,20 @@ test("moves a pane with the arrow keys while the panes play", async ({
   await page.getByRole("button", { name: "Generate sequence" }).click();
   const videos = page.locator("video");
   await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  // Every pane decoded before Play. The API encodes a stream the first time it is asked
+  // for, so run alone, before any other test has asked, a pane would still sit at the
+  // start when the times are read.
+  await expect
+    .poll(
+      async () =>
+        Math.min(
+          ...(await videos.evaluateAll((els) =>
+            els.map((el) => (el as HTMLVideoElement).readyState),
+          )),
+        ),
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThanOrEqual(2);
   await page.getByRole("button", { name: "Play" }).click();
 
   const grip = page.getByRole("button", { name: "Move All in focus pane" });
