@@ -101,7 +101,6 @@ export default function Page() {
   async function generate() {
     setBusy(true);
     setError(null);
-    setSteps([]);
     setStartedAt(Date.now());
     try {
       let heard = false;
