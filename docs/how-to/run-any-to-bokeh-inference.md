@@ -7,11 +7,11 @@ related: [dataset-layout, generate-a-dataset, cli]
 
 # Run any-to-bokeh inference
 
-Converts a generated sequence tree into the layout the vendored `any-to-bokeh` code expects,
-then runs its inference script.
+Stage C converts generated sequences and renders their bokeh with the vendored
+`any-to-bokeh` model.
 
-Commands run from `backend/`. All of them have been executed as written, except the inference
-step itself, which needs the model checkpoints.
+Commands run from `backend/`. Use Stage C for inference. The manual conversion below lets
+you inspect the inputs, but running the demo directly needs more than 32 GiB of GPU memory.
 
 ---
 
@@ -136,42 +136,7 @@ property of the conversion, not of the dataset, so re-running the bridge with a 
 
 ---
 
-## 4. Measure what inference costs
-
-Stage C's first run gives one figure: 90 s for one 80-frame sequence at 512 px on an RTX 5090,
-model load included. Nothing has been measured beyond that one run. That matters beyond curiosity: anything
-past a few seconds cannot be a synchronous HTTP request, so the shape of the render API hangs
-off the answer.
-
-`../scripts/measure_a2b.sh` produces the number. It takes no arguments.
-
-```bash
-../scripts/measure_a2b.sh
-```
-
-Prerequisite: `scripts/setup_third_party.sh` has been run once on the machine. Without the
-submodule's venv the script stops immediately and says so, before generating anything.
-
-It records the GPU and the torch build, generates one 80-frame sequence at 512 px with four
-to five objects, converts it exactly as section 1 does, and wall-clocks the inference.
-Everything is teed into `backend/data/measurements/a2b-<timestamp>.log`. **That file is what
-to send back** — it carries the commands, the card and the timing in one place.
-
-**Steps 2 and 3 have been executed as written. The script's inference has not run to the end**:
-it calls the demo directly, which runs out of memory on a 32 GiB card, and
-`test/inference_demo.py` is pinned to `cuda:0` in six places.
-
-Two things the script is careful about. It writes to `data/library_a2b_measure` and
-`data/a2b_measure`, so an existing `data/demo` survives. And it removes the converted inputs
-from the read-only submodule on the way out through an `EXIT` trap — including after a failed
-inference, which is otherwise how that checkout ends up permanently dirty.
-
-**a2b renders at 576×1024 regardless of what you generated.** `inference_demo.py` fixes the
-sample size, so square frames come back stretched. That is its behavior, not the bridge's.
-
----
-
-## What the bridge loses
+## 4. What the bridge loses
 
 any-to-bokeh reads 8-bit disparity, so the bridge quantizes the 16-bit stream down. That is
 the single lossy step, and it happens once — it used to happen twice, which was harmless only
@@ -184,7 +149,7 @@ so. Any comparison against output generated before that fix is invalid.
 
 ---
 
-## Clean up
+## 5. Clean up
 
 The bridge writes into the submodule's working tree. To leave it clean:
 
