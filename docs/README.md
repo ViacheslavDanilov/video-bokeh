@@ -42,7 +42,15 @@ Adding a new personal folder means adding a line to `.gitignore`, otherwise it l
 
 ## Links
 
-Prefer Obsidian wikilinks over markdown links: they survive renames.
+Tracked pages use relative Markdown links. GitHub renders them and Obsidian follows them.
+Resolve each path from the page containing the link. Preserve aliases as link text.
+Use GitHub heading anchors: lowercase, spaces replaced with hyphens, punctuation dropped.
+Check that the target file and heading exist.
+
+For example, from `how-to/`, link to the pipeline with
+`[pipeline-explainer](../explanation/pipeline-explainer.md)`.
+
+The gitignored half of the vault may keep Obsidian wikilinks:
 
 - A bare name resolves anywhere in the vault: `[[magick]]`, `[[pipeline-explainer]]`.
 - Prefix with a path only to disambiguate a transcript from its meeting note, which share a filename: `[[meetings/2026-06-26-unrestricted-pipeline-algorithm]]` versus `[[meetings/transcripts/2026-06-26-unrestricted-pipeline-algorithm]]`.

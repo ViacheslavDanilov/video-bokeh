@@ -28,7 +28,7 @@ uv run --extra render python -m video_bokeh.render.run --data-root data/demo \
 It keeps its inputs and the script's `output/` in a temporary directory, so the submodule stays
 clean, and it checks that every sequence got back as many frames as it sent. Before the model
 loads, it refuses a batch holding a sequence of twelve frames or fewer, because any-to-bokeh
-fails on such a sequence. Flags are in [[cli]]. The stream is in [[dataset-layout]].
+fails on such a sequence. Flags are in [cli](../reference/cli.md). The stream is in [dataset-layout](../reference/dataset-layout.md).
 
 **It first ran to completion on 2026-10-07, on an RTX 5090 with 32 GiB**: one 80-frame sequence
 at 512 px in 90 s, model load included. It starts the demo through `_a2b_launch.py`, which has
@@ -65,7 +65,7 @@ The last line appears only when the inference script is actually present. Withou
 submodule checked out, the command still writes its inputs and says so instead of printing a
 path that does not exist.
 
-What lands where is in [[dataset-layout]].
+What lands where is in [dataset-layout](../reference/dataset-layout.md).
 
 ---
 
@@ -134,7 +134,7 @@ needs more than 32 GiB of GPU memory: it ran out on an RTX 5090, where Stage C's
 property of the conversion, not of the dataset, so re-running the bridge with a different
 `--k` and a different `--dataset-name` is how you compare blur strengths.
 
-The output-size and stretching limitations are in [[dataset-layout#The bokeh stream]].
+The output-size and stretching limitations are in [dataset-layout#The bokeh stream](../reference/dataset-layout.md#the-bokeh-stream).
 
 ---
 

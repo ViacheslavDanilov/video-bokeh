@@ -10,7 +10,8 @@ its own environment when they do not.
 
 ## Considered options
 
-Settled after the 2026-09-30 sync. [[meetings/2026-09-30-contributions-and-roadmap]] has both
+Settled after the 2026-09-30 sync. The local-only note
+`meetings/2026-09-30-contributions-and-roadmap.md` has both
 the layout drawn on the call and the architecture discussed after it.
 
 - **One environment for every model.** Impossible: any-to-bokeh's pins and Depth Anything 3's

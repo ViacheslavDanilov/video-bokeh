@@ -46,7 +46,7 @@ if __name__ == "__main__":
 ```
 
 The stream never ends. Stop after as many batches as a run needs.
-[[train-on-the-sequence-stream]] runs a training loop on it. The `__main__` guard is not
+[train-on-the-sequence-stream](../how-to/train-on-the-sequence-stream.md) runs a training loop on it. The `__main__` guard is not
 optional in a script. Where workers start by spawn or forkserver, as on macOS, on Windows and
 on Linux from Python 3.14, a new process imports the script again: each worker, or the fork
 server that starts them. Without the guard that import would start workers of its own.
@@ -105,12 +105,12 @@ stream = SequenceStream(Path("data/library/da2-large"), n_frames=24, size=512,
   them.
 - **`flow` is exact**, computed from the homographies every layer moves by, and off by default.
   It has one field fewer than there are frames, because the last frame has no next. The
-  dataset's `flow` stream in [[dataset-layout]] holds the same flow, in 1/64 px steps.
+  dataset's `flow` stream in [dataset-layout](dataset-layout.md) holds the same flow, in 1/64 px steps.
 
 ### Bokeh
 
 `bokeh` blurs each item with the layered renderer, the one Stage C runs as
-`--renderer layered` and [[layered-bokeh]] explains. It is off by default, so a loop that does
+`--renderer layered` and [layered-bokeh](../explanation/layered-bokeh.md) explains. It is off by default, so a loop that does
 not ask for it pays nothing.
 
 ```python

@@ -14,7 +14,7 @@ PyTorch, and it runs on a CPU, an NVIDIA card or a Mac's GPU.
 - **Decision, 2026-10-09:** this renderer is to replace any-to-bokeh as the source of the
   dataset's bokeh. any-to-bokeh stays as a baseline. It follows the 2026-10-08 sync.
 
-This page explains the method. [[0002-layers-are-stored-not-regenerated]] explains where its
+This page explains the method. [0002-layers-are-stored-not-regenerated](../adr/0002-layers-are-stored-not-regenerated.md) explains where its
 layers come from.
 
 ---
@@ -115,6 +115,6 @@ One thread is what each worker of a training loader gets.
 
 ## Related
 
-- [[pipeline-explainer]] — the three stages, and where bokeh fits
-- [[dataset-layout]] — the `layers/` stream the renderer reads
-- [[loader]] — the layers in a training loop
+- [pipeline-explainer](pipeline-explainer.md) — the three stages, and where bokeh fits
+- [dataset-layout](../reference/dataset-layout.md) — the `layers/` stream the renderer reads
+- [loader](../reference/loader.md) — the layers in a training loop
