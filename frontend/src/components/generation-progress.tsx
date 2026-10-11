@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, LoaderCircle } from "lucide-react";
 import type { GenerationStep } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // Presentation only: a step a later API adds still shows, under its own name.
 const STEP_NAMES: Record<string, string> = {
@@ -15,6 +16,31 @@ const STEP_NAMES: Record<string, string> = {
 
 function stepName(step: string): string {
   return STEP_NAMES[step] ?? step;
+}
+
+/**
+ * `text` in the room the widest of `widest` needs, so what follows it stays where it is
+ * while `text` changes. The others share its cell, hidden.
+ */
+function Steady({
+  text,
+  widest,
+  className,
+}: {
+  text: string;
+  widest: string[];
+  className?: string;
+}) {
+  return (
+    <span className={cn("grid", className)}>
+      <span className="col-start-1 row-start-1">{text}</span>
+      {widest.map((w) => (
+        <span key={w} className="invisible col-start-1 row-start-1">
+          {w}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function useSecondsSince(startedAt: number): number {
@@ -65,14 +91,16 @@ export function GenerationProgress({
       ) : (
         <Check aria-hidden className="text-foreground size-3.5 shrink-0" />
       )}
-      <span className="text-foreground">
-        {current ? stepName(current.step) : "Done"}
-      </span>
-      {current && (
-        <span>
-          step {index + 1} of {steps.length}
-        </span>
-      )}
+      <Steady
+        className="text-foreground"
+        text={current ? stepName(current.step) : "Done"}
+        widest={[...Object.values(STEP_NAMES), "Done"]}
+      />
+      <Steady
+        className="tabular-nums"
+        text={current ? `step ${index + 1} of ${steps.length}` : ""}
+        widest={[`step ${steps.length} of ${steps.length}`]}
+      />
       <div
         role="progressbar"
         aria-label="Generated"
@@ -86,7 +114,11 @@ export function GenerationProgress({
           style={{ width: `${(done / total) * 100}%` }}
         />
       </div>
-      <span className="tabular-nums">{percent}%</span>
+      <Steady
+        className="justify-items-end tabular-nums"
+        text={`${percent}%`}
+        widest={["100%"]}
+      />
       <span className="tabular-nums">{seconds} s</span>
     </div>
   );

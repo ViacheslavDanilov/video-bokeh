@@ -320,7 +320,10 @@ test("shows the steps of a generation, then what is on screen", async ({
   await generate.click();
 
   const progress = page.getByRole("status", { name: "Generation progress" });
-  await expect(progress).toContainText("Rendering frames");
+  // As shown: the line keeps every step's name in it, hidden, to hold its width.
+  await expect(progress).toContainText("Rendering frames", {
+    useInnerText: true,
+  });
   await expect(progress).toBeHidden({ timeout: 60_000 });
 
   const videos = page.locator("video");
@@ -365,26 +368,31 @@ test("keeps the panes in place while the next sequence generates", async ({
 });
 
 /**
- * One bar for the whole generation: it fills once, never going back at a new step, and is
- * seen full before the caption takes its place.
+ * One bar for the whole generation: it fills once, never going back at a new step, stays
+ * where it is while the step's name changes beside it, and is seen full before the caption
+ * takes its place.
  */
 test("fills one progress bar for the whole generation", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
-  // Every value the bar takes, as the page sets it, however briefly, and how long it is
-  // full before it goes.
+  // Every value the bar takes, as the page sets it, however briefly; how far into its line
+  // it sits at each; and how long it is full before it goes.
   await page.evaluate(() => {
-    const bar = { values: [] as number[], fullFor: 0 };
+    const bar = { values: [] as number[], offsets: [] as number[], fullFor: 0 };
     let fullAt = 0;
     Object.assign(window, { bar });
     new MutationObserver(() => {
-      const value = document
-        .querySelector('[role="progressbar"]')
-        ?.getAttribute("aria-valuenow");
-      if (value == null) {
+      const element = document.querySelector('[role="progressbar"]');
+      const value = element?.getAttribute("aria-valuenow");
+      if (element == null || value == null) {
         if (fullAt && !bar.fullFor) bar.fullFor = performance.now() - fullAt;
       } else if (Number(value) !== bar.values.at(-1)) {
         bar.values.push(Number(value));
+        const line = element.closest('[role="status"]')!;
+        bar.offsets.push(
+          element.getBoundingClientRect().left -
+            line.getBoundingClientRect().left,
+        );
         if (Number(value) === 100) fullAt = performance.now();
       }
     }).observe(document.body, {
@@ -400,13 +408,18 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
 
-  const { values, fullFor } = await page.evaluate(
+  const { values, offsets, fullFor } = await page.evaluate(
     () =>
-      (window as unknown as { bar: { values: number[]; fullFor: number } }).bar,
+      (
+        window as unknown as {
+          bar: { values: number[]; offsets: number[]; fullFor: number };
+        }
+      ).bar,
   );
   expect(values.length).toBeGreaterThan(2);
   expect(values).toEqual([...values].sort((a, b) => a - b));
   expect(values.at(-1)).toBe(100);
+  expect(new Set(offsets).size).toBe(1);
   // Long enough to be seen, where on its own it would last a frame or none.
   expect(fullFor).toBeGreaterThanOrEqual(400);
 });
