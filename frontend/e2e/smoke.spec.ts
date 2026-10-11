@@ -69,6 +69,26 @@ function streamsInOrder(page: Page): Promise<string[]> {
   return page.getByRole("combobox", { name: "Stream" }).allInnerTexts();
 }
 
+/** Every stream's full label fits its value and the header stays within the pane. */
+async function expectFullStreamLabels(page: Page, labels: string[]) {
+  const pickers = page.getByRole("combobox", { name: "Stream" });
+  await expect(pickers).toHaveText(labels);
+  await expect
+    .poll(() =>
+      pickers.evaluateAll((els) =>
+        els.map((el) => {
+          const value = el.querySelector('[data-slot="select-value"]')!;
+          const header = el.closest("figcaption")!;
+          return (
+            value.scrollWidth <= value.clientWidth &&
+            header.scrollWidth <= header.clientWidth
+          );
+        }),
+      ),
+    )
+    .toEqual(labels.map(() => true));
+}
+
 /**
  * One path through the page, against the real API and a tiny real library: the library
  * loads, a sequence generates, and every stream the server lists reaches the browser as
@@ -244,6 +264,8 @@ test("wraps five panes into rows of three and two", async ({ page }) => {
   await openPage(page);
   // A seed of its own: this test writes into its sequence.
   const videos = await generateSequence(page, 41);
+  const labels = ["All in focus", "Alpha", "Disparity", "Optical flow"];
+  await expectFullStreamLabels(page, labels);
   const generate = page.getByRole("button", { name: "Generate sequence" });
 
   // A fifth stream, since a pane is added only for a stream not on screen.
@@ -269,6 +291,18 @@ test("wraps five panes into rows of three and two", async ({ page }) => {
     );
   };
   await expect.poll(rows).toEqual([3, 2]);
+  await expectFullStreamLabels(page, [...labels, "Bokeh"]);
+
+  // Two rows share the available height. Reduce it to reach the grid's 200 px minimum.
+  const paneWidth = (await videos.first().boundingBox())!.width;
+  await page.setViewportSize({
+    width: 1280,
+    height: 800 - 2 * (paneWidth - 200),
+  });
+  await expect
+    .poll(async () => (await videos.first().boundingBox())!.width)
+    .toBe(200);
+  await expectFullStreamLabels(page, [...labels, "Bokeh"]);
 
   // Too low a window to show them all at a useful size: the panes take the width and the
   // page scrolls instead, and the rows still come out even, where four would fit across.
