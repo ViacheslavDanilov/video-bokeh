@@ -142,7 +142,7 @@ export default function Page() {
               backgrounds
             </span>
             {library.asset_size && <span>{library.asset_size} px assets</span>}
-            <span title="The library's id: a hash of its list of assets, its depth estimator and its asset size. Every cached sequence is keyed on it, so a rebuilt library never serves an old sequence.">
+            <span title="The library's id: a hash of its list of assets, its depth estimator and its asset size. Every cached sequence is keyed on it.">
               id <span className="font-mono">{library.id}</span>
             </span>
           </p>
