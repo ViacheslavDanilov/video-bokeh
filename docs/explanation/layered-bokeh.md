@@ -14,8 +14,9 @@ PyTorch, and it runs on a CPU, an NVIDIA card or a Mac's GPU.
 - **Decision, 2026-10-09:** this renderer is to replace any-to-bokeh as the source of the
   dataset's bokeh. any-to-bokeh stays as a baseline. It follows the 2026-10-08 sync.
 
-This page explains the method. [0002-layers-are-stored-not-regenerated](../adr/0002-layers-are-stored-not-regenerated.md) explains where its
-layers come from.
+This page explains the method.
+[0002-layers-are-stored-not-regenerated](../adr/0002-layers-are-stored-not-regenerated.md)
+explains where its layers come from.
 
 ---
 

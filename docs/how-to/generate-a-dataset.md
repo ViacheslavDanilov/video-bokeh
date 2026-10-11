@@ -13,8 +13,9 @@ from those assets and is fast. Run Stage A once, then Stage B as often as you li
 Every command here runs from `backend/` and has been executed as written. Output lands in
 `backend/data/`, which is gitignored.
 
-For what the commands write, see [dataset-layout](../reference/dataset-layout.md). For every flag, see [cli](../reference/cli.md). For why the
-pipeline is shaped this way, see [pipeline-explainer](../explanation/pipeline-explainer.md).
+For what the commands write, see [dataset-layout](../reference/dataset-layout.md). For every
+flag, see [cli](../reference/cli.md). For why the pipeline is shaped this way, see
+[pipeline-explainer](../explanation/pipeline-explainer.md).
 
 ---
 
@@ -23,8 +24,8 @@ pipeline is shaped this way, see [pipeline-explainer](../explanation/pipeline-ex
 1. Foregrounds in `data/magick_dev` — see [magick](../explanation/magick.md).
 2. Backgrounds in `data/bg-20k_dev` — see [datasets](../explanation/datasets.md).
 3. Dependencies: `uv sync --extra library` from the repo root.
-4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says
-   whether each depth estimator can run there, before a build finds out. See [cli](../reference/cli.md).
+4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says whether
+   each depth estimator can run there, before a build finds out. See [cli](../reference/cli.md).
 
 If `data/library/da2-large/` already holds `foregrounds/` and `backgrounds/`, as `make
 libraries` leaves it, Stage A is done and you can skip to Stage B. Built with the default class
@@ -110,10 +111,10 @@ uv run python -m video_bokeh.scenes.generate \
 ```
 
 What binds now is the depth axis, not the image format. Objects get disjoint slots above the
-background, so each extra object narrows every slot and makes collisions harder to avoid.
-Five places every scene; six starts losing them. The measured sweep is in
-[demo-unrestricted-trajectories](demo-unrestricted-trajectories.md), and [dataset-layout](../reference/dataset-layout.md) says what to raise if you need
-more.
+background, so each extra object narrows every slot and makes collisions harder to avoid. Five
+places every scene; six starts losing them. The measured sweep is in
+[demo-unrestricted-trajectories](demo-unrestricted-trajectories.md), and
+[dataset-layout](../reference/dataset-layout.md) says what to raise if you need more.
 
 ### Optical flow
 
@@ -145,10 +146,11 @@ seq_id  seed  n_frames  size  n_objects  n_rejections  n_range_fallbacks
 0003    2     80        512   4          0             0
 ```
 
-`n_rejections` counts trajectory sets the collision validator threw away; it climbs with
-object count. `n_range_fallbacks` counts objects that could not find an end pose within the
-retry budget and held their start scale instead — expect `0`, and treat anything else as a
-sign the depth axis is unusually tight. Column meanings in full: [dataset-layout](../reference/dataset-layout.md).
+`n_rejections` counts trajectory sets the collision validator threw away; it climbs with object
+count. `n_range_fallbacks` counts objects that could not find an end pose within the retry
+budget and held their start scale instead — expect `0`, and treat anything else as a sign the
+depth axis is unusually tight. Column meanings in full:
+[dataset-layout](../reference/dataset-layout.md).
 
 ---
 
@@ -172,14 +174,16 @@ What to check:
 - **Overlap is unambiguous.** Two objects may overlap on screen but never at the same depth,
   so one is always clearly in front.
 
-A fuller set of checks on the trajectory model is in [demo-unrestricted-trajectories](demo-unrestricted-trajectories.md).
+A fuller set of checks on the trajectory model is in
+[demo-unrestricted-trajectories](demo-unrestricted-trajectories.md).
 
 ---
 
 ## 5. Render bokeh
 
-**One run writes the frames and their bokeh**, with the layered renderer that [layered-bokeh](../explanation/layered-bokeh.md)
-explains. It runs on any machine with torch installed.
+**One run writes the frames and their bokeh**, with the layered renderer that
+[layered-bokeh](../explanation/layered-bokeh.md) explains. It runs on any machine with torch
+installed.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
@@ -202,8 +206,9 @@ uv run --extra render python -m video_bokeh.render.run --data-root data/demo_lay
 
 The render took 3 s on an Apple M3 Pro, on 2026-10-10.
 
-**any-to-bokeh needs an NVIDIA card.** [run-any-to-bokeh-inference](run-any-to-bokeh-inference.md) has the command and says
-how far it has been run.
+**any-to-bokeh needs an NVIDIA card.**
+[run-any-to-bokeh-inference](run-any-to-bokeh-inference.md) has the command and says how far it
+has been run.
 
 To look at what any-to-bokeh would receive without rendering anything, the bridge converts the
 sequences on any machine:

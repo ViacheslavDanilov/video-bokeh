@@ -16,7 +16,8 @@ end. [loader](../reference/loader.md) describes every stream and option.
 The stream needs torch. Install the `loader` extra as [loader](../reference/loader.md) says.
 
 It also needs a library. The example reads `data/library/da2-large`, which `make libraries`
-builds from the development pools a clone carries, or Stage A alone in [generate-a-dataset](generate-a-dataset.md).
+builds from the development pools a clone carries, or Stage A alone in
+[generate-a-dataset](generate-a-dataset.md).
 
 ## 2. Run the example
 
@@ -40,8 +41,8 @@ Read its source as a template for your own loop:
   network.
 - **It turns a batch of sequences into a batch of frames** with `flatten(0, 1)`, because the
   network is per frame.
-- **Its loop runs inside `main()` behind `if __name__ == "__main__"`**, which [loader](../reference/loader.md) says a
-  script needs.
+- **Its loop runs inside `main()` behind `if __name__ == "__main__"`**, which
+  [loader](../reference/loader.md) says a script needs.
 - **It leaves the stream's `seed` at 0.** The seed picks the sequences. Give every rank of a
   distributed run its own, far apart, as [loader](../reference/loader.md) explains.
 

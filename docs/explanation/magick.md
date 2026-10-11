@@ -35,9 +35,9 @@ assets survive each threshold. Its plots and `summary.json` go to
 
 ## Alpha in our pipeline
 
-The source image's alpha channel is the foreground matte throughout the pipeline.
-Stage A stores it with the asset. Stage B transforms it with the object and writes one TIFF
-page per object in each frame. [dataset-layout](../reference/dataset-layout.md) describes the output formats.
+The source image's alpha channel is the foreground matte throughout the pipeline. Stage A stores
+it with the asset. Stage B transforms it with the object and writes one TIFF page per object in
+each frame. [dataset-layout](../reference/dataset-layout.md) describes the output formats.
 
 ## Upstream references
 

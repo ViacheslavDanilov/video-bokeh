@@ -32,6 +32,8 @@ Stage A builds the artifact library from these pools.
 Stage B samples scenes and writes sequences. The layered renderer can produce bokeh during
 Stage B or run afterward as Stage C over saved layers.
 
-- [generate-a-dataset](../how-to/generate-a-dataset.md) has the acquisition, library, generation, and rendering recipes.
+- [generate-a-dataset](../how-to/generate-a-dataset.md) has the acquisition, library,
+  generation, and rendering recipes.
 - [dataset-layout](../reference/dataset-layout.md) defines the files and formats each stage writes.
-- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) explains how to check motion and depth by eye.
+- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) explains how to
+  check motion and depth by eye.

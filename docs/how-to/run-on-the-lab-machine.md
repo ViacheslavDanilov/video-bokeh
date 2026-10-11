@@ -29,9 +29,9 @@ on an RTX 5090 on 2026-10-07.
    `video-bokeh-da2` and `video-bokeh-depth-pro`, 8 to 12 GB each, with no weights in them. It
    needs Docker with the NVIDIA Container Toolkit, and ran on the RTX 5090.
 4. On a machine without Docker's NVIDIA runtime, such as the Mac,
-   `scripts/setup_depth_anything_3.sh` builds the venv
-   the `da3-*` depth estimators run in instead. Run here. [cli](../reference/cli.md), section "Depth Anything 3's
-   own environment", says what it leaves out.
+   `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in
+   instead. Run here. [cli](../reference/cli.md), section "Depth Anything 3's own environment",
+   says what it leaves out.
 5. `uv run --directory backend --extra library python -m video_bokeh.library.check` says
    whether each depth estimator can run on the machine, without downloading anything. Run
    here.
