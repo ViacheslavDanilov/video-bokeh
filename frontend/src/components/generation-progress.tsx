@@ -90,7 +90,7 @@ export function GenerationProgress({
     <div
       role="status"
       aria-label="Generation progress"
-      className="grid grid-cols-[repeat(5,auto)] items-center gap-2 sm:flex sm:gap-3"
+      className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:justify-start sm:gap-3"
     >
       {current ? (
         <LoaderCircle
@@ -101,7 +101,7 @@ export function GenerationProgress({
         <Check aria-hidden className="text-foreground size-3.5 shrink-0" />
       )}
       <Steady
-        className="text-foreground col-span-5 row-start-1 justify-items-center sm:justify-items-start"
+        className="text-foreground"
         text={current ? stepName(current.step) : "Done"}
         widest={[...Object.values(STEP_NAMES), "Done"]}
       />
@@ -110,30 +110,32 @@ export function GenerationProgress({
         text={current ? `step ${index + 1} of ${steps.length}` : ""}
         widest={[`step ${steps.length} of ${steps.length}`]}
       />
-      <div
-        role="progressbar"
-        aria-label="Generated"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        className="bg-muted h-1.5 w-12 shrink-0 overflow-hidden rounded-full sm:w-40"
-      >
+      <div className="inline-flex basis-full items-center gap-2 sm:basis-auto sm:gap-3">
         <div
-          className="bg-foreground h-full rounded-full transition-[width] duration-150 ease-out"
-          style={{ width: `${(done / total) * 100}%` }}
+          role="progressbar"
+          aria-label="Generated"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          className="bg-muted h-1.5 min-w-16 flex-1 overflow-hidden rounded-full sm:w-40 sm:flex-none"
+        >
+          <div
+            className="bg-foreground h-full rounded-full transition-[width] duration-150 ease-out"
+            style={{ width: `${(done / total) * 100}%` }}
+          />
+        </div>
+        <Steady
+          className="justify-items-end tabular-nums"
+          text={`${percent}%`}
+          widest={["100%"]}
+        />
+        {/* Centered on the empty screen, the line would move with each digit added. */}
+        <Steady
+          className="tabular-nums"
+          text={`${seconds} s`}
+          widest={["000 s"]}
         />
       </div>
-      <Steady
-        className="justify-items-end tabular-nums"
-        text={`${percent}%`}
-        widest={["100%"]}
-      />
-      {/* Centered on the empty screen, the line would move with each digit added. */}
-      <Steady
-        className="tabular-nums"
-        text={`${seconds} s`}
-        widest={["000 s"]}
-      />
     </div>
   );
 }
