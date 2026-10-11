@@ -370,19 +370,21 @@ async function watchBar(page: Page) {
       });
       bar.places.push(place);
       const progress = element.closest('[role="status"]')!;
-      // The empty card, or the caption above the panes that holds the progress line.
-      const card =
-        progress.parentElement!.parentElement!.getBoundingClientRect();
+      // The viewer's column: the empty card and the caption above the panes both span it.
+      const card = progress.closest("section")!.getBoundingClientRect();
       bar.fits.push(
-        [progress, ...progress.querySelectorAll("*")].every((child) => {
-          const bounds = child.getBoundingClientRect();
-          return (
-            bounds.left >= card.left - 0.5 &&
-            bounds.right <= card.right + 0.5 &&
-            bounds.top >= card.top - 0.5 &&
-            bounds.bottom <= card.bottom + 0.5
-          );
-        }),
+        // Not the spinner: it turns, and a turned square's box pokes out of its own.
+        [progress, ...progress.querySelectorAll("*:not(svg, svg *)")].every(
+          (child) => {
+            const bounds = child.getBoundingClientRect();
+            return (
+              bounds.left >= card.left - 0.5 &&
+              bounds.right <= card.right + 0.5 &&
+              bounds.top >= card.top - 0.5 &&
+              bounds.bottom <= card.bottom + 0.5
+            );
+          },
+        ),
       );
       if (Number(value) === 100 && !bar.fullAt) {
         bar.fullAt = performance.now();
