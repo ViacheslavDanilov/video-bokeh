@@ -16,7 +16,7 @@ downloading source images.
 [[magick]] provides isolated objects with alpha channels.
 `video_bokeh.acquire.magick` fetches images from
 [OneOverZero/MAGICK on Hugging Face](https://huggingface.co/datasets/OneOverZero/MAGICK).
-The development pool contains 30 foregrounds. Stage A's default CLIP filter keeps 17.
+See [[magick]] for the development pool size and Stage A's filter result.
 
 ## Backgrounds
 

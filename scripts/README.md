@@ -18,19 +18,11 @@ scripts/setup_third_party.sh
 `setup_depth_anything_3.sh` creates the Python 3.12 environment used by the local DA3
 estimators. See [Depth Anything 3's own environment](../docs/reference/cli.md#depth-anything-3s-own-environment).
 
-```bash
-scripts/setup_depth_anything_3.sh
-```
-
 ## Run the lab checks
 
 `lab_run.sh` measures the depth estimators, builds libraries, generates sequences, renders
 bokeh, and packs videos into one logged run. See
 [Run on the lab machine](../docs/how-to/run-on-the-lab-machine.md).
-
-```bash
-scripts/lab_run.sh
-```
 
 ## Analyze the MAGICK filter
 

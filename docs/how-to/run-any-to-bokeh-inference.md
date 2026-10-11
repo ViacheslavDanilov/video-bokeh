@@ -123,7 +123,7 @@ third_party/any-to-bokeh/demo_dataset/pinned/disp/0001/01_zf_0.500000.png
 
 ```bash
 cd third_party/any-to-bokeh
-python test/inference_demo.py --val_csv_path csv_file/demo.csv
+.venv/bin/python test/inference_demo.py --val_csv_path csv_file/demo.csv
 ```
 
 `third_party/any-to-bokeh` is a submodule and read-only — do not edit anything inside it. It
@@ -133,6 +133,8 @@ needs more than 32 GiB of GPU memory: it ran out on an RTX 5090, where Stage C's
 **`--k` sets blur strength**, written into the CSV as a column, `16` by default. It is a
 property of the conversion, not of the dataset, so re-running the bridge with a different
 `--k` and a different `--dataset-name` is how you compare blur strengths.
+
+The output-size and stretching limitations are in [[dataset-layout#The bokeh stream]].
 
 ---
 
@@ -151,9 +153,11 @@ so. Any comparison against output generated before that fix is invalid.
 
 ## 5. Clean up
 
-The bridge writes into the submodule's working tree. To leave it clean:
+The bridge writes into the submodule's working tree. After section 3, return to `backend/`
+and remove the converted inputs:
 
 ```bash
+cd ../..
 rm -rf third_party/any-to-bokeh/demo_dataset/demo \
        third_party/any-to-bokeh/demo_dataset/pinned \
        third_party/any-to-bokeh/csv_file/demo.csv \
