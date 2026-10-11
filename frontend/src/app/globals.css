@@ -14,13 +14,9 @@
  * pane, which is a legend, not decoration.
  */
 :root {
-  /* DESIGN.md: 6px on buttons, cards and inputs. */
-  --radius: 6px;
-
   --background: #fafafa; /* Paper White */
   --foreground: #171717; /* Obsidian */
   --card: #ffffff; /* Pure White */
-  --card-foreground: #171717;
   --popover: #ffffff;
   --popover-foreground: #171717;
 
@@ -28,8 +24,6 @@
   --primary: #171717;
   --primary-foreground: #ffffff;
 
-  --secondary: #fafafa;
-  --secondary-foreground: #4d4d4d; /* Charcoal */
   --muted: #ebebeb; /* Hairline */
   --muted-foreground: #666666; /* Stone */
   --accent: #ebebeb;
@@ -59,13 +53,10 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
@@ -75,10 +66,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 6px;
-  --radius-xl: 8px;
 }
 
 @layer base {
@@ -94,33 +83,6 @@
   body {
     font-family: var(--font-sans);
   }
-
-  /*
-   * DESIGN.md: tight tracking at display sizes, normal at body sizes. Geist is drawn
-   * for this, and loosening it back at 14-16px is half the reason the system reads as
-   * precise rather than cramped.
-   */
-  h1 {
-    letter-spacing: -0.02em;
-  }
-}
-
-/*
- * The signature border of the system: a hairline that survives any background, made
- * from an inset ring plus an outer ring in the canvas color rather than a plain
- * 1px border. Depth here comes from value, never from shadow.
- */
-.hairline {
-  box-shadow:
-    inset 0 0 0 1px rgb(0 0 0 / 0.08),
-    0 0 0 1px var(--background);
-}
-
-/* Mono labels: metadata and identifiers, at the tracking DESIGN.md specifies. */
-.label-mono {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.071em;
 }
 
 /*
