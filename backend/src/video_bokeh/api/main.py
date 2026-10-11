@@ -72,8 +72,8 @@ _MAX_FRAMES = 240
 #:
 #: Each limit alone is harmless and the product is not: generation holds every
 #: frame of the sequence in memory at once, so cost grows with the area and with the
-#: count together. Measured on an Apple M3 Pro against `data/library_dev` on 2026-09-24,
-#: before bokeh, with the object count not recorded:
+#: count together. Measured on an Apple M3 Pro on 2026-09-24, before bokeh, with the
+#: object count not recorded:
 #:
 #:     80 frames at 512   =  21.0 Mpx    2.6 to 3.3 s     modest
 #:     80 frames at 1024  =  83.9 Mpx   11.2 s            2.9 GB peak

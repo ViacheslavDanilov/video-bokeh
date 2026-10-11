@@ -13,7 +13,7 @@ the back:
 
 ```bash
 # 1. one terminal, from backend/
-VIDEO_BOKEH_LIBRARY=data/library_dev uv run uvicorn video_bokeh.api.main:app --port 8000
+uv run uvicorn video_bokeh.api.main:app --port 8000
 
 # 2. another terminal, from frontend/
 pnpm install --frozen-lockfile
@@ -22,8 +22,9 @@ pnpm dev
 
 Then open <http://localhost:3000>.
 
-If `backend/data/library_dev` does not exist yet, build it once — `backend/README.md` has the
-recipe, and a fresh clone has everything it needs.
+It serves every library under `backend/data/library/`, one per depth estimator. If there is
+none yet, build them once with `make libraries` from the repository root; the root
+`README.md` has the details, and a fresh clone has everything it needs.
 
 The API address comes from `NEXT_PUBLIC_API_URL` and defaults to `http://localhost:8000`. It
 is baked in at build time, so a container built for one address cannot be pointed at another

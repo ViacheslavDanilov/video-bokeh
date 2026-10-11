@@ -14,9 +14,9 @@ Four environment variables, all optional:
 
 ``VIDEO_BOKEH_LIBRARY``
     Where the libraries are, when it is not ``$VIDEO_BOKEH_DATA_ROOT/library``. Either one
-    library -- ``data/library_dev`` holds ``foregrounds/`` and ``backgrounds/`` directly,
-    so naming it outright makes an existing checkout usable without moving anything -- or
-    a directory with one library per subdirectory, such as one per depth estimator.
+    library, such as ``data/library/da2-large``, which holds ``foregrounds/`` and
+    ``backgrounds/`` directly, or a directory with one library per subdirectory, such as
+    one per depth estimator.
 
 ``VIDEO_BOKEH_RENDER_BOKEH``
     Whether a generated sequence gets its bokeh, rendered with it by the layered renderer.

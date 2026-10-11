@@ -10,7 +10,7 @@ Usage:
     uv run python -m video_bokeh.library.build \\
         --fg-data-root data/magick_dev \\
         --bg-data-root data/bg-20k_dev \\
-        --output       data/library_dev \\
+        --output       data/library/da2-large \\
         --size 1024 --model da2-large
 """
 

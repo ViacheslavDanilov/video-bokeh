@@ -21,16 +21,16 @@ gitignored. To produce a dataset in the first place, see [[generate-a-dataset]].
 
 ## Before you start
 
-You need the artifact library. If `backend/data/library_dev/` already has `foregrounds/` and
-`backgrounds/`, skip this. Built from the pools as of 2026-10-01 it holds 17 foregrounds and 30
-backgrounds, and one built before 2026-10-01 holds 12 and 20; either is enough for every recipe
-here.
+You need the artifact library. If `backend/data/library/da2-large/` already has
+`foregrounds/` and `backgrounds/`, as `make libraries` leaves it, skip this. Built from the
+pools as of 2026-10-01 it holds 17 foregrounds and 30 backgrounds, and 30 and 30 with the class
+filter off; either is enough for every recipe here.
 
 ```bash
 cd backend
 uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output data/library_dev --size 1024 --model da2-large
+  --output data/library/da2-large --size 1024 --model da2-large
 ```
 
 ---
@@ -40,7 +40,7 @@ uv run python -m video_bokeh.library.build \
 ```bash
 cd backend
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/demo \
+  --library-root data/library/da2-large --output data/demo \
   --count 4 --frames 80 --size 512 --seed 0
 ```
 
@@ -70,7 +70,7 @@ the collision validator.
 cd backend
 for n in 1 2 3; do
   uv run python -m video_bokeh.scenes.generate \
-    --library-root data/library_dev --output "data/demo_n$n" \
+    --library-root data/library/da2-large --output "data/demo_n$n" \
     --count 4 --frames 80 --size 512 --seed 0 \
     --n-objects-min $n --n-objects-max $n
 done
@@ -118,7 +118,7 @@ numbering rather than shifting every later sequence onto a different seed.
 ```bash
 cd backend
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev --output data/demo_seeds \
+  --library-root data/library/da2-large --output data/demo_seeds \
   --count 10 --frames 80 --size 512 --seed 100
 ```
 
