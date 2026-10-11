@@ -372,11 +372,23 @@ test("keeps the panes in place while the next sequence generates", async ({
 /**
  * One bar for the whole generation: it fills once, never going back at a new step, stays
  * where it is while the step's name changes beside it, and is seen full before the caption
- * takes its place.
+ * takes its place. Watched in the line above the panes, where the next sequence's progress
+ * shows while one is on screen; the empty screen lays the same line out larger.
  */
 test("fills one progress bar for the whole generation", async ({ page }) => {
+  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
+  test.slow();
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  const seed = page.getByRole("spinbutton", { name: "Seed" });
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  await seed.fill("61");
+  await generate.click();
+  // Shown once the progress has left its place.
+  await expect(
+    page.getByRole("group", { name: "Sequence on screen" }),
+  ).toBeVisible({ timeout: 60_000 });
+
   // Every value the bar takes, as the page sets it, however briefly; how far into its line
   // it sits at each; and how long it is full before it goes.
   await page.evaluate(() => {
@@ -404,8 +416,8 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
       attributeFilter: ["aria-valuenow"],
     });
   });
-  await page.getByRole("spinbutton", { name: "Seed" }).fill("61");
-  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await seed.fill("62");
+  await generate.click();
   const progress = page.getByRole("status", { name: "Generation progress" });
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
