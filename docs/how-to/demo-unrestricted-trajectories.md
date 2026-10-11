@@ -21,17 +21,10 @@ gitignored. To produce a dataset in the first place, see [[generate-a-dataset]].
 
 ## Before you start
 
-You need the artifact library. If `backend/data/library/da2-large/` already has
-`foregrounds/` and `backgrounds/`, as `make libraries` leaves it, skip this. Built from the
-pools as of 2026-10-01 it holds 17 foregrounds and 30 backgrounds, and 30 and 30 with the class
-filter off; either is enough for every recipe here.
-
-```bash
-cd backend
-uv run python -m video_bokeh.library.build \
-  --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output data/library/da2-large --size 1024 --model da2-large
-```
+You need the artifact library at `backend/data/library/da2-large/`, holding `foregrounds/`
+and `backgrounds/`. `make libraries` leaves it there, and Stage A in [[generate-a-dataset]]
+builds it alone. Built from the pools as of 2026-10-01 it holds 17 foregrounds and 30
+backgrounds, and 30 and 30 with the class filter off; either is enough for every recipe here.
 
 ---
 
@@ -91,7 +84,8 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 - Paint order is recomputed per frame, so a pair that swaps depth also swaps which one
   occludes the other. Expect to see it at three objects.
 
-Measured on this library, 12 sequences per count at 40 frames and size 256:
+Measured before 2026-10-01 on a library of 12 foregrounds and 20 backgrounds, 12 sequences per
+count at 40 frames and size 256:
 
 | objects | slot width | skipped | mean rejections | sec/sequence |
 |---|---|---|---|---|
