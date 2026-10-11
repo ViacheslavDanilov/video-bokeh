@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Check, Copy, GripVertical } from "lucide-react";
+import { Check, Copy, GripVertical, X } from "lucide-react";
 import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -510,14 +510,15 @@ export function Viewer({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
+                    size="icon-xs"
                     aria-label={`Close ${label(stream)} pane`}
+                    title="Close"
                     className="text-muted-foreground ml-auto"
                     onClick={() =>
                       setPanes((c) => c.filter((p) => p.key !== pane.key))
                     }
                   >
-                    Close
+                    <X />
                   </Button>
                 )}
               </figcaption>
