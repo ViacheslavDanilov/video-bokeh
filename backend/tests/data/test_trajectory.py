@@ -14,7 +14,7 @@ from video_bokeh.core._trajectory import (
 )
 
 
-def test_depth_range_width_and_centre() -> None:
+def test_depth_range_width_and_center() -> None:
     r = DepthRange(0.20, 0.28)
     assert r.width == pytest.approx(0.08)
     assert r.center == pytest.approx(0.24)
