@@ -58,6 +58,11 @@ without rebuilding.
   280 px wide instead, and the page scrolls with the transport held at the bottom.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
+  "Add pane" adds a stream not on screen yet; once every stream is, it is disabled and reads
+  "All streams shown". A repeat, such as disparity under two colormaps, comes from switching an
+  open pane's stream.
+- **Arrange** — drag a pane by the grip in its header onto another to take that place, or
+  focus the grip and press the left or right arrow; playback goes on in step.
 
 **Optical flow comes with each sequence**, coloured as optical-flow papers colour it: the hue
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.
