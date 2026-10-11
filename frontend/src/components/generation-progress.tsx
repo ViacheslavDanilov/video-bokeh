@@ -58,7 +58,7 @@ function useSecondsSince(startedAt: number): number {
 }
 
 /**
- * How a generation is going, on one line: one bar for the whole of it, the step under way,
+ * How a generation is going: one bar for the whole of it, the step under way,
  * and the time so far.
  *
  * The bar is the counts done over the counts the API announced, summed over the steps, so it
@@ -85,7 +85,7 @@ export function GenerationProgress({
     <div
       role="status"
       aria-label="Generation progress"
-      className="flex items-center gap-3"
+      className="grid grid-cols-[repeat(5,auto)] items-center gap-2 sm:flex sm:gap-3"
     >
       {current ? (
         <LoaderCircle
@@ -96,7 +96,7 @@ export function GenerationProgress({
         <Check aria-hidden className="text-foreground size-3.5 shrink-0" />
       )}
       <Steady
-        className="text-foreground"
+        className="text-foreground col-span-5 row-start-1 justify-items-center sm:justify-items-start"
         text={current ? stepName(current.step) : "Done"}
         widest={[...Object.values(STEP_NAMES), "Done"]}
       />
@@ -111,7 +111,7 @@ export function GenerationProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        className="bg-muted h-1.5 w-40 shrink-0 overflow-hidden rounded-full"
+        className="bg-muted h-1.5 w-12 shrink-0 overflow-hidden rounded-full sm:w-40"
       >
         <div
           className="bg-foreground h-full rounded-full transition-[width] duration-150 ease-out"
