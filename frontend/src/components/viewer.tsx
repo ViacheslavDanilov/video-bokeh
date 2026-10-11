@@ -116,6 +116,7 @@ export function Viewer({
   generating,
   steps,
   startedAt,
+  finishedAt,
 }: {
   sequence: Sequence | null;
   /** The library this sequence came from, as the page names libraries. */
@@ -124,6 +125,7 @@ export function Viewer({
   /** The steps of the generation under way, each at its latest count, and when it began. */
   steps: GenerationStep[];
   startedAt: number;
+  finishedAt: number | null;
 }) {
   const names = sequence ? Object.keys(sequence.streams) : [];
   const [panes, setPanes] = useState<Pane[]>([]);
@@ -263,7 +265,7 @@ export function Viewer({
     }
   }
 
-  const showingProgress = generating && steps.length > 0;
+  const showingProgress = steps.length > 0;
 
   if (!sequence) {
     return (
@@ -273,7 +275,11 @@ export function Viewer({
         </div>
         {showingProgress ? (
           <div className="text-muted-foreground text-sm">
-            <GenerationProgress steps={steps} startedAt={startedAt} />
+            <GenerationProgress
+              steps={steps}
+              startedAt={startedAt}
+              finishedAt={finishedAt}
+            />
           </div>
         ) : (
           <p className="text-muted-foreground max-w-xs text-center text-sm">
@@ -351,7 +357,11 @@ export function Viewer({
       <div className="text-muted-foreground relative -mb-1 text-xs">
         {showingProgress && (
           <div className="absolute inset-0 flex items-center">
-            <GenerationProgress steps={steps} startedAt={startedAt} />
+            <GenerationProgress
+              steps={steps}
+              startedAt={startedAt}
+              finishedAt={finishedAt}
+            />
           </div>
         )}
         <div

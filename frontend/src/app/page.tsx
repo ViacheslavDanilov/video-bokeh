@@ -43,6 +43,7 @@ export default function Page() {
   // The steps of the generation under way, each at its latest count, and when it began.
   const [steps, setSteps] = useState<GenerationStep[]>([]);
   const [startedAt, setStartedAt] = useState(0);
+  const [finishedAt, setFinishedAt] = useState<number | null>(null);
   // Apart, so a list read that works again clears its own error and not a Generate's.
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -97,17 +98,20 @@ export default function Page() {
   const library = byId(params.library);
   // Looked up from the sequence rather than the picker, which may have moved on since.
   const shown = byId(sequence?.library);
+  const generating = busy && finishedAt === null;
 
   async function generate() {
     setBusy(true);
     setError(null);
     setStartedAt(Date.now());
+    setFinishedAt(null);
     try {
       let heard = false;
       const made = await createSequence(params, (seen) => {
         heard = true;
         setSteps(seen);
       });
+      setFinishedAt(Date.now());
       if (heard) await new Promise((done) => setTimeout(done, FULL_BAR_MS));
       setSequence(made);
     } catch (cause) {
@@ -171,8 +175,8 @@ export default function Page() {
             params={params}
             onChange={setParams}
             onGenerate={generate}
-            busy={busy}
-            disabled={!library}
+            busy={generating}
+            disabled={!library || busy}
           />
         </aside>
 
@@ -197,9 +201,10 @@ export default function Page() {
           <Viewer
             sequence={sequence}
             library={libraryLabel(shown)}
-            generating={busy}
+            generating={generating}
             steps={steps}
             startedAt={startedAt}
+            finishedAt={finishedAt}
           />
         </section>
       </main>

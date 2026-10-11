@@ -43,18 +43,21 @@ function Steady({
   );
 }
 
-function useSecondsSince(startedAt: number): number {
+function useSecondsSince(startedAt: number, finishedAt: number | null): number {
   // From the start rather than from 0, so a line that mounts late reads the time so far
   // rather than "0 s" until its first tick.
   const [seconds, setSeconds] = useState(() =>
     Math.floor((Date.now() - startedAt) / 1000),
   );
   useEffect(() => {
+    if (finishedAt !== null) return;
     const tick = () => setSeconds(Math.floor((Date.now() - startedAt) / 1000));
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
-  }, [startedAt]);
-  return seconds;
+  }, [startedAt, finishedAt]);
+  return finishedAt === null
+    ? seconds
+    : Math.floor((finishedAt - startedAt) / 1000);
 }
 
 /**
@@ -69,11 +72,13 @@ function useSecondsSince(startedAt: number): number {
 export function GenerationProgress({
   steps,
   startedAt,
+  finishedAt,
 }: {
   steps: GenerationStep[];
   startedAt: number;
+  finishedAt: number | null;
 }) {
-  const seconds = useSecondsSince(startedAt);
+  const seconds = useSecondsSince(startedAt, finishedAt);
   const total = steps.reduce((sum, s) => sum + s.total, 0);
   if (total === 0) return null;
   const done = steps.reduce((sum, s) => sum + Math.min(s.done, s.total), 0);
