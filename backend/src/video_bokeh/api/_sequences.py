@@ -15,7 +15,7 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -27,9 +27,9 @@ from video_bokeh.scenes._compositor import (
     RenderedFrame,
     Scene,
     iter_frames,
-    render_scene,
 )
 from video_bokeh.scenes.generate import (
+    counted,
     sample_sequence,
     write_bokeh_stream,
     write_flow_stream,
@@ -127,18 +127,26 @@ def _read_cached(dest: Path, sid: str) -> SequenceResult | None:
     )
 
 
+#: Told how a generation is going: the step, how much of it is done, and out of how much.
+#: The steps are ``sampling``, ``frames``, ``writing``, ``flow`` and ``bokeh``; "step"
+#: rather than "stage", which names the pipeline's Stages A, B and C.
+Progress = Callable[[str, int, int], None]
+
+
 def _generate_into(
     work_dir: Path,
     library_root: Path,
     library_id: str,
     request: SequenceRequest,
-    render: Callable[[Scene], list[RenderedFrame]],
+    render: Callable[[Scene], Iterable[RenderedFrame]],
     bokeh: bool,
+    progress: Progress,
 ) -> int:
-    scene = _scene(library_root, request)
-    frames = render(scene)
+    scene = _scene(library_root, request, progress)
+    n = scene.n_frames
+    frames = list(counted(render(scene), n, partial(progress, "frames")))
     focus = [frame_focus(f.object_alphas, f.disparity) for f in frames] if bokeh else []
-    write_sequence(work_dir, frames)
+    write_sequence(work_dir, counted(frames, n, partial(progress, "writing")), n)
     # The bokeh pass renders the frames again with their layers, a few at a time; holding
     # these as well would add the whole clip to its peak.
     del frames
@@ -157,13 +165,21 @@ def _generate_into(
         encoding="utf-8",
     )
     if bokeh:
-        write_bokeh_stream(work_dir, scene, request.seed, focus)
+        write_bokeh_stream(
+            work_dir,
+            scene,
+            request.seed,
+            focus,
+            report=partial(progress, "bokeh"),
+        )
     return placed
 
 
-def _scene(library_root: Path, request: SequenceRequest) -> Scene:
+def _scene(library_root: Path, request: SequenceRequest, progress: Progress) -> Scene:
+    """The request's scene. Sampling it is one step, which retries make take a while."""
+    progress("sampling", 0, 1)
     try:
-        return sample_sequence(
+        scene = sample_sequence(
             library_root,
             seed=request.seed,
             n_frames=request.frames,
@@ -173,24 +189,45 @@ def _scene(library_root: Path, request: SequenceRequest) -> Scene:
         )
     except CollisionRetriesExhausted as exc:
         raise SequenceUnsatisfiableError(str(exc)) from exc
+    progress("sampling", 1, 1)
+    return scene
 
 
-def _add_bokeh(dest: Path, library_root: Path, request: SequenceRequest) -> None:
-    """Render the bokeh of a sequence already on disk, from its scene, in memory.
+def _complete(
+    dest: Path,
+    library_root: Path,
+    request: SequenceRequest,
+    progress: Progress,
+    *,
+    flow: bool,
+    bokeh: bool,
+) -> None:
+    """Add the flow, the bokeh or both to a sequence already on disk, from its scene.
 
-    For a sequence generated before bokeh came with it. The stream appears whole or not
-    at all, so whoever is reading the other streams meanwhile is not disturbed.
+    For a sequence generated before they came with it. Each stream appears whole or not
+    at all, so whoever is reading the others meanwhile is not disturbed. The scene is
+    sampled once for both. The bokeh renders the frames twice, once for the focus and
+    once for itself.
     """
-    scene = _scene(library_root, request)
-    focus = [frame_focus(f.object_alphas, f.disparity) for f in iter_frames(scene)]
-    write_bokeh_stream(dest, scene, request.seed, focus, replace=False)
+    scene = _scene(library_root, request, progress)
+    if flow:
+        write_flow_stream(dest, scene, report=partial(progress, "flow"))
+    if bokeh:
+        frames = iter_frames(scene)
+        measured = counted(frames, scene.n_frames, partial(progress, "frames"))
+        focus = [frame_focus(f.object_alphas, f.disparity) for f in measured]
+        write_bokeh_stream(
+            dest,
+            scene,
+            request.seed,
+            focus,
+            replace=False,
+            report=partial(progress, "bokeh"),
+        )
 
 
-def _add_flow(dest: Path, library_root: Path, request: SequenceRequest) -> None:
-    """Write the flow of a sequence already on disk, from its scene: for one generated
-    before flow came with it.
-    """
-    write_flow_stream(dest, _scene(library_root, request))
+def _unheard(step: str, done: int, total: int) -> None:
+    """Progress nobody asked for."""
 
 
 def ensure_sequence(
@@ -200,28 +237,39 @@ def ensure_sequence(
     request: SequenceRequest,
     *,
     bokeh: bool = False,
-    _render: Callable[[Scene], list[RenderedFrame]] | None = None,
+    progress: Progress | None = None,
+    _render: Callable[[Scene], Iterable[RenderedFrame]] | None = None,
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
 
     The sequence comes with its optical flow, written with it, or added to a cached one
     that has none. With ``bokeh``, which needs torch, it comes with its bokeh stream the
-    same way.
+    same way. ``progress`` hears of each step as it goes, frame by frame; a cached
+    sequence that lacks nothing reports none.
 
     Generation writes to a temporary directory beside the destination and renames it
     into place, so a sequence is either absent or complete. That is what makes a crashed
     or concurrent generation harmless: there is no window in which a half-written
     directory looks like a cache hit.
     """
+    if progress is None:
+        progress = _unheard
     sid = sequence_id(library_id, request)
     dest = sequences_root / sid
     cached = _read_cached(dest, sid)
     if cached is not None:
         # A single frame has no flow, so it is never missing one.
-        if request.frames > 1 and not (dest / FLOW).is_dir():
-            _add_flow(dest, library_root, request)
-        if bokeh and not (dest / BOKEH).is_dir():
-            _add_bokeh(dest, library_root, request)
+        missing_flow = request.frames > 1 and not (dest / FLOW).is_dir()
+        missing_bokeh = bokeh and not (dest / BOKEH).is_dir()
+        if missing_flow or missing_bokeh:
+            _complete(
+                dest,
+                library_root,
+                request,
+                progress,
+                flow=missing_flow,
+                bokeh=missing_bokeh,
+            )
         return cached
 
     sequences_root.mkdir(parents=True, exist_ok=True)
@@ -232,8 +280,9 @@ def ensure_sequence(
             library_root,
             library_id,
             request,
-            _render or partial(render_scene, flow=True),
+            _render or partial(iter_frames, flow=True),
             bokeh,
+            progress,
         )
         try:
             os.replace(work_dir, dest)

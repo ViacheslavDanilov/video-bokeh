@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from video_bokeh.api import main as api_main
+from video_bokeh.api._sequences import SequenceUnsatisfiableError
 from video_bokeh.api._settings import Settings
 from video_bokeh.core._streams import read_alpha_tiff
 
@@ -659,3 +660,113 @@ def test_a_single_frame_has_no_flow_even_when_asked_again(client: TestClient) ->
     body = {**SEQUENCE_BODY, "frames": 1}
     assert "flow" not in client.post("/sequences", json=body).json()["streams"]
     assert "flow" not in client.post("/sequences", json=body).json()["streams"]
+
+
+# --- progress -------------------------------------------------------------- #
+
+STREAMED = {"accept": "application/x-ndjson"}
+
+
+def _streamed(client: TestClient, body: dict) -> list[dict]:
+    response = client.post("/sequences", json=body, headers=STREAMED)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    return [json.loads(line) for line in response.text.splitlines() if line]
+
+
+def test_progress_is_streamed_when_asked_for(client: TestClient) -> None:
+    lines = _streamed(client, SEQUENCE_BODY)
+    steps = [line["step"] for line in lines[:-1]]
+    assert steps[0] == "sampling"
+    assert {"frames", "writing"} <= set(steps)
+    assert lines[-2] == {"step": "writing", "done": 3, "total": 3}
+
+    streamed = lines[-1]["sequence"]
+    assert streamed["cached"] is False
+    again = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert {**streamed, "cached": True} == again
+
+
+def test_a_cached_sequence_streams_only_itself(client: TestClient) -> None:
+    client.post("/sequences", json=SEQUENCE_BODY)
+    lines = _streamed(client, SEQUENCE_BODY)
+    assert len(lines) == 1
+    assert lines[0]["sequence"]["cached"] is True
+
+
+def test_a_failure_after_the_stream_began_ends_it_with_an_error(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unsatisfiable(*args: object, progress: Callable, **kwargs: object) -> None:
+        progress("sampling", 0, 1)
+        raise SequenceUnsatisfiableError("no room for every object")
+
+    monkeypatch.setattr(api_main, "ensure_sequence", unsatisfiable)
+    lines = _streamed(client, SEQUENCE_BODY)
+    assert lines == [
+        {"step": "sampling", "done": 0, "total": 1},
+        {"error": {"status": 422, "detail": "no room for every object"}},
+    ]
+
+
+def test_an_unexpected_failure_still_ends_the_stream(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rather than leave the page waiting on a stream that never closes."""
+
+    def broken(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(api_main, "ensure_sequence", broken)
+    lines = _streamed(client, SEQUENCE_BODY)
+    assert lines[-1]["error"]["status"] == 500
+    assert "disk full" in lines[-1]["error"]["detail"]
+
+
+def test_errors_found_before_the_stream_answer_as_before(client: TestClient) -> None:
+    inverted = {**SEQUENCE_BODY, "n_objects_min": 2, "n_objects_max": 1}
+    response = client.post("/sequences", json=inverted, headers=STREAMED)
+    assert response.status_code == 422
+    assert response.headers["content-type"] == "application/json"
+
+
+def test_a_cached_sequence_without_flow_streams_adding_it(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    shutil.rmtree(tmp_path / "sequences" / sid / "flow")
+    lines = _streamed(client, SEQUENCE_BODY)
+    assert {"step": "flow", "done": 2, "total": 2} in lines
+    assert lines[-1]["sequence"]["cached"] is True
+    assert "flow" in lines[-1]["sequence"]["streams"]
+
+
+@pytest.mark.parametrize(
+    "accept",
+    [
+        "application/x-ndjson;q=0",
+        "application/x-ndjson; q=0.0",
+        "application/x-ndjson;Q=0.000",
+        "application/json",
+        "*/*",
+        "",
+    ],
+)
+def test_only_an_accepted_ndjson_is_streamed(client: TestClient, accept: str) -> None:
+    response = client.post("/sequences", json=SEQUENCE_BODY, headers={"accept": accept})
+    assert response.headers["content-type"] == "application/json"
+
+
+@pytest.mark.parametrize(
+    "accept",
+    ["Application/X-NDJSON", "application/json, application/x-ndjson;q=0.5"],
+)
+def test_ndjson_is_streamed_in_any_case_and_at_any_quality(
+    client: TestClient,
+    accept: str,
+) -> None:
+    response = client.post("/sequences", json=SEQUENCE_BODY, headers={"accept": accept})
+    assert response.headers["content-type"].startswith("application/x-ndjson")

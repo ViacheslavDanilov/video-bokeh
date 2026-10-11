@@ -15,15 +15,21 @@ Stage C writes into one later is served once it is there.
 from __future__ import annotations
 
 import importlib.util
+import json
+import logging
 import os
+import queue
+import re
 import tempfile
+import threading
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, Any, Self
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from video_bokeh.api._library import (
@@ -34,7 +40,9 @@ from video_bokeh.api._library import (
 from video_bokeh.api._sequences import (
     OPTIONAL_STREAMS,
     VIDEO_STREAMS,
+    Progress,
     SequenceRequest,
+    SequenceResult,
     SequenceUnsatisfiableError,
     ensure_sequence,
     video_streams,
@@ -61,7 +69,7 @@ _MAX_FRAMES = 240
 
 #: Total pixels a single request may ask for, frames times area.
 #:
-#: Each limit alone is harmless and the product is not: `render_scene` holds every
+#: Each limit alone is harmless and the product is not: generation holds every
 #: frame of the sequence in memory at once, so cost grows with the area and with the
 #: count together. Measured on an Apple M3 Pro against `data/library_dev` on 2026-09-24,
 #: before bokeh, with the object count not recorded:
@@ -82,8 +90,8 @@ _MAX_FRAMES = 240
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
-#: it means writing the frames as Stage B renders them, with `iter_frames`, as the dataset
-#: writer already does, instead of accumulating them with `render_scene`.
+#: it means writing the frames as Stage B renders them, as the dataset writer already
+#: does, instead of collecting them all into a list first, as `_generate_into` does.
 _MAX_PIXELS = 96_000_000
 
 #: Rendering bokeh takes torch, which the API's own install leaves out.
@@ -238,17 +246,30 @@ def read_libraries() -> list[LibraryResponse]:
     ]
 
 
-@router.post("/sequences")
-def create_sequence(params: SequenceParams) -> SequenceResponse:
+#: What a client sends in ``Accept`` to hear a generation's progress as it goes.
+NDJSON = "application/x-ndjson"
+
+
+@router.post("/sequences", response_model=SequenceResponse)
+def create_sequence(
+    params: SequenceParams,
+    request: Request,
+) -> Response | SequenceResponse:
     """Generate a sequence, or hand back the one this request already produced.
 
     Plain `def`, not `async def`: generation is seconds of CPU work, and FastAPI runs
     a sync endpoint in a threadpool instead of blocking the event loop with it.
+
+    A client that accepts NDJSON hears the generation as it goes instead, one JSON object
+    a line: ``{"step", "done", "total"}`` for each step, then ``{"sequence": ...}``, the
+    body the JSON answer would have had, or ``{"error": {"status", "detail"}}``. A
+    request that is invalid, or names no mounted library, answers before the stream
+    begins and as it would without it.
     """
     settings = load_settings()
     library = _pick_library(_mounted_libraries(settings), params.library)
 
-    try:
+    def generate(progress: Progress | None = None) -> SequenceResponse:
         result = ensure_sequence(
             library.root,
             library.id,
@@ -261,13 +282,42 @@ def create_sequence(params: SequenceParams) -> SequenceResponse:
                 n_objects_max=params.n_objects_max,
             ),
             bokeh=settings.render_bokeh and _BOKEH_AVAILABLE,
+            progress=progress,
         )
+        return _sequence_response(result, library.id, params)
+
+    if _accepts(request.headers.get("accept", ""), NDJSON):
+        return StreamingResponse(_streamed(generate), media_type=NDJSON)
+    try:
+        return generate()
     except SequenceUnsatisfiableError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+
+#: A quality of zero, "not acceptable", in any of the spellings RFC 9110 allows for it.
+_ZERO_QUALITY = re.compile(r"q=0(\.0{0,3})?")
+
+
+def _accepts(accept: str, media_type: str) -> bool:
+    """Whether an ``Accept`` header names ``media_type``, other than at a zero quality.
+
+    Media types and parameter names are case-insensitive, and ``q=0.0`` is ``q=0``.
+    """
+    for item in accept.lower().split(","):
+        name, *params = (part.strip() for part in item.split(";"))
+        if name == media_type and not any(_ZERO_QUALITY.fullmatch(p) for p in params):
+            return True
+    return False
+
+
+def _sequence_response(
+    result: SequenceResult,
+    library_id: str,
+    params: SequenceParams,
+) -> SequenceResponse:
     return SequenceResponse(
         id=result.id,
-        library=library.id,
+        library=library_id,
         cached=result.cached,
         seed=params.seed,
         frames=params.frames,
@@ -283,6 +333,38 @@ def create_sequence(params: SequenceParams) -> SequenceResponse:
             for stream in video_streams(result.path)
         },
     )
+
+
+def _streamed(generate: Callable[[Progress], SequenceResponse]) -> Iterator[bytes]:
+    """Run ``generate`` in a thread of its own and pass on what it reports, a line each.
+
+    The thread finishes even if the client goes away, so the sequence it was making is
+    in the cache for the next ask. Every failure ends the stream with an error line: a
+    stream that never closed would leave the page waiting.
+    """
+    events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+
+    def work() -> None:
+        try:
+            body = generate(
+                lambda step, done, total: events.put(
+                    {"step": step, "done": done, "total": total},
+                ),
+            )
+            events.put({"sequence": body.model_dump(mode="json")})
+        except SequenceUnsatisfiableError as exc:
+            events.put({"error": {"status": 422, "detail": str(exc)}})
+        except Exception as exc:
+            logging.getLogger(__name__).exception("generation failed")
+            events.put(
+                {"error": {"status": 500, "detail": f"generation failed: {exc}"}},
+            )
+        finally:
+            events.put(None)
+
+    threading.Thread(target=work, daemon=True).start()
+    while (event := events.get()) is not None:
+        yield (json.dumps(event) + "\n").encode()
 
 
 @router.get("/sequences/{sequence_id}/{stream}.mp4")

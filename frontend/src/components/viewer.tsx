@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { Sequence } from "@/lib/api";
+import { Check, Copy } from "lucide-react";
+import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -13,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { FlowLegend } from "./flow-legend";
+import { GenerationProgress } from "./generation-progress";
 import { ObjectLegend } from "./object-legend";
 import { SpectralScale } from "./spectral-scale";
 
@@ -114,11 +117,16 @@ export function Viewer({
   sequence,
   library,
   generating,
+  steps,
+  startedAt,
 }: {
   sequence: Sequence | null;
   /** The library this sequence came from, as the page names libraries. */
   library: string;
   generating: boolean;
+  /** The steps of the generation under way so far, and when it began. */
+  steps: GenerationStep[];
+  startedAt: number;
 }) {
   const names = sequence ? Object.keys(sequence.streams) : [];
   const [panes, setPanes] = useState<Pane[]>([]);
@@ -142,6 +150,14 @@ export function Viewer({
   // The room the pane grid has, which the parameters folding away, the window, or an alert
   // appearing above the grid changes.
   const [space, setSpace] = useState<Space>({ width: 0, height: 0 });
+  // Which pane has its current video from the API, or failed to get it. The API encodes a
+  // video the first time it is asked for, up to two seconds, and a pane says so meanwhile
+  // rather than sit blank. Its metadata is the sign, not its first frame: with
+  // `preload="metadata"`, WebKit loads no frame until the video plays.
+  const [loaded, setLoaded] = useState<ReadonlyMap<string, "ready" | "failed">>(
+    new Map(),
+  );
+  const [copied, setCopied] = useState(false);
   const observeGrid = useCallback((el: HTMLDivElement) => {
     const measure = () => {
       const top = el.getBoundingClientRect().top + window.scrollY;
@@ -280,11 +296,15 @@ export function Viewer({
         <div className="w-64">
           <SpectralScale sweeping={generating} />
         </div>
-        <p className="text-muted-foreground max-w-xs text-center text-sm">
-          {generating
-            ? "Sampling trajectories, then rendering every frame."
-            : "No sequence yet. Set the parameters and generate one."}
-        </p>
+        {generating && steps.length > 0 ? (
+          <GenerationProgress steps={steps} startedAt={startedAt} />
+        ) : (
+          <p className="text-muted-foreground max-w-xs text-center text-sm">
+            {generating
+              ? "Generating the sequence."
+              : "No sequence yet. Set the parameters and generate one."}
+          </p>
+        )}
       </div>
     );
   }
@@ -315,8 +335,73 @@ export function Viewer({
   const seekToFrame = (frame: number) =>
     seek(duration ? (frame / sequence.frames) * duration : 0);
 
+  const copyId = () => {
+    // Only in a secure context, which the page on localhost is; elsewhere the id is
+    // there to select by hand.
+    navigator.clipboard?.writeText(sequence.id).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {},
+    );
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-5">
+      {/* What is on screen, and while the next one generates, how that is going, over it.
+          The caption keeps its place, hidden, so the progress takes exactly its height and
+          the panes below do not move. The library is the sequence's own, which the picker
+          may have left since. */}
+      <div className="text-muted-foreground relative -mb-1 text-xs">
+        {generating && steps.length > 0 && (
+          <div className="absolute inset-0 flex items-center">
+            <GenerationProgress steps={steps} startedAt={startedAt} line />
+          </div>
+        )}
+        <div
+          role="group"
+          aria-label="Sequence on screen"
+          className={cn(
+            "flex flex-wrap items-center gap-x-4 gap-y-1",
+            generating && steps.length > 0 && "invisible",
+          )}
+        >
+          <span className="text-foreground">{library}</span>
+          <span>
+            seed{" "}
+            <span className="text-foreground font-mono">{sequence.seed}</span>
+          </span>
+          <span>{sequence.n_objects} objects</span>
+          <span>{sequence.frames} frames</span>
+          <span>
+            {sequence.size} &times; {sequence.size}
+          </span>
+          {sequence.cached && (
+            <span
+              className="border-border rounded border px-1.5"
+              title="Generated before from this library with these parameters, and read back from disk."
+            >
+              cached
+            </span>
+          )}
+          <span className="ml-auto flex items-center gap-1">
+            sequence{" "}
+            <span className="text-foreground font-mono">{sequence.id}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Copy the sequence id"
+              title="Copy the sequence id"
+              onClick={copyId}
+            >
+              {copied ? <Check /> : <Copy />}
+            </Button>
+          </span>
+        </div>
+      </div>
+
       <div
         ref={observeGrid}
         className="grid items-start"
@@ -331,6 +416,8 @@ export function Viewer({
           // The server names its default. Deriving it from the order of `colormaps`
           // would make adding one whose name sorts last change this silently.
           const colormap = pane.colormap || info.default || "";
+          const src = streamUrl(info, colormap || undefined);
+          const readyKey = `${pane.key} ${src}`;
           return (
             <figure key={pane.key} className="flex min-w-0 flex-col gap-2">
               <figcaption className="flex items-center gap-2">
@@ -407,17 +494,28 @@ export function Viewer({
                 )}
               </figcaption>
 
-              <div className="border-border bg-card aspect-square overflow-hidden rounded-lg border">
+              <div className="border-border bg-card relative aspect-square overflow-hidden rounded-lg border">
+                {loaded.get(readyKey) !== "ready" && (
+                  <p className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
+                    {loaded.get(readyKey) === "failed"
+                      ? "Could not load this video"
+                      : "Preparing video"}
+                  </p>
+                )}
                 <video
                   key={sequence.id}
                   ref={(el) => registerVideo(pane.key, el)}
                   className="h-full w-full object-contain"
-                  src={streamUrl(info, colormap || undefined)}
+                  src={src}
+                  onError={() =>
+                    setLoaded((seen) => new Map(seen).set(readyKey, "failed"))
+                  }
                   loop
                   muted
                   playsInline
                   preload="metadata"
                   onLoadedMetadata={(e) => {
+                    setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
                     setDuration(e.currentTarget.duration);
                     if (restoredSequence.current !== sequence.id) {
                       // First load of a new sequence: the transport is at the start and
@@ -518,32 +616,6 @@ export function Viewer({
           </Button>
         )}
       </div>
-
-      <dl className="text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
-        <div className="flex gap-2">
-          <dt>sequence</dt>
-          <dd className="text-foreground font-mono">{sequence.id}</dd>
-        </div>
-        <div className="flex gap-2">
-          <dt>library</dt>
-          <dd className="text-foreground font-mono">{library}</dd>
-        </div>
-        <div className="flex gap-2">
-          <dt>objects</dt>
-          <dd className="text-foreground font-mono">{sequence.n_objects}</dd>
-        </div>
-        <div className="flex gap-2">
-          <dt>size</dt>
-          <dd className="text-foreground font-mono">
-            {sequence.size}&times;{sequence.size}
-          </dd>
-        </div>
-        <div className="flex gap-2">
-          <dt>seed</dt>
-          <dd className="text-foreground font-mono">{sequence.seed}</dd>
-        </div>
-        {sequence.cached && <div className="text-far">served from cache</div>}
-      </dl>
     </div>
   );
 }

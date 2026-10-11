@@ -3,9 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Controls } from "@/components/controls";
+import { addStep } from "@/components/generation-progress";
 import { Button } from "@/components/ui/button";
 import { Viewer } from "@/components/viewer";
-import type { LibraryInfo, Sequence, SequenceParams } from "@/lib/api";
+import type {
+  GenerationStep,
+  LibraryInfo,
+  Sequence,
+  SequenceParams,
+} from "@/lib/api";
 import {
   ApiError,
   createSequence,
@@ -30,6 +36,9 @@ export default function Page() {
   const [params, setParams] = useState<SequenceParams>(DEFAULTS);
   const [sequence, setSequence] = useState<Sequence | null>(null);
   const [busy, setBusy] = useState(false);
+  // The steps of the generation under way, as the API reports them, and when it began.
+  const [steps, setSteps] = useState<GenerationStep[]>([]);
+  const [startedAt, setStartedAt] = useState(0);
   // Apart, so a list read that works again clears its own error and not a Generate's.
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -88,12 +97,19 @@ export default function Page() {
   async function generate() {
     setBusy(true);
     setError(null);
+    setSteps([]);
+    setStartedAt(Date.now());
     try {
-      setSequence(await createSequence(params));
+      setSequence(
+        await createSequence(params, (step) =>
+          setSteps((seen) => addStep(seen, step)),
+        ),
+      );
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : String(cause));
     } finally {
       setBusy(false);
+      setSteps([]);
     }
   }
 
@@ -120,16 +136,15 @@ export default function Page() {
         </div>
         {library ? (
           <p className="text-muted-foreground flex flex-wrap items-baseline gap-x-4 text-xs">
-            <span>
-              library{" "}
-              <span className="text-foreground font-mono">{library.id}</span>
-            </span>
-            <span>{libraryLabel(library)}</span>
+            <span className="text-foreground">{libraryLabel(library)}</span>
             <span>
               {library.n_foregrounds} objects, {library.n_backgrounds}{" "}
               backgrounds
             </span>
             {library.asset_size && <span>{library.asset_size} px assets</span>}
+            <span title="The library's id: a hash of its list of assets, its depth estimator and its asset size. Every cached sequence is keyed on it.">
+              id <span className="font-mono">{library.id}</span>
+            </span>
           </p>
         ) : (
           <p className="text-muted-foreground text-xs">
@@ -178,14 +193,11 @@ export default function Page() {
             sequence={sequence}
             library={libraryLabel(shown)}
             generating={busy}
+            steps={steps}
+            startedAt={startedAt}
           />
         </section>
       </main>
-
-      <footer className="text-muted-foreground border-border border-t px-6 py-3 text-xs">
-        Bokeh comes with each sequence, rendered by the layered renderer, when
-        the API runs with torch installed.
-      </footer>
     </div>
   );
 }
