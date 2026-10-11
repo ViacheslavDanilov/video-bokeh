@@ -21,7 +21,7 @@ FRAMES, SIZE = 6, 96
 
 
 def _texture(rng: np.random.Generator, n: int) -> np.ndarray:
-    """Smooth random colour, so a misplaced sample shows and bilinear sampling holds."""
+    """Smooth random color, so a misplaced sample shows and bilinear sampling holds."""
     noise = rng.integers(0, 256, size=(n, n, 3), dtype=np.uint8)
     return np.asarray(Image.fromarray(noise).filter(ImageFilter.GaussianBlur(2)))
 

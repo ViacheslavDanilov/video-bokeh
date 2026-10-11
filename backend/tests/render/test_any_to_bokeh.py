@@ -25,7 +25,7 @@ FRAMES, SIZE = 13, 32
 A2B = ["--renderer", "any-to-bokeh"]
 
 # Reads the CSV the way the real demo does and writes one mp4 per row into output/ in its
-# working directory, at the demo's fixed 1024x576. Frame t of row i is grey level
+# working directory, at the demo's fixed 1024x576. Frame t of row i is gray level
 # 40 + 100 * i + 8 * t, so a test can tell which output went where. It records what it
 # was given in $FAKE_LOG, and the name of the VAE encoder's forward it ran with.
 _FAKE_DEMO = """

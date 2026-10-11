@@ -48,7 +48,7 @@ def propagate_disparity(
 ) -> np.ndarray:
     """Propagate in-object disparity across the whole frame.
 
-    ``low_pct`` (default 0 = off, preserving the original behaviour) drops
+    ``low_pct`` (default 0 = off, preserving the original behavior) drops
     low-percentile outliers from the trusted core before propagation; see
     ``trusted_core``.
     """

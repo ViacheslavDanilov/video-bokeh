@@ -110,7 +110,7 @@ class AnyToBokeh:
             )
             outputs = [work / "output" / f"{i}.mp4" for i in range(len(sequence_dirs))]
             # Every count is checked before any frame is written, so a short output
-            # leaves no sequence rendered while its neighbours are not.
+            # leaves no sequence rendered while its neighbors are not.
             for video, seq in zip(outputs, sequence_dirs, strict=True):
                 _check_length(video, seq)
             for video, seq, inputs in zip(

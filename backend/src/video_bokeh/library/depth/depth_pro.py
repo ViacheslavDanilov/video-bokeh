@@ -14,7 +14,7 @@ class DepthPro(TransformersDepthEstimator):
     """Depth Pro read before its post-processing, which is where it becomes metric.
 
     Its head outputs canonical inverse depth, and ``post_process_depth_estimation`` turns
-    that into metres by scaling with the focal length and taking the reciprocal. The raw
+    that into meters by scaling with the focal length and taking the reciprocal. The raw
     ``predicted_depth`` is therefore disparity already. The focal scale it skips is one
     number per image, which the library's min/max normalization removes anyway.
     """

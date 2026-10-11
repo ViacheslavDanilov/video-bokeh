@@ -155,12 +155,12 @@ def build_bg_homography(pose: Pose, src_size: int, frame_size: int) -> np.ndarra
 def homography_flow(h_now: np.ndarray, h_next: np.ndarray, size: int) -> np.ndarray:
     """Where each pixel of a layer warped by ``h_now`` lands under ``h_next``, as flow.
 
-    Both are forward homographies, source to frame. Pixel centres sit at ``+0.5``, where
+    Both are forward homographies, source to frame. Pixel centers sit at ``+0.5``, where
     Pillow's transform samples them, and the flow is ``(u, v)`` in pixels, ``(H, W, 2)``.
     """
     step = h_next @ np.linalg.inv(h_now)
-    centres = np.arange(size, dtype=np.float64) + 0.5
-    x, y = np.meshgrid(centres, centres)
+    centers = np.arange(size, dtype=np.float64) + 0.5
+    x, y = np.meshgrid(centers, centers)
     w = step[2, 0] * x + step[2, 1] * y + step[2, 2]
     u = (step[0, 0] * x + step[0, 1] * y + step[0, 2]) / w - x
     v = (step[1, 0] * x + step[1, 1] * y + step[1, 2]) / w - y

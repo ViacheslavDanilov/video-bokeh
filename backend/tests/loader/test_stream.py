@@ -296,9 +296,9 @@ def test_streamed_layers_match_the_written_ones(library: Path, tmp_path: Path) -
         np.abs(background_disparity - item["background_disparity"][:, 0].numpy()).max()
         <= 1 / 65535 + 1e-7
     )
-    colours = np.stack([read_rgb_tiff(layers / "objects" / f"{s}.tif") for s in stems])
+    colors = np.stack([read_rgb_tiff(layers / "objects" / f"{s}.tif") for s in stems])
     streamed = item["object_rgbs"].permute(0, 1, 3, 4, 2).numpy() * 255
-    assert np.abs(colours - streamed).max() <= 1.0
+    assert np.abs(colors - streamed).max() <= 1.0
     disparities = np.stack(
         [read_disparity_tiff(layers / "objects_disparity" / f"{s}.tif") for s in stems],
     )

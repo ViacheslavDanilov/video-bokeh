@@ -1,7 +1,7 @@
 """Depth Anything V2 estimators via Hugging Face transformers.
 
 The model predicts affine-invariant inverse depth, so its raw output is disparity as it
-stands. Licences: Small is Apache-2.0; Base and Large are CC BY-NC 4.0.
+stands. Licenses: Small is Apache-2.0; Base and Large are CC BY-NC 4.0.
 """
 
 from __future__ import annotations

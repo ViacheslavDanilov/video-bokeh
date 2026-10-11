@@ -196,7 +196,7 @@ class SequenceResponse(BaseModel):
     frames: int
     size: int
     n_objects: int
-    #: One hex colour per object, in the order the alpha pages carry them, so a legend
+    #: One hex color per object, in the order the alpha pages carry them, so a legend
     #: cannot drift from what the alpha video actually paints.
     object_colors: list[str]
     streams: dict[str, StreamInfo]
@@ -379,9 +379,9 @@ def read_sequence_video(
     is a file read. `sequence_id` is constrained to the hash alphabet in the route
     itself, which is also what keeps it from naming a path outside `sequences/`.
 
-    `colormap` applies to `disparity` only -- it is 16-bit grey on disk and gets its
-    colour here. Every other stream has one rendering, RGB already or, for `flow`, the
-    colours optical-flow papers use, so the parameter is dropped rather than forking
+    `colormap` applies to `disparity` only -- it is 16-bit gray on disk and gets its
+    color here. Every other stream has one rendering, RGB already or, for `flow`, the
+    colors optical-flow papers use, so the parameter is dropped rather than forking
     that stream's cache into identical copies.
     """
     if stream not in (*VIDEO_STREAMS, *OPTIONAL_STREAMS):

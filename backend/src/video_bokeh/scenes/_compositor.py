@@ -87,7 +87,7 @@ class FrameLayers:
     """A frame before compositing: the whole background and each whole object.
 
     Objects are indexed like ``RenderedFrame.object_alphas``, which holds their alpha
-    masks, and each object's colour and disparity are zero outside its alpha mask.
+    masks, and each object's color and disparity are zero outside its alpha mask.
     Compositing the objects over the background in ``paint_order`` gives back the frame.
     """
 
@@ -177,7 +177,7 @@ def sample_scene(
             )
         # Far-to-near at frame 1. render_scene derives paint order per frame,
         # so this only fixes which alpha layer each object owns for the clip.
-        objs.sort(key=lambda o: o.depth_start.centre)
+        objs.sort(key=lambda o: o.depth_start.center)
         return objs, fallbacks
 
     def _has_collision(objs: list[ObjectTrack]) -> bool:
@@ -260,7 +260,7 @@ def iter_frames(
 
     for i in range(scene.n_frames):
         t = 0.0 if scene.n_frames == 1 else i / (scene.n_frames - 1)
-        # The next frame's time, when there is one and the flow towards it is wanted.
+        # The next frame's time, when there is one and the flow toward it is wanted.
         t_next = (
             (i + 1) / (scene.n_frames - 1) if flow and i + 1 < scene.n_frames else None
         )

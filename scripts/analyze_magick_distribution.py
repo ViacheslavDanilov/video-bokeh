@@ -216,7 +216,7 @@ def stacked_keep_plot(
         alpha=0.65,
         label="exclude",
     )
-    ax.axhline(total, ls=":", color="grey", label=f"total = {total}")
+    ax.axhline(total, ls=":", color="gray", label=f"total = {total}")
     ax.axvline(
         WORKING_SUBJ_THR,
         ls="--",
@@ -273,14 +273,14 @@ def joint_heatmap(table: dict, fname: str, title: str) -> None:
     for i, c in enumerate(SUBJECT_CLASSES):
         for j, s in enumerate(STYLE_CLASSES):
             v = matrix[i, j]
-            text_colour = "white" if v < matrix.max() * 0.5 else "black"
+            text_color = "white" if v < matrix.max() * 0.5 else "black"
             ax.text(
                 j,
                 i,
                 str(v),
                 ha="center",
                 va="center",
-                color=text_colour,
+                color=text_color,
                 fontsize=9,
             )
             if c in KEEP_SUBJECTS and s in KEEP_STYLES:

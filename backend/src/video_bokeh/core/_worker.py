@@ -111,7 +111,7 @@ def model_command(
     home = Path.home() / ".cache" / "video-bokeh-home"
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
     argv = ["docker", "run", "--rm", "-i", "--init", "--gpus", "all"]
-    # Labelled, so a container left behind by a killed run can be found and stopped.
+    # Labeled, so a container left behind by a killed run can be found and stopped.
     argv += ["--label", f"video-bokeh.model={image}"]
     argv += [f"--shm-size={_SHM_SIZE}", "--user", f"{os.getuid()}:{os.getgid()}"]
     argv += ["-e", f"HF_HOME={hf_home}", "-e", f"HOME={home}"]

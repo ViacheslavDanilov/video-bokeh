@@ -26,8 +26,8 @@ const SPECTRAL_R = [
 
 const RAMP = `linear-gradient(to right, ${SPECTRAL_R.join(", ")})`;
 
-// Grey is the same axis under a different rendering, so it gets the same legend.
-// Without one, the grey pane loses every cue about which end is near.
+// Gray is the same axis under a different rendering, so it gets the same legend.
+// Without one, the gray pane loses every cue about which end is near.
 const RAMPS: Record<string, string> = {
   spectral_r: `linear-gradient(to right, ${SPECTRAL_R.join(", ")})`,
   grey: "linear-gradient(to right, #ffffff, #000000)",

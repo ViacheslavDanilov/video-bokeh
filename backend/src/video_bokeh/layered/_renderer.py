@@ -32,7 +32,7 @@ REFERENCE_WIDTH = 1024
 
 #: The width of a radius bin, in pixels: a radius is off by up to it.
 RADIUS_STEP = 1.0
-#: The power that makes colours linear for the blur.
+#: The power that makes colors linear for the blur.
 GAMMA = 2.2
 #: A radius below this many pixels leaves the pixel sharp: its disk is the pixel itself.
 _SHARP = 0.5
@@ -59,11 +59,11 @@ def render_bokeh(
     and ``N`` objects: ``background`` (B, 3, H, W) and ``background_disparity``
     (B, 1, H, W); ``object_rgbs`` (B, N, 3, H, W), ``object_alphas`` and
     ``object_disparities`` (B, N, H, W); ``paint_order`` (B, N), the objects far to
-    near; ``focus_disparity`` (B,). Colours, alphas and disparities in ``[0, 1]``.
+    near; ``focus_disparity`` (B,). Colors, alphas and disparities in ``[0, 1]``.
 
     A pixel at disparity ``d`` spreads a disk of radius
     ``strength * |d - focus| * W / REFERENCE_WIDTH`` pixels. ``radius_step`` is the width
-    of a radius bin, in pixels. ``gamma`` is the power that makes the colours linear for
+    of a radius bin, in pixels. ``gamma`` is the power that makes the colors linear for
     the blur; 1 blurs them as they are.
 
     Returns the frames, (B, 3, H, W) in ``[0, 1]``, on the inputs' device.
@@ -101,13 +101,13 @@ def render_bokeh(
         )
         for k in range(n_objects)
     ]
-    colours = torch.stack([c for c, _ in blurred], dim=1)
+    colors = torch.stack([c for c, _ in blurred], dim=1)
     alphas = torch.stack([a for _, a in blurred], dim=1)
     frames = torch.arange(out.shape[0], device=out.device)
     for n in range(n_objects):
         k = paint_order[:, n]
         a = alphas[frames, k]
-        out = a * colours[frames, k] + (1.0 - a) * out
+        out = a * colors[frames, k] + (1.0 - a) * out
     return out.clamp(0.0, 1.0)
 
 
@@ -125,10 +125,10 @@ def _blur_object(
     that much wider than the object gives what the whole frame would. The windows are
     one size in every frame, so the frames still blur as one batch.
     """
-    colour, alpha_out = torch.zeros_like(rgb), torch.zeros_like(alpha)
+    color, alpha_out = torch.zeros_like(rgb), torch.zeros_like(alpha)
     shown = alpha[:, 0] > 0
     if not bool(shown.any()):
-        return colour, alpha_out
+        return color, alpha_out
     reach = _reach(radius, alpha > 0)
     height, width = shown.shape[-2:]
     rows = _spans(shown.any(dim=2), reach, height)
@@ -156,9 +156,9 @@ def _blur_object(
         gamma,
     )
     for f, (y, x) in enumerate(starts):
-        colour[f, :, y : y + size_h, x : x + size_w] = blurred[f]
+        color[f, :, y : y + size_h, x : x + size_w] = blurred[f]
         alpha_out[f, :, y : y + size_h, x : x + size_w] = blurred_alpha[f]
-    return colour, alpha_out
+    return color, alpha_out
 
 
 def _spans(present: Tensor, reach: int, length: int) -> list[tuple[int, int]]:
@@ -183,25 +183,25 @@ def _blur_layer(
     radius_step: float,
     gamma: float,
 ) -> tuple[Tensor, Tensor]:
-    """One layer's straight colour and alpha after every pixel scatters its own disk.
+    """One layer's straight color and alpha after every pixel scatters its own disk.
 
     ``rgb`` is (B, 3, H, W), ``alpha`` and ``radius`` (B, 1, H, W). ``alpha`` of None
     is an opaque layer, the background: its alpha is its coverage, which saves one of
-    the five channels of every transform. The colour comes back in the frame's own
+    the five channels of every transform. The color comes back in the frame's own
     values, the alpha at most 1.
     """
     linear = rgb.clamp(0.0, 1.0).pow(gamma)
     ones = torch.ones_like(radius)
     weight = ones if alpha is None else alpha
     if alpha is None:
-        # Premultiplied colour is the colour itself, and alpha is the coverage.
+        # Premultiplied color is the color itself, and alpha is the coverage.
         source = torch.cat([linear, ones], dim=1)
     else:
-        # Outside its alpha mask a pixel scatters no colour, but it still counts
-        # towards how much of the layer covers each pixel, at the radius of the mask
+        # Outside its alpha mask a pixel scatters no color, but it still counts
+        # toward how much of the layer covers each pixel, at the radius of the mask
         # beside it.
         radius = _spread_radius(radius, alpha)
-        # Premultiplied colour, alpha, and the layer's coverage.
+        # Premultiplied color, alpha, and the layer's coverage.
         source = torch.cat([linear * alpha, alpha, ones], dim=1)
     bins = torch.where(
         radius < _SHARP,
@@ -214,15 +214,15 @@ def _blur_layer(
         scattered = scattered + _scatter(source, bins, radius, weight, blurred_bins)
     coverage = scattered[:, -1:].clamp(min=_EPS)
     if alpha is None:
-        colour = scattered[:, :3] / coverage
-        return colour.clamp(0.0, 1.0).pow(1.0 / gamma), ones
+        color = scattered[:, :3] / coverage
+        return color.clamp(0.0, 1.0).pow(1.0 / gamma), ones
     # Divided by the coverage everywhere, so no bin seam shows, but never below a sharp
-    # pixel's own alpha: blurred neighbours spreading over an edge in focus raise its
+    # pixel's own alpha: blurred neighbors spreading over an edge in focus raise its
     # coverage, and the division would otherwise thin it.
     sharp = alpha * (bins == 0)
     alpha_out = torch.maximum((scattered[:, 3:4] / coverage).clamp(max=1.0), sharp)
-    colour = scattered[:, :3] / scattered[:, 3:4].clamp(min=_EPS)
-    return colour.clamp(0.0, 1.0).pow(1.0 / gamma), alpha_out
+    color = scattered[:, :3] / scattered[:, 3:4].clamp(min=_EPS)
+    return color.clamp(0.0, 1.0).pow(1.0 / gamma), alpha_out
 
 
 def _reach(radius: Tensor, inside: Tensor) -> int:
@@ -297,7 +297,7 @@ def _scatter(
         )
         spectrum = term if spectrum is None else spectrum + term
     full = torch.fft.irfft2(spectrum, s=(size_h, size_w))
-    # Each disk sits at the kernel's centre, ``half`` from its corner.
+    # Each disk sits at the kernel's center, ``half`` from its corner.
     shifted = torch.roll(full, shifts=(-half, -half), dims=(-2, -1))
     return shifted[..., :height, :width].clamp(min=0.0)
 

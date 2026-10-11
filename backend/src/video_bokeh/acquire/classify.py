@@ -22,7 +22,7 @@ Style taxonomy (edit `STYLE_TAXONOMY` / `STYLE_TEMPLATES` to tweak):
     photo        — real-world photographs (DSLR, candid, documentary)
     illustration — digital illustration, vector art, stickers, concept art
     drawing      — pencil/ink/line drawings, tattoo line art, sketches
-    painting     — oil, watercolour, acrylic, digital painting
+    painting     — oil, watercolor, acrylic, digital painting
     render       — 3D render, CGI, octane render
     cartoon      — cartoon, anime, comic book panel
 
@@ -258,12 +258,12 @@ def encode_class_prompts(
     templates: list[str],
     device: str,
 ) -> torch.Tensor:
-    """Build one averaged, L2-normalised embedding per class.
+    """Build one averaged, L2-normalized embedding per class.
 
     For each class we expand `nouns × templates` into a flat prompt list,
-    encode them, L2-normalise each, mean-pool over the prompts, then
-    L2-normalise the mean. Averaging on the unit sphere (normalise → mean →
-    re-normalise) is the standard CLIP ensemble recipe — smooths out the
+    encode them, L2-normalize each, mean-pool over the prompts, then
+    L2-normalize the mean. Averaging on the unit sphere (normalize → mean →
+    re-normalize) is the standard CLIP ensemble recipe — smooths out the
     single-prompt jitter.
     """
     class_embeddings: list[torch.Tensor] = []

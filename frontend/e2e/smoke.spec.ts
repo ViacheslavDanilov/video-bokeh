@@ -103,7 +103,7 @@ test("sets every pane to the chosen speed", async ({ page }) => {
 
 /**
  * The picker chooses the library a sequence comes from, and the sequence keeps naming its
- * own estimator after the picker moves on, so what is playing is never mislabelled.
+ * own estimator after the picker moves on, so what is playing is never mislabeled.
  */
 test("generates from the depth estimator picked", async ({ page }) => {
   await page.goto("/");

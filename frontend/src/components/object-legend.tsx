@@ -1,9 +1,9 @@
 /**
- * Which colour is which object in the mask pane.
+ * Which color is which object in the mask pane.
  *
- * The colours come from the sequence, not from a copy of the palette here, so the legend
+ * The colors come from the sequence, not from a copy of the palette here, so the legend
  * and the video cannot disagree. The numbering is the alpha page order, which the
- * pipeline fixes for the whole clip — an object keeps its colour from the first frame
+ * pipeline fixes for the whole clip — an object keeps its color from the first frame
  * to the last, which is what makes a crossing readable.
  */
 export function ObjectLegend({ colors }: { colors: string[] }) {

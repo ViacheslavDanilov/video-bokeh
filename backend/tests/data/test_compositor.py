@@ -18,7 +18,7 @@ from video_bokeh.scenes.generate import generate_dataset, main
 
 
 def _tiny_library(root, n_fg: int = 2, half: int = 8) -> None:
-    # ``n_fg`` foregrounds: a centred opaque square each, flat depth. ``half``
+    # ``n_fg`` foregrounds: a centered opaque square each, flat depth. ``half``
     # shrinks the square, which is what makes crowded scenes placeable at all --
     # five 16x16 objects on a 32x32 frame collide no matter how they are posed.
     for i in range(n_fg):
@@ -244,7 +244,7 @@ def _overlapping_pair_scene(tmp_path, range_a, range_b, n_frames=2, size=32):
 
 def test_unrestricted_paint_order_is_frame_local(tmp_path) -> None:
     # Goal 6. Object a starts near and ends far; b does the opposite. They fully
-    # overlap on screen, so the centre pixel colour must change between the
+    # overlap on screen, so the center pixel color must change between the
     # first and last frame.
     from video_bokeh.core._trajectory import DepthRange
 
@@ -384,12 +384,12 @@ def test_unrestricted_depth_moves_with_scale_not_against_it(tmp_path) -> None:
             assert obj.depth_start is not None
             assert obj.depth_end is not None
             grew = obj.pose_end.scale > obj.pose_start.scale
-            came_closer = obj.depth_end.centre > obj.depth_start.centre
+            came_closer = obj.depth_end.center > obj.depth_start.center
             assert grew == came_closer, (
                 f"seed {seed}: scale "
                 f"{obj.pose_start.scale:.3f}->{obj.pose_end.scale:.3f} but "
-                f"disparity {obj.depth_start.centre:.3f}->"
-                f"{obj.depth_end.centre:.3f}"
+                f"disparity {obj.depth_start.center:.3f}->"
+                f"{obj.depth_end.center:.3f}"
             )
             checked += 1
     assert checked == 80
@@ -648,7 +648,7 @@ def _composite_layers(frame) -> tuple[np.ndarray, np.ndarray]:
 
 def test_layers_composited_in_paint_order_give_back_the_frame(tmp_path) -> None:
     # The two squares overlap fully and swap depth over the clip, so a wrong paint
-    # order, or an object layer that is not the whole object, shows in the colour.
+    # order, or an object layer that is not the whole object, shows in the color.
     from video_bokeh.core._trajectory import DepthRange
 
     scene = _overlapping_pair_scene(
@@ -724,14 +724,14 @@ def test_written_layers_give_back_the_written_frame(tmp_path) -> None:
         assert len(order) == 3
         for stem, frame_order in zip(("01", "02", "03"), order, strict=True):
             alphas = read_alpha_tiff(seq / "alpha" / f"{stem}.tif")
-            colours = read_rgb_tiff(layers / "objects" / f"{stem}.tif")
+            colors = read_rgb_tiff(layers / "objects" / f"{stem}.tif")
             disparities = read_disparity_tiff(
                 layers / "objects_disparity" / f"{stem}.tif",
             )
-            assert len(colours) == len(disparities) == len(alphas)
+            assert len(colors) == len(disparities) == len(alphas)
             assert sorted(frame_order) == list(range(len(alphas)))
             for k, a in enumerate(alphas):
-                assert not colours[k][a == 0].any()
+                assert not colors[k][a == 0].any()
                 assert not disparities[k][a == 0].any()
 
             rgb = _read_png(layers / "background" / f"{stem}.png")
@@ -740,7 +740,7 @@ def test_written_layers_give_back_the_written_frame(tmp_path) -> None:
             )
             for k in frame_order:
                 a = alphas[k]
-                rgb = a[..., None] * colours[k] + (1.0 - a[..., None]) * rgb
+                rgb = a[..., None] * colors[k] + (1.0 - a[..., None]) * rgb
                 disparity = a * disparities[k] + (1.0 - a) * disparity
 
             aif = _read_png(seq / "all_in_focus" / f"{stem}.png")

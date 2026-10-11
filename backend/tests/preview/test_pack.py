@@ -15,7 +15,7 @@ def _write_ramp(path, height=8, width=16):
     return ramp
 
 
-def test_disparity_frame_loads_as_colour(tmp_path):
+def test_disparity_frame_loads_as_color(tmp_path):
     p = tmp_path / "01.png"
     _write_ramp(p)
     rgb = load_frame(p, "disparity", "spectral_r")
@@ -28,8 +28,8 @@ def test_disparity_is_not_passed_through_convert(tmp_path):
     p = tmp_path / "01.png"
     _write_ramp(p)
     naive = np.asarray(Image.open(p).convert("RGB"), dtype=np.uint8)
-    coloured = load_frame(p, "disparity", "spectral_r")
-    assert not np.array_equal(naive, coloured)
+    colored = load_frame(p, "disparity", "spectral_r")
+    assert not np.array_equal(naive, colored)
 
 
 def test_other_streams_are_unchanged(tmp_path):
