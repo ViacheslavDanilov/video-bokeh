@@ -38,10 +38,7 @@ out/
 .env.test.local
 .env.production.local
 
-# Data & Models
-backend/models/*.joblib
-backend/models/*.pkl
-backend/models/any_to_bokeh/
+# Data
 backend/data/*/
 !backend/data/*_dev/
 # Laid out like magick_dev/, without the images: the CLIP predictions on MAGICK took a GPU
@@ -55,11 +52,6 @@ backend/data/magick/images/*
 !backend/data/magick/images/.gitkeep
 backend/data/synth*/
 backend/data/library*/
-
-# Third-party tool venvs and locally downloaded checkpoints
-backend/third_party/.venv/
-backend/third_party/*/checkpoints/
-backend/third_party/*/gdino_checkpoints/
 
 # Editors
 .vscode/
@@ -96,8 +88,6 @@ docs/attachments/
 docs/dashboard.md
 docs/.obsidian/
 docs/.smart-env/
-
-.DS_Store
 
 # Superseded docs, kept locally until reviewed and deleted by hand.
 docs/deprecated/

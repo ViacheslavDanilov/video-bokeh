@@ -44,7 +44,7 @@ Adding a new personal folder means adding a line to `.gitignore`, otherwise it l
 
 Prefer Obsidian wikilinks over markdown links: they survive renames.
 
-- A bare name resolves anywhere in the vault: `[[layer-diffuse]]`, `[[pipeline-explainer]]`.
+- A bare name resolves anywhere in the vault: `[[magick]]`, `[[pipeline-explainer]]`.
 - Prefix with a path only to disambiguate a transcript from its meeting note, which share a filename: `[[meetings/2026-06-26-unrestricted-pipeline-algorithm]]` versus `[[meetings/transcripts/2026-06-26-unrestricted-pipeline-algorithm]]`.
 - Media embeds with `![[image.png]]`. Older notes rely on Obsidian resolving that by filename alone; newer ones spell the path out. Both work as long as the file stays inside this vault.
 

@@ -6,20 +6,17 @@ FastAPI backend and dataset pipeline for the depth-aware synthetic bokeh video p
 
 ```
 backend/src/video_bokeh/
-├── __init__.py
-├── api/            main.py  _library.py  _sequences.py  _settings.py  — HTTP surface
-├── acquire/        magick.py  bg20k.py  classify.py  — source pools
-├── bridge/         any_to_bokeh.py                   — hand-off to the vendored checkout
-├── core/           _collision.py  _focus.py  _fusion.py  _library.py  _metadata.py
-│                   _plugins.py  _seq_io.py  _sequence_geometry.py  _streams.py
-│                   _trajectory.py  _worker.py
-├── layered/        _renderer.py                      — layer-wise bokeh, any torch device
-├── library/        build.py  check.py  _device.py  _measure.py  _neutral_bg.py
-│                   _propagation.py  depth/
-├── loader/         _stream.py                        — on-the-fly training data
-├── preview/        pack.py                           — streams a human looks at
-├── render/         run.py  any_to_bokeh.py  layered.py  base.py  — Stage C
-└── scenes/         generate.py  _compositor.py       — Stage B
+├── api/            # HTTP surface
+├── acquire/        # Source pools
+├── bridge/         # Input conversion for any-to-bokeh
+├── core/           # Geometry, streams, and shared contracts
+├── layered/        # Layer-wise bokeh
+├── library/        # Stage A
+│   └── depth/      # Depth estimators
+├── loader/         # On-the-fly training data
+├── preview/        # Video packing
+├── render/         # Stage C
+└── scenes/         # Stage B
 ```
 
 ## 🚀 Quick Start
@@ -120,8 +117,6 @@ id from `GET /libraries`. Without it the API answers 422 and lists the ids.
 
 Timings for other frame counts, and for the container, are in `docs/reference/api.md`.
 
-Full surface in `docs/reference/api.md`.
-
 ## 🐳 Docker
 
 `docker compose up` from the repository root is the entry point. It builds this image and the
@@ -141,35 +136,12 @@ docker build -t video-bokeh-api -f backend/Dockerfile .
 docker run -p 8000:8000 video-bokeh-api
 ```
 
-## 📦 Package Management
+## Development
 
-```bash
-# Add a dependency
-uv add <package> --package video-bokeh
+[The backend agent guide](AGENTS.md#commands) lists the package management, testing,
+type-checking, linting, and formatting commands.
 
-# Add a dev dependency
-uv add <package> --package video-bokeh --dev
+## API Endpoints
 
-# Remove a dependency
-uv remove <package> --package video-bokeh
-```
-
-## 🧪 Development
-
-```bash
-# Run tests
-uv run pytest
-
-# Type checking
-uv run ty check src/
-
-# Linting & formatting
-uv run ruff check src/
-uv run ruff format src/
-```
-
-## 🔌 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|--------------|
-| GET | `/health` | Health check |
+[The API reference](../docs/reference/api.md) documents the endpoints, request and response
+formats, defaults, and measured timings.

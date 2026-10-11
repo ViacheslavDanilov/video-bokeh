@@ -42,8 +42,7 @@ gitignored:
 | `docs/templates/` | no | Templater scaffolds — read them, do not edit them |
 
 **Never `git add` anything under the gitignored half.** A file there is a working note, not
-a deliverable. Never commit `backend/data/`, `backend/models/` or `backend/third_party/`
-either.
+a deliverable. Never commit `backend/data/` or `backend/third_party/` either.
 
 ## Specs and tickets
 

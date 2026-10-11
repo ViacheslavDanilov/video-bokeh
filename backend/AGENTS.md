@@ -32,7 +32,7 @@ Run from `backend/` unless noted.
 | Add a dev dep | `uv add <pkg> --package video-bokeh --dev` |
 | Remove dep | `uv remove <pkg> --package video-bokeh` |
 
-Pre-commit invokes `pycln`, `ruff` (with `--fix`), `ruff-format`, and `ty` against `backend/src`. Config flags live in `backend/pyproject.toml`; runner config is `../.pre-commit-config.yaml`.
+Pre-commit invokes `ruff` (with `--fix`), `ruff-format`, and `ty` against `backend/src`. Config flags live in `backend/pyproject.toml`; runner config is `../.pre-commit-config.yaml`.
 
 ## Structure
 
@@ -41,7 +41,6 @@ backend/
 ├── src/
 │   └── video_bokeh/   # FastAPI runtime and dataset pipeline (the package shipped in the wheel)
 ├── tests/             # pytest tests
-├── models/            # Trained model artifacts (gitignored)
 ├── data/              # Datasets (gitignored)
 ├── docker/            # One Dockerfile per model family, built by `make images`
 ├── envs/              # Venvs for models that cannot share ours, built by ../scripts/ (gitignored)
@@ -57,7 +56,7 @@ backend/
 - **Ruff config** is in `backend/pyproject.toml` (`[tool.ruff]`). Line length 88, target `py313`. Lint selection includes pyflakes, isort, bugbear, comprehensions, pyupgrade — don't reintroduce things ruff would remove.
 - **isort first-party package** is `video_bokeh` (configured). Local imports follow the third-party block.
 - **Type hints required on public functions.** `ty` runs in pre-commit against `src/`. Tests are excluded.
-- **`models/` and `data/` are excluded from pre-commit** (see top-level `.pre-commit-config.yaml`). Don't add Python files there.
+- **`data/` is excluded from pre-commit** (see top-level `.pre-commit-config.yaml`). Don't add Python files there.
 - **No emoji in code or commit messages** unless the user explicitly asks. (README files can use them — they already do.)
 
 ## Datasets

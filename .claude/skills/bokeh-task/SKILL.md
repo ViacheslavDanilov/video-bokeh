@@ -238,7 +238,7 @@ Module notes:
   data: read `node_modules/next/dist/docs/` before writing code, as `frontend/AGENTS.md`
   demands.
 - **`backend/third_party/`** — vendored submodules, read-only.
-- **`backend/data/`, `backend/models/`** — gitignored artifacts, never staged.
+- **`backend/data/`** — gitignored artifacts, never staged.
 
 If a folder's semantics changed, update the `AGENTS.md` in every folder you touched.
 

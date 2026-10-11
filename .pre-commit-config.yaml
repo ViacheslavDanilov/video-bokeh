@@ -5,27 +5,15 @@ repos:
   - id: check-yaml
   - id: check-toml
   - id: check-json
-    exclude: ^frontend/node_modules/
   - id: check-ast
   - id: trailing-whitespace
   - id: end-of-file-fixer
-
-- repo: https://github.com/asottile/add-trailing-comma
-  rev: v4.0.0
-  hooks:
-  - id: add-trailing-comma
 
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: v2.16.0
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
-
-- repo: https://github.com/hadialqattan/pycln
-  rev: v2.6.0
-  hooks:
-  - id: pycln
-    args: [--config, backend/pyproject.toml]
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: 'v0.15.4'
@@ -45,9 +33,4 @@ repos:
     pass_filenames: false
     args: [backend/src]
 
-exclude: |
-  (?x)(
-      ^backend/models/|
-      ^backend/data/|
-      ^frontend/node_modules/
-  )
+exclude: ^backend/data/
