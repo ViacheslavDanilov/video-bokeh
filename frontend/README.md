@@ -41,7 +41,9 @@ without rebuilding.
 - **Generate** — one call, and it blocks while it works: on an Apple M3 Pro at the page's
   defaults, 80 frames at 512 px with four to five objects, 8 to 14 seconds, and 16 to 25 with
   the bokeh. Asking twice for the same sequence returns it in milliseconds, because the
-  sequence id is a hash and the directory on disk is the cache.
+  sequence id is a hash and the directory on disk is the cache. Each pane says it is preparing
+  its video until the first frame arrives, since the API encodes a stream the first time it
+  is asked for, and says so if the video fails to load.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
   the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
   at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.

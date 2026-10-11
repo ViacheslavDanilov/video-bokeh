@@ -142,6 +142,12 @@ export function Viewer({
   // The room the pane grid has, which the parameters folding away, the window, or an alert
   // appearing above the grid changes.
   const [space, setSpace] = useState<Space>({ width: 0, height: 0 });
+  // Which pane has a frame of its current video, or failed to get one. The API encodes a
+  // video the first time it is asked for, up to two seconds, and a pane says so meanwhile
+  // rather than sit blank.
+  const [loaded, setLoaded] = useState<ReadonlyMap<string, "ready" | "failed">>(
+    new Map(),
+  );
   const observeGrid = useCallback((el: HTMLDivElement) => {
     const measure = () => {
       const top = el.getBoundingClientRect().top + window.scrollY;
@@ -331,6 +337,8 @@ export function Viewer({
           // The server names its default. Deriving it from the order of `colormaps`
           // would make adding one whose name sorts last change this silently.
           const colormap = pane.colormap || info.default || "";
+          const src = streamUrl(info, colormap || undefined);
+          const readyKey = `${pane.key} ${src}`;
           return (
             <figure key={pane.key} className="flex min-w-0 flex-col gap-2">
               <figcaption className="flex items-center gap-2">
@@ -407,12 +415,25 @@ export function Viewer({
                 )}
               </figcaption>
 
-              <div className="border-border bg-card aspect-square overflow-hidden rounded-lg border">
+              <div className="border-border bg-card relative aspect-square overflow-hidden rounded-lg border">
+                {loaded.get(readyKey) !== "ready" && (
+                  <p className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
+                    {loaded.get(readyKey) === "failed"
+                      ? "Could not load this video"
+                      : "Preparing video"}
+                  </p>
+                )}
                 <video
                   key={sequence.id}
                   ref={(el) => registerVideo(pane.key, el)}
                   className="h-full w-full object-contain"
-                  src={streamUrl(info, colormap || undefined)}
+                  src={src}
+                  onLoadedData={() =>
+                    setLoaded((seen) => new Map(seen).set(readyKey, "ready"))
+                  }
+                  onError={() =>
+                    setLoaded((seen) => new Map(seen).set(readyKey, "failed"))
+                  }
                   loop
                   muted
                   playsInline
