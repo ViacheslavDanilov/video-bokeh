@@ -469,6 +469,8 @@ export function Viewer({
                       setDropTarget(null);
                     }}
                     onKeyDown={(e) => {
+                      if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey)
+                        return;
                       const by = ARROW_MOVES[e.key];
                       if (by === undefined) return;
                       e.preventDefault();
