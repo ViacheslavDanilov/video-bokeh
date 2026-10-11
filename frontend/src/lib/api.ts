@@ -213,17 +213,13 @@ async function readGeneration(
 }
 
 /**
- * Absolute URL for a stream's video, with the colormap when the stream takes one.
+ * Absolute URL for a stream's video, in the colormap the server renders by default.
  *
- * The server caches one file per colormap, so switching is a fetch the first time and
- * a file read after that.
+ * The page shows disparity in Spectral only. The API also serves the gray rendering,
+ * with `?colormap=grey`, for anyone asking for it by hand.
  */
-export function streamUrl(stream: StreamInfo, colormap?: string): string {
-  const url = new URL(stream.url, BASE);
-  if (colormap && stream.colormaps.includes(colormap)) {
-    url.searchParams.set("colormap", colormap);
-  }
-  return url.toString();
+export function streamUrl(stream: StreamInfo): string {
+  return new URL(stream.url, BASE).toString();
 }
 
 export const apiBase = BASE;

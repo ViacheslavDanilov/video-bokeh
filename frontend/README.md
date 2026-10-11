@@ -51,16 +51,17 @@ without rebuilding.
   button. The header names the library picked; its `id` is a hash of the asset list, the depth
   estimator and the asset size, which every cached sequence is keyed on.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
-  the frames line up. Disparity can be shown in Spectral or gray. The transport plays every pane
-  at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.
+  the frames line up. Disparity is shown in Spectral, near red to far violet; the API also
+  serves it in gray, with `?colormap=grey`, but the page does not offer it. The transport
+  plays every pane at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and
+  the next sequence.
   The panes fit the window together, at the largest size that allows, in rows of even length.
   Where that size would be under 200 px, as on a phone or in a low window, they are at least
   280 px wide instead, and the page scrolls with the transport held at the bottom.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
   "Add pane" adds a stream not on screen yet; once every stream is, it is disabled and reads
-  "All streams shown". A repeat, such as disparity under two colormaps, comes from switching an
-  open pane's stream.
+  "All streams shown". A repeat comes from switching an open pane's stream.
 - **Arrange** — drag a pane by the grip in its header onto another to take that place, or
   focus the grip and press the left or right arrow; playback goes on in step.
 
