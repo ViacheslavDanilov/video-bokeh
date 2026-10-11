@@ -315,12 +315,12 @@ test("shows the steps of a generation, then what is on screen", async ({
   await expect(page.getByText("cached", { exact: true })).toBeVisible();
 });
 
-/** What the progress bar did: every value it took, however briefly; where on the page it sat
- *  at each, over the empty card or the panes, and how far from the left edge; and how long it
- *  stayed full where it filled. */
+/** What the progress bar did: every value it took, however briefly; its bounds on the page
+ *  whenever the line changed, over the empty card or the panes; and how long it stayed full
+ *  where it filled. */
 type BarSeen = {
   values: number[];
-  lefts: number[];
+  bounds: { left: number; top: number; width: number; height: number }[];
   places: string[];
   fits: boolean[];
   fullFor: number;
@@ -331,7 +331,7 @@ async function watchBar(page: Page) {
   await page.evaluate(() => {
     const fresh = () => ({
       values: [] as number[],
-      lefts: [] as number[],
+      bounds: [] as BarSeen["bounds"],
       places: [] as string[],
       fits: [] as boolean[],
       fullFor: 0,
@@ -356,37 +356,43 @@ async function watchBar(page: Page) {
         (value == null || place !== bar.fullPlace)
       )
         bar.fullFor = performance.now() - bar.fullAt;
-      if (
-        element == null ||
-        value == null ||
-        Number(value) === bar.values.at(-1)
-      )
-        return;
-      bar.values.push(Number(value));
+      if (element == null || value == null) return;
+      if (Number(value) !== bar.values.at(-1)) bar.values.push(Number(value));
       // From the page's edge rather than the line's: on the empty screen the line is
       // centered, and a line that grew after the bar would move the bar but not its offset.
-      bar.lefts.push(element.getBoundingClientRect().left);
+      // Record even when only the seconds or step name changed, at the same percentage.
+      const bounds = element.getBoundingClientRect();
+      bar.bounds.push({
+        left: bounds.left + window.scrollX,
+        top: bounds.top + window.scrollY,
+        width: bounds.width,
+        height: bounds.height,
+      });
       bar.places.push(place);
       const progress = element.closest('[role="status"]')!;
-      const line = progress.getBoundingClientRect();
       // The empty card, or the caption above the panes that holds the progress line.
       const card =
         progress.parentElement!.parentElement!.getBoundingClientRect();
       bar.fits.push(
-        line.left >= card.left - 0.5 &&
-          line.right <= card.right + 0.5 &&
-          line.top >= card.top - 0.5 &&
-          line.bottom <= card.bottom + 0.5,
+        [progress, ...progress.querySelectorAll("*")].every((child) => {
+          const bounds = child.getBoundingClientRect();
+          return (
+            bounds.left >= card.left - 0.5 &&
+            bounds.right <= card.right + 0.5 &&
+            bounds.top >= card.top - 0.5 &&
+            bounds.bottom <= card.bottom + 0.5
+          );
+        }),
       );
-      if (Number(value) === 100) {
+      if (Number(value) === 100 && !bar.fullAt) {
         bar.fullAt = performance.now();
         bar.fullPlace = place;
       }
     }).observe(document.body, {
       subtree: true,
       childList: true,
+      characterData: true,
       attributes: true,
-      attributeFilter: ["aria-valuenow"],
     });
   });
 }
@@ -411,10 +417,17 @@ function expectOneSteadyBar(seen: BarSeen, place: string) {
   expect(seen.values).toEqual([...seen.values].sort((a, b) => a - b));
   expect(seen.values.at(-1)).toBe(100);
   expect(new Set(seen.places)).toEqual(new Set([place]));
-  expect(new Set(seen.lefts).size).toBe(1);
-  expect(seen.fits).toEqual(seen.values.map(() => true));
+  expect(new Set(seen.bounds.map((bounds) => bounds.left)).size).toBe(1);
+  expect(seen.fits).toEqual(seen.bounds.map(() => true));
   // Where on its own it would last a frame or none.
   expect(seen.fullFor).toBeGreaterThanOrEqual(400);
+}
+
+/** On a phone, the bar also keeps its vertical position and width in each placement. */
+function expectOneSteadyBox(seen: BarSeen, place: string) {
+  expectOneSteadyBar(seen, place);
+  for (const axis of ["top", "width"] as const)
+    expect(new Set(seen.bounds.map((bounds) => bounds[axis])).size).toBe(1);
 }
 
 /**
@@ -468,14 +481,14 @@ test("fits generation progress at 390 px without shifting the bar", async ({
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
-  expectOneSteadyBar(await takeBar(page), "empty");
+  expectOneSteadyBox(await takeBar(page), "empty");
   await expect(page.locator("video")).toHaveCount(4);
 
   await seed.fill("72");
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
-  expectOneSteadyBar(await takeBar(page), "panes");
+  expectOneSteadyBox(await takeBar(page), "panes");
 });
 
 /** Completion stops the running indicators while the full bar still holds its place. */
