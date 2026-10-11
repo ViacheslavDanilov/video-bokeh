@@ -17,11 +17,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 from functools import partial
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from PIL import Image
 
 from video_bokeh.core._library import FOREGROUNDS, write_background, write_foreground
@@ -63,15 +63,17 @@ def _list_foreground_refs(
     preds_path = fg_root / "predictions.csv"
     if not preds_path.exists() or not (subjects or styles or subject_thr > 0.0):
         return refs
-    preds = pd.read_csv(preds_path, encoding="utf-8-sig").set_index("page_id")
-    mask = pd.Series(True, index=preds.index)
-    if subjects:
-        mask &= preds["top_subject"].isin(list(subjects))
-    if styles:
-        mask &= preds["top_style"].isin(list(styles))
-    if subject_thr > 0.0:
-        mask &= preds["top_subject_score"] >= subject_thr
-    kept = set(preds.index[mask])
+    with preds_path.open(encoding="utf-8-sig", newline="") as f:
+        kept = {
+            row["page_id"]
+            for row in csv.DictReader(f)
+            if (not subjects or row["top_subject"] in subjects)
+            and (not styles or row["top_style"] in styles)
+            and (
+                not (subject_thr > 0.0)
+                or float(row["top_subject_score"] or "nan") >= subject_thr
+            )
+        }
     return [r for r in refs if Path(r).stem in kept]
 
 
