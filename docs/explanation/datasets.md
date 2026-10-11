@@ -2,33 +2,36 @@
 type: topic
 status: active
 tags: [topic, datasets]
+related: [magick, generate-a-dataset, dataset-layout]
 ---
 
 # Datasets
 
-Index of datasets used or considered for the video-bokeh project. Group them by purpose.
+The pipeline combines MAGICK foregrounds with BG-20k backgrounds.
+Both have tracked development pools, so a fresh clone can build a library without
+downloading source images.
 
-## Foreground / RGBA
+## Foregrounds
 
-- **[[magick]]** — RGBA isolated objects (chroma-keying pipeline; alpha computed post-hoc).
-- **[[layer-diffuse]]** outputs — RGBA from joint generation (preferred for training data quality).
-- **animal-matting** — [bruinxiong/animal-matting](https://github.com/bruinxiong/animal-matting). Animal subjects with mattes.
-- **U²-Net outputs** — [xuebinqin/u-2-net](https://github.com/xuebinqin/u-2-net). Salient object detection / matting.
+[[magick]] provides isolated objects with alpha channels.
+`video_bokeh.acquire.magick` fetches images from
+[OneOverZero/MAGICK on Hugging Face](https://huggingface.co/datasets/OneOverZero/MAGICK).
+The development pool contains 30 foregrounds. Stage A's default CLIP filter keeps 17.
 
 ## Backgrounds
 
-- **BG-20K** — [bghira/BG20K on HuggingFace](https://huggingface.co/datasets/bghira/BG20K). 20K natural background images, no foreground subjects.
+BG-20k provides the background images.
+`video_bokeh.acquire.bg20k` uses `kagglehub` to fetch the
+[Kaggle upload](https://www.kaggle.com/datasets/nguyenquocdungk16hl/bg-20o).
+It can download the full archive or grow a sample one image at a time.
+The tracked development pool contains 30 backgrounds.
 
-## Video RGBA (transparent video)
+## Generated sequences
 
-- **[[wan-alpha]] dataset** — not fully released; methodology + partial data + scripts. See [issue #6](https://github.com/WeChatCV/Wan-Alpha/issues/6).
+Stage A builds the artifact library from these pools.
+Stage B samples scenes and writes sequences. The layered renderer can produce bokeh during
+Stage B or run afterward as Stage C over saved layers.
 
-## Building our own data
-
-- **[[generate-a-dataset]]** — how to run the two-stage pipeline: build the artifact library, then generate sequences.
-- **[[dataset-layout]]** — what the pipeline writes to disk, with formats and bit depths.
-
-## Cross-references
-
-- For our pipeline choice debate (LayerDiffuse vs MAGICK), see [[layer-diffuse]] and [[magick]].
-- For depth-estimation datasets / DepthPro vs DepthAnything testing, see [[2026-01-07-huawei-sync]].
+- [[generate-a-dataset]] has the acquisition, library, generation, and rendering recipes.
+- [[dataset-layout]] defines the files and formats each stage writes.
+- [[demo-unrestricted-trajectories]] explains how to check motion and depth by eye.
