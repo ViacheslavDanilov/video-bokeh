@@ -131,6 +131,9 @@ def _read_cached(dest: Path, sid: str) -> SequenceResult | None:
 #: The steps are ``sampling``, ``frames``, ``writing``, ``flow`` and ``bokeh``; "step"
 #: rather than "stage", which names the pipeline's Stages A, B and C.
 Progress = Callable[[str, int, int], None]
+#: Told, before the first step, every step the generation will take, in order, each with
+#: the total it will count to: what lets a client draw one bar for the whole of it.
+Plan = Callable[[list[tuple[str, int]]], None]
 
 
 def _generate_into(
@@ -141,9 +144,14 @@ def _generate_into(
     render: Callable[[Scene], Iterable[RenderedFrame]],
     bokeh: bool,
     progress: Progress,
+    plan: Plan,
 ) -> int:
+    n = request.frames
+    plan(
+        [("sampling", 1), ("frames", n), ("writing", n)]
+        + ([("bokeh", n)] if bokeh else []),
+    )
     scene = _scene(library_root, request, progress)
-    n = scene.n_frames
     frames = list(counted(render(scene), n, partial(progress, "frames")))
     focus = [frame_focus(f.object_alphas, f.disparity) for f in frames] if bokeh else []
     write_sequence(work_dir, counted(frames, n, partial(progress, "writing")), n)
@@ -198,6 +206,7 @@ def _complete(
     library_root: Path,
     request: SequenceRequest,
     progress: Progress,
+    plan: Plan,
     *,
     flow: bool,
     bokeh: bool,
@@ -209,6 +218,12 @@ def _complete(
     sampled once for both. The bokeh renders the frames twice, once for the focus and
     once for itself.
     """
+    n = request.frames
+    plan(
+        [("sampling", 1)]
+        + ([("flow", n - 1)] if flow else [])
+        + ([("frames", n), ("bokeh", n)] if bokeh else []),
+    )
     scene = _scene(library_root, request, progress)
     if flow:
         write_flow_stream(dest, scene, report=partial(progress, "flow"))
@@ -230,6 +245,10 @@ def _unheard(step: str, done: int, total: int) -> None:
     """Progress nobody asked for."""
 
 
+def _unplanned(steps: list[tuple[str, int]]) -> None:
+    """A plan nobody asked for."""
+
+
 def ensure_sequence(
     library_root: Path,
     library_id: str,
@@ -238,14 +257,15 @@ def ensure_sequence(
     *,
     bokeh: bool = False,
     progress: Progress | None = None,
+    plan: Plan | None = None,
     _render: Callable[[Scene], Iterable[RenderedFrame]] | None = None,
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
 
     The sequence comes with its optical flow, written with it, or added to a cached one
     that has none. With ``bokeh``, which needs torch, it comes with its bokeh stream the
-    same way. ``progress`` hears of each step as it goes, frame by frame; a cached
-    sequence that lacks nothing reports none.
+    same way. ``progress`` hears of each step as it goes, frame by frame, and ``plan``
+    of them all before the first; a cached sequence that lacks nothing reports none.
 
     Generation writes to a temporary directory beside the destination and renames it
     into place, so a sequence is either absent or complete. That is what makes a crashed
@@ -254,6 +274,8 @@ def ensure_sequence(
     """
     if progress is None:
         progress = _unheard
+    if plan is None:
+        plan = _unplanned
     sid = sequence_id(library_id, request)
     dest = sequences_root / sid
     cached = _read_cached(dest, sid)
@@ -267,6 +289,7 @@ def ensure_sequence(
                 library_root,
                 request,
                 progress,
+                plan,
                 flow=missing_flow,
                 bokeh=missing_bokeh,
             )
@@ -283,6 +306,7 @@ def ensure_sequence(
             _render or partial(iter_frames, flow=True),
             bokeh,
             progress,
+            plan,
         )
         try:
             os.replace(work_dir, dest)

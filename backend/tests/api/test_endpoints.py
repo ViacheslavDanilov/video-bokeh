@@ -676,7 +676,14 @@ def _streamed(client: TestClient, body: dict) -> list[dict]:
 
 def test_progress_is_streamed_when_asked_for(client: TestClient) -> None:
     lines = _streamed(client, SEQUENCE_BODY)
-    steps = [line["step"] for line in lines[:-1]]
+    assert lines[0] == {
+        "steps": [
+            {"step": "sampling", "total": 1},
+            {"step": "frames", "total": 3},
+            {"step": "writing", "total": 3},
+        ],
+    }
+    steps = [line["step"] for line in lines[1:-1]]
     assert steps[0] == "sampling"
     assert {"frames", "writing"} <= set(steps)
     assert lines[-2] == {"step": "writing", "done": 3, "total": 3}

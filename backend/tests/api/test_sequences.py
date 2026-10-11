@@ -210,3 +210,76 @@ def test_a_cached_sequence_samples_once_to_add_flow_and_bokeh(
     assert steps.count("sampling") == 2, "one scene: started and finished, once"
     assert _last(events, "flow") == ("flow", BASE.frames - 1, BASE.frames - 1)
     assert _last(events, "bokeh") == ("bokeh", BASE.frames, BASE.frames)
+
+
+# --- plan ------------------------------------------------------------------ #
+
+
+def _reported(events: list[tuple[str, int, int]]) -> list[tuple[str, int]]:
+    """Each step reported, in the order it began, with the total it counted to."""
+    totals: dict[str, int] = {}
+    for step, _, total in events:
+        totals[step] = total
+    return list(totals.items())
+
+
+@pytest.mark.parametrize("bokeh", [False, True])
+def test_announces_the_steps_it_reports_before_the_first(
+    library: Path,
+    tmp_path: Path,
+    bokeh: bool,
+) -> None:
+    """What lets a client draw one bar for the whole generation."""
+    events, progress = _recorder()
+    plans: list[list[tuple[str, int]]] = []
+
+    def plan(steps: list[tuple[str, int]]) -> None:
+        assert events == [], "announced before the first step"
+        plans.append(steps)
+
+    ensure_sequence(
+        library,
+        "libaaa",
+        tmp_path / "sequences",
+        BASE,
+        bokeh=bokeh,
+        progress=progress,
+        plan=plan,
+    )
+    assert plans == [_reported(events)]
+
+
+@pytest.mark.parametrize(
+    "missing_flow,bokeh",
+    [(True, False), (False, True), (True, True)],
+)
+def test_a_cached_sequence_announces_what_it_adds(
+    library: Path,
+    tmp_path: Path,
+    missing_flow: bool,
+    bokeh: bool,
+) -> None:
+    sequences = tmp_path / "sequences"
+    first = ensure_sequence(library, "libaaa", sequences, BASE)
+    if missing_flow:
+        shutil.rmtree(first.path / "flow")
+    events, progress = _recorder()
+    plans: list[list[tuple[str, int]]] = []
+    ensure_sequence(
+        library,
+        "libaaa",
+        sequences,
+        BASE,
+        bokeh=bokeh,
+        progress=progress,
+        plan=plans.append,
+    )
+    assert plans == [_reported(events)]
+
+
+def test_a_cached_sequence_announces_nothing(library: Path, tmp_path: Path) -> None:
+    sequences = tmp_path / "sequences"
+    ensure_sequence(library, "libaaa", sequences, BASE)
+    plans: list[list[tuple[str, int]]] = []
+    ensure_sequence(library, "libaaa", sequences, BASE, plan=plans.append)
+    assert plans == []

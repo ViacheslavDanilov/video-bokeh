@@ -40,6 +40,7 @@ from video_bokeh.api._library import (
 from video_bokeh.api._sequences import (
     OPTIONAL_STREAMS,
     VIDEO_STREAMS,
+    Plan,
     Progress,
     SequenceRequest,
     SequenceResult,
@@ -261,15 +262,19 @@ def create_sequence(
     a sync endpoint in a threadpool instead of blocking the event loop with it.
 
     A client that accepts NDJSON hears the generation as it goes instead, one JSON object
-    a line: ``{"step", "done", "total"}`` for each step, then ``{"sequence": ...}``, the
-    body the JSON answer would have had, or ``{"error": {"status", "detail"}}``. A
+    a line: ``{"steps": [{"step", "total"}, ...]}``, every step it will take, then
+    ``{"step", "done", "total"}`` for each step, then ``{"sequence": ...}``, the body the
+    JSON answer would have had, or ``{"error": {"status", "detail"}}``. A
     request that is invalid, or names no mounted library, answers before the stream
     begins and as it would without it.
     """
     settings = load_settings()
     library = _pick_library(_mounted_libraries(settings), params.library)
 
-    def generate(progress: Progress | None = None) -> SequenceResponse:
+    def generate(
+        progress: Progress | None = None,
+        plan: Plan | None = None,
+    ) -> SequenceResponse:
         result = ensure_sequence(
             library.root,
             library.id,
@@ -283,6 +288,7 @@ def create_sequence(
             ),
             bokeh=settings.render_bokeh and _BOKEH_AVAILABLE,
             progress=progress,
+            plan=plan,
         )
         return _sequence_response(result, library.id, params)
 
@@ -335,7 +341,9 @@ def _sequence_response(
     )
 
 
-def _streamed(generate: Callable[[Progress], SequenceResponse]) -> Iterator[bytes]:
+def _streamed(
+    generate: Callable[[Progress, Plan], SequenceResponse],
+) -> Iterator[bytes]:
     """Run ``generate`` in a thread of its own and pass on what it reports, a line each.
 
     The thread finishes even if the client goes away, so the sequence it was making is
@@ -349,6 +357,9 @@ def _streamed(generate: Callable[[Progress], SequenceResponse]) -> Iterator[byte
             body = generate(
                 lambda step, done, total: events.put(
                     {"step": step, "done": done, "total": total},
+                ),
+                lambda steps: events.put(
+                    {"steps": [{"step": s, "total": t} for s, t in steps]},
                 ),
             )
             events.put({"sequence": body.model_dump(mode="json")})

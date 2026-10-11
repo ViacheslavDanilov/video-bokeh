@@ -218,8 +218,8 @@ about a factor of two. The container is consistently slower than the host, which
 running Linux in a virtual machine on macOS costs.
 
 **A client can hear the generation as it goes.** Sent with `Accept: application/x-ndjson`,
-the request answers one JSON object a line instead: a progress line for each step, then the
-sequence, or an error.
+the request answers one JSON object a line instead: the steps it will take, a progress line
+for each step, then the sequence, or an error.
 
 ```bash
 curl -N -X POST http://localhost:8000/sequences \
@@ -228,6 +228,7 @@ curl -N -X POST http://localhost:8000/sequences \
 ```
 
 ```
+{"steps": [{"step": "sampling", "total": 1}, {"step": "frames", "total": 24}, {"step": "writing", "total": 24}, {"step": "bokeh", "total": 24}]}
 {"step": "sampling", "done": 0, "total": 1}
 {"step": "sampling", "done": 1, "total": 1}
 {"step": "frames", "done": 0, "total": 24}
@@ -245,6 +246,9 @@ curl -N -X POST http://localhost:8000/sequences \
   sequence missing its flow or bokeh reports `sampling` once, then `flow`, or `frames` and
   `bokeh`, or all three; one missing nothing reports no step, only itself. "Step", because
   "stage" names the pipeline's Stages A, B and C.
+- **`steps` comes first and names every step, in order, with the total it will count to.**
+  The counts done over the counts named are how far the whole generation has got, which
+  the demo draws as one bar. A cached sequence missing nothing sends no `steps` either.
 - **`sequence` is the body the JSON answer would have had.**
 - **A failure after the first line ends the answer with `{"error": {"status", "detail"}}`:**
   422 for a scene with no collision-free trajectories, 500 for anything else. A request that
@@ -253,7 +257,7 @@ curl -N -X POST http://localhost:8000/sequences \
 - **A client that goes away does not stop the generation.** The sequence is cached for the
   next ask.
 
-The demo asks for NDJSON and shows each step with its count.
+The demo asks for NDJSON and fills one bar for the whole generation.
 
 Answers 422 when the parameters are out of range, when the object range is inverted, when no
 library is named while several are mounted, when the named one is unknown, or when no
