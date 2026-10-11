@@ -217,7 +217,43 @@ sampling collision-free trajectories takes a variable number of retries, which i
 about a factor of two. The container is consistently slower than the host, which is what
 running Linux in a virtual machine on macOS costs.
 
-Anything driving this from a browser needs a spinner.
+**A client can hear the generation as it goes.** Sent with `Accept: application/x-ndjson`,
+the request answers one JSON object a line instead: a progress line for each step, then the
+sequence, or an error.
+
+```bash
+curl -N -X POST http://localhost:8000/sequences \
+  -H 'accept: application/x-ndjson' -H 'content-type: application/json' \
+  -d '{"library": "747c2380d504", "seed": 42, "frames": 24, "size": 256}'
+```
+
+```
+{"step": "sampling", "done": 0, "total": 1}
+{"step": "sampling", "done": 1, "total": 1}
+{"step": "frames", "done": 0, "total": 24}
+...
+{"step": "writing", "done": 24, "total": 24}
+{"step": "bokeh", "done": 0, "total": 24}
+...
+{"step": "bokeh", "done": 24, "total": 24}
+{"sequence": {"id": "35a2c79dfc65efdf", "library": "747c2380d504", "cached": false, ...}}
+```
+
+- **The steps come in order, each counted from 0 to its total:** `sampling` (choosing
+  collision-free trajectories, one step that retries can make the longest), `frames`
+  (rendering them, flow included), `writing`, and `bokeh` when the API renders it. A cached
+  sequence missing its flow or bokeh reports `sampling` once, then `flow`, or `frames` and
+  `bokeh`, or all three; one missing nothing reports no step, only itself. "Step", because
+  "stage" names the pipeline's Stages A, B and C.
+- **`sequence` is the body the JSON answer would have had.**
+- **A failure after the first line ends the answer with `{"error": {"status", "detail"}}`:**
+  422 for a scene with no collision-free trajectories, 500 for anything else. A request that
+  is invalid, or names no mounted library, is refused before the first line, as without
+  NDJSON. An `Accept` that rules NDJSON out with `q=0` gets JSON.
+- **A client that goes away does not stop the generation.** The sequence is cached for the
+  next ask.
+
+The demo asks for NDJSON and shows each step with its count.
 
 Answers 422 when the parameters are out of range, when the object range is inverted, when no
 library is named while several are mounted, when the named one is unknown, or when no

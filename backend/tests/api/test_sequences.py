@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
@@ -133,3 +135,78 @@ def test_matches_what_the_cli_writes_for_the_same_seed(
         assert [p.name for p in api_frames] == [p.name for p in cli_frames], stream
         for a, c in zip(api_frames, cli_frames, strict=True):
             assert a.read_bytes() == c.read_bytes(), f"{stream}/{a.name}"
+
+
+# --- progress -------------------------------------------------------------- #
+
+
+def _recorder() -> tuple[list[tuple[str, int, int]], Callable[[str, int, int], None]]:
+    events: list[tuple[str, int, int]] = []
+    return events, lambda step, done, total: events.append((step, done, total))
+
+
+def _last(events: list[tuple[str, int, int]], step: str) -> tuple[str, int, int]:
+    return [e for e in events if e[0] == step][-1]
+
+
+def test_reports_each_step_as_it_goes(library: Path, tmp_path: Path) -> None:
+    events, progress = _recorder()
+    ensure_sequence(library, "libaaa", tmp_path / "sequences", BASE, progress=progress)
+
+    steps = [step for step, _, _ in events]
+    assert steps[0] == "sampling"
+    assert _last(events, "sampling") == ("sampling", 1, 1)
+    frames = [done for step, done, _ in events if step == "frames"]
+    assert frames == list(range(BASE.frames + 1))
+    assert _last(events, "writing") == ("writing", BASE.frames, BASE.frames)
+    # In that order: every frame rendered before the first is written.
+    assert steps.index("writing") > len(steps) - 1 - steps[::-1].index("frames")
+
+
+def test_reports_the_bokeh_frame_by_frame(library: Path, tmp_path: Path) -> None:
+    events, progress = _recorder()
+    ensure_sequence(
+        library,
+        "libaaa",
+        tmp_path / "sequences",
+        BASE,
+        bokeh=True,
+        progress=progress,
+    )
+    assert _last(events, "bokeh") == ("bokeh", BASE.frames, BASE.frames)
+    assert [step for step, _, _ in events][-1] == "bokeh"
+
+
+def test_a_cached_sequence_reports_nothing(library: Path, tmp_path: Path) -> None:
+    sequences = tmp_path / "sequences"
+    ensure_sequence(library, "libaaa", sequences, BASE)
+    events, progress = _recorder()
+    ensure_sequence(library, "libaaa", sequences, BASE, progress=progress)
+    assert events == []
+
+
+def test_a_cached_sequence_reports_adding_its_flow(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    sequences = tmp_path / "sequences"
+    first = ensure_sequence(library, "libaaa", sequences, BASE)
+    shutil.rmtree(first.path / "flow")
+    events, progress = _recorder()
+    ensure_sequence(library, "libaaa", sequences, BASE, progress=progress)
+    assert _last(events, "flow") == ("flow", BASE.frames - 1, BASE.frames - 1)
+
+
+def test_a_cached_sequence_samples_once_to_add_flow_and_bokeh(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    sequences = tmp_path / "sequences"
+    first = ensure_sequence(library, "libaaa", sequences, BASE)
+    shutil.rmtree(first.path / "flow")
+    events, progress = _recorder()
+    ensure_sequence(library, "libaaa", sequences, BASE, bokeh=True, progress=progress)
+    steps = [step for step, _, _ in events]
+    assert steps.count("sampling") == 2, "one scene: started and finished, once"
+    assert _last(events, "flow") == ("flow", BASE.frames - 1, BASE.frames - 1)
+    assert _last(events, "bokeh") == ("bokeh", BASE.frames, BASE.frames)

@@ -29,7 +29,7 @@ import importlib.util
 import math
 import random
 import shutil
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 import numpy as np
@@ -150,6 +150,24 @@ def sample_sequence(
     )
 
 
+#: Told how far a stream's writing has got: steps done, out of how many.
+Report = Callable[[int, int], None]
+
+
+def counted[T](items: Iterable[T], total: int, report: Report | None) -> Iterator[T]:
+    """Pass ``items`` through, reporting ``(done, total)`` after each one is used.
+
+    ``(0, total)`` comes as the first is asked for, so a stage whose first step is slow,
+    as bokeh's first chunk is, is heard of when it starts rather than after.
+    """
+    if report is not None:
+        report(0, total)
+    for done, item in enumerate(items, start=1):
+        yield item
+        if report is not None:
+            report(done, total)
+
+
 def _frame_stem(index: int, n_frames: int) -> str:
     """Frame ``index``'s file stem: 1-based, padded to the width of the frame count."""
     return f"{index + 1:0{max(2, len(str(n_frames)))}d}"
@@ -162,14 +180,19 @@ def write_bokeh_stream(
     focus: list[FrameFocus],
     strength: float = BOKEH_STRENGTH,
     replace: bool = True,
+    report: Report | None = None,
 ) -> None:
     """Render a written sequence's bokeh from its scene, in memory, into ``bokeh/``.
 
     ``focus`` is each frame's focus statistics, gathered while the frames were written;
     the focused object is drawn from the scene's seed, as the loader and Stage C draw
     it. The frames are rendered again with their layers, a few at a time, so the layers
-    are never held whole. ``replace`` is ``write_bokeh``'s. Needs torch.
+    are never held whole. ``replace`` is ``write_bokeh``'s. ``report`` hears of each
+    frame as it is saved, and of the start before torch loads, which the first time
+    takes seconds. Needs torch.
     """
+    if report is not None:
+        report(0, scene.n_frames)
     from video_bokeh.layered import (
         bokeh_device,
         bokeh_record,
@@ -186,10 +209,15 @@ def write_bokeh_stream(
     )
     names = [f"{_frame_stem(i, scene.n_frames)}.png" for i in range(scene.n_frames)]
     record = bokeh_record(focus_object, zf, strength)
-    write_bokeh(seq_dir, zip(names, images, strict=True), record, replace=replace)
+    saved = counted(images, scene.n_frames, report)
+    write_bokeh(seq_dir, zip(names, saved, strict=True), record, replace=replace)
 
 
-def write_flow_stream(seq_dir: Path, scene: Scene) -> None:
+def write_flow_stream(
+    seq_dir: Path,
+    scene: Scene,
+    report: Report | None = None,
+) -> None:
     """Write a written sequence's optical flow from its scene into ``flow/``.
 
     For a sequence written without it. The frames are rendered again one at a time, and
@@ -197,15 +225,21 @@ def write_flow_stream(seq_dir: Path, scene: Scene) -> None:
     appeared meanwhile, from another request for the same sequence, is kept.
 
     A single frame moves nowhere and writes nothing, as ``write_sequence`` writes no
-    ``flow/`` for it.
+    ``flow/`` for it. ``report`` hears of each flow field as it is written, one per frame
+    but the last.
     """
     if scene.n_frames < 2:
         return
     with staged_stream(seq_dir, "flow", replace=False) as staging:
+        fields = scene.n_frames - 1
+        if report is not None:
+            report(0, fields)
         for fi, frame in enumerate(iter_frames(scene, flow=True)):
             if frame.flow is not None:
                 stem = _frame_stem(fi, scene.n_frames)
                 write_flow_png(staging / f"{stem}.png", frame.flow)
+                if report is not None:
+                    report(fi + 1, fields)
 
 
 def _measured(
