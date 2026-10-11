@@ -520,6 +520,16 @@ test("fits generation progress at 390 px without shifting the bar", async ({
   await expect(progress).toBeHidden({ timeout: 60_000 });
   expectOneSteadyBox(await takeBar(page), "empty");
   await expect(page.locator("video")).toHaveCount(4);
+  // On a phone each pane's header, picker and close button included, fits its pane.
+  await expect
+    .poll(() =>
+      page
+        .locator("figcaption")
+        .evaluateAll((els) =>
+          els.map((el) => el.scrollWidth <= el.clientWidth),
+        ),
+    )
+    .toEqual([true, true, true, true]);
 
   await seed.fill("72");
   await generate.click();

@@ -490,7 +490,11 @@ export function Viewer({
                     )
                   }
                 >
-                  <SelectTrigger aria-label="Stream" size="sm">
+                  <SelectTrigger
+                    aria-label="Stream"
+                    size="sm"
+                    className="min-w-0"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
