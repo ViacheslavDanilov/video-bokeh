@@ -21,7 +21,11 @@ from video_bokeh.loader import SequenceStream
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--library-root", type=Path, default=Path("data/library_dev"))
+    parser.add_argument(
+        "--library-root",
+        type=Path,
+        default=Path("data/library/da2-large"),
+    )
     parser.add_argument("--steps", type=int, default=20)
     args = parser.parse_args()
 

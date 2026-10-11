@@ -15,8 +15,8 @@ end. [[loader]] describes every stream and option.
 
 The stream needs torch. Install the `loader` extra as [[loader]] says.
 
-It also needs a library. The example reads `data/library_dev`, which `backend/README.md`
-builds in about 11 s from the development pools a clone carries.
+It also needs a library. The example reads `data/library/da2-large`, which `make libraries`
+builds from the development pools a clone carries, or Stage A alone in [[generate-a-dataset]].
 
 ## 2. Run the example
 
