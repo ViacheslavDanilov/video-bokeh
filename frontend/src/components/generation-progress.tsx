@@ -43,22 +43,25 @@ function Steady({
   );
 }
 
-function useSecondsSince(startedAt: number): number {
+function useSecondsSince(startedAt: number, finishedAt: number | null): number {
   // From the start rather than from 0, so a line that mounts late reads the time so far
   // rather than "0 s" until its first tick.
   const [seconds, setSeconds] = useState(() =>
     Math.floor((Date.now() - startedAt) / 1000),
   );
   useEffect(() => {
+    if (finishedAt !== null) return;
     const tick = () => setSeconds(Math.floor((Date.now() - startedAt) / 1000));
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
-  }, [startedAt]);
-  return seconds;
+  }, [startedAt, finishedAt]);
+  return finishedAt === null
+    ? seconds
+    : Math.floor((finishedAt - startedAt) / 1000);
 }
 
 /**
- * How a generation is going, on one line: one bar for the whole of it, the step under way,
+ * How a generation is going: one bar for the whole of it, the step under way,
  * and the time so far.
  *
  * The bar is the counts done over the counts the API announced, summed over the steps, so it
@@ -69,11 +72,13 @@ function useSecondsSince(startedAt: number): number {
 export function GenerationProgress({
   steps,
   startedAt,
+  finishedAt,
 }: {
   steps: GenerationStep[];
   startedAt: number;
+  finishedAt: number | null;
 }) {
-  const seconds = useSecondsSince(startedAt);
+  const seconds = useSecondsSince(startedAt, finishedAt);
   const total = steps.reduce((sum, s) => sum + s.total, 0);
   if (total === 0) return null;
   const done = steps.reduce((sum, s) => sum + Math.min(s.done, s.total), 0);
@@ -85,7 +90,7 @@ export function GenerationProgress({
     <div
       role="status"
       aria-label="Generation progress"
-      className="flex items-center gap-3"
+      className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:justify-start sm:gap-3"
     >
       {current ? (
         <LoaderCircle
@@ -105,30 +110,32 @@ export function GenerationProgress({
         text={current ? `step ${index + 1} of ${steps.length}` : ""}
         widest={[`step ${steps.length} of ${steps.length}`]}
       />
-      <div
-        role="progressbar"
-        aria-label="Generated"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        className="bg-muted h-1.5 w-40 shrink-0 overflow-hidden rounded-full"
-      >
+      <div className="inline-flex basis-full items-center gap-2 sm:basis-auto sm:gap-3">
         <div
-          className="bg-foreground h-full rounded-full transition-[width] duration-150 ease-out"
-          style={{ width: `${(done / total) * 100}%` }}
+          role="progressbar"
+          aria-label="Generated"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          className="bg-muted h-1.5 min-w-16 flex-1 overflow-hidden rounded-full sm:w-40 sm:flex-none"
+        >
+          <div
+            className="bg-foreground h-full rounded-full transition-[width] duration-150 ease-out"
+            style={{ width: `${(done / total) * 100}%` }}
+          />
+        </div>
+        <Steady
+          className="justify-items-end tabular-nums"
+          text={`${percent}%`}
+          widest={["100%"]}
+        />
+        {/* Centered on the empty screen, the line would move with each digit added. */}
+        <Steady
+          className="tabular-nums"
+          text={`${seconds} s`}
+          widest={["000 s"]}
         />
       </div>
-      <Steady
-        className="justify-items-end tabular-nums"
-        text={`${percent}%`}
-        widest={["100%"]}
-      />
-      {/* Centered on the empty screen, the line would move with each digit added. */}
-      <Steady
-        className="tabular-nums"
-        text={`${seconds} s`}
-        widest={["000 s"]}
-      />
     </div>
   );
 }
