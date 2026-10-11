@@ -44,7 +44,11 @@ function Steady({
 }
 
 function useSecondsSince(startedAt: number): number {
-  const [seconds, setSeconds] = useState(0);
+  // From the start rather than from 0: the line mounts again in the caption's place when
+  // the first sequence arrives, and would read "0 s" until its first tick.
+  const [seconds, setSeconds] = useState(() =>
+    Math.floor((Date.now() - startedAt) / 1000),
+  );
   useEffect(() => {
     const tick = () => setSeconds(Math.floor((Date.now() - startedAt) / 1000));
     const timer = setInterval(tick, 250);
