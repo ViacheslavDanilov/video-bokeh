@@ -293,6 +293,19 @@ Encoded on the first request at 24 fps and kept next to the frames, so the secon
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
 run a second time replaces `bokeh/`, and the page plays the new render once reloaded.
 
+New encodes use H.264 High, `yuv420p` and CRF 17, and `ffprobe` confirms the High
+profile. The old default meant lossless H.264 at CRF 0, which uses the High 4:4:4
+Predictive profile. Firefox's decoders refuse that profile on Windows and macOS, as
+Mozilla's
+[`dom/media/platforms/PDMFactory.cpp`](https://raw.githubusercontent.com/mozilla-firefox/firefox/main/dom/media/platforms/PDMFactory.cpp)
+specifies. Firefox playback was not tested here.
+
+Existing cached MP4s keep their original encoding. The API re-encodes only when a video
+is missing or its stream directory's modification or change time is newer than the video. Changing the
+encoder settings alone does not invalidate cached files. The
+[CLI reference](cli.md#video_bokehpreviewpack--png-streams-to-mp4) measures file sizes,
+encoding times and fidelity for all five streams.
+
 **`?colormap=` applies to `disparity` only.** It is 16-bit grayscale on disk and gets its
 color when served, so `spectral_r` (the default, matching what `video_bokeh.preview.pack`
 writes) and `grey` are two renderings of one stream. Each is cached as its own file,
@@ -329,8 +342,10 @@ concurrent generation leaves nothing half-written behind.
 
 Deliberate, and worth knowing before the library or the audience grows.
 
-**Nothing evicts `sequences/`.** It grows until someone deletes it. A sequence of 80 frames at
-512 is about 44 MB, so a thousand of them is about 43 GB. Deleting the directory is safe: every
+**Nothing evicts `sequences/`.** It grows until someone deletes it. Storage depends on the
+scene and optional streams. The one-object, 80-frame, 512 px sequence measured on 2026-10-12
+used 27,593,374 bytes for `all_in_focus`, `alpha` and `disparity` frames, plus 749,666 bytes
+for their CRF 17 MP4s. Bokeh, flow and layers add to that. Deleting the directory is safe: every
 sequence is reproducible from its library, its seed and the settings its request named, which
 `sequence.json` records. That is the same reason [dataset-layout](dataset-layout.md) treats
 frames as disposable and the library as the thing to keep.

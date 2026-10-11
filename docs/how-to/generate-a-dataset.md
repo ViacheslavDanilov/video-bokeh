@@ -127,9 +127,13 @@ uv run python -m video_bokeh.scenes.generate \
   --count 3 --frames 80 --size 512 --seed 0 --flow
 ```
 
-It took 20 s on an Apple M3 Pro on 2026-10-10, against 14 s for the same three sequences
-without `--flow`. Each sequence's `flow/` holds 79 files, 2.2 to 3.5 MiB in all.
-[dataset-layout](../reference/dataset-layout.md) has the format.
+With the old PNG compression default, level 6, it took 20 s on an Apple M3 Pro on
+2026-10-10, against 14 s for the same three sequences without `--flow`. Each sequence's
+`flow/` held 79 files, 2.2 to 3.5 MiB in all. The writer now uses level 3. On a 512 px,
+seed 3 sequence measured on 2026-10-12, it saved 26.6% of writer time and used 2.67 MiB
+instead of 1.71 MiB, with identical decoded pixels.
+[dataset-layout](../reference/dataset-layout.md#the-flow-stream--optional) has the format and
+the compression measurements. The earlier total generation timings have not been remeasured.
 
 ---
 
