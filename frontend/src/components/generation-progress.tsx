@@ -99,7 +99,9 @@ export function GenerationProgress({
           className="text-foreground size-3.5 shrink-0 animate-spin"
         />
         <span className="text-foreground">{stepName(current.step)}</span>
-        <StepBar step={current} active />
+        {/* Keyed on the step, so the next one's bar starts empty instead of shrinking
+            back from where the last one ended. */}
+        <StepBar key={current.step} step={current} active />
         <span className="tabular-nums">{seconds} s</span>
       </div>
     );
