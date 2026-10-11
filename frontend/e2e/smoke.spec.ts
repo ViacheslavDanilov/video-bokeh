@@ -94,13 +94,13 @@ test("generates from the depth estimator picked", async ({ page }) => {
 
   await page.getByRole("button", { name: "Generate sequence" }).click();
   await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
-  const shown = page.getByRole("definition").filter({ hasText: "depth-pro" });
-  await expect(shown).toBeVisible();
+  const shown = page.getByRole("group", { name: "Sequence on screen" });
+  await expect(shown).toContainText("depth-pro");
 
   await picker.click();
   await page.getByRole("option", { name: "da2-small" }).click();
   await expect(header.getByText("da2-small")).toBeVisible();
-  await expect(shown).toBeVisible();
+  await expect(shown).toContainText("depth-pro");
 });
 
 /**
@@ -119,8 +119,8 @@ test("opens a pane for bokeh once the sequence has it", async ({ page }) => {
   await expect(videos).toHaveCount(4, { timeout: 60_000 });
 
   const id = await page
-    .locator("dt", { hasText: /^sequence$/ })
-    .locator("xpath=following-sibling::dd[1]")
+    .getByRole("group", { name: "Sequence on screen" })
+    .getByText(/^[0-9a-f]{16}$/)
     .innerText();
   execFileSync("uv", [
     "run",
@@ -177,8 +177,8 @@ test("lists a library built while the page is open", async ({ page }) => {
     await page.getByRole("button", { name: "Generate sequence" }).click();
     await expect(page.locator("video")).toHaveCount(4, { timeout: 60_000 });
     await expect(
-      page.getByRole("definition").filter({ hasText: "da2-large, extra" }),
-    ).toBeVisible();
+      page.getByRole("group", { name: "Sequence on screen" }),
+    ).toContainText("da2-large, extra");
   } finally {
     rmSync(extra, { recursive: true, force: true });
   }
@@ -286,4 +286,64 @@ test("wraps five panes into rows of three and two", async ({ page }) => {
       wide: (await videos.first().boundingBox())!.width > 300,
     }))
     .toEqual({ rows: [3, 2], wide: true });
+});
+
+/**
+ * Generate takes seconds, so the page says what it is doing: the steps the API reports,
+ * each pane until its video arrives, and then what is on screen. A second ask for the same
+ * sequence comes from the cache and says so.
+ */
+test("shows the steps of a generation, then what is on screen", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  // A seed of its own, so this generation is not a cache hit left by another test.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("21");
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  await generate.click();
+
+  const progress = page.getByRole("status", { name: "Generation progress" });
+  await expect(progress).toContainText("Rendering frames");
+  await expect(progress).toBeHidden({ timeout: 60_000 });
+
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(4);
+  await expect(page.getByText("Preparing video")).toHaveCount(0, {
+    timeout: 60_000,
+  });
+  await expect(page.getByText("80 frames")).toBeVisible();
+  await expect(page.getByText("seed 21")).toBeVisible();
+  await expect(page.getByText("cached", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Bokeh comes with each sequence/)).toHaveCount(0);
+
+  await generate.click();
+  await expect(page.getByText("cached", { exact: true })).toBeVisible();
+});
+
+/**
+ * The next generation shows its progress where the caption above the panes was, at its
+ * height, so the sequence on screen does not move while the next one is made.
+ */
+test("keeps the panes in place while the next sequence generates", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  const seed = page.getByRole("spinbutton", { name: "Seed" });
+  const generate = page.getByRole("button", { name: "Generate sequence" });
+  await seed.fill("31");
+  await generate.click();
+  const videos = page.locator("video");
+  await expect(videos).toHaveCount(4, { timeout: 60_000 });
+  const top = () =>
+    videos.first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
+  const before = await top();
+
+  await seed.fill("32");
+  await generate.click();
+  const progress = page.getByRole("status", { name: "Generation progress" });
+  await expect(progress).toBeVisible();
+  expect(await top()).toBe(before);
+  await expect(progress).toBeHidden({ timeout: 60_000 });
 });

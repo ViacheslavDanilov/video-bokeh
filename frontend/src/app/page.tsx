@@ -3,9 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Controls } from "@/components/controls";
+import { addStep } from "@/components/generation-progress";
 import { Button } from "@/components/ui/button";
 import { Viewer } from "@/components/viewer";
-import type { LibraryInfo, Sequence, SequenceParams } from "@/lib/api";
+import type {
+  GenerationStep,
+  LibraryInfo,
+  Sequence,
+  SequenceParams,
+} from "@/lib/api";
 import {
   ApiError,
   createSequence,
@@ -30,6 +36,9 @@ export default function Page() {
   const [params, setParams] = useState<SequenceParams>(DEFAULTS);
   const [sequence, setSequence] = useState<Sequence | null>(null);
   const [busy, setBusy] = useState(false);
+  // The steps of the generation under way, as the API reports them, and when it began.
+  const [steps, setSteps] = useState<GenerationStep[]>([]);
+  const [startedAt, setStartedAt] = useState(0);
   // Apart, so a list read that works again clears its own error and not a Generate's.
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -88,12 +97,19 @@ export default function Page() {
   async function generate() {
     setBusy(true);
     setError(null);
+    setSteps([]);
+    setStartedAt(Date.now());
     try {
-      setSequence(await createSequence(params));
+      setSequence(
+        await createSequence(params, (step) =>
+          setSteps((seen) => addStep(seen, step)),
+        ),
+      );
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : String(cause));
     } finally {
       setBusy(false);
+      setSteps([]);
     }
   }
 
@@ -177,6 +193,8 @@ export default function Page() {
             sequence={sequence}
             library={libraryLabel(shown)}
             generating={busy}
+            steps={steps}
+            startedAt={startedAt}
           />
         </section>
       </main>

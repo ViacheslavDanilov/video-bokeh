@@ -38,12 +38,18 @@ without rebuilding.
 - **Parameters** — seed, frames, size, and the range of objects a sequence may contain. The seed
   picks a count in that range, so the same five numbers from the same library always name the
   same sequence.
-- **Generate** — one call, and it blocks while it works: on an Apple M3 Pro at the page's
-  defaults, 80 frames at 512 px with four to five objects, 8 to 14 seconds, and 16 to 25 with
-  the bokeh. Asking twice for the same sequence returns it in milliseconds, because the
-  sequence id is a hash and the directory on disk is the cache. Each pane says it is preparing
-  its video until the first frame arrives, since the API encodes a stream the first time it
-  is asked for, and says so if the video fails to load.
+- **Generate** — one call, which shows each step as the API reports it: choosing the
+  trajectories, rendering the frames, writing them, and rendering the bokeh, with a count and
+  a bar for the one under way. On an Apple M3 Pro at the page's defaults, 80 frames at 512 px
+  with four to five objects, it takes 8 to 14 seconds, and 16 to 25 with the bokeh. Asking
+  twice for the same sequence returns it in milliseconds, because the sequence id is a hash
+  and the directory on disk is the cache. Each pane says it is preparing its video until the
+  first frame arrives, since the API encodes a stream the first time it is asked for, and
+  says so if the video fails to load.
+- **What is on screen** — a line above the panes names the sequence's library, seed, object
+  count, frame count and size, says when it came from the cache, and gives its id with a copy
+  button. The header names the mounted library; its `id` is a hash of the asset list, the depth
+  estimator and the asset size, which every cached sequence is keyed on.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
   the frames line up. Disparity can be shown in Spectral or grey. The transport plays every pane
   at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and the next sequence.

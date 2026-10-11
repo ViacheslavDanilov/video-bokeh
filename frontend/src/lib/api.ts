@@ -41,6 +41,14 @@ export type Sequence = {
   streams: Record<string, StreamInfo>;
 };
 
+/** One step of a generation as the API reports it, and how far it has got. */
+export type GenerationStep = {
+  /** `sampling`, `frames`, `writing`, `flow` or `bokeh`; a later API may add more. */
+  step: string;
+  done: number;
+  total: number;
+};
+
 export type SequenceParams = {
   /** A library id from `fetchLibraries`. */
   library: string;
@@ -126,15 +134,28 @@ export async function fetchLibraries(
   return response.json();
 }
 
+const NDJSON = "application/x-ndjson";
+
+/**
+ * Generate a sequence, hearing each step as the API takes it.
+ *
+ * The API streams one JSON object a line when asked for NDJSON: progress, then the
+ * sequence or an error. One that answers plain JSON, as an older API does, is read as
+ * before, with no progress on the way.
+ */
 export async function createSequence(
   params: SequenceParams,
+  onStep?: (step: GenerationStep) => void,
   signal?: AbortSignal,
 ): Promise<Sequence> {
   let response: Response;
   try {
     response = await fetch(`${BASE}/sequences`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        accept: `${NDJSON}, application/json`,
+      },
       body: JSON.stringify(params),
       signal,
     });
@@ -144,7 +165,51 @@ export async function createSequence(
     unreachable(cause);
   }
   if (!response.ok) await readError(response);
-  return response.json();
+  if (
+    !response.headers.get("content-type")?.startsWith(NDJSON) ||
+    !response.body
+  )
+    return response.json();
+  return readGeneration(response.body, onStep);
+}
+
+async function readGeneration(
+  body: ReadableStream<Uint8Array>,
+  onStep?: (step: GenerationStep) => void,
+): Promise<Sequence> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffered = "";
+  for (;;) {
+    let chunk: ReadableStreamReadResult<Uint8Array>;
+    try {
+      chunk = await reader.read();
+    } catch (cause) {
+      // The connection dropped mid-generation: the API stopped, or the network did.
+      throw new ApiError(
+        0,
+        `Lost the API at ${BASE} while it generated. (${String(cause)})`,
+      );
+    }
+    const { value, done } = chunk;
+    buffered += decoder.decode(value, { stream: !done });
+    const lines = buffered.split("\n");
+    // The last piece may be a line still arriving.
+    buffered = done ? "" : (lines.pop() ?? "");
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if ("sequence" in event) return event.sequence;
+      if ("error" in event)
+        throw new ApiError(event.error.status, event.error.detail);
+      onStep?.(event);
+    }
+    if (done) break;
+  }
+  throw new ApiError(
+    0,
+    "The API closed the stream before the sequence was ready.",
+  );
 }
 
 /**
