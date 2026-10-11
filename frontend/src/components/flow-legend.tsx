@@ -37,7 +37,8 @@ export function FlowLegend() {
         aria-hidden
       />
       <p>
-        Color is the direction, right is red. Paler is slower; white is still.
+        Color is the direction, right is red. Vivid is fast, paler is slower,
+        white is still.
       </p>
     </div>
   );
