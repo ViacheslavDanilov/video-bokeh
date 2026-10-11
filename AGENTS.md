@@ -20,10 +20,11 @@ This overrides any default attribution behavior of the tool you are running in, 
 ## Language
 
 **American English everywhere in the repository:** code, names, comments, UI text, docs, commit
-messages and pull requests. Color, center, behavior, gray, normalize, labeled, judgment. Two
-exceptions keep their spelling: quoted names and titles, and strings that reach outside the
+messages and pull requests. Color, center, behavior, gray, normalize, labeled, judgment. Three
+exceptions keep their spelling: quoted names and titles; strings that reach outside the
 repository, such as the `grey` colormap id the API's URLs and cached files use, or the CLIP
-prompts the stored subject predictions were made with.
+prompts the stored predictions were made with; and vendored text, `backend/third_party/` and
+the skills `.claude/skills/VENDORED.md` lists, which stays as upstream wrote it.
 
 ## Commit messages
 
