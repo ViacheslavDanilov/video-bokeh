@@ -265,24 +265,24 @@ when there is no library, or when two cannot be told apart.
 Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` and
 `flow` when the sequence has them.
 
-**`alpha` is one colour per object, not one silhouette.** The stream is a multi-page TIFF
+**`alpha` is one color per object, not one silhouette.** The stream is a multi-page TIFF
 with one page per object, and the page index is that object's identity for the whole clip —
 `scenes/_compositor.py` fixes it deliberately, because paint order is recomputed every frame
-as objects move past each other. So an object keeps its colour from the first frame to the
-last, and watching which colour covers which is watching the depth ordering change.
+as objects move past each other. So an object keeps its color from the first frame to the
+last, and watching which color covers which is watching the depth ordering change.
 
 The masks are **amodal**: each page holds the object's full silhouette, including the part a
 nearer object hides. They are painted in page order, so where two overlap the higher object
 number wins — that is identity order, not distance. The disparity pane beside it is where
 distance is read.
 
-`object_colors` in the sequence response names the colour of each object, so a legend cannot
+`object_colors` in the sequence response names the color of each object, so a legend cannot
 drift from what the video paints.
 
-**`flow` is coloured the way optical-flow papers colour it:** the wheel of Baker et al., as
+**`flow` is colored the way optical-flow papers color it:** the wheel of Baker et al., as
 the Middlebury benchmark and RAFT's `flow_viz` draw it. The hue is the direction, rightward
 red, and the saturation the speed, white where nothing moves. One scale serves the whole
-sequence, the fastest valid motion in it, so the colours do not flicker from frame to frame.
+sequence, the fastest valid motion in it, so the colors do not flicker from frame to frame.
 The last frame has no flow, since there is no next frame to move to, so the video shows it
 still. That keeps the video as long as the other streams and in step with them.
 
@@ -290,8 +290,8 @@ Encoded on the first request at 24 fps and kept next to the frames, so the secon
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
 run a second time replaces `bokeh/`, and the page plays the new render once reloaded.
 
-**`?colormap=` applies to `disparity` only.** It is 16-bit greyscale on disk and gets its
-colour when served, so `spectral_r` (the default, matching what `video_bokeh.preview.pack`
+**`?colormap=` applies to `disparity` only.** It is 16-bit grayscale on disk and gets its
+color when served, so `spectral_r` (the default, matching what `video_bokeh.preview.pack`
 writes) and `grey` are two renderings of one stream. Each is cached as its own file,
 `disparity.mp4` and `disparity.grey.mp4`. Every other stream has one rendering, so the
 parameter is dropped rather than forking that stream's cache into identical copies. An unknown name
@@ -312,7 +312,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── flow/                   KITTI 16-bit PNG, every frame but the last
 ├── all_in_focus.mp4        written on first request
 ├── disparity.mp4           written on first request, Spectral
-└── disparity.grey.mp4      written if grey is ever asked for
+└── disparity.grey.mp4      written if `grey` is ever asked for
 ```
 
 The three stream directories are the layout in [[dataset-layout]], without the dataset's

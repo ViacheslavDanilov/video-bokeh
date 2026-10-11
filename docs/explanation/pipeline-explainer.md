@@ -28,7 +28,7 @@ into as many videos as you want. Stage C blurs each video by its depth.
 ```mermaid
 flowchart LR
   pools["Source images<br/>MAGICK, BG-20K"] --> A["Stage A<br/>build the library"]
-  A --> lib[("library/<br/>colour, matte, disparity")]
+  A --> lib[("library/<br/>color, matte, disparity")]
   lib --> B["Stage B<br/>generate sequences"]
   B --> seq[("sequences/<br/>all_in_focus, alpha, disparity")]
   seq --> C["Stage C<br/>render bokeh"]
@@ -125,7 +125,7 @@ and the rest is room to move.
 
 An earlier version pinned each object inside its slot for the entire clip. Collisions were
 then impossible by construction, which was safe and wrong: an object could never move past
-another in depth, and a camera that sees something approach is exactly what we are modelling.
+another in depth, and a camera that sees something approach is exactly what we are modeling.
 That version has been removed.
 
 Letting objects leave their slots means two can end up at the same depth, so what used to be
@@ -165,9 +165,9 @@ than written. The manifest records the rejection count.
 
 ### Rendering a frame
 
-1. Warp the background's colour and depth by its homography.
-2. Sort objects by the centre of their disparity interval **for this frame**, far to near.
-3. For each, in that order: warp its colour and depth, stretch its depth into its interval for
+1. Warp the background's color and depth by its homography.
+2. Sort objects by the center of their disparity interval **for this frame**, far to near.
+3. For each, in that order: warp its color and depth, stretch its depth into its interval for
    this frame, alpha-composite it onto the canvas, and record its mask separately.
 4. Write the three streams.
 
@@ -216,7 +216,7 @@ why.
 ## How the stages connect
 
 Stage B never calls the depth model. It reads the library's precomputed maps and warps them
-with the same homography as the colour. Three things follow:
+with the same homography as the color. Three things follow:
 
 - **Depth stays aligned with the object** as it pans, rotates and scales, because both go
   through the same transform.

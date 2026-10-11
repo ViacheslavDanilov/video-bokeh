@@ -5,10 +5,10 @@ tags: [how-to, demo, colormap, multi-object, runbook]
 related: [cli, dataset-layout, generate-a-dataset, demo-unrestricted-trajectories]
 ---
 
-# Demo: four and five objects, colour disparity, multi-page alpha
+# Demo: four and five objects, color disparity, multi-page alpha
 
 This pipeline generates sequences with four and five objects, renders disparity as a red-near,
-blue-far colour video instead of grey, and stores alpha as one TIFF page per object. This
+blue-far color video instead of gray, and stores alpha as one TIFF page per object. This
 recipe reproduces all three from a clean checkout, with every artifact written under
 `backend/data/demo/`, gitignored (`backend/data/*/`) so nothing generated here gets committed.
 
@@ -161,12 +161,12 @@ last frame of a clip.
 
 ## 5. Watch the videos
 
-`disparity.mp4` is genuinely colour, not a grey ramp with a palette applied at display time: on
+`disparity.mp4` is genuinely color, not a gray ramp with a palette applied at display time: on
 a sampled frame the red and blue channels differ by up to 180 out of 255, with a mean channel
 gap of 79.5 across the frame. The background reads deep blue-violet (far) and foreground
 subjects read orange to red (near), matching `Spectral_r` reversed so red is near.
 
-Motion through depth shows up as a colour change, not a still image. On sequence `0002` (5
+Motion through depth shows up as a color change, not a still image. On sequence `0002` (5
 objects), the mean disparity under each object's own alpha mask across all 80 frames moves by:
 
 | object | disparity at frame 1 | disparity at frame 80 | range over the clip |
@@ -200,7 +200,7 @@ max R-B gap: 180 / 255, mean R-B gap: 79.5 / 255
 ```
 
 Object 0 alone crosses three-quarters of the disparity range, which reads on screen as that
-object sliding from teal-green at the start of the clip to deep red by the end: the colour
+object sliding from teal-green at the start of the clip to deep red by the end: the color
 carries the depth motion, so a viewer sees the object approach without needing the alpha or
 depth streams open next to it.
 

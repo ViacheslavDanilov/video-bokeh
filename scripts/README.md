@@ -129,7 +129,7 @@ Composite next to depth — the standard post-render sanity check. Quote the glo
 cd backend/data/demo/sequences && vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 ```
 
-An object that grows on screen must get brighter in the disparity pane. Disparity is raw 16-bit greyscale on disk, so `vpv` shows it grey; the `Spectral_r` colouring lives in the packed MP4s and in the API's video endpoint.
+An object that grows on screen must get brighter in the disparity pane. Disparity is raw 16-bit grayscale on disk, so `vpv` shows it gray; the `Spectral_r` coloring lives in the packed MP4s and in the API's video endpoint.
 
 **There is no alpha pane.** Alpha is a multi-page TIFF with one page per object, and `vpv` renders only a TIFF's first page, so it would show object 0 and silently hide the rest. Read alpha with `video_bokeh.core._streams.read_alpha_tiff` instead. The layout is in `docs/reference/dataset-layout.md`.
 

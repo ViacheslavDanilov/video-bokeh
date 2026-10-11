@@ -164,7 +164,7 @@ Always: head SHA, title, author, existing threads, and which of them are already
 Then per depth: comments only / delta diff and files / full diff at HEAD.
 
 Read the `AGENTS.md` of every directory this pass touches — root, `backend/`, `frontend/` —
-and `docs/reference/` for anything behavioural.
+and `docs/reference/` for anything behavioral.
 
 ## 5. Context brief — internal only, required
 
@@ -270,7 +270,7 @@ force-push, so ask the user first, per root `AGENTS.md` rules 3 and 5.
 
 ## 8. QA pass
 
-After the lenses, on **delta** and **full**, whenever the PR changes observable behaviour.
+After the lenses, on **delta** and **full**, whenever the PR changes observable behavior.
 Skip for docs-only, test-only or config-only diffs.
 
 | PR author | Skill | Why |
@@ -322,7 +322,7 @@ Score each candidate 0–100. **Publish only ≥ 80.** A rules finding needs an 
 an `AGENTS.md` or a reference doc.
 
 0 — false positive or pre-existing · 25 — stylistic with no rule behind it · 50 — real but
-minor · 75 — likely real, matters for behaviour or a rule · 100 — certain, direct evidence.
+minor · 75 — likely real, matters for behavior or a rule · 100 — certain, direct evidence.
 
 Drop pre-existing issues, nitpicks, CI noise, untouched lines and intentional in-scope work.
 Dedupe against your prior reviews on this PR.

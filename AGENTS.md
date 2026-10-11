@@ -133,7 +133,7 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 
 ## Working principles
 
-Adapted from [Andrej Karpathy's observations on LLM coding pitfalls](https://github.com/multica-ai/andrej-karpathy-skills) (MIT licensed). These bias toward caution over speed — for trivial tasks, use judgement.
+Adapted from [Andrej Karpathy's observations on LLM coding pitfalls](https://github.com/multica-ai/andrej-karpathy-skills) (MIT licensed). These bias toward caution over speed — for trivial tasks, use judgment.
 
 ### 1. Think before coding
 

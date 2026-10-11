@@ -51,12 +51,12 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 
 **What to look for.** Scrub the clip and watch both panes together.
 
-- An object's grey level tracks its size. As it grows, it brightens; as it shrinks, it darkens.
+- An object's gray level tracks its size. As it grows, it brightens; as it shrinks, it darkens.
 - **The direction is the entire point.** An object that grows on screen while its patch gets
   *darker* means the depth-scale law inverted, and everything downstream is wrong. The law is
   `ratio = scale_end / scale_start`; [[pipeline-explainer]] explains why the reciprocal, which
   the research spec writes, is the error.
-- An object approaching also spreads over a *wider* band of grey, because its whole disparity
+- An object approaching also spreads over a *wider* band of gray, because its whole disparity
   interval scales with it. That is correct, not a bug.
 
 ---
