@@ -29,7 +29,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 PREDICTIONS = ROOT / "backend" / "data" / "magick" / "predictions.csv"
-ATTACH_DIR = ROOT / "vault" / "attachments" / "2026-05-20-magick-distribution"
+ATTACH_DIR = ROOT / "docs" / "attachments" / "2026-05-20-magick-distribution"
 ATTACH_DIR.mkdir(parents=True, exist_ok=True)
 
 SUBJECT_CLASSES = ["person", "animal", "plant", "food", "object", "text", "effect"]
