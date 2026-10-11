@@ -374,17 +374,18 @@ async function watchBar(page: Page) {
       const card = progress.closest("section")!.getBoundingClientRect();
       bar.fits.push(
         // Not the spinner: it turns, and a turned square's box pokes out of its own.
-        [progress, ...progress.querySelectorAll("*:not(svg, svg *)")].every(
-          (child) => {
-            const bounds = child.getBoundingClientRect();
-            return (
-              bounds.left >= card.left - 0.5 &&
-              bounds.right <= card.right + 0.5 &&
-              bounds.top >= card.top - 0.5 &&
-              bounds.bottom <= card.bottom + 0.5
-            );
-          },
-        ),
+        [
+          progress,
+          ...progress.querySelectorAll("*:not(.animate-spin, .animate-spin *)"),
+        ].every((child) => {
+          const bounds = child.getBoundingClientRect();
+          return (
+            bounds.left >= card.left - 0.5 &&
+            bounds.right <= card.right + 0.5 &&
+            bounds.top >= card.top - 0.5 &&
+            bounds.bottom <= card.bottom + 0.5
+          );
+        }),
       );
       if (Number(value) === 100 && !bar.fullAt) {
         bar.fullAt = performance.now();
