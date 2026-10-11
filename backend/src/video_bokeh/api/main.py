@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import queue
+import re
 import tempfile
 import threading
 from collections.abc import Callable, Iterator
@@ -293,11 +294,18 @@ def create_sequence(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+#: A quality of zero, "not acceptable", in any of the spellings RFC 9110 allows for it.
+_ZERO_QUALITY = re.compile(r"q=0(\.0{0,3})?")
+
+
 def _accepts(accept: str, media_type: str) -> bool:
-    """Whether an ``Accept`` header names ``media_type``, other than at ``q=0``."""
-    for item in accept.split(","):
+    """Whether an ``Accept`` header names ``media_type``, other than at a zero quality.
+
+    Media types and parameter names are case-insensitive, and ``q=0.0`` is ``q=0``.
+    """
+    for item in accept.lower().split(","):
         name, *params = (part.strip() for part in item.split(";"))
-        if name == media_type and "q=0" not in params:
+        if name == media_type and not any(_ZERO_QUALITY.fullmatch(p) for p in params):
             return True
     return False
 

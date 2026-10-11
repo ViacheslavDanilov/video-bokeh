@@ -746,8 +746,27 @@ def test_a_cached_sequence_without_flow_streams_adding_it(
 
 @pytest.mark.parametrize(
     "accept",
-    ["application/x-ndjson;q=0", "application/json", "*/*", ""],
+    [
+        "application/x-ndjson;q=0",
+        "application/x-ndjson; q=0.0",
+        "application/x-ndjson;Q=0.000",
+        "application/json",
+        "*/*",
+        "",
+    ],
 )
 def test_only_an_accepted_ndjson_is_streamed(client: TestClient, accept: str) -> None:
     response = client.post("/sequences", json=SEQUENCE_BODY, headers={"accept": accept})
     assert response.headers["content-type"] == "application/json"
+
+
+@pytest.mark.parametrize(
+    "accept",
+    ["Application/X-NDJSON", "application/json, application/x-ndjson;q=0.5"],
+)
+def test_ndjson_is_streamed_in_any_case_and_at_any_quality(
+    client: TestClient,
+    accept: str,
+) -> None:
+    response = client.post("/sequences", json=SEQUENCE_BODY, headers={"accept": accept})
+    assert response.headers["content-type"].startswith("application/x-ndjson")
