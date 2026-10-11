@@ -318,8 +318,8 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 └── disparity.grey.mp4      written if `grey` is ever asked for
 ```
 
-The three stream directories are the layout in [[dataset-layout]], without the dataset's
-`sequences/<seq-id>/` level around them: the API serves one sequence, not a dataset.
+The three stream directories are the layout in [dataset-layout](dataset-layout.md), without the
+dataset's `sequences/<seq-id>/` level around them: the API serves one sequence, not a dataset.
 
 A sequence appears atomically. Generation writes to a temporary directory beside the destination
 and renames it into place, so a sequence on disk is either absent or complete, and a crashed or
@@ -329,11 +329,11 @@ concurrent generation leaves nothing half-written behind.
 
 Deliberate, and worth knowing before the library or the audience grows.
 
-**Nothing evicts `sequences/`.** It grows until someone deletes it. A sequence of 80 frames at 512
-is about 44 MB, so a thousand of them is about 43 GB. Deleting the directory is safe: every
+**Nothing evicts `sequences/`.** It grows until someone deletes it. A sequence of 80 frames at
+512 is about 44 MB, so a thousand of them is about 43 GB. Deleting the directory is safe: every
 sequence is reproducible from its library, its seed and the settings its request named, which
-`sequence.json` records. That is the same reason [[dataset-layout]] treats frames as
-disposable and the library as the thing to keep.
+`sequence.json` records. That is the same reason [dataset-layout](dataset-layout.md) treats
+frames as disposable and the library as the thing to keep.
 
 **The libraries are re-read on every request.** Per library, two directory listings, one small
 JSON and one image header, so that `/libraries` and `/sequences` always reflect what is mounted

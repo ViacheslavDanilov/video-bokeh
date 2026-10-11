@@ -21,6 +21,9 @@ Plain, direct prose. The vault is read by Pablo and Valery as well as Slava — 
 10. **A command lives in exactly one file.** Everything else links to it. The same command in three places is three chances to rot, and when the copies disagree nobody can tell which is right.
 11. **Avoid Latin and math notation in prose** (`i.e.`, `e.g.`, `≲`, `∈`) unless it's strictly more compact and the audience expects it. Prefer "about," "for example," "in."
 12. **American English.** "Color," "center," "behavior," "gray," "-ize." Root `AGENTS.md`, section **Language**, has the exceptions.
+13. **Relative Markdown links in tracked pages.** GitHub renders them and Obsidian follows them.
+    Check target files and heading anchors. Gitignored notes may keep wikilinks. `README.md`,
+    section **Links**, has the convention.
 
 ## Where this applies
 
@@ -37,4 +40,5 @@ Plain, direct prose. The vault is read by Pablo and Valery as well as Slava — 
 
 ## Reference
 
-[[reports/2026-05-20-dataset-pipeline-update]] is the calibration sample. If a new doc reads less clearly than that one, revise.
+The local-only report `reports/2026-05-20-dataset-pipeline-update.md` is the calibration sample.
+If a new doc reads less clearly than that one, revise.

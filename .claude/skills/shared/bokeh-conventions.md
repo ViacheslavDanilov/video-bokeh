@@ -11,7 +11,7 @@ its rules here would only let the two drift apart.
 | Commits, pull requests, authorship, git workflow, verification table | root `AGENTS.md` |
 | Python, uv, ruff, ty, pytest, submodules | `backend/AGENTS.md` |
 | Next.js, pnpm, eslint, prettier | `frontend/AGENTS.md` |
-| Vault layout, naming, wikilinks, workflow | `docs/README.md` |
+| Vault layout, naming, links, workflow | `docs/README.md` |
 | Prose style for anything under `docs/` | `docs/STYLE.md` |
 | The lifecycle as a picture, and how to drive it | `docs/how-to/agent-lifecycle.md` |
 
@@ -84,6 +84,10 @@ work this out on its own:
 | `docs/explanation/` | why the pipeline works the way it does |
 | `docs/how-to/` | runbooks — every command in one has to be a command someone ran |
 | `docs/reference/` | the on-disk contract and other lookup tables |
+
+Both passes must follow `docs/README.md`, section **Links**: tracked pages use relative
+Markdown links, with existing target files and GitHub heading anchors. Preserve aliases as
+link text. Gitignored meeting notes and specs may keep wikilinks.
 
 Four adaptations this repo needs, none of which the stock skill knows:
 

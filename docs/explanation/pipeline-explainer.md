@@ -10,8 +10,8 @@ related: [dataset-layout, generate-a-dataset, datasets, cli, loader]
 A plain-language walkthrough of the three stages that make the synthetic data and its bokeh:
 what each stage computes and why it is built this way.
 
-No commands here. To run it, see [[generate-a-dataset]]. For what it writes, see
-[[dataset-layout]].
+No commands here. To run it, see [generate-a-dataset](../how-to/generate-a-dataset.md). For what
+it writes, see [dataset-layout](../reference/dataset-layout.md).
 
 ---
 
@@ -38,10 +38,11 @@ flowchart LR
 ```
 
 - **Stages A and C take their model from a flag.** Stage A takes a depth estimator, Stage C a
-  bokeh renderer, and either can be a class of your own. [[cli]] lists both.
+  bokeh renderer, and either can be a class of your own. [cli](../reference/cli.md) lists both.
 - **The stages meet only through the files on disk.** That is what lets a model that cannot
-  share our Python environment run in one of its own. [[0001-on-disk-formats-join-the-stages]]
-  records why.
+  share our Python environment run in one of its own.
+  [0001-on-disk-formats-join-the-stages](../adr/0001-on-disk-formats-join-the-stages.md) records
+  why.
 - **Cost rises at both ends.** Stage A runs a neural depth estimator and Stage B never does.
   Stage C runs either any-to-bokeh, a diffusion model that needs an NVIDIA card, or our
   layer-wise renderer, which runs on any machine.
@@ -184,8 +185,9 @@ can be partly transparent at the same pixel.
 frame was composited from: the whole background, each whole object with its own disparity, and
 the paint order. A layer-wise bokeh renderer needs exactly this, because the composite no longer
 holds what a blurred object in front would let through.
-[[0002-layers-are-stored-not-regenerated]] records why they are stored rather than regenerated,
-and [[layered-bokeh]] explains the renderer that reads them.
+[0002-layers-are-stored-not-regenerated](../adr/0002-layers-are-stored-not-regenerated.md)
+records why they are stored rather than regenerated, and [layered-bokeh](layered-bokeh.md)
+explains the renderer that reads them.
 
 ---
 
@@ -197,19 +199,21 @@ have recorded: the `bokeh` stream, one frame for every `all_in_focus` frame.
 any-to-bokeh is the first renderer. It is a diffusion model with its own Python environment, so
 Stage C runs it as a separate program and reads its result back. By default the focus follows
 one object per sequence, drawn with odds in proportion to its area, so one object is sharp and
-the others blur by how far they are from it in depth. Stage C first ran end to
-end on 2026-10-07, on an RTX 5090, and [[run-any-to-bokeh-inference]] says where it stands.
+the others blur by how far they are from it in depth. Stage C first ran end to end on
+2026-10-07, on an RTX 5090, and
+[run-any-to-bokeh-inference](../how-to/run-any-to-bokeh-inference.md) says where it stands.
 
 The layer-wise renderer is the second, and the one the dataset's bokeh comes from. It blurs
 each layer of a frame on its own and stacks them again, so a blurred object in front thins out
 at its edges and shows what is behind it. It runs in our own process, on a CPU or a GPU, and
-focuses the way any-to-bokeh does. [[layered-bokeh]] explains it.
+focuses the way any-to-bokeh does. [layered-bokeh](layered-bokeh.md) explains it.
 
 **Bokeh is rendered end to end.** Stage B renders a sequence's bokeh in the same run as its
-frames, from the layers it holds in memory: `scenes.generate --bokeh` for a dataset, the API
-for the demo, the loader for training. Stage C still renders over sequences already written,
-for any-to-bokeh and for a new strength. [[0003-bokeh-is-rendered-in-the-same-pass]] records
-why.
+frames, from the layers it holds in memory: `scenes.generate --bokeh` for a dataset, the API for
+the demo, the loader for training. Stage C still renders over sequences already written, for
+any-to-bokeh and for a new strength.
+[0003-bokeh-is-rendered-in-the-same-pass](../adr/0003-bokeh-is-rendered-in-the-same-pass.md)
+records why.
 
 ---
 
@@ -229,17 +233,21 @@ A sequence is also reproducible. Sampling is deterministic, so the library, the 
 run's settings — frame count, size, the object range and the sampling configuration —
 regenerate it exactly. The manifest records the seed, the frame count and the size.
 
-**Stage B also runs inside training.** The sequence stream, [[loader]], calls the same Stage B
-for every item a training loop asks for and writes nothing. A model can then train on as many
-sequences as it likes, from the same distribution as the written dataset.
+**Stage B also runs inside training.** The sequence stream, [loader](../reference/loader.md),
+calls the same Stage B for every item a training loop asks for and writes nothing. A model can
+then train on as many sequences as it likes, from the same distribution as the written dataset.
 
 ---
 
 ## Related
 
-- [[dataset-layout]] — the on-disk contract, with formats and bit depths
-- [[generate-a-dataset]] — how to run Stages A, B and C
-- [[run-any-to-bokeh-inference]] — how to run any-to-bokeh, for comparison
-- [[loader]] — the sequence stream, for training on the fly
-- [[demo-unrestricted-trajectories]] — how to judge the result by eye
-- [[meetings/2026-06-26-unrestricted-pipeline-algorithm]] — where the unrestricted design was agreed
+- [dataset-layout](../reference/dataset-layout.md) — the on-disk contract, with formats and bit
+  depths
+- [generate-a-dataset](../how-to/generate-a-dataset.md) — how to run Stages A, B and C
+- [run-any-to-bokeh-inference](../how-to/run-any-to-bokeh-inference.md) — how to run
+  any-to-bokeh, for comparison
+- [loader](../reference/loader.md) — the sequence stream, for training on the fly
+- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) — how to judge
+  the result by eye
+- Local-only note `meetings/2026-06-26-unrestricted-pipeline-algorithm.md` — where the
+  unrestricted design was agreed

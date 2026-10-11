@@ -20,14 +20,14 @@ The full mirror uses the same layout, so Stage A can read either pool.
 
 The tracked development pool holds 30 foregrounds.
 The full-set metadata and CLIP predictions are tracked too, while the full image mirror
-stays local. Acquisition recipes are in [[generate-a-dataset]].
+stays local. Acquisition recipes are in [generate-a-dataset](../how-to/generate-a-dataset.md).
 
 ## Filtering for Stage A
 
 Stage A selects assets using the stored CLIP subject and style scores.
 The default filter keeps the subjects person, animal, plant, food, and object, in the styles
 photo and render. It keeps 17 of the 30 development foregrounds.
-The flags and thresholds are in [[cli]].
+The flags and thresholds are in [cli](../reference/cli.md).
 
 `scripts/analyze_magick_distribution.py` reads the full-set predictions and plots how many
 assets survive each threshold. Its plots and `summary.json` go to
@@ -35,9 +35,9 @@ assets survive each threshold. Its plots and `summary.json` go to
 
 ## Alpha in our pipeline
 
-The source image's alpha channel is the foreground matte throughout the pipeline.
-Stage A stores it with the asset. Stage B transforms it with the object and writes one TIFF
-page per object in each frame. [[dataset-layout]] describes the output formats.
+The source image's alpha channel is the foreground matte throughout the pipeline. Stage A stores
+it with the asset. Stage B transforms it with the object and writes one TIFF page per object in
+each frame. [dataset-layout](../reference/dataset-layout.md) describes the output formats.
 
 ## Upstream references
 

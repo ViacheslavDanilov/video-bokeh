@@ -24,14 +24,14 @@ on an RTX 5090 on 2026-10-07.
 2. `scripts/setup_third_party.sh` checks out any-to-bokeh, builds its Python 3.10 venv and
    downloads its checkpoints and the Stable Video Diffusion base model, 4.2 GiB of fp16
    weights by the Hub's metadata on 2026-10-02. It needs an NVIDIA card, and ran on an RTX 5090.
-   [[run-any-to-bokeh-inference]] has the details.
+   [run-any-to-bokeh-inference](run-any-to-bokeh-inference.md) has the details.
 3. `make images` builds the models' Docker images: `video-bokeh-a2b`, `video-bokeh-da3`,
    `video-bokeh-da2` and `video-bokeh-depth-pro`, 8 to 12 GB each, with no weights in them. It
    needs Docker with the NVIDIA Container Toolkit, and ran on the RTX 5090.
 4. On a machine without Docker's NVIDIA runtime, such as the Mac,
-   `scripts/setup_depth_anything_3.sh` builds the venv
-   the `da3-*` depth estimators run in instead. Run here. [[cli]], section "Depth Anything 3's
-   own environment", says what it leaves out.
+   `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in
+   instead. Run here. [cli](../reference/cli.md), section "Depth Anything 3's own environment",
+   says what it leaves out.
 5. `uv run --directory backend --extra library python -m video_bokeh.library.check` says
    whether each depth estimator can run on the machine, without downloading anything. Run
    here.

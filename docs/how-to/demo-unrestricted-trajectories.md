@@ -15,16 +15,18 @@ disparity moves *with* its apparent size. An object that grows on screen must ge
 the disparity stream, and two objects that cross must swap which one is drawn in front.
 
 Commands run from `backend/` unless stated. Output lands in `backend/data/`, which is
-gitignored. To produce a dataset in the first place, see [[generate-a-dataset]].
+gitignored. To produce a dataset in the first place, see
+[generate-a-dataset](generate-a-dataset.md).
 
 ---
 
 ## Before you start
 
-You need the artifact library at `backend/data/library/da2-large/`, holding `foregrounds/`
-and `backgrounds/`. `make libraries` leaves it there, and Stage A in [[generate-a-dataset]]
-builds it alone. Built from the pools as of 2026-10-01 it holds 17 foregrounds and 30
-backgrounds, and 30 and 30 with the class filter off; either is enough for every recipe here.
+You need the artifact library at `backend/data/library/da2-large/`, holding `foregrounds/` and
+`backgrounds/`. `make libraries` leaves it there, and Stage A in
+[generate-a-dataset](generate-a-dataset.md) builds it alone. Built from the pools as of
+2026-10-01 it holds 17 foregrounds and 30 backgrounds, and 30 and 30 with the class filter off;
+either is enough for every recipe here.
 
 ---
 
@@ -47,8 +49,8 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 - An object's gray level tracks its size. As it grows, it brightens; as it shrinks, it darkens.
 - **The direction is the entire point.** An object that grows on screen while its patch gets
   *darker* means the depth-scale law inverted, and everything downstream is wrong. The law is
-  `ratio = scale_end / scale_start`; [[pipeline-explainer]] explains why the reciprocal, which
-  the research spec writes, is the error.
+  `ratio = scale_end / scale_start`; [pipeline-explainer](../explanation/pipeline-explainer.md)
+  explains why the reciprocal, which the research spec writes, is the error.
 - An object approaching also spreads over a *wider* band of gray, because its whole disparity
   interval scales with it. That is correct, not a bug.
 
@@ -135,7 +137,7 @@ column -s, -t < data/demo/manifest.csv
 | `n_rejections` | trajectory sets discarded because two objects collided. Rises with object count |
 | `n_range_fallbacks` | objects whose end pose could not be sampled within the retry budget and fell back to holding their start scale. Expect `0`; anything else means the depth axis is unusually tight, which needs `bg_band_top` raised through the Python API, since the CLI does not expose it |
 
-Every column: [[dataset-layout]].
+Every column: [dataset-layout](../reference/dataset-layout.md).
 
 ---
 
@@ -146,7 +148,7 @@ cd backend
 uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
 ```
 
-See [[run-any-to-bokeh-inference]].
+See [run-any-to-bokeh-inference](run-any-to-bokeh-inference.md).
 
 ---
 

@@ -190,7 +190,7 @@ The command exits 1 when any estimator it checked is not `ready`, or failed to m
 
 ## `video_bokeh.scenes.generate` — Stage B
 
-Samples scenes from the library and writes the sequence tree in [[dataset-layout]].
+Samples scenes from the library and writes the sequence tree in [dataset-layout](dataset-layout.md).
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -201,9 +201,9 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 | `--size` | int | `1024` | square frame side |
 | `--seed` | int | `0` | sequence `i` is seeded from `seed + i` |
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
-| `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [[dataset-layout]] |
-| `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [[dataset-layout]] |
-| `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [[dataset-layout]] |
+| `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [dataset-layout](dataset-layout.md) |
+| `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [dataset-layout](dataset-layout.md) |
+| `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [dataset-layout](dataset-layout.md) |
 | `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
 | `--bokeh-strength` | float | `16` | the bokeh's strength, as any-to-bokeh's `k` |
 
@@ -212,10 +212,11 @@ Samples scenes from the library and writes the sequence tree in [[dataset-layout
 ## `video_bokeh.render.run` — Stage C
 
 Renders bokeh for written sequences and writes each one's `bokeh/` stream, as
-[[dataset-layout]] describes. It needs the `render` extra. The layered renderer is the default,
-and [[generate-a-dataset]] has its command. any-to-bokeh is there for comparison, and
-[[run-any-to-bokeh-inference]] has its command. It first ran to completion on an RTX 5090 on
-2026-10-07.
+[dataset-layout](dataset-layout.md) describes. It needs the `render` extra. The layered renderer
+is the default, and [generate-a-dataset](../how-to/generate-a-dataset.md) has its command.
+any-to-bokeh is there for comparison, and
+[run-any-to-bokeh-inference](../how-to/run-any-to-bokeh-inference.md) has its command. It first
+ran to completion on an RTX 5090 on 2026-10-07.
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -258,14 +259,14 @@ trailing frames of a sequence that makes exactly two groups, nine to twelve fram
 sequence would fail the whole batch after the model has loaded, so the renderer refuses the
 whole batch before it starts and names each short sequence.
 
-**`layered` is the layer-wise renderer** that [[layered-bokeh]] explains. It reads `layers/`,
-`alpha/` and `disparity/` and writes `bokeh/` losslessly. It refuses the whole batch, before
-rendering any, when a sequence has no complete `layers/`. It runs on the CPU unless
-`VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the CPU when that device is
-not there. On the lab machine on 2026-10-10, an 80-frame sequence at 512 pixels took 13 s on
-its 24 CPU cores and 6 s on the RTX 5090, where any-to-bokeh takes 88 s on the same card. At
-1024 pixels it took 40 s and 20 s. Most of the time on the GPU is reading the layers and
-writing the PNGs.
+**`layered` is the layer-wise renderer** that [layered-bokeh](../explanation/layered-bokeh.md)
+explains. It reads `layers/`, `alpha/` and `disparity/` and writes `bokeh/` losslessly. It
+refuses the whole batch, before rendering any, when a sequence has no complete `layers/`. It
+runs on the CPU unless `VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the
+CPU when that device is not there. On the lab machine on 2026-10-10, an 80-frame sequence at 512
+pixels took 13 s on its 24 CPU cores and 6 s on the RTX 5090, where any-to-bokeh takes 88 s on
+the same card. At 1024 pixels it took 40 s and 20 s. Most of the time on the GPU is reading the
+layers and writing the PNGs.
 
 ### Your own renderer
 
@@ -298,8 +299,8 @@ named like the `all_in_focus` frames. The interface is
 | `--seqs` | list | all | comma-separated sequence ids |
 | `--colormap` | str | `spectral_r` | `spectral_r`, `grey` |
 
-Disparity is a uint16 PNG, not RGB (see [[dataset-layout]]), so it is packed through
-`--colormap` rather than through the `Image.convert` path the other streams use.
+Disparity is a uint16 PNG, not RGB (see [dataset-layout](dataset-layout.md)), so it is packed
+through `--colormap` rather than through the `Image.convert` path the other streams use.
 
 Flow is KITTI's 16-bit PNG, one per frame but the last, so `--streams flow` colors it the
 way optical-flow papers do: the hue is the direction, the saturation the speed, and white is
@@ -311,7 +312,9 @@ different `--colormap` overwrites the previous `disparity.mp4` rather than writi
 
 ## `video_bokeh.loader.example` — a training loop on the sequence stream
 
-Needs the `loader` extra. [[train-on-the-sequence-stream]] runs it and reads its source.
+Needs the `loader` extra.
+[train-on-the-sequence-stream](../how-to/train-on-the-sequence-stream.md) runs it and reads its
+source.
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -330,5 +333,5 @@ Needs the `loader` extra. [[train-on-the-sequence-stream]] runs it and reads its
 
 ## Related
 
-- [[dataset-layout]] — what these commands write
-- [[generate-a-dataset]] — the recipes that use them
+- [dataset-layout](dataset-layout.md) — what these commands write
+- [generate-a-dataset](../how-to/generate-a-dataset.md) — the recipes that use them

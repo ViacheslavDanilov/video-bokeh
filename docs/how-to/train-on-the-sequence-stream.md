@@ -9,14 +9,15 @@ related: [loader, layered-bokeh]
 
 The sequence stream generates a new sequence for every item a training loop asks for, with its
 bokeh if asked, and writes nothing to disk. This page runs a small training loop on it end to
-end. [[loader]] describes every stream and option.
+end. [loader](../reference/loader.md) describes every stream and option.
 
 ## 1. Install
 
-The stream needs torch. Install the `loader` extra as [[loader]] says.
+The stream needs torch. Install the `loader` extra as [loader](../reference/loader.md) says.
 
 It also needs a library. The example reads `data/library/da2-large`, which `make libraries`
-builds from the development pools a clone carries, or Stage A alone in [[generate-a-dataset]].
+builds from the development pools a clone carries, or Stage A alone in
+[generate-a-dataset](generate-a-dataset.md).
 
 ## 2. Run the example
 
@@ -40,17 +41,17 @@ Read its source as a template for your own loop:
   network.
 - **It turns a batch of sequences into a batch of frames** with `flatten(0, 1)`, because the
   network is per frame.
-- **Its loop runs inside `main()` behind `if __name__ == "__main__"`**, which [[loader]] says a
-  script needs.
+- **Its loop runs inside `main()` behind `if __name__ == "__main__"`**, which
+  [loader](../reference/loader.md) says a script needs.
 - **It leaves the stream's `seed` at 0.** The seed picks the sequences. Give every rank of a
-  distributed run its own, far apart, as [[loader]] explains.
+  distributed run its own, far apart, as [loader](../reference/loader.md) explains.
 
 ## 3. When the workers cannot keep up
 
 **Bokeh rendered in the workers is the simple path, and the slow one.** On the lab machine it
 tops out near 0.9 items per second at 512 pixels and 24 frames, however many workers render it.
-[[loader]] has the measurements.
+[loader](../reference/loader.md) has the measurements.
 
 At that rate a batch of 4 takes about 4.5 s to arrive. A training step shorter than that waits
 for the loader. Then ask the workers for the layers instead of the bokeh, and render each batch
-on the GPU with `batch_bokeh`. [[loader]] has the recipe and what it costs.
+on the GPU with `batch_bokeh`. [loader](../reference/loader.md) has the recipe and what it costs.

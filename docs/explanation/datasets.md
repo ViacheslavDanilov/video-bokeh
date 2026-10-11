@@ -13,10 +13,10 @@ downloading source images.
 
 ## Foregrounds
 
-[[magick]] provides isolated objects with alpha channels.
+[magick](magick.md) provides isolated objects with alpha channels.
 `video_bokeh.acquire.magick` fetches images from
 [OneOverZero/MAGICK on Hugging Face](https://huggingface.co/datasets/OneOverZero/MAGICK).
-See [[magick]] for the development pool size and Stage A's filter result.
+See [magick](magick.md) for the development pool size and Stage A's filter result.
 
 ## Backgrounds
 
@@ -32,6 +32,8 @@ Stage A builds the artifact library from these pools.
 Stage B samples scenes and writes sequences. The layered renderer can produce bokeh during
 Stage B or run afterward as Stage C over saved layers.
 
-- [[generate-a-dataset]] has the acquisition, library, generation, and rendering recipes.
-- [[dataset-layout]] defines the files and formats each stage writes.
-- [[demo-unrestricted-trajectories]] explains how to check motion and depth by eye.
+- [generate-a-dataset](../how-to/generate-a-dataset.md) has the acquisition, library,
+  generation, and rendering recipes.
+- [dataset-layout](../reference/dataset-layout.md) defines the files and formats each stage writes.
+- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) explains how to
+  check motion and depth by eye.

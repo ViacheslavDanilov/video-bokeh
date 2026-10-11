@@ -195,7 +195,7 @@ Apply to this pass's scope, not the whole PR history.
 | **#2 Bugs** | real defects and regressions in scope, no nitpicks | built-in `/code-review` at a depth matching the pass |
 | **#3 Git history** | `git blame` and `git log` on scoped hunks — removed guards, reintroduced regressions | — |
 | **#4 Prior threads** | earlier comments on scoped files; never repeat a resolved item | — |
-| **#5 Docs style** | `docs/STYLE.md` for changes under `docs/explanation`, `how-to`, `reference` | — |
+| **#5 Docs style** | `docs/STYLE.md` for changes under `docs/explanation`, `how-to`, `reference`; check relative Markdown links and GitHub heading anchors in tracked pages per `docs/README.md` | — |
 | **#6 Docs drift** | public surface the PR changed that no page reflects — and pages that describe code this PR deleted | `document-release` on the PR's branch, analysis steps only |
 | **#7 Second model** | the same diff through a different model's eyes; its errors do not correlate with yours | `codex exec`, read-only — **whenever the pass touches a high-risk path** |
 
