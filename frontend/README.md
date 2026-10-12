@@ -64,8 +64,9 @@ without rebuilding.
   the page remembers it.
   "Add pane" adds a stream not on screen yet; once every stream is, it is disabled and reads
   "All streams shown". A repeat comes from switching an open pane's stream.
-- **Arrange** — drag a pane by the grip in its header onto another to take that place, or
-  focus the grip and press the left or right arrow; playback goes on in step.
+- **Arrange** — drag a pane by the grip in its header to a place between panes, where a
+  line shows where it will go, or focus the grip and press the left or right arrow;
+  playback goes on in step.
 
 **Optical flow comes with each sequence**, colored as optical-flow papers color it: the hue
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.
