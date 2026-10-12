@@ -810,16 +810,52 @@ test("places the insertion line beside the nearest row", async ({ page }) => {
   const y = start.y - 2;
   await page.mouse.move(x, y, { steps: 10 });
   await page.mouse.move(x, y);
-  await expect(indicator).toBeVisible();
-  const atStart = (await indicator.boundingBox())!;
-  expect(atStart.x + atStart.width / 2).toBe(start.x - 8);
-  expect(atStart.y).toBe(start.y);
-  expect(atStart.height).toBe(start.height);
+  // Still visible from the first row, so wait for the line to move rather than to show.
+  await expect
+    .poll(async () => {
+      const line = await indicator.boundingBox();
+      return line && [line.x + line.width / 2, line.y, line.height];
+    })
+    .toEqual([start.x - 8, start.y, start.height]);
   await page.mouse.up();
   await expect
     .poll(() => streamsInOrder(page))
     .toEqual(["All in focus", "Alpha", "Optical flow", "Disparity"]);
   await expect(indicator).toHaveCount(0);
+});
+
+/** A pane let go outside the grid stays where it was, and the drag leaves nothing behind. */
+test("keeps the order when a pane is dropped outside the grid", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 720 });
+  await openPage(page);
+  await generateSequence(page);
+  const figures = page.getByRole("figure");
+  const first = (await figures.first().boundingBox())!;
+  const dragged = figures.filter({
+    has: page.getByRole("button", { name: "Move Optical flow pane" }),
+  });
+  const indicator = page.getByTestId("pane-drop-indicator");
+  await startPaneDrag(page, "Optical flow");
+  await page.mouse.move(first.x + first.width / 4, first.y + 64, { steps: 10 });
+  await page.mouse.move(first.x + first.width / 4, first.y + 64);
+  await expect(indicator).toBeVisible();
+  // Up to the page's header, outside the grid, and let go there.
+  await page.mouse.move(first.x + first.width / 4, 20, { steps: 10 });
+  await page.mouse.move(first.x + first.width / 4, 20);
+  await expect(indicator).toBeHidden();
+  await page.mouse.up();
+  await expect(indicator).toHaveCount(0);
+  await expect
+    .poll(() => dragged.evaluate((el) => Number(getComputedStyle(el).opacity)))
+    .toBe(1);
+  expect(await streamsInOrder(page)).toEqual([
+    "All in focus",
+    "Alpha",
+    "Disparity",
+    "Optical flow",
+  ]);
 });
 
 /**
