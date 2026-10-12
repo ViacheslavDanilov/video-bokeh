@@ -69,6 +69,18 @@ function streamsInOrder(page: Page): Promise<string[]> {
   return page.getByRole("combobox", { name: "Stream" }).allInnerTexts();
 }
 
+/** Start a native grip drag without dropping, so its feedback can be checked. */
+async function startPaneDrag(page: Page, name: string) {
+  const grip = page.getByRole("button", { name: `Move ${name} pane` });
+  await grip.scrollIntoViewIfNeeded();
+  const box = (await grip.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 12, y, { steps: 5 });
+}
+
 /** Every stream's full label fits its value and the header stays within the pane. */
 async function expectFullStreamLabels(page: Page, labels: string[]) {
   const pickers = page.getByRole("combobox", { name: "Stream" });
@@ -617,8 +629,11 @@ test("stops the button, scale, and timer during the full bar hold", async ({
   ).toBeVisible();
 });
 
-/** A pane goes where it is dropped: dragged by its grip onto another, it takes that place. */
-test("moves a pane by dragging its grip onto another", async ({ page }) => {
+/** The outer halves offer the first and last places, regardless of drag direction. */
+test("moves a pane before the first pane and after the last", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 720 });
   await openPage(page);
   await generateSequence(page);
   expect(await streamsInOrder(page)).toEqual([
@@ -628,20 +643,183 @@ test("moves a pane by dragging its grip onto another", async ({ page }) => {
     "Optical flow",
   ]);
 
+  const first = page.getByRole("figure").first();
+  const firstBox = (await first.boundingBox())!;
   await page
     .getByRole("button", { name: "Move Optical flow pane" })
-    .dragTo(page.getByRole("figure").first());
+    .dragTo(first, { targetPosition: { x: firstBox.width / 4, y: 64 } });
   await expect
     .poll(() => streamsInOrder(page))
     .toEqual(["Optical flow", "All in focus", "Alpha", "Disparity"]);
 
-  // And rightwards: onto the last pane, it takes the last place.
+  const last = page.getByRole("figure").last();
+  const lastBox = (await last.boundingBox())!;
   await page
     .getByRole("button", { name: "Move Optical flow pane" })
-    .dragTo(page.getByRole("figure").last());
+    .dragTo(last, { targetPosition: { x: (lastBox.width * 3) / 4, y: 64 } });
   await expect
     .poll(() => streamsInOrder(page))
     .toEqual(["All in focus", "Alpha", "Disparity", "Optical flow"]);
+});
+
+/** A pane's halves mean before and after, even when the drag comes from the other side. */
+test("inserts on the chosen side regardless of drag direction", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 720 });
+  await openPage(page);
+  await generateSequence(page);
+  const figures = page.getByRole("figure");
+  const disparity = figures.nth(2);
+  const disparityBox = (await disparity.boundingBox())!;
+  await page
+    .getByRole("button", { name: "Move All in focus pane" })
+    .dragTo(disparity, {
+      targetPosition: { x: disparityBox.width / 4, y: 64 },
+    });
+  await expect
+    .poll(() => streamsInOrder(page))
+    .toEqual(["Alpha", "All in focus", "Disparity", "Optical flow"]);
+
+  const alpha = figures.first();
+  const alphaBox = (await alpha.boundingBox())!;
+  await page
+    .getByRole("button", { name: "Move Optical flow pane" })
+    .dragTo(alpha, {
+      targetPosition: { x: (alphaBox.width * 3) / 4, y: 64 },
+    });
+  await expect
+    .poll(() => streamsInOrder(page))
+    .toEqual(["Alpha", "Optical flow", "All in focus", "Disparity"]);
+});
+
+/** The space between figures offers the same insertion as their facing halves. */
+test("inserts a pane dropped in the gap between panes", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 720 });
+  await openPage(page);
+  await generateSequence(page);
+  const figures = page.getByRole("figure");
+  const left = (await figures.nth(1).boundingBox())!;
+  const right = (await figures.nth(2).boundingBox())!;
+  expect(left.y).toBe(right.y);
+  const x = (left.x + left.width + right.x) / 2;
+  const y = left.y + 64;
+  await startPaneDrag(page, "Optical flow");
+  await page.mouse.move(x, y, { steps: 10 });
+  await page.mouse.move(x, y);
+  await expect(page.getByTestId("pane-drop-indicator")).toBeVisible();
+  await page.mouse.up();
+  await expect
+    .poll(() => streamsInOrder(page))
+    .toEqual(["All in focus", "Alpha", "Optical flow", "Disparity"]);
+  await expect(page.getByTestId("pane-drop-indicator")).toHaveCount(0);
+  await expect(figures.nth(2)).toHaveCSS("opacity", "1");
+});
+
+/** The line marks where the pane would land, and the pane stays dimmed for the whole drag. */
+test("shows insertion feedback and clears it after a drop", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 720 });
+  await openPage(page);
+  await generateSequence(page);
+  const figures = page.getByRole("figure");
+  const left = (await figures.nth(1).boundingBox())!;
+  const right = (await figures.nth(2).boundingBox())!;
+  expect(left.y).toBe(right.y);
+  const own = (await figures.last().boundingBox())!;
+  const dragged = figures.filter({
+    has: page.getByRole("button", { name: "Move Optical flow pane" }),
+  });
+  const indicator = page.getByTestId("pane-drop-indicator");
+  const opacity = () =>
+    dragged.evaluate((el) => Number(getComputedStyle(el).opacity));
+  await startPaneDrag(page, "Optical flow");
+  await page.mouse.move(right.x + right.width / 4, right.y + 64, { steps: 10 });
+  await page.mouse.move(right.x + right.width / 4, right.y + 64);
+  await expect(indicator).toBeVisible();
+  const line = (await indicator.boundingBox())!;
+  expect(line.x + line.width / 2).toBeGreaterThan(left.x + left.width);
+  expect(line.x + line.width / 2).toBeLessThan(right.x);
+  expect(line.width).toBe(3);
+  expect(line.y).toBe(right.y);
+  expect(line.height).toBe(right.height);
+  await expect.poll(opacity).toBeLessThan(1);
+
+  await page.mouse.move(right.x + right.width / 4, right.y - 12, {
+    steps: 10,
+  });
+  await expect(indicator).toBeHidden();
+  await expect.poll(opacity).toBeLessThan(1);
+  await page.mouse.move(right.x + right.width / 4, right.y + 64, {
+    steps: 10,
+  });
+  await page.mouse.move(right.x + right.width / 4, right.y + 64);
+  await expect(indicator).toBeVisible();
+  await expect.poll(opacity).toBeLessThan(1);
+
+  for (const fraction of [0.25, 0.75]) {
+    await page.mouse.move(own.x + own.width * fraction, own.y + 64, {
+      steps: 10,
+    });
+    await page.mouse.move(own.x + own.width * fraction, own.y + 64);
+    await expect(indicator).toBeHidden();
+  }
+  await page.mouse.up();
+  await expect(indicator).toHaveCount(0);
+  await expect.poll(opacity).toBe(1);
+  expect(await streamsInOrder(page)).toEqual([
+    "All in focus",
+    "Alpha",
+    "Disparity",
+    "Optical flow",
+  ]);
+});
+
+/** A shared slot follows the row under the pointer, including the gap between rows. */
+test("places the insertion line beside the nearest row", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await openPage(page);
+  await generateSequence(page);
+  const figures = page.getByRole("figure");
+  await expect
+    .poll(async () => {
+      const boxes = await figures.evaluateAll((els) =>
+        els.map((el) => el.getBoundingClientRect().top),
+      );
+      return [
+        boxes[0] === boxes[1],
+        boxes[2] === boxes[3],
+        boxes[2] > boxes[0],
+      ];
+    })
+    .toEqual([true, true, true]);
+  const end = (await figures.nth(1).boundingBox())!;
+  const start = (await figures.nth(2).boundingBox())!;
+  const indicator = page.getByTestId("pane-drop-indicator");
+  await startPaneDrag(page, "Optical flow");
+  await page.mouse.move(end.x + end.width * 0.75, end.y + 64, { steps: 10 });
+  await page.mouse.move(end.x + end.width * 0.75, end.y + 64);
+  await expect(indicator).toBeVisible();
+  const atEnd = (await indicator.boundingBox())!;
+  expect(atEnd.x + atEnd.width / 2).toBe(end.x + end.width + 8);
+  expect(atEnd.y).toBe(end.y);
+  expect(atEnd.height).toBe(end.height);
+
+  const x = start.x + start.width / 4;
+  const y = start.y - 2;
+  await page.mouse.move(x, y, { steps: 10 });
+  await page.mouse.move(x, y);
+  await expect(indicator).toBeVisible();
+  const atStart = (await indicator.boundingBox())!;
+  expect(atStart.x + atStart.width / 2).toBe(start.x - 8);
+  expect(atStart.y).toBe(start.y);
+  expect(atStart.height).toBe(start.height);
+  await page.mouse.up();
+  await expect
+    .poll(() => streamsInOrder(page))
+    .toEqual(["All in focus", "Alpha", "Optical flow", "Disparity"]);
+  await expect(indicator).toHaveCount(0);
 });
 
 /**
