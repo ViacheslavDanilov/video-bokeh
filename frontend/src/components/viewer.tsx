@@ -24,8 +24,8 @@ import { SpectralScale } from "./spectral-scale";
 // what fits in a row the panes wrap rather than shrink; see `gridColumns`.
 const MAX_PANES = 6;
 
-// What a dragged pane carries, so that a pane drops only on another pane and nothing else
-// dropped on the page, such as a file, moves one.
+// What a dragged pane carries, so that nothing else dropped on the grid, such as a file,
+// moves a pane.
 const PANE_DRAG = "application/x-video-bokeh-pane";
 
 // How far an arrow key on a pane's grip moves the pane.
@@ -110,6 +110,47 @@ function gridColumns(panes: number, space: Space): string {
   return `repeat(${Math.ceil(panes / rows)}, minmax(0, 1fr))`;
 }
 
+/** A slot and its line stay on the nearest row, even in a gap or past a row's end. */
+function paneSlot(grid: HTMLDivElement, x: number, y: number) {
+  const rects = Array.from(
+    grid.querySelectorAll(":scope > figure"),
+    (el, index) => ({
+      rect: el.getBoundingClientRect(),
+      index,
+    }),
+  );
+  const nearestRow = rects.reduce((a, b) =>
+    Math.max(b.rect.top - y, y - b.rect.bottom, 0) <
+    Math.max(a.rect.top - y, y - a.rect.bottom, 0)
+      ? b
+      : a,
+  );
+  const row = rects.filter(({ rect }) => rect.top === nearestRow.rect.top);
+  const nearest = row.reduce((a, b) =>
+    Math.max(b.rect.left - x, x - b.rect.right, 0) <
+    Math.max(a.rect.left - x, x - a.rect.right, 0)
+      ? b
+      : a,
+  );
+  const after = x >= nearest.rect.left + nearest.rect.width / 2;
+  const slot = nearest.index + (after ? 1 : 0);
+  const beforePane = row.find(({ index }) => index === slot - 1);
+  const afterPane = row.find(({ index }) => index === slot);
+  const center =
+    beforePane && afterPane
+      ? (beforePane.rect.right + afterPane.rect.left) / 2
+      : afterPane
+        ? afterPane.rect.left - PANE_GAP_PX / 2
+        : beforePane!.rect.right + PANE_GAP_PX / 2;
+  const container = grid.getBoundingClientRect();
+  return {
+    slot,
+    left: center - container.left,
+    top: nearest.rect.top - container.top,
+    height: nearest.rect.height,
+  };
+}
+
 export function Viewer({
   sequence,
   library,
@@ -136,9 +177,13 @@ export function Viewer({
   const [speed, setSpeed] = useState(1);
 
   const videos = useRef(new Map<number, HTMLVideoElement>());
-  // The pane being dragged, and the one it would land on, outlined while it hovers.
+  // The pane being dragged: the ref for the drag handlers, the state to dim it for the whole
+  // drag, and where it would land, shown as a line while the pointer is over the grid.
   const dragged = useRef<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<number | null>(null);
+  const [draggedKey, setDraggedKey] = useState<number | null>(null);
+  const [dropSlot, setDropSlot] = useState<ReturnType<typeof paneSlot> | null>(
+    null,
+  );
   // Read inside onLoadedMetadata, which fires long after the render that set the
   // src, so state captured by closure would be stale.
   const timeRef = useRef(0);
@@ -409,10 +454,48 @@ export function Viewer({
 
       <div
         ref={observeGrid}
-        className="grid items-start"
+        className="relative grid items-start"
         style={{
           gap: PANE_GAP_PX,
           gridTemplateColumns: gridColumns(panes.length, space),
+        }}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes(PANE_DRAG)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          const from = panes.findIndex((p) => p.key === dragged.current);
+          const target = paneSlot(e.currentTarget, e.clientX, e.clientY);
+          const next =
+            from < 0 || target.slot === from || target.slot === from + 1
+              ? null
+              : target;
+          // dragover fires many times a second; render only when the line moves.
+          setDropSlot((was) =>
+            was &&
+            next &&
+            was.slot === next.slot &&
+            was.left === next.left &&
+            was.top === next.top &&
+            was.height === next.height
+              ? was
+              : next,
+          );
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+            setDropSlot(null);
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.types.includes(PANE_DRAG)) return;
+          e.preventDefault();
+          const key = Number(e.dataTransfer.getData(PANE_DRAG));
+          const from = panes.findIndex((p) => p.key === key);
+          const { slot } = paneSlot(e.currentTarget, e.clientX, e.clientY);
+          if (from >= 0 && slot !== from && slot !== from + 1)
+            movePane(key, slot > from ? slot - 1 : slot);
+          dragged.current = null;
+          setDraggedKey(null);
+          setDropSlot(null);
         }}
       >
         {panes.map((pane, index) => {
@@ -425,27 +508,8 @@ export function Viewer({
               key={pane.key}
               className={cn(
                 "flex min-w-0 flex-col gap-2 rounded-lg",
-                dropTarget === pane.key &&
-                  "ring-ring ring-offset-background ring-2 ring-offset-4",
+                draggedKey === pane.key && "opacity-50",
               )}
-              onDragOver={(e) => {
-                if (!e.dataTransfer.types.includes(PANE_DRAG)) return;
-                // Over itself a pane has nowhere to go.
-                if (dragged.current === pane.key) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                setDropTarget(pane.key);
-              }}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null))
-                  setDropTarget(null);
-              }}
-              onDrop={(e) => {
-                setDropTarget(null);
-                if (!e.dataTransfer.types.includes(PANE_DRAG)) return;
-                e.preventDefault();
-                movePane(Number(e.dataTransfer.getData(PANE_DRAG)), index);
-              }}
             >
               <figcaption className="flex items-center gap-2">
                 {panes.length > 1 && (
@@ -454,11 +518,12 @@ export function Viewer({
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Move ${label(stream)} pane`}
-                    title="Drag onto another pane, or press the left or right arrow, to move this pane"
+                    title="Drag between panes, or press the left or right arrow, to move this pane"
                     className="text-muted-foreground -ml-1.5 cursor-grab active:cursor-grabbing"
                     draggable
                     onDragStart={(e) => {
                       dragged.current = pane.key;
+                      setDraggedKey(pane.key);
                       e.dataTransfer.setData(PANE_DRAG, String(pane.key));
                       e.dataTransfer.effectAllowed = "move";
                       const figure = e.currentTarget.closest("figure");
@@ -466,7 +531,8 @@ export function Viewer({
                     }}
                     onDragEnd={() => {
                       dragged.current = null;
-                      setDropTarget(null);
+                      setDraggedKey(null);
+                      setDropSlot(null);
                     }}
                     onKeyDown={(e) => {
                       if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey)
@@ -588,6 +654,18 @@ export function Viewer({
             </figure>
           );
         })}
+        {dropSlot && (
+          <div
+            data-testid="pane-drop-indicator"
+            aria-hidden="true"
+            className="bg-ring pointer-events-none absolute w-[3px] -translate-x-1/2 rounded-full"
+            style={{
+              left: dropSlot.left,
+              top: dropSlot.top,
+              height: dropSlot.height,
+            }}
+          />
+        )}
       </div>
 
       {/* Wraps on a narrow screen, where Play and the speed would otherwise leave the
