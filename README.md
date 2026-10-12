@@ -19,8 +19,6 @@ Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.
 
 https://github.com/user-attachments/assets/135ca2ea-18dc-46fe-9a76-e041d825a3a7
 
-The video file is in [.assets](.assets).
-
 ## Features
 
 - **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity.
