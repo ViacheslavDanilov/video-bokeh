@@ -19,8 +19,7 @@ Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.
 
 https://github.com/user-attachments/assets/219ccd8c-5b5c-4e06-bfb7-60808c2b243e
 
-A sequence generated in the web demo, then its streams side by side. The video files are in
-[.assets](.assets), with a higher-quality copy, `video-bokeh-demo-hq.mp4`.
+The video file is in [.assets](.assets), with a higher-quality copy, `video-bokeh-demo-hq.mp4`.
 
 ## Features
 
