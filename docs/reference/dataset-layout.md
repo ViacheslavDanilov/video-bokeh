@@ -276,8 +276,8 @@ records in the dataset root. Their rows describe only sequences written by that 
 when older sequence directories remain in the output.
 
 `manifest.csv` is the run's completion marker. The writer removes any old manifest before
-writing sequences and writes the new manifest last, after `objects.csv` and `run.json`.
-A failure while writing those records leaves no manifest.
+writing sequences and writes the new manifest atomically, after `objects.csv` and
+`run.json`. A failure while writing any record leaves no manifest.
 
 ### `objects.csv`
 

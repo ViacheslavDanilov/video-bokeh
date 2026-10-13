@@ -898,6 +898,62 @@ def test_record_write_failure_leaves_no_manifest(tmp_path, record, rerun):
     assert not (out / "manifest.csv").exists()
 
 
+def test_manifest_write_failure_leaves_no_completion_marker(
+    tmp_path, monkeypatch, capsys
+):
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    argv = [
+        "--library-root",
+        str(library),
+        "--output",
+        str(out),
+        "--count",
+        "2",
+        "--frames",
+        "1",
+        "--size",
+        "32",
+        "--n-objects-max",
+        "1",
+    ]
+    assert main(argv) == 0
+    assert (out / "manifest.csv").is_file()
+    settings = "count=2 frames=1 size=32\n"
+    (out / ".lab-settings").write_text(settings, encoding="utf-8")
+    csv_writer = csv.writer
+
+    class FailingManifestWriter:
+        def __init__(self, *args, **kwargs):
+            self.writer = csv_writer(*args, **kwargs)
+            self.manifest = False
+
+        def writerow(self, row):
+            self.manifest = tuple(row[:2]) == ("seq_id", "seed")
+            return self.writer.writerow(row)
+
+        def writerows(self, rows):
+            if self.manifest:
+                self.writer.writerow(next(iter(rows)))
+                raise OSError("manifest write failed midway")
+            return self.writer.writerows(rows)
+
+    monkeypatch.setattr(csv, "writer", FailingManifestWriter)
+    with pytest.raises(OSError, match="manifest write failed midway"):
+        main(argv)
+    assert not (out / "manifest.csv").exists()
+    assert (out / ".lab-settings").read_text(encoding="utf-8") == settings
+    with (out / "manifest.csv.tmp").open(encoding="utf-8", newline="") as f:
+        assert len(list(csv.DictReader(f))) == 1
+    with pytest.raises(SystemExit) as exc:
+        stats_main(["--data-root", str(out)])
+    assert exc.value.code == 2
+    assert f"missing required dataset record: {out / 'manifest.csv'}" in (
+        capsys.readouterr().err
+    )
+
+
 def test_stats_command_has_hand_calculated_totals(tmp_path, capsys):
     (tmp_path / "manifest.csv").write_text(
         "seq_id,seed,n_frames,size,n_objects,n_rejections,n_range_fallbacks,background\n"

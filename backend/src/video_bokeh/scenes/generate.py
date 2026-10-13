@@ -29,6 +29,7 @@ import csv
 import importlib.util
 import json
 import math
+import os
 import platform
 import random
 import shutil
@@ -381,8 +382,8 @@ def generate_dataset(
     A sequence whose trajectories cannot be made collision-free is skipped, not
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
     numbering rather than shifting every later sequence onto a different seed.
-    Remove any old manifest before writing sequences. Write the new manifest last,
-    after objects.csv and run.json, as the run's completion marker.
+    Remove any old manifest before writing sequences. Write the new manifest
+    atomically, after objects.csv and run.json, as the run's completion marker.
     """
     started = time.perf_counter()
     if bokeh and importlib.util.find_spec("torch") is None:
@@ -478,10 +479,12 @@ def generate_dataset(
         json.dumps(record, indent=2) + "\n", encoding="utf-8"
     )
 
-    with (output / "manifest.csv").open("w", encoding="utf-8", newline="") as f:
+    manifest_tmp = output / "manifest.csv.tmp"
+    with manifest_tmp.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(_MANIFEST_FIELDS)
         writer.writerows(rows)
+    os.replace(manifest_tmp, output / "manifest.csv")
 
     if skipped:
         print(f"\nSkipped {len(skipped)} of {count} sequences; seeds: {skipped}")

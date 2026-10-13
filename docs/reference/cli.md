@@ -195,7 +195,7 @@ Each run also rewrites `manifest.csv` (including the background asset id), `obje
 (each object's trajectory endpoints and fallback flag), and `run.json` (flags, library,
 estimator, checkout, versions, bokeh device, counts, skipped seeds and elapsed time).
 The writer removes any old manifest before writing sequences. It writes `objects.csv`
-and `run.json` first, then `manifest.csv` last as the run's completion marker.
+and `run.json` first, then writes `manifest.csv` atomically as the run's completion marker.
 
 | flag | type | default | meaning |
 |---|---|---|---|
