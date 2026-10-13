@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -176,3 +177,36 @@ def test_main_writes_measurements_and_reproduction_metadata(
             "mib_per_item",
         )
     ]
+
+
+def test_an_installed_copy_records_no_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A training project that installs the package keeps it under its own git checkout.
+    git = ["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run(
+        [
+            *git,
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "t",
+        ],
+        check=True,
+    )
+    installed = tmp_path / ".venv/lib/python3.13/site-packages/video_bokeh/loader"
+    installed.mkdir(parents=True)
+    monkeypatch.setattr(mod, "__file__", str(installed / "benchmark.py"))
+
+    assert mod._git_commit() is None
+
+
+def test_the_source_checkout_records_its_commit() -> None:
+    commit = mod._git_commit()
+
+    assert commit is not None
+    assert len(commit) == 40

@@ -75,10 +75,18 @@ def _render_batches(
 
 
 def _git_commit() -> str | None:
+    """The commit of the video-bokeh checkout this module runs from, if it runs from one.
+
+    An installed copy sits in another project's tree, whose commit says nothing about
+    this code.
+    """
+    root = Path(__file__).resolve().parents[4]
+    if not (root / "backend/src/video_bokeh/loader/benchmark.py").is_file():
+        return None
     try:
         return subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=Path(__file__).resolve().parents[4],
+            cwd=root,
             check=True,
             capture_output=True,
             text=True,
