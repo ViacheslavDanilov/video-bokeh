@@ -13,8 +13,9 @@ dropped: the compositor percentile-stretches each depth map into a band, so only
 the relative structure matters and 16 bits preserves it without visible banding.
 
 ``depth.png`` is the propagated full-frame map consumed by Stage B.
-``depth_raw.png`` is the estimator's untouched output before propagation, saved
-only as a diagnostic (raw-vs-propagated comparison).
+``depth_raw.png`` is the estimator's output before propagation, scaled to its own
+minimum and maximum and quantized to 16 bits, saved only as a diagnostic
+(raw-vs-propagated comparison).
 ``depth_input.png`` is the image the estimator actually saw: the cut-out
 composited onto the neutral texture, since the model cannot read a transparent
 cut-out. It is what separates a model failure from a compositing failure, which
