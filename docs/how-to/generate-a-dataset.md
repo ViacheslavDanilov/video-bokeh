@@ -40,9 +40,12 @@ On 2026-10-01, from `backend/`, keeping the 20 of each that were there:
    downloads ten foregrounds. Seed 11 drew the first twenty, and a larger count keeps them,
    because the sample keeps its order as it grows.
 2. `uv run --extra acquire python -m video_bokeh.acquire.classify --data-root data/magick_dev --keep-existing --num-workers 0`
-   classifies the ten new ones and keeps the twenty predictions there. A fresh run over those
-   twenty disagreed on five of them, all close calls, and would have shrunk the class filter's
-   keep from 12 to 8.
+   classifies the ten new ones and keeps the twenty predictions there. The default model,
+   ViT-L-14, classified the ten, while the twenty came from PE-Core-bigG-14-448, as
+   `data/magick_dev/predictions.json` records. A ViT-L-14 run over those twenty gave five of
+   them another top class and would have shrunk the class filter's keep from 12 to 8.
+   `--keep-existing` now refuses predictions another model made, so this step would stop
+   today; classifying all thirty afresh with one model is how to grow the pool next time.
 3. `uv run --extra acquire python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11`
    fetches ten backgrounds one file at a time from Kaggle, with no archive download. It needs
    `~/.kaggle/kaggle.json`.
@@ -63,7 +66,8 @@ uv run python -m video_bokeh.library.build \
 size. A library smaller than the frame is only upscaled, and looks softer for it.
 
 **The CLIP filter drops assets.** Stage A keeps only foregrounds whose predicted subject and
-style clear `--subject-thr`, so 20 inputs may yield about 12 in the library. Pass
+style are among `--subjects` and `--styles`, and whose subject score is at least
+`--subject-thr`, so the dev pool's 30 foregrounds yield 17 in the library. Pass
 `--subjects "" --styles "" --subject-thr 0` to turn it off; any one of them alone leaves the
 other two filtering.
 

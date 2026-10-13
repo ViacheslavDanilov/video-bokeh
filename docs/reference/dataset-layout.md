@@ -44,7 +44,7 @@ carry it without visible banding.
 stay on disk for inspection. Libraries built without them still load.
 
 `meta.json` records the `--model` string Stage A ran with, the propagation parameters, and
-raw-depth statistics such as `core_frac` — the fraction of the object the trusted core covered.
+raw-depth statistics such as `core_frac` — the fraction of the image the trusted core covers.
 Stage B never reads it; it exists so a bad depth map can be diagnosed without re-running Stage A.
 
 `depth_input.png` is the image the estimator was actually given: the cut-out composited onto

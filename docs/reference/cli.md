@@ -39,7 +39,7 @@ Estimates depth once per asset and writes the artifact library.
 | `--limit-bg` | int | all | cap on backgrounds processed |
 | `--subjects` | list | `person, animal, plant, food, object` | CLIP subject classes kept |
 | `--styles` | list | `photo, render` | CLIP style classes kept |
-| `--subject-thr` | float | `0.5` | minimum CLIP score to keep an asset |
+| `--subject-thr` | float | `0.5` | minimum CLIP subject score to keep a foreground |
 
 ### Depth estimators
 
@@ -377,7 +377,7 @@ includes warm-up and timed rendering; CPU and MPS runs leave that JSON field nul
 |---|---|
 | `video_bokeh.acquire.magick` | `--metadata` (csv), `--output`, `--count`, `--seed`, `--picked` |
 | `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs `~/.kaggle/kaggle.json` |
-| `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks |
+| `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks, with the model that made the rest. Writes `predictions.json` beside the predictions, recording each run's rows, model, weights and date |
 
 ---
 

@@ -9,6 +9,12 @@ image) and *style* (how it is rendered). Writes a sibling `predictions.csv`
 per-class scores for both axes, prompt) without touching the authoritative
 metadata.
 
+Beside it, `predictions.json` records the runs that made its rows, oldest first:
+how many rows each made, with which OpenCLIP model and weights, OpenCLIP's version
+and the date. The model's name and weights are OpenCLIP's, as listed in its
+repository, https://github.com/mlfoundations/open_clip. `--keep-existing` refuses
+predictions that another model made, so one file never mixes two models unseen.
+
 Subject taxonomy (edit `SUBJECT_TAXONOMY` / `SUBJECT_TEMPLATES` to tweak):
     person   — humans, portraits, body parts
     animal   — any living creature (mammal, bird, insect, reptile, fish)
@@ -38,9 +44,11 @@ Usage:
         --batch-size 16
 
     # Full mirror (populate via `huggingface-cli download OneOverZero/MAGICK
-    # --repo-type dataset --local-dir backend/data/magick`), on a GPU:
+    # --repo-type dataset --local-dir backend/data/magick`), on a GPU, with the
+    # model that backend/data/magick/predictions.json records:
     uv run python -m video_bokeh.acquire.classify \
         --data-root backend/data/magick \
+        --model PE-Core-bigG-14-448 --pretrained meta \
         --batch-size 64 --device cuda
 """
 
@@ -48,6 +56,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime
+import json
 import sys
 from pathlib import Path
 
@@ -228,6 +238,49 @@ def unclassified(
     return [r for r in rows if r["page_id"] not in done]
 
 
+OPEN_CLIP_REPOSITORY = "https://github.com/mlfoundations/open_clip"
+
+
+def runs_path(predictions_csv: Path) -> Path:
+    """The record of the runs behind a predictions file: beside it, as JSON."""
+    return predictions_csv.with_suffix(".json")
+
+
+def read_runs(predictions_csv: Path, n_rows: int) -> list[dict]:
+    """The runs that made a predictions file's ``n_rows`` rows, oldest first.
+
+    A file with no record, or with a record that accounts for another number of rows,
+    gets one run whose model is unknown, since nothing says what made those rows.
+    """
+    path = runs_path(predictions_csv)
+    if path.is_file():
+        runs = json.loads(path.read_text(encoding="utf-8"))["runs"]
+        if sum(int(run["rows"]) for run in runs) == n_rows:
+            return runs
+    return [{"rows": n_rows, "model": None, "pretrained": None}] if n_rows else []
+
+
+def other_models(runs: list[dict], model: str, pretrained: str) -> list[str]:
+    """The models a record names, with their weights, other than ``model``."""
+    return sorted(
+        {
+            f"{run['model']} ({run['pretrained']})"
+            for run in runs
+            if run.get("model") is not None
+            and (run["model"], run.get("pretrained")) != (model, pretrained)
+        },
+    )
+
+
+def write_runs(predictions_csv: Path, runs: list[dict]) -> None:
+    """Write the record of ``runs`` beside ``predictions_csv``."""
+    record = {"open_clip_repository": OPEN_CLIP_REPOSITORY, "runs": runs}
+    runs_path(predictions_csv).write_text(
+        json.dumps(record, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def encode_class_prompts(
     model,
     tokenizer,
@@ -269,14 +322,19 @@ def main() -> int:
         "--keep-existing",
         action="store_true",
         help="keep the predictions already in the output and classify only the images "
-        "it lacks. CLIP's top class can differ from run to run on a close call, so "
-        "classifying a grown pool afresh can change which of its old images a filter "
-        "keeps",
+        "it lacks, with the model that made them. Classifying a grown pool afresh with "
+        "another model can change which of its old images a filter keeps",
     )
     args = parser.parse_args()
 
     metadata_csv = args.data_root / "metadata.csv"
     output_csv = args.output or (args.data_root / "predictions.csv")
+    if runs_path(output_csv) == output_csv:
+        print(
+            f"--output {output_csv} is where its record goes; give it another suffix",
+            file=sys.stderr,
+        )
+        return 1
 
     _, rows = read_metadata(metadata_csv)
     present = [r for r in rows if image_path(args.data_root, r["page_id"]).exists()]
@@ -291,6 +349,7 @@ def main() -> int:
         print(f"No images found under {args.data_root}/images", file=sys.stderr)
         return 1
     kept: list[dict[str, str]] = []
+    runs: list[dict] = []
     if args.keep_existing and output_csv.is_file():
         kept = read_predictions(output_csv)
         # Checked before the CLIP run, not when the file is rewritten after it: a header
@@ -303,6 +362,21 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
+        runs = read_runs(output_csv, len(kept))
+        others = other_models(runs, args.model, args.pretrained)
+        if others:
+            print(
+                f"{output_csv} holds predictions made by {', '.join(others)}; "
+                f"classify afresh without --keep-existing, or with that model",
+                file=sys.stderr,
+            )
+            return 1
+        if any(run.get("model") is None for run in runs):
+            print(
+                f"  WARN {runs_path(output_csv)} does not say which model made some "
+                f"kept predictions",
+                file=sys.stderr,
+            )
         rows = unclassified(rows, kept)
         print(f"  Keeping {len(kept)} predictions; {len(rows)} images to classify")
         if not rows:
@@ -406,12 +480,28 @@ def main() -> int:
 
     fieldnames = prediction_fieldnames()
     output_csv.parent.mkdir(parents=True, exist_ok=True)
-    with output_csv.open("w", encoding="utf-8", newline="") as f:
+    staged = output_csv.with_name(f"{output_csv.name}.partial")
+    with staged.open("w", encoding="utf-8", newline="") as f:
         # LF, the endings the tracked dev pool is committed with.
         writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         for pred in [*kept, *predictions]:
             writer.writerow(pred)
+    # The old record goes once the new predictions are written and before they take
+    # its file's place, so a run whose record then fails leaves no record rather than
+    # one that names the previous model.
+    runs_path(output_csv).unlink(missing_ok=True)
+    staged.replace(output_csv)
+    runs.append(
+        {
+            "rows": len(predictions),
+            "model": args.model,
+            "pretrained": args.pretrained,
+            "open_clip": open_clip.__version__,
+            "date": datetime.date.today().isoformat(),
+        },
+    )
+    write_runs(output_csv, runs)
 
     subject_counts: dict[str, int] = dict.fromkeys(subject_labels, 0)
     style_counts: dict[str, int] = dict.fromkeys(style_labels, 0)

@@ -162,7 +162,7 @@ _Avoid_: preprocessing
 
 **Stage B**:
 Generating sequences from the library; it never runs the depth estimator. With bokeh or
-optical flow asked for, it renders them too, in the same pass.
+optical flow asked for, it renders them too, in the same run.
 _Avoid_: rendering
 
 **Sequence stream**:
@@ -179,7 +179,7 @@ _Avoid_: post-processing
 
 **Bokeh**:
 The disparity-dependent blur the trained model is meant to produce, and the sequence stream
-that holds it, written by Stage B in the same pass or by Stage C afterwards.
+that holds it, written by Stage B in the same run or by Stage C afterwards.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
