@@ -347,6 +347,30 @@ source.
 | `--library-root` | path | `data/library/da2-large` | library the stream draws its sequences from |
 | `--steps` | int | `20` | training steps to run before it stops |
 
+## `video_bokeh.loader.benchmark` — sequence-stream throughput
+
+Needs the `loader` extra. Measures the protocol in [loader](loader.md#what-each-choice-costs),
+prints one line per number, and optionally saves the flags, measurements and environment as JSON.
+MiB per item counts all input tensors, including collated metadata. CUDA peak allocation
+includes warm-up and timed rendering; CPU and MPS runs leave that JSON field null.
+
+| flag | type | default | meaning |
+|---|---|---|---|
+| `--library-root` | path | **required** | library the stream draws its sequences from |
+| `--streams` | list | `rgb,disparity,alpha,object_alphas` | comma-separated stream names |
+| `--frames` | int | `24` | frames per item |
+| `--size` | int | `512` | square frame side |
+| `--objects-min` | int | `1` | fewest objects in a scene |
+| `--objects-max` | int | `5` | most objects in a scene, also the tensor padding size |
+| `--batch-size` | int | `4` | items per batch |
+| `--workers` | int | `8` | DataLoader workers, with prefetch factor 2; 0 draws in this process |
+| `--seed` | int | `0` | first sequence seed |
+| `--gpu-bokeh` | flag | off | move every batch to the device and render with `batch_bokeh`; requires `layers`, `object_alphas` and `focus` |
+| `--device` | `auto`, `cuda`, `mps`, `cpu` | `auto` | bokeh device; auto chooses CUDA, then MPS, then CPU; an unavailable explicit device is refused |
+| `--bokeh-strength` | float | `16` | bokeh strength in the workers or on the device |
+| `--min-timed-batches` | int | `15` | time at least this many batches, or twice the worker count if larger, after twice the worker count of warm-up batches (one with 0 workers) |
+| `--output` | path | unset | JSON path for flags, measurements, torch version, resolved device and name, CPU count, UTC date and git commit (null if unavailable) |
+
 ## Acquisition
 
 | module | flags |
