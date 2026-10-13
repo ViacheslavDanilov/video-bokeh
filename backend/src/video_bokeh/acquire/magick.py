@@ -35,6 +35,7 @@ import csv
 import random
 import sys
 import time
+from datetime import UTC
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
@@ -85,10 +86,12 @@ def download_one(client: httpx.Client, page_id: str, dest: Path) -> bool:
                         delay = max(0, int(retry_after))
                     except ValueError:
                         try:
+                            date = parsedate_to_datetime(retry_after)
+                            if date.tzinfo is None:
+                                date = date.replace(tzinfo=UTC)
                             delay = max(
                                 0,
-                                parsedate_to_datetime(retry_after).timestamp()
-                                - time.time(),
+                                date.timestamp() - time.time(),
                             )
                         except (ValueError, TypeError, OverflowError):
                             pass

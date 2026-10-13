@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import csv
-import random
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -118,9 +118,7 @@ def test_fresh_pool_uses_sample_order(
     pool = tmp_path / "pool"
     assert _cli(monkeypatch, source, pool, 4) == 0
     with (pool / "metadata.csv").open() as f:
-        assert [r["page_id"] for r in csv.DictReader(f)] == random.Random(11).sample(
-            ["aa", "bb", "cc", "dd"], 4
-        )
+        assert [r["page_id"] for r in csv.DictReader(f)] == ["dd", "cc", "bb", "aa"]
     before = (pool / "metadata.csv").read_bytes()
 
     def offline(request):
@@ -140,11 +138,68 @@ def test_existing_rows_stay_first_and_new_rows_follow_sample_order(
     (pool / "metadata.csv").write_text(prefix)
     _http(monkeypatch, lambda request: httpx.Response(200, content=b"image"))
     assert _cli(monkeypatch, source, pool, 4) == 0
-    new = [
-        name
-        for name in random.Random(11).sample(["aa", "bb", "cc", "dd"], 4)
-        if name not in {"cc", "aa"}
-    ]
-    assert (pool / "metadata.csv").read_text() == prefix + "".join(
-        f"{name},hand\n" for name in new
-    )
+    assert (pool / "metadata.csv").read_text() == prefix + "dd,hand\nbb,hand\n"
+
+
+@pytest.mark.parametrize(
+    "retry_after",
+    [
+        "Thu Jan  1 00:02:40 1970",
+        "Thu, 01 Jan 1970 00:02:40",
+        "Thu, 01 Jan 1970 00:02:40 GMT",
+        "Thursday, 01-Jan-70 00:02:40 GMT",
+    ],
+)
+def test_http_date_uses_utc_in_non_utc_timezone(
+    monkeypatch, tmp_path: Path, source: Path, retry_after: str
+) -> None:
+    requests = []
+    sleeps = []
+
+    def respond(request):
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(429, headers={"Retry-After": retry_after})
+        return httpx.Response(200, content=b"image")
+
+    _http(monkeypatch, respond)
+    monkeypatch.setattr(magick.time, "sleep", sleeps.append)
+    monkeypatch.setattr(magick.time, "time", lambda: 100)
+    try:
+        with monkeypatch.context() as timezone:
+            timezone.setenv("TZ", "UTC-2")
+            time.tzset()
+            assert time.localtime(0).tm_hour == 2
+            assert _cli(monkeypatch, source, tmp_path / "pool", 1) == 0
+    finally:
+        time.tzset()
+    assert len(requests) == 2
+    assert sleeps == [60]
+
+
+def test_mixed_download_results_keep_existing_rows_and_success_order(
+    monkeypatch, tmp_path: Path, source: Path
+) -> None:
+    pool = tmp_path / "pool"
+    pool.mkdir()
+    prefix = "page_id,picked\ndd,hand\nzz,auto\n"
+    (pool / "metadata.csv").write_text(prefix)
+    requests = []
+
+    def respond(request):
+        name = request.url.path.rsplit("/", 1)[-1]
+        requests.append(name)
+        if name == "dd.png":
+            return httpx.Response(404)
+        if name == "bb.png":
+            raise httpx.ReadTimeout("download timed out", request=request)
+        return httpx.Response(200, content=name.encode())
+
+    _http(monkeypatch, respond)
+    assert _cli(monkeypatch, source, pool, 4) == 0
+    assert requests == ["dd.png", "cc.png", "bb.png", "aa.png"]
+    assert (pool / "metadata.csv").read_text() == prefix + "cc,hand\naa,hand\n"
+    assert magick.image_path(pool, "cc").read_bytes() == b"cc.png"
+    assert magick.image_path(pool, "aa").read_bytes() == b"aa.png"
+    assert not magick.image_path(pool, "dd").exists()
+    assert not magick.image_path(pool, "bb").exists()
