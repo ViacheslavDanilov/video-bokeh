@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import csv
 import shutil
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -138,3 +140,40 @@ def test_the_pool_metadata_has_lf_line_endings(tmp_path: Path, kaggle) -> None:
     pool = tmp_path / "pool"
     bg20k.sample_pool(pool, count=2, seed=11, download=_download(kaggle))
     assert b"\r" not in (pool / "metadata.csv").read_bytes()
+
+
+@pytest.mark.parametrize("already_downloaded", [False, True])
+def test_whole_cli_normalizes_the_archive(
+    tmp_path: Path, kaggle, monkeypatch, already_downloaded: bool
+) -> None:
+    root, _ = kaggle
+    pool = tmp_path / "pool"
+    archive = pool / "datasets" / bg20k.KAGGLE_DATASET / "versions" / "1"
+    if already_downloaded:
+        shutil.copytree(root, archive)
+    calls = []
+    monkeypatch.setenv("KAGGLEHUB_CACHE", "unused")
+
+    def download(dataset):
+        calls.append(dataset)
+        assert bg20k.os.environ["KAGGLEHUB_CACHE"] == str(pool.resolve())
+        if not archive.exists():
+            shutil.copytree(root, archive)
+        return str(archive)
+
+    monkeypatch.setitem(
+        sys.modules, "kagglehub", SimpleNamespace(dataset_download=download)
+    )
+    monkeypatch.setattr(sys, "argv", ["bg20k", "--output", str(pool)])
+    assert bg20k.main() == 0
+    assert calls == [bg20k.KAGGLE_DATASET]
+    assert set(_rows(pool)) == {
+        *((name, "train") for name in _TRAIN),
+        *((name, "testval") for name in _TESTVAL),
+    }
+    assert (pool / "metadata.csv").read_text().splitlines()[0] == "filename,split"
+    for name, split in _rows(pool):
+        assert (pool / "images" / split / name).read_bytes() == name.encode()
+    assert len(list(pool.rglob("*.jpg"))) == len(_TRAIN) + len(_TESTVAL)
+    assert not archive.exists()
+    assert not list(pool.rglob("*.txt"))

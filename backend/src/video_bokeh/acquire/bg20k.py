@@ -68,6 +68,8 @@ def _fetch_background(
     for shard in _SHARDS:
         try:
             return download(f"{shard}/BG-20k/{split}/{name}", scratch)
+        except FileNotFoundError:
+            continue
         except Exception as exc:
             # Only "not in this shard" moves on. A lost connection or a refused login
             # must stop the run, or the sample would change without a word.
@@ -144,8 +146,19 @@ def main() -> int:
 
     import kagglehub  # noqa: E402 — must be imported after KAGGLEHUB_CACHE is set
 
-    path = kagglehub.dataset_download(KAGGLE_DATASET)
-    print(f"Path to dataset files: {path}")
+    path = Path(kagglehub.dataset_download(KAGGLE_DATASET))
+
+    def _from_archive(relative: str, output_dir: str) -> str:
+        source = path / relative
+        if not source.is_file():
+            raise FileNotFoundError(source)
+        return str(source)
+
+    count = sum(
+        len((path / listing).read_text().split()) for listing in _LISTS.values()
+    )
+    sample_pool(args.output, count, args.seed, _from_archive)
+    shutil.rmtree(path)
     return 0
 
 
