@@ -34,11 +34,14 @@ import argparse
 import csv
 import random
 import sys
+import time
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import httpx
 
 HF_BASE = "https://huggingface.co/datasets/OneOverZero/MAGICK/resolve/main/images"
+_MAX_ATTEMPTS = 7
 
 
 def page_id_to_url(page_id: str) -> str:
@@ -61,12 +64,38 @@ def read_metadata(metadata_csv: Path) -> tuple[list[str], list[dict[str, str]]]:
 
 def download_one(client: httpx.Client, page_id: str, dest: Path) -> bool:
     url = page_id_to_url(page_id)
-    try:
-        resp = client.get(url, follow_redirects=True, timeout=60)
-        resp.raise_for_status()
-    except httpx.HTTPError as exc:
-        print(f"  FAIL {page_id}: {exc}", file=sys.stderr)
-        return False
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            resp = client.get(url, follow_redirects=True, timeout=60)
+            resp.raise_for_status()
+            break
+        except httpx.HTTPError as exc:
+            if (
+                isinstance(exc, httpx.HTTPStatusError)
+                and (
+                    exc.response.status_code == 429
+                    or 500 <= exc.response.status_code < 600
+                )
+                and attempt + 1 < _MAX_ATTEMPTS
+            ):
+                delay = min(5 * 2**attempt, 60)
+                retry_after = exc.response.headers.get("Retry-After")
+                if retry_after is not None:
+                    try:
+                        delay = max(0, int(retry_after))
+                    except ValueError:
+                        try:
+                            delay = max(
+                                0,
+                                parsedate_to_datetime(retry_after).timestamp()
+                                - time.time(),
+                            )
+                        except (ValueError, TypeError, OverflowError):
+                            pass
+                time.sleep(delay)
+                continue
+            print(f"  FAIL {page_id}: {exc}", file=sys.stderr)
+            return False
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(resp.content)
     return True
@@ -111,6 +140,8 @@ def main() -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "images").mkdir(parents=True, exist_ok=True)
 
+    metadata_out = args.output / "metadata.csv"
+    existing = read_metadata(metadata_out)[1] if metadata_out.exists() else []
     downloaded: list[dict[str, str]] = []
     with httpx.Client() as client:
         for row in sample:
@@ -124,12 +155,15 @@ def main() -> int:
                 print(f"  OK   {page_id}")
                 downloaded.append(row)
 
-    metadata_out = args.output / "metadata.csv"
+    held = {row["page_id"].strip() for row in existing}
+    ordered = existing + [
+        row for row in downloaded if row["page_id"].strip() not in held
+    ]
     with metadata_out.open("w", encoding="utf-8", newline="") as f:
         # LF, the endings the tracked dev pool is committed with.
         writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
-        for row in downloaded:
+        for row in ordered:
             writer.writerow({k: row.get(k, "") for k in fieldnames})
 
     print(
