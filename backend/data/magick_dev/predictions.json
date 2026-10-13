@@ -1,0 +1,21 @@
+{
+  "open_clip_repository": "https://github.com/mlfoundations/open_clip",
+  "runs": [
+    {
+      "rows": 20,
+      "model": "PE-Core-bigG-14-448",
+      "pretrained": "meta",
+      "open_clip": null,
+      "date": null,
+      "note": "Recorded on 2026-10-13, after the run. These rows equal the rows for the same images in ../magick/predictions.csv to within 4e-7, so they come from the run that ../magick/predictions.json records. They were committed in this form on 2026-05-28 (ce9d44c)."
+    },
+    {
+      "rows": 10,
+      "model": "ViT-L-14",
+      "pretrained": "openai",
+      "open_clip": "3.3.0",
+      "date": "2026-10-01",
+      "note": "Recorded on 2026-10-13, after the run, which classified the ten images the pool gained with the classifier's defaults, as docs/how-to/generate-a-dataset.md gives the command. A rerun with those defaults on 2026-10-13, on the CPU, gave the same scores to within 7e-6."
+    }
+  ]
+}
