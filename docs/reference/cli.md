@@ -39,7 +39,7 @@ Estimates depth once per asset and writes the artifact library.
 | `--limit-bg` | int | all | cap on backgrounds processed |
 | `--subjects` | list | `person, animal, plant, food, object` | CLIP subject classes kept |
 | `--styles` | list | `photo, render` | CLIP style classes kept |
-| `--subject-thr` | float | `0.5` | minimum CLIP score to keep an asset |
+| `--subject-thr` | float | `0.5` | minimum CLIP subject score to keep a foreground |
 
 ### Depth estimators
 
