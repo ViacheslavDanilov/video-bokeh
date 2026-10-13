@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import csv
+import json
+import platform
+import subprocess
+from collections import Counter
+from datetime import datetime
+from importlib.metadata import version
+from statistics import median
+
 import numpy as np
 import pytest
 from PIL import Image
 
 from video_bokeh.core._library import write_background, write_foreground
+from video_bokeh.core._seq_io import sequence_seed
+from video_bokeh.core._sequence_geometry import EASING_FNS
 from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
@@ -14,7 +25,8 @@ from video_bokeh.core._streams import (
 )
 from video_bokeh.library.build import DEFAULT_BG_MARGIN
 from video_bokeh.scenes._compositor import render_scene, sample_scene
-from video_bokeh.scenes.generate import generate_dataset, main
+from video_bokeh.scenes.generate import generate_dataset, main, sample_sequence
+from video_bokeh.scenes.stats import main as stats_main
 
 
 def _tiny_library(root, n_fg: int = 2, half: int = 8) -> None:
@@ -721,3 +733,250 @@ def test_rewriting_a_sequence_drops_its_old_layers(tmp_path) -> None:
     assert (out / "sequences" / "0001" / "layers" / "paint_order.json").is_file()
     generate_dataset(library, out, count=1, n_frames=2, size=32, seed=5)
     assert not (out / "sequences" / "0001" / "layers").exists()
+
+
+@pytest.mark.parametrize("n_frames,fallback", [(3, False), (1, False), (3, True)])
+def test_scene_records_match_the_sampled_scene(
+    tmp_path, monkeypatch, n_frames, fallback
+):
+    import video_bokeh.scenes._compositor as compositor
+
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    # Exhaust the range budget to exercise the real sampler's fallback path.
+    if fallback:
+        monkeypatch.setattr(compositor, "_MAX_RANGE_TRIES", 0)
+    (library / "foregrounds/fg_1/meta.json").write_text(
+        '{"estimator": "test-estimator"}', encoding="utf-8"
+    )
+    out = tmp_path / "synth"
+    argv = [
+        "--library-root",
+        str(library),
+        "--output",
+        str(out),
+        "--count",
+        "2",
+        "--frames",
+        str(n_frames),
+        "--size",
+        "32",
+        "--seed",
+        "0",
+        "--n-objects-min",
+        "2",
+        "--n-objects-max",
+        "2",
+        "--layers",
+        "--flow",
+    ]
+    assert main(argv) == 0
+    with (out / "manifest.csv").open(encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        assert reader.fieldnames == [
+            "seq_id",
+            "seed",
+            "n_frames",
+            "size",
+            "n_objects",
+            "n_rejections",
+            "n_range_fallbacks",
+            "background",
+        ]
+        manifest = list(reader)
+    with (out / "objects.csv").open(encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        assert reader.fieldnames == [
+            "seq_id",
+            "object",
+            "foreground",
+            "easing",
+            "scale_start",
+            "scale_end",
+            "band_lo_first",
+            "band_hi_first",
+            "band_lo_last",
+            "band_hi_last",
+            "depth_motion",
+            "range_fallback",
+        ]
+        objects = list(reader)
+    assert [(r["seq_id"], int(r["object"])) for r in objects] == [
+        (sid, index) for sid in ("0001", "0002") for index in range(2)
+    ]
+    for seed, row in enumerate(manifest):
+        scene = sample_sequence(library, seed, n_frames, 32, 2, 2)
+        seq = out / "sequences" / row["seq_id"]
+        assert sequence_seed(seq) == seed  # The existing manifest reader.
+        assert row["background"] == scene.background.asset_id
+        assert int(row["n_objects"]) == len(scene.objects)
+        assert int(row["n_rejections"]) == scene.n_rejections
+        assert int(row["n_frames"]) == len(list((seq / "all_in_focus").glob("*.png")))
+        assert int(row["size"]) == 32
+        assert int(row["n_range_fallbacks"]) == sum(
+            o.range_fallback for o in scene.objects
+        )
+        assert scene.n_range_fallbacks == (2 if fallback else 0)
+        records = [o for o in objects if o["seq_id"] == row["seq_id"]]
+        assert len(read_alpha_tiff(seq / "alpha/01.tif")) == len(records)
+        for obj, record in zip(scene.objects, records, strict=True):
+            assert record["foreground"] == obj.asset.asset_id
+            assert record["easing"] == obj.easing
+            assert float(record["scale_start"]) == obj.pose_start.scale
+            assert float(record["scale_end"]) == obj.pose_end.scale
+            bands = []
+            for label, t in (("first", 0.0), ("last", 0.0 if n_frames == 1 else 1.0)):
+                band = obj.depth_start.lerp(obj.depth_end, EASING_FNS[obj.easing](t))
+                assert float(record[f"band_lo_{label}"]) == band.mind
+                assert float(record[f"band_hi_{label}"]) == band.maxd
+                bands.append(band)
+            assert record["depth_motion"] == str(bands[0] != bands[1]).lower()
+            assert record["range_fallback"] == str(fallback).lower()
+    run = json.loads((out / "run.json").read_text())
+    assert run["flags"] == {
+        "library_root": str(library),
+        "output": str(out),
+        "count": 2,
+        "frames": n_frames,
+        "size": 32,
+        "seed": 0,
+        "n_objects_min": 2,
+        "n_objects_max": 2,
+        "layers": True,
+        "flow": True,
+        "bokeh": False,
+        "bokeh_strength": 16.0,
+    }
+    assert run["library_root"] == str(library.resolve())
+    assert run["estimator"] == "test-estimator"
+    assert (
+        run["git_commit"]
+        == subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    )
+    assert datetime.fromisoformat(run["date"]).utcoffset().total_seconds() == 0
+    assert run["versions"] == {
+        "python": platform.python_version(),
+        "numpy": version("numpy"),
+        "Pillow": version("Pillow"),
+    }
+    assert run["bokeh_device"] is None
+    assert run["sequences_requested"] == run["sequences_written"] == 2
+    assert run["skipped_seeds"] == []
+    assert run["wall_seconds"] > 0
+
+
+@pytest.mark.parametrize("bokeh", [False, True])
+def test_stats_command_counts_records_focus_and_files(
+    tmp_path, monkeypatch, capsys, bokeh
+):
+    if bokeh:
+        pytest.importorskip("torch")
+        monkeypatch.setenv("VIDEO_BOKEH_LAYERED_DEVICE", "cpu")
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    generate_dataset(
+        library, out, 2, 2, 32, 0, layers=True, flow=True, bokeh=bokeh, bokeh_strength=0
+    )
+    scenes = [sample_sequence(library, seed, 2, 32, 1, 5) for seed in range(2)]
+    if bokeh:
+        # Object page 0 must count as focused; null must not.
+        for sid, obj in (("0001", 0), ("0002", None)):
+            path = out / "sequences" / sid / "bokeh/focus.json"
+            focus = json.loads(path.read_text())
+            focus["object"] = obj
+            path.write_text(json.dumps(focus), encoding="utf-8")
+    # A stale sequence outside the rewritten manifest must not count.
+    stale = out / "sequences/9999/all_in_focus"
+    stale.mkdir(parents=True)
+    (stale / "stale.png").write_bytes(b"stale")
+    capsys.readouterr()
+    output = tmp_path / "stats.json"
+    assert stats_main(["--data-root", str(out), "--output", str(output)]) == 0
+    printed = capsys.readouterr().out
+    assert printed == output.read_text()
+    stats = json.loads(printed)
+    objects = [obj for scene in scenes for obj in scene.objects]
+    counts = Counter(len(scene.objects) for scene in scenes)
+    widths = [obj.depth_start.width for obj in objects]
+    assert stats["sequences"] == 2
+    assert stats["frames"] == 4
+    assert stats["objects_per_sequence"] == {
+        "counts": {str(k): v for k, v in counts.items()},
+        "mean": len(objects) / 2,
+    }
+    assert stats["depth_motion_share"] == sum(
+        obj.depth_start != obj.depth_end for obj in objects
+    ) / len(objects)
+    assert stats["range_fallback_share"] == sum(
+        o.range_fallback for o in objects
+    ) / len(objects)
+    assert stats["rejections"] == {
+        "total": sum(s.n_rejections for s in scenes),
+        "mean_per_sequence": sum(s.n_rejections for s in scenes) / 2,
+    }
+    for key, ids in (
+        ("foreground_reuse", [o.asset.asset_id for o in objects]),
+        ("background_reuse", [s.background.asset_id for s in scenes]),
+    ):
+        assert stats[key] == {
+            "distinct": len(set(ids)),
+            "max_uses": max(Counter(ids).values()),
+        }
+    assert stats["active_band_width_first"] == {
+        "min": min(widths),
+        "median": median(widths),
+        "max": max(widths),
+    }
+    assert stats["object_focus_share"] == (0.5 if bokeh else None)
+    for stream, sizes in stats["bytes_per_stream"].items():
+        total = sum(
+            p.stat().st_size
+            for sid in ("0001", "0002")
+            for p in (out / "sequences" / sid / stream).rglob("*")
+            if p.is_file()
+        )
+        assert sizes == {"total": total, "per_frame": total / 4}
+    assert stats["run"] == json.loads((out / "run.json").read_text())
+    assert stats["run"]["estimator"] is None
+    if bokeh:
+        assert stats["run"]["bokeh_device"] == "cpu"
+        assert stats["run"]["versions"]["torch"] == version("torch")
+
+
+@pytest.mark.parametrize("missing", ["objects.csv", "run.json"])
+def test_stats_names_missing_record(tmp_path, capsys, missing):
+    for name in ("manifest.csv", "objects.csv", "run.json"):
+        if name != missing:
+            (tmp_path / name).touch()
+    with pytest.raises(SystemExit) as exc:
+        stats_main(["--data-root", str(tmp_path)])
+    assert exc.value.code == 2
+    assert (
+        f"missing required dataset record: {tmp_path / missing}"
+        in capsys.readouterr().err
+    )
+
+
+def test_records_are_rewritten_and_include_skipped_seeds(tmp_path, monkeypatch):
+    import video_bokeh.scenes.generate as writer
+    from video_bokeh.scenes._compositor import CollisionRetriesExhausted
+
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    generate_dataset(library, out, 2, 2, 32, 0)
+
+    def reject(*args, **kwargs):
+        raise CollisionRetriesExhausted("forced rejection")
+
+    monkeypatch.setattr(writer, "sample_sequence", reject)
+    assert generate_dataset(library, out, 1, 2, 32, 7) == 0
+    for name in ("manifest.csv", "objects.csv"):
+        with (out / name).open(encoding="utf-8") as f:
+            assert list(csv.DictReader(f)) == []
+    run = json.loads((out / "run.json").read_text())
+    assert run["sequences_requested"] == 1
+    assert run["sequences_written"] == 0
+    assert run["skipped_seeds"] == [7]
+    assert stats_main(["--data-root", str(out)]) == 0
