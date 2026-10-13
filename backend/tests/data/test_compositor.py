@@ -865,6 +865,104 @@ def test_scene_records_match_the_sampled_scene(
     assert run["wall_seconds"] > 0
 
 
+@pytest.mark.parametrize("record", ["objects.csv", "run.json"])
+@pytest.mark.parametrize("rerun", [False, True])
+def test_record_write_failure_leaves_no_manifest(tmp_path, record, rerun):
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    out = tmp_path / "synth"
+    if rerun:
+        generate_dataset(library, out, 1, 1, 32, 0)
+        assert (out / "manifest.csv").is_file()
+        (out / record).unlink()
+    # A directory at a record's path forces a real filesystem write failure.
+    (out / record).mkdir(parents=True)
+    with pytest.raises(IsADirectoryError):
+        main(
+            [
+                "--library-root",
+                str(library),
+                "--output",
+                str(out),
+                "--count",
+                "1",
+                "--frames",
+                "1",
+                "--size",
+                "32",
+                "--n-objects-max",
+                "1",
+            ]
+        )
+    assert (out / "sequences/0001/all_in_focus/01.png").is_file()
+    assert not (out / "manifest.csv").exists()
+
+
+def test_stats_command_has_hand_calculated_totals(tmp_path, capsys):
+    (tmp_path / "manifest.csv").write_text(
+        "seq_id,seed,n_frames,size,n_objects,n_rejections,n_range_fallbacks,background\n"
+        "0001,0,2,32,1,3,1,bg_a\n"
+        "0002,1,1,32,2,0,0,bg_a\n"
+        "0003,2,1,32,0,3,0,bg_b\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "objects.csv").write_text(
+        "seq_id,object,foreground,easing,scale_start,scale_end,band_lo_first,"
+        "band_hi_first,band_lo_last,band_hi_last,depth_motion,range_fallback\n"
+        "0001,0,fg_a,linear,1,1,0.125,0.25,0.25,0.375,true,true\n"
+        "0002,0,fg_a,linear,1,1,0.25,0.5,0.25,0.5,false,false\n"
+        "0002,1,fg_b,linear,1,1,0.5,1,0.25,0.75,true,false\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "run.json").write_text('{"seed":7}', encoding="utf-8")
+    # Four frames; nested layer files and bokeh metadata count toward byte totals.
+    for name, contents in {
+        "0001/all_in_focus/01.png": b"a",
+        "0001/all_in_focus/02.png": b"abc",
+        "0002/all_in_focus/01.png": b"ab",
+        "0003/all_in_focus/01.png": b"ab",
+        "0001/alpha/01.tif": b"ab",
+        "0002/alpha/01.tif": b"a",
+        "0003/alpha/01.tif": b"a",
+        "0001/disparity/01.png": b"abcdef",
+        "0002/disparity/01.png": b"abc",
+        "0003/disparity/01.png": b"abc",
+        "0001/layers/objects/01.tif": b"abcdef",
+        "0001/layers/paint_order.json": b"[]",
+        "0001/flow/01.png": b"ab",
+        "0001/bokeh/01.png": b"ab",
+        "0001/bokeh/focus.json": b'{"object":0}',
+        "0002/bokeh/01.png": b"abc",  # No focus.json.
+        "0003/bokeh/focus.json": b'{"object":null}',  # Zero objects.
+        "9999/all_in_focus/stale.png": b"ignored",
+    }.items():
+        path = tmp_path / "sequences" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(contents)
+    assert stats_main(["--data-root", str(tmp_path)]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "sequences": 3,
+        "frames": 4,
+        "objects_per_sequence": {"counts": {"0": 1, "1": 1, "2": 1}, "mean": 1.0},
+        "depth_motion_share": 2 / 3,
+        "range_fallback_share": 1 / 3,
+        "rejections": {"total": 6, "mean_per_sequence": 2.0},
+        "foreground_reuse": {"distinct": 2, "max_uses": 2},
+        "background_reuse": {"distinct": 2, "max_uses": 2},
+        "active_band_width_first": {"min": 0.125, "median": 0.25, "max": 0.5},
+        "object_focus_share": 1 / 3,
+        "bytes_per_stream": {
+            "all_in_focus": {"total": 8, "per_frame": 2.0},
+            "alpha": {"total": 4, "per_frame": 1.0},
+            "disparity": {"total": 12, "per_frame": 3.0},
+            "layers": {"total": 8, "per_frame": 2.0},
+            "flow": {"total": 2, "per_frame": 0.5},
+            "bokeh": {"total": 32, "per_frame": 8.0},
+        },
+        "run": {"seed": 7},
+    }
+
+
 @pytest.mark.parametrize("bokeh", [False, True])
 def test_stats_command_counts_records_focus_and_files(
     tmp_path, monkeypatch, capsys, bokeh

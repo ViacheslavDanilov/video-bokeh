@@ -381,6 +381,8 @@ def generate_dataset(
     A sequence whose trajectories cannot be made collision-free is skipped, not
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
     numbering rather than shifting every later sequence onto a different seed.
+    Remove any old manifest before writing sequences. Write the new manifest last,
+    after objects.csv and run.json, as the run's completion marker.
     """
     started = time.perf_counter()
     if bokeh and importlib.util.find_spec("torch") is None:
@@ -390,6 +392,7 @@ def generate_dataset(
     if bokeh and not (math.isfinite(bokeh_strength) and bokeh_strength >= 0):
         raise ValueError(f"bokeh strength must be 0 or more, got {bokeh_strength}")
     output.mkdir(parents=True, exist_ok=True)
+    (output / "manifest.csv").unlink(missing_ok=True)
     rows: list[list[str]] = []
     objects: list[list[object]] = []
     skipped: list[int] = []
@@ -435,11 +438,6 @@ def generate_dataset(
             f"n_obj={len(scene.objects)}  frames={n_frames}",
         )
 
-    with (output / "manifest.csv").open("w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(_MANIFEST_FIELDS)
-        writer.writerows(rows)
-
     with (output / "objects.csv").open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(_OBJECT_FIELDS)
@@ -479,6 +477,11 @@ def generate_dataset(
     (output / "run.json").write_text(
         json.dumps(record, indent=2) + "\n", encoding="utf-8"
     )
+
+    with (output / "manifest.csv").open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(_MANIFEST_FIELDS)
+        writer.writerows(rows)
 
     if skipped:
         print(f"\nSkipped {len(skipped)} of {count} sequences; seeds: {skipped}")

@@ -275,6 +275,10 @@ The background column is appended after the existing columns. Each run rewrites 
 records in the dataset root. Their rows describe only sequences written by that run, even
 when older sequence directories remain in the output.
 
+`manifest.csv` is the run's completion marker. The writer removes any old manifest before
+writing sequences and writes the new manifest last, after `objects.csv` and `run.json`.
+A failure while writing those records leaves no manifest.
+
 ### `objects.csv`
 
 One row per object in each written sequence, ordered by `seq_id` then alpha page. These

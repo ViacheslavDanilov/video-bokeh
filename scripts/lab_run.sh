@@ -241,7 +241,8 @@ GENERATED=()
 # macOS still ships.
 for estimator in ${READY[@]+"${READY[@]}"}; do
     dest="$OUT/sequences/$estimator"
-    # Stage B writes manifest.csv last, so its presence means the set finished.
+    # Stage B writes manifest.csv last, after objects.csv and run.json, so its
+    # presence means the set and its records finished.
     if [ -f "$dest/manifest.csv" ] && [ "$(cat "$dest/.lab-settings" 2> /dev/null)" = "$SETTINGS" ]; then
         echo "$estimator: sequences exist for $SETTINGS, skipped"
         GENERATED+=("$estimator")
