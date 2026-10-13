@@ -480,15 +480,18 @@ def main() -> int:
 
     fieldnames = prediction_fieldnames()
     output_csv.parent.mkdir(parents=True, exist_ok=True)
-    # Gone before the predictions change, so a run whose record then fails leaves no
-    # record rather than one that names the previous model.
-    runs_path(output_csv).unlink(missing_ok=True)
-    with output_csv.open("w", encoding="utf-8", newline="") as f:
+    staged = output_csv.with_name(f"{output_csv.name}.partial")
+    with staged.open("w", encoding="utf-8", newline="") as f:
         # LF, the endings the tracked dev pool is committed with.
         writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         for pred in [*kept, *predictions]:
             writer.writerow(pred)
+    # The old record goes once the new predictions are written and before they take
+    # its file's place, so a run whose record then fails leaves no record rather than
+    # one that names the previous model.
+    runs_path(output_csv).unlink(missing_ok=True)
+    staged.replace(output_csv)
     runs.append(
         {
             "rows": len(predictions),

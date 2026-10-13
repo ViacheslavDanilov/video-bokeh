@@ -162,3 +162,21 @@ def test_a_fresh_run_replaces_a_read_only_record_of_another_model(
 
     [run] = json.loads(record.read_text())["runs"]
     assert (run["rows"], run["model"]) == (1, "M")
+
+
+def test_a_read_only_predictions_file_keeps_its_record(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _fake_open_clip(monkeypatch)
+    _pool(tmp_path, ["aa1", "bb2"])
+    _kept_prediction(tmp_path, "aa1")
+    (tmp_path / "predictions.csv").chmod(0o444)
+    earlier = {"rows": 1, "model": "M", "pretrained": "w"}
+    (tmp_path / "predictions.json").write_text(json.dumps({"runs": [earlier]}))
+
+    flags = ("--model", "M", "--pretrained", "w", "--keep-existing")
+    assert _classify(monkeypatch, tmp_path, *flags) == 0
+
+    runs = json.loads((tmp_path / "predictions.json").read_text())["runs"]
+    assert [(r["rows"], r["model"]) for r in runs] == [(1, "M"), (1, "M")]
