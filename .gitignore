@@ -53,6 +53,8 @@ backend/data/magick/images/*
 !backend/data/magick/images/.gitkeep
 backend/data/synth*/
 backend/data/library*/
+# A predictions file classify was still writing when it stopped.
+backend/data/**/*.partial
 
 # Editors
 .vscode/

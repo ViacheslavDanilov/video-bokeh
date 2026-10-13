@@ -180,3 +180,5 @@ def test_a_read_only_predictions_file_keeps_its_record(
 
     runs = json.loads((tmp_path / "predictions.json").read_text())["runs"]
     assert [(r["rows"], r["model"]) for r in runs] == [(1, "M"), (1, "M")]
+    rows = (tmp_path / "predictions.csv").read_text().splitlines()[1:]
+    assert [row.split(",")[0] for row in rows] == ["aa1", "bb2"]
