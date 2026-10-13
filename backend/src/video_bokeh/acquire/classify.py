@@ -329,6 +329,12 @@ def main() -> int:
 
     metadata_csv = args.data_root / "metadata.csv"
     output_csv = args.output or (args.data_root / "predictions.csv")
+    if runs_path(output_csv) == output_csv:
+        print(
+            f"--output {output_csv} is where its record goes; give it another suffix",
+            file=sys.stderr,
+        )
+        return 1
 
     _, rows = read_metadata(metadata_csv)
     present = [r for r in rows if image_path(args.data_root, r["page_id"]).exists()]
@@ -474,6 +480,9 @@ def main() -> int:
 
     fieldnames = prediction_fieldnames()
     output_csv.parent.mkdir(parents=True, exist_ok=True)
+    # Gone before the predictions change, so a run whose record then fails leaves no
+    # record rather than one that names the previous model.
+    runs_path(output_csv).unlink(missing_ok=True)
     with output_csv.open("w", encoding="utf-8", newline="") as f:
         # LF, the endings the tracked dev pool is committed with.
         writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")

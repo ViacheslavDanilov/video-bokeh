@@ -131,3 +131,34 @@ def test_predictions_another_model_made_are_refused_before_clip_runs(
     assert _classify(monkeypatch, tmp_path, "--keep-existing") == 1
     assert (tmp_path / "predictions.csv").read_text() == kept
     assert (tmp_path / "predictions.json").read_text() == record
+
+
+def test_an_output_its_own_record_would_overwrite_is_refused(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _no_clip(*args, **kwargs):
+        raise AssertionError("CLIP must not load")
+
+    monkeypatch.setattr(classify.open_clip, "create_model_and_transforms", _no_clip)
+    _pool(tmp_path, ["aa1"])
+
+    assert _classify(monkeypatch, tmp_path, "--output", str(tmp_path / "out.json")) == 1
+    assert not (tmp_path / "out.json").exists()
+
+
+def test_a_fresh_run_replaces_a_read_only_record_of_another_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _fake_open_clip(monkeypatch)
+    _pool(tmp_path, ["aa1"])
+    _kept_prediction(tmp_path, "aa1")
+    record = tmp_path / "predictions.json"
+    record.write_text(json.dumps({"runs": [{"rows": 1, "model": "Other"}]}))
+    record.chmod(0o444)
+
+    assert _classify(monkeypatch, tmp_path, "--model", "M", "--pretrained", "w") == 0
+
+    [run] = json.loads(record.read_text())["runs"]
+    assert (run["rows"], run["model"]) == (1, "M")
