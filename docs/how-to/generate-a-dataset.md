@@ -52,6 +52,36 @@ On 2026-10-01, from `backend/`, keeping the 20 of each that were there:
 
 The pools grew by 20.8 MiB.
 
+### Full pools
+
+First install the acquisition dependencies from the repo root:
+
+```bash
+uv sync --frozen --extra library --extra acquire
+```
+
+Then download all 11,868 hand-picked MAGICK foregrounds and the whole BG-20k archive
+from `backend/`:
+
+```bash
+uv run --frozen --no-sync python -m video_bokeh.acquire.magick \
+  --metadata data/magick/metadata.csv --output data/magick --count 11868
+uv run --frozen --no-sync python -m video_bokeh.acquire.bg20k --output data/bg-20k
+```
+
+MAGICK writes `data/magick/images/<first-two-characters>/<page_id>.png`, skips existing
+images, and preserves the order of existing metadata rows. It retries HTTP 429 and 5xx
+responses up to seven attempts, waiting for `Retry-After` when provided or backing off
+from 5 to 60 seconds. Failed images can be fetched by rerunning the command.
+
+BG-20k writes `data/bg-20k/images/{train,testval}/<file>` and a `metadata.csv` with
+`filename,split` columns, matching the dev pool. It reuses an archive already downloaded
+under the output directory, restores missing images on reruns, and removes the archive
+copy only after every file named by the split lists is present. Missing files or differing
+copies of the same filename within a split stop the run and keep the archive. Identical
+copies across shards are accepted; names in different splits remain separate.
+Use `data/magick` and `data/bg-20k` as Stage A's source roots.
+
 ---
 
 ## 1. Stage A — build the library

@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import filecmp
 import os
 import random
 import shutil
+import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -68,6 +70,8 @@ def _fetch_background(
     for shard in _SHARDS:
         try:
             return download(f"{shard}/BG-20k/{split}/{name}", scratch)
+        except FileNotFoundError:
+            continue
         except Exception as exc:
             # Only "not in this shard" moves on. A lost connection or a refused login
             # must stop the run, or the sample would change without a word.
@@ -109,6 +113,44 @@ def sample_pool(pool: Path, count: int, seed: int, download: Download) -> None:
     print(f"\n{len(rows)} backgrounds in {pool}")
 
 
+def _normalize_archive(pool: Path, archive: Path, seed: int) -> None:
+    candidates = sorted(
+        {
+            (name, split)
+            for split, listing in _LISTS.items()
+            for name in (archive / listing).read_text().split()
+        }
+    )
+    random.Random(seed).shuffle(candidates)
+    rows = _read_pool(pool)
+    held = set(rows)
+    for name, split in candidates:
+        copies = [
+            source
+            for shard in _SHARDS
+            if (source := archive / str(shard) / "BG-20k" / split / name).is_file()
+        ]
+        for other in copies[1:]:
+            if not filecmp.cmp(copies[0], other, shallow=False):
+                raise ValueError(f"Conflicting backgrounds: {copies[0]} and {other}")
+        dest = pool / "images" / split / name
+        if not dest.is_file() and copies:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(copies[0], dest)
+        if (name, split) not in held:
+            rows.append((name, split))
+            held.add((name, split))
+    missing = [
+        f"{split}/{name}"
+        for name, split in candidates
+        if not (pool / "images" / split / name).is_file()
+    ]
+    if missing:
+        raise ValueError(f"Missing backgrounds: {', '.join(missing)}")
+    _write_pool(pool, rows)
+    print(f"\n{len(candidates)} backgrounds in {pool}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -144,8 +186,17 @@ def main() -> int:
 
     import kagglehub  # noqa: E402 — must be imported after KAGGLEHUB_CACHE is set
 
-    path = kagglehub.dataset_download(KAGGLE_DATASET)
-    print(f"Path to dataset files: {path}")
+    path = Path(kagglehub.dataset_download(KAGGLE_DATASET))
+    try:
+        _normalize_archive(args.output, path, args.seed)
+    except (OSError, ValueError) as exc:
+        print(f"  FAIL {exc}; archive kept at {path}", file=sys.stderr)
+        return 2
+    try:
+        shutil.rmtree(path)
+    except OSError as exc:
+        print(f"  FAIL could not remove archive {path}: {exc}", file=sys.stderr)
+        return 2
     return 0
 
 
