@@ -108,8 +108,8 @@ approaches or recedes.
 _Avoid_: depth range
 
 **Relief**:
-The shape of disparity inside one layer: the disparity map the depth estimator gave the
-asset, stretched on every frame to fill the object's active band, or the background band.
+The shape of disparity inside one layer: the asset's disparity map from the library,
+stretched on every frame to fill the object's active band, or the background band.
 _Avoid_: depth detail, in-object depth
 
 **Trajectory**:
