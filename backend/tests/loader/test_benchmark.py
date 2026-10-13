@@ -198,9 +198,11 @@ def test_an_installed_copy_records_no_commit(
         ],
         check=True,
     )
-    installed = tmp_path / ".venv/lib/python3.13/site-packages/video_bokeh/loader"
+    from video_bokeh.core import _provenance
+
+    installed = tmp_path / ".venv/lib/python3.13/site-packages/video_bokeh/core"
     installed.mkdir(parents=True)
-    monkeypatch.setattr(mod, "__file__", str(installed / "benchmark.py"))
+    monkeypatch.setattr(_provenance, "__file__", str(installed / "_provenance.py"))
 
     assert mod._git_commit() is None
 

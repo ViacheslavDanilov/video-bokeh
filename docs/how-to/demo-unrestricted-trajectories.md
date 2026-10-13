@@ -127,6 +127,9 @@ Recipe 1 as written took **14.9 s**. For a full-resolution look, raise `--size` 
 
 ## 4. Read the manifest
 
+`manifest.csv` marks a finished run. The writer removes any old manifest when generation
+starts and writes the new one last, after `objects.csv` and `run.json`.
+
 ```bash
 cd backend
 column -s, -t < data/demo/manifest.csv

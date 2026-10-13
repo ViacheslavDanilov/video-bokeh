@@ -3,6 +3,8 @@
 
     <output>/
     ├── manifest.csv
+    ├── objects.csv
+    ├── run.json
     └── sequences/<id>/
         ├── all_in_focus/<frame>.png   RGB uint8
         ├── alpha/<frame>.tif          multi-page uint8, one page per object
@@ -25,17 +27,24 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib.util
+import json
 import math
+import os
+import platform
 import random
 import shutil
+import time
 from collections.abc import Callable, Iterable, Iterator
+from datetime import UTC, datetime
+from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
 from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
-from video_bokeh.core._sequence_geometry import SampleConfig
+from video_bokeh.core._provenance import _git_commit
+from video_bokeh.core._sequence_geometry import EASING_FNS, SampleConfig
 from video_bokeh.core._streams import (
     BOKEH_STRENGTH,
     quantize_alpha,
@@ -65,7 +74,54 @@ _MANIFEST_FIELDS = (
     "n_objects",
     "n_rejections",
     "n_range_fallbacks",
+    "background",
 )
+
+_OBJECT_FIELDS = (
+    "seq_id",
+    "object",
+    "foreground",
+    "easing",
+    "scale_start",
+    "scale_end",
+    "band_lo_first",
+    "band_hi_first",
+    "band_lo_last",
+    "band_hi_last",
+    "depth_motion",
+    "range_fallback",
+)
+
+
+def _object_rows(seq_id: str, scene: Scene) -> Iterator[list[object]]:
+    for index, obj in enumerate(scene.objects):
+        easing = EASING_FNS[obj.easing]
+        first = obj.depth_start.lerp(obj.depth_end, easing(0.0))
+        last = obj.depth_start.lerp(
+            obj.depth_end, easing(0.0 if scene.n_frames == 1 else 1.0)
+        )
+        yield [
+            seq_id,
+            index,
+            obj.asset.asset_id,
+            obj.easing,
+            obj.pose_start.scale,
+            obj.pose_end.scale,
+            first.mind,
+            first.maxd,
+            last.mind,
+            last.maxd,
+            str(first != last).lower(),
+            str(obj.range_fallback).lower(),
+        ]
+
+
+def _library_estimator(library_root: Path) -> str | None:
+    for path in sorted((library_root / "foregrounds").glob("*/meta.json")):
+        estimator = json.loads(path.read_text(encoding="utf-8")).get("estimator")
+        if estimator is not None:
+            return estimator
+    return None
 
 
 def _save_frame(
@@ -180,7 +236,7 @@ def write_bokeh_stream(
     strength: float = BOKEH_STRENGTH,
     replace: bool = True,
     report: Report | None = None,
-) -> None:
+) -> str:
     """Render a written sequence's bokeh from its scene, in memory, into ``bokeh/``.
 
     ``focus`` is each frame's focus statistics, gathered while the frames were written;
@@ -188,7 +244,7 @@ def write_bokeh_stream(
     it. The frames are rendered again with their layers, a few at a time, so the layers
     are never held whole. ``replace`` is ``write_bokeh``'s. ``report`` hears of each
     frame as it is saved, and of the start before torch loads, which the first time
-    takes seconds. Needs torch.
+    takes seconds. Returns the resolved device used to render. Needs torch.
     """
     if report is not None:
         report(0, scene.n_frames)
@@ -200,16 +256,18 @@ def write_bokeh_stream(
     )
 
     focus_object, zf = focus_track(focus, focus_seed(scene_seed))
+    device = bokeh_device()
     images = render_sequence(
         (layered_frame(frame) for frame in iter_frames(scene, layers=True)),
         zf,
         strength,
-        bokeh_device(),
+        device,
     )
     names = [f"{_frame_stem(i, scene.n_frames)}.png" for i in range(scene.n_frames)]
     record = bokeh_record(focus_object, zf, strength)
     saved = counted(images, scene.n_frames, report)
     write_bokeh(seq_dir, zip(names, saved, strict=True), record, replace=replace)
+    return str(device)
 
 
 def write_flow_stream(
@@ -324,7 +382,10 @@ def generate_dataset(
     A sequence whose trajectories cannot be made collision-free is skipped, not
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
     numbering rather than shifting every later sequence onto a different seed.
+    Remove any old manifest before writing sequences. Write the new manifest
+    atomically, after objects.csv and run.json, as the run's completion marker.
     """
+    started = time.perf_counter()
     if bokeh and importlib.util.find_spec("torch") is None:
         raise ValueError(
             "bokeh needs torch: install the render or the loader extra",
@@ -332,8 +393,11 @@ def generate_dataset(
     if bokeh and not (math.isfinite(bokeh_strength) and bokeh_strength >= 0):
         raise ValueError(f"bokeh strength must be 0 or more, got {bokeh_strength}")
     output.mkdir(parents=True, exist_ok=True)
+    (output / "manifest.csv").unlink(missing_ok=True)
     rows: list[list[str]] = []
+    objects: list[list[object]] = []
     skipped: list[int] = []
+    device = None
 
     for i in range(count):
         seq_seed = seed + i
@@ -356,7 +420,7 @@ def generate_dataset(
         frames = iter_frames(scene, layers=layers, flow=flow)
         write_sequence(seq_dir, _measured(frames, focus) if bokeh else frames, n_frames)
         if bokeh:
-            write_bokeh_stream(seq_dir, scene, seq_seed, focus, bokeh_strength)
+            device = write_bokeh_stream(seq_dir, scene, seq_seed, focus, bokeh_strength)
         rows.append(
             [
                 seq_name,
@@ -366,17 +430,61 @@ def generate_dataset(
                 str(len(scene.objects)),
                 str(scene.n_rejections),
                 str(scene.n_range_fallbacks),
+                scene.background.asset_id,
             ],
         )
+        objects.extend(_object_rows(seq_name, scene))
         print(
             f"  {seq_name}  seed={seq_seed}  "
             f"n_obj={len(scene.objects)}  frames={n_frames}",
         )
 
-    with (output / "manifest.csv").open("w", encoding="utf-8", newline="") as f:
+    with (output / "objects.csv").open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(_OBJECT_FIELDS)
+        writer.writerows(objects)
+
+    record = {
+        "flags": {
+            "library_root": str(library_root),
+            "output": str(output),
+            "count": count,
+            "frames": n_frames,
+            "size": size,
+            "seed": seed,
+            "n_objects_min": n_objects_min,
+            "n_objects_max": n_objects_max,
+            "layers": layers,
+            "bokeh": bokeh,
+            "bokeh_strength": bokeh_strength,
+            "flow": flow,
+        },
+        "library_root": str(library_root.resolve()),
+        "estimator": _library_estimator(library_root),
+        "git_commit": _git_commit(),
+        "date": datetime.now(UTC).isoformat(),
+        "versions": {
+            "python": platform.python_version(),
+            "numpy": version("numpy"),
+            "Pillow": version("Pillow"),
+            **({"torch": version("torch")} if bokeh else {}),
+        },
+        "bokeh_device": device,
+        "sequences_requested": count,
+        "sequences_written": len(rows),
+        "skipped_seeds": skipped,
+        "wall_seconds": time.perf_counter() - started,
+    }
+    (output / "run.json").write_text(
+        json.dumps(record, indent=2) + "\n", encoding="utf-8"
+    )
+
+    manifest_tmp = output / "manifest.csv.tmp"
+    with manifest_tmp.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(_MANIFEST_FIELDS)
         writer.writerows(rows)
+    os.replace(manifest_tmp, output / "manifest.csv")
 
     if skipped:
         print(f"\nSkipped {len(skipped)} of {count} sequences; seeds: {skipped}")

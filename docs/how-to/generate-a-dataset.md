@@ -143,6 +143,9 @@ the compression measurements. The earlier total generation timings have not been
 
 ## 3. Read the manifest
 
+`manifest.csv` marks a finished run. The writer removes any old manifest when generation
+starts and writes the new one last, after `objects.csv` and `run.json`.
+
 ```bash
 column -s, -t < data/demo/manifest.csv
 ```

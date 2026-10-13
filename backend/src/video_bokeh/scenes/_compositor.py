@@ -71,6 +71,7 @@ class ObjectTrack:
     easing: str
     depth_start: DepthRange
     depth_end: DepthRange
+    range_fallback: bool = False
 
 
 @dataclass
@@ -177,6 +178,7 @@ def sample_scene(
                     easing=easing,
                     depth_start=depth_start,
                     depth_end=depth_end,
+                    range_fallback=used_fallback,
                 ),
             )
         # Far-to-near at frame 1. render_scene derives paint order per frame,

@@ -87,6 +87,8 @@ uv run python -m video_bokeh.library.build \
 #    and disparity/*.png (uint16), and with --layers the layers/ stream the
 #    layered renderer needs. --bokeh renders each sequence's bokeh in the same
 #    run, from the layers in memory, and --flow writes its exact optical flow.
+#    Each run rewrites manifest.csv (sequences and background ids), objects.csv
+#    (object trajectories and fallbacks), and run.json (settings and provenance).
 #    See docs/reference/dataset-layout.md.
 uv run python -m video_bokeh.scenes.generate \
   --library-root data/library/da2-large --output data/synth_dev \
