@@ -139,6 +139,9 @@ layers.** Measured on the lab machine on 2026-10-10, the way the next section me
 | `rgb`, `object_alphas`, `layers`, `focus` | not rendered | 2.27 |
 | `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.07 |
 
+`python -m video_bokeh.loader.benchmark --library-root <library> --streams rgb,object_alphas,layers,focus --gpu-bokeh --device cuda`
+runs this measurement, with the flags listed in the [CLI reference](cli.md#video_bokehloaderbenchmark--sequence-stream-throughput).
+
 - **The workers cannot keep up.** With bokeh they deliver 0.84 items per second at 8 workers,
   0.93 at 16 and 0.90 at 24, where without it they deliver 2.96, 3.44 and 3.40. Past 16
   workers neither gains.
@@ -176,6 +179,9 @@ The RTX 5090 renders a 512-pixel frame in about 3 ms, a 24-frame item in 0.07 s.
 cost shared memory too, as the next section says.
 
 ### What each choice costs
+
+`python -m video_bokeh.loader.benchmark --library-root <library>` runs this protocol;
+use `--streams` to select each row and `--output` to save the numbers and run settings as JSON.
 
 Measured on the lab machine (24 cores) on 2026-10-10: 512 pixels, 24 frames, 1 to 5
 objects, batches of 4, 8 workers, from the 30-asset development library. A `DataLoader` keeps
