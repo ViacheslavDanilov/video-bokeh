@@ -107,6 +107,11 @@ The narrow disparity interval an object occupies on a given frame; it moves as t
 approaches or recedes.
 _Avoid_: depth range
 
+**Relief**:
+The shape of disparity inside one layer: the asset's disparity map from the library,
+stretched on every frame to fill the object's active band, or the background band.
+_Avoid_: depth detail, in-object depth
+
 **Trajectory**:
 An object's path through a sequence: its on-screen motion and its active band on every
 frame, sampled together.
