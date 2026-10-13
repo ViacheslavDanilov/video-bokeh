@@ -191,6 +191,9 @@ The command exits 1 when any estimator it checked is not `ready`, or failed to m
 ## `video_bokeh.scenes.generate` — Stage B
 
 Samples scenes from the library and writes the sequence tree in [dataset-layout](dataset-layout.md).
+Each run also rewrites `manifest.csv` (including the background asset id), `objects.csv`
+(each object's trajectory endpoints and fallback flag), and `run.json` (flags, library,
+estimator, checkout, versions, bokeh device, counts, skipped seeds and elapsed time).
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -208,6 +211,25 @@ Samples scenes from the library and writes the sequence tree in [dataset-layout]
 | `--bokeh-strength` | float | `16` | the bokeh's strength, as any-to-bokeh's `k` |
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
+
+## `video_bokeh.scenes.stats` — dataset statistics
+
+Reads the current run's records and manifest-listed sequence files, without resampling.
+Prints JSON with counts, object-count distribution, depth motion and fallback shares,
+rejections, asset reuse, first-frame active band widths, object focus share, bytes per stream
+and per frame, and the original run record. Formats and denominators are in
+[dataset-layout](dataset-layout.md#dataset-statistics).
+
+```bash
+uv run python -m video_bokeh.scenes.stats --data-root data/synth_dev --output stats.json
+```
+
+| flag | type | default | meaning |
+|---|---|---|---|
+| `--data-root` | path | **required** | dataset root containing `manifest.csv`, `objects.csv` and `run.json` |
+| `--output` | path | unset | save the printed JSON to this file |
+
+Datasets without `objects.csv` or `run.json` produce a usage error naming the missing file.
 
 ## `video_bokeh.render.run` — Stage C
 

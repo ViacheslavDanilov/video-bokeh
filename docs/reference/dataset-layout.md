@@ -45,7 +45,8 @@ stay on disk for inspection. Libraries built without them still load.
 
 `meta.json` records the `--model` string Stage A ran with, the propagation parameters, and
 raw-depth statistics such as `core_frac` — the fraction of the image the trusted core covers.
-Stage B never reads it; it exists so a bad depth map can be diagnosed without re-running Stage A.
+Stage B reads its `estimator` for the run record. The other fields let a bad disparity map
+be diagnosed without re-running Stage A.
 
 `depth_input.png` is the image the estimator was actually given: the cut-out composited onto
 the neutral texture, because a depth model cannot read a transparent cut-out. Statistics alone
@@ -62,6 +63,8 @@ Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_boke
 ```
 <output>/
 ├── manifest.csv
+├── objects.csv
+├── run.json
 └── sequences/<seq-id>/
     ├── all_in_focus/<frame>.png   RGB    uint8   the sharp composite
     ├── alpha/<frame>.tif          multi-page uint8, one page per object
@@ -260,16 +263,77 @@ One row per written sequence.
 | column | meaning |
 |---|---|
 | `seq_id` | the directory name under `sequences/` |
-| `seed` | `seed + i`. The sequence is fully reproducible from this, the library and the run's settings |
+| `seed` | `seed + i`. Reproduction needs the same library, code and run settings |
 | `n_frames` | frames written |
 | `size` | square frame side in pixels |
 | `n_objects` | objects actually placed |
 | `n_rejections` | trajectory sets discarded by the collision validator |
 | `n_range_fallbacks` | objects forced to hold their start scale because no end pose fit |
+| `background` | background asset id in the library |
 
-`seed` makes the dataset reproducible rather than merely archived: the library plus a manifest,
-which records the frame count and size beside each seed, regenerates every sequence exactly when
-the run's other settings, the object range and the sampling configuration, are the same.
+The background column is appended after the existing columns. Each run rewrites all three
+records in the dataset root. Their rows describe only sequences written by that run, even
+when older sequence directories remain in the output.
+
+### `objects.csv`
+
+One row per object in each written sequence, ordered by `seq_id` then alpha page. These
+values come from the scene used to write the frames, without resampling it later.
+
+| column | format and meaning |
+|---|---|
+| `seq_id` | sequence directory name, as in the manifest |
+| `object` | zero-based alpha TIFF page index, also used in `paint_order.json` |
+| `foreground` | foreground asset id in the library |
+| `easing` | trajectory easing name from `EASING_FNS` |
+| `scale_start`, `scale_end` | floating-point scales of the start and end poses, as fractions of the frame edge |
+| `band_lo_first`, `band_hi_first` | floating-point bounds of the active band on the first frame |
+| `band_lo_last`, `band_hi_last` | floating-point bounds of the active band on the last frame |
+| `depth_motion` | lowercase `true` when the first and last active bands differ, otherwise `false` |
+| `range_fallback` | lowercase `true` when sampling the end pose exhausted its range budget and held the start scale, otherwise `false` |
+
+Band bounds use the compositor's eased interpolation of the trajectory, in `[0, 1]`
+disparity. A one-frame sequence has identical first and last bands and no recorded depth
+motion, even if its sampled end pose differs from its start pose.
+
+### `run.json`
+
+A JSON object written when generation ends. Together with the exact library and checkout,
+it records how to regenerate the run. Seeds alone cannot reproduce frames after sampling
+code changes.
+
+| key | format and meaning |
+|---|---|
+| `flags` | object with every parsed flag, including defaults; names use underscores and paths are strings |
+| `library_root` | absolute library path |
+| `estimator` | the first non-null `estimator` in the library's foreground `meta.json` files, ordered by asset id; null if none records it. A library uses one estimator |
+| `git_commit` | checkout's full commit hash; null for an installed copy or unavailable git |
+| `date` | UTC ISO 8601 timestamp at the end of the run |
+| `versions` | object with `python`, `numpy`, `Pillow`, and, with `--bokeh`, `torch` version strings |
+| `bokeh_device` | resolved torch device used to render bokeh; null when no bokeh was rendered |
+| `sequences_requested`, `sequences_written` | integer attempted and completed counts |
+| `skipped_seeds` | array of integer seeds skipped after collision retries were exhausted |
+| `wall_seconds` | floating-point elapsed seconds for generation and recording |
+
+### Dataset statistics
+
+[`scenes.stats`](cli.md#video_bokehscenesstats--dataset-statistics) reads the records without
+sampling scenes again. It prints JSON and can save the same JSON to a file. It reports
+sequence and frame counts, the object-count distribution and mean, depth motion and range
+fallback shares, rejection counts, foreground and background reuse, first-frame active band
+widths, object focus share, and stream sizes. Its `run` field contains `run.json` unchanged.
+
+Shares are fractions in `[0, 1]`. The focus denominator is the number of manifest-listed
+sequences with a `bokeh/` directory. A non-null `object` in `bokeh/focus.json`, including
+object 0, counts as object focus. Missing focus metadata does not count as object focus.
+Means, shares and width summaries with no observations are null. Reuse maxima and byte
+totals with no observations are zero.
+
+Byte totals include every file recursively inside each manifest-listed sequence's stream
+directory, including `paint_order.json` and `focus.json`. Bytes per frame divide each total
+by all frames in the manifest, including for optional streams and flow's missing last frame.
+Root records and previews outside stream directories are excluded. A dataset predating
+`objects.csv` or `run.json` gets an error naming the missing record.
 
 ---
 
