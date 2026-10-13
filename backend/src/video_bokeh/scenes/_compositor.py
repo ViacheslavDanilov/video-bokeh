@@ -140,17 +140,16 @@ def sample_scene(
     background = load_background(library_root, rng.choice(bg_ids))
 
     slots = assign_depth_slots(n_objects, bg_band_top=bg_band_top)
-    # Loaded once, outside the retry loop: a rejected trajectory set changes
-    # only the poses, so re-decoding the PNGs on every attempt is pure I/O.
+    # Loaded once, outside the retry loop: a rejected trajectory set keeps the
+    # same assets, so re-decoding the PNGs on every attempt is pure I/O.
     assets = [load_foreground(library_root, fid) for fid in chosen_fg]
 
     def _build_objects(attempt_rng: random.Random) -> tuple[list[ObjectTrack], int]:
         objs: list[ObjectTrack] = []
         fallbacks = 0
         for idx, asset in enumerate(assets):
-            # These three draws, in this order, are fixed mode's RNG contract.
-            # The unrestricted branch only draws after them, so switching modes
-            # cannot shift the stream fixed mode sees.
+            # The poses and the easing are drawn in this order, so a seed keeps its
+            # sequence only while this order does.
             pose_start = sample_fg_pose(attempt_rng, cfg)
             pose_end = sample_fg_pose(attempt_rng, cfg)
             easing = attempt_rng.choice(cfg.easings)

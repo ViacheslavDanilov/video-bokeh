@@ -1,4 +1,4 @@
-"""Per-object disparity band normalization and alpha-layer compositing."""
+"""Per-object disparity band normalization and the objects' starting depth slots."""
 
 from __future__ import annotations
 
@@ -62,9 +62,10 @@ def assign_depth_slots(
 ) -> list[tuple[float, float]]:
     """Partition the disparity axis above the background into disjoint slots.
 
-    Returns ``n_objects`` (lo, hi) bands in paint order (index 0 = farthest /
-    drawn first, last = nearest / drawn last). Slots are separated by ``gap`` so
-    that bounded zoom-scaling can never make two objects share a disparity.
+    Returns ``n_objects`` (lo, hi) bands from far to near (index 0 = farthest),
+    separated by ``gap``. Each slot seeds one object's starting depth range; its
+    trajectory may leave the slot, and the compositor paints objects by their
+    current bands.
     """
     if n_objects <= 0:
         return []

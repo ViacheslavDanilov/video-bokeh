@@ -63,8 +63,8 @@ a bad depth map later can be traced to the model or to the compositing rather th
 
 ### 2. Estimate depth
 
-The model returns a disparity map — brighter means closer. This is saved untouched as
-`depth_raw.png`, for diagnosis only.
+The model returns a disparity map — brighter means closer. That map, before propagation, is
+saved as `depth_raw.png` for diagnosis only, scaled to its own minimum and maximum in 16 bits.
 
 Which model runs is a flag: Depth Anything V2 by default, Depth Pro, Depth Anything 3, or one
 of your own. Every model hands back disparity, so nothing after this step knows which one ran.

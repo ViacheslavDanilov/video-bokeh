@@ -66,7 +66,8 @@ uv run python -m video_bokeh.library.build \
 size. A library smaller than the frame is only upscaled, and looks softer for it.
 
 **The CLIP filter drops assets.** Stage A keeps only foregrounds whose predicted subject and
-style clear `--subject-thr`, so 20 inputs may yield about 12 in the library. Pass
+style are among `--subjects` and `--styles`, and whose subject score is at least
+`--subject-thr`, so the dev pool's 30 foregrounds yield 17 in the library. Pass
 `--subjects "" --styles "" --subject-thr 0` to turn it off; any one of them alone leaves the
 other two filtering.
 

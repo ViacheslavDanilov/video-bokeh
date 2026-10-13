@@ -1,4 +1,4 @@
-# Bokeh is rendered in the same pass as the frames
+# Bokeh is rendered in the same run as the frames
 
 A sequence's bokeh is rendered by the layered renderer in the same run that renders its frames,
 from the layers held in memory: `scenes.generate --bokeh` for a written dataset, the API for the
@@ -16,7 +16,7 @@ over written sequences.
   step.
 - **One pass that holds the whole sequence.** Simple, but 80 frames at 1024 pixels with five
   objects hold about 11 GB of layers.
-- **One pass, frames rendered twice.** The focused object is drawn from the area each object
+- **One run, frames rendered twice.** The focused object is drawn from the area each object
   holds over the whole sequence, so no frame's bokeh can be rendered before the last frame is
   seen.
   The first pass writes the streams and keeps each frame's focus statistics; the second renders
