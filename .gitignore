@@ -47,6 +47,7 @@ backend/data/*/
 backend/data/magick/*
 !backend/data/magick/metadata.csv
 !backend/data/magick/predictions.csv
+!backend/data/magick/predictions.json
 !backend/data/magick/images/
 backend/data/magick/images/*
 !backend/data/magick/images/.gitkeep
