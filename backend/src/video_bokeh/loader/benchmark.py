@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import platform
-import subprocess
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import UTC, datetime
@@ -15,6 +14,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
+from video_bokeh.core._provenance import _git_commit
 from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.library._device import select_device
 from video_bokeh.loader import SequenceStream, batch_bokeh
@@ -72,27 +72,6 @@ def _render_batches(
             strength=strength,
         )
         yield batch
-
-
-def _git_commit() -> str | None:
-    """The commit of the video-bokeh checkout this module runs from, if it runs from one.
-
-    An installed copy sits in another project's tree, whose commit says nothing about
-    this code.
-    """
-    root = Path(__file__).resolve().parents[4]
-    if not (root / "backend/src/video_bokeh/loader/benchmark.py").is_file():
-        return None
-    try:
-        return subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=root,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        return None
 
 
 def main(argv: list[str] | None = None) -> None:
