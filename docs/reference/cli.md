@@ -403,6 +403,15 @@ includes warm-up and timed rendering; CPU and MPS runs leave that JSON field nul
 | `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs `~/.kaggle/kaggle.json` |
 | `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks, with the model that made the rest. Writes `predictions.json` beside the predictions, recording each run's rows, model, weights and date |
 
+MAGICK writes `images/<first-two-characters>/<page_id>.png` and `metadata.csv` under
+`--output`. Existing metadata rows keep their order, and new downloads follow in sample
+order. HTTP 429 and 5xx responses get up to seven attempts, honoring `Retry-After` or
+backing off from 5 to 60 seconds.
+
+BG-20k writes `images/<split>/<file>` and `metadata.csv` (`filename,split`) in both modes.
+Whole mode reuses a completed archive download and removes its copy after building the
+pool. See [Full pools](../how-to/generate-a-dataset.md#full-pools) for the commands.
+
 ---
 
 ## Related
