@@ -22,7 +22,7 @@ gitignored. To produce a dataset in the first place, see
 
 ## Before you start
 
-You need the artifact library at `backend/data/library/da2-large-dev/`, holding
+You need the artifact library at `backend/data/library_dev/da2-large/`, holding
 `foregrounds/` and `backgrounds/`. `make libraries` leaves it there, and Stage A in
 [generate-a-dataset](generate-a-dataset.md) builds it alone. Built from the pools as of
 2026-10-01 it holds 17 foregrounds and 30 backgrounds, and 30 and 30 with the class filter off;
@@ -60,7 +60,7 @@ the collision validator.
 cd backend
 for n in 1 2 3; do
   uv run python -m video_bokeh.scenes.generate \
-    --library-root data/library/da2-large-dev --output "data/demo_n$n" \
+    --library-root data/library_dev/da2-large --output "data/demo_n$n" \
     --count 4 --frames 80 --size 512 --seed 0 \
     --n-objects-min $n --n-objects-max $n
 done
@@ -109,7 +109,7 @@ numbering rather than shifting every later sequence onto a different seed.
 ```bash
 cd backend
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large-dev --output data/demo_seeds \
+  --library-root data/library_dev/da2-large --output data/demo_seeds \
   --count 10 --frames 80 --size 512 --seed 100
 ```
 

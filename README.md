@@ -65,7 +65,7 @@ Open [http://localhost:3000](http://localhost:3000) (frontend) and [http://local
 The page picks a depth estimator, sets the sequence parameters, generates, and compares the
 streams side by side. It needs libraries behind it, one per depth estimator: `make libraries`
 builds them with Depth Anything V2 Large, Depth Anything 3 Mono-Large and Depth Pro into the
-main checkout's `backend/data/library/<estimator>-dev` from the dev pools, and
+main checkout's `backend/data/library_dev/<estimator>` from the dev pools, and
 `make api` serves them. On Linux with Docker's NVIDIA runtime each model runs in its own
 image, which `make images` builds. Elsewhere Depth Anything 3 runs in a venv of its own,
 which `scripts/setup_depth_anything_3.sh` builds once.
@@ -77,7 +77,7 @@ a library by hand with Stage A is in [backend/README.md](backend/README.md), the
 ### With Docker
 
 ```bash
-cp .env.example .env          # only to serve something other than backend/data/library
+cp .env.example .env          # only to serve something other than backend/data/library_dev
 docker compose up api
 ```
 
