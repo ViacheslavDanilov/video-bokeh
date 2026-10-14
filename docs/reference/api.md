@@ -37,22 +37,22 @@ bokeh renders on.
 `foregrounds/` and `backgrounds/` is one library:
 
 ```bash
-VIDEO_BOKEH_LIBRARY=data/library/da2-large-dev uv run uvicorn video_bokeh.api.main:app --port 8000
+VIDEO_BOKEH_LIBRARY=data/library_dev/da2-large uv run uvicorn video_bokeh.api.main:app --port 8000
 ```
 
 Any other directory is read one level down, and every subdirectory holding both is a library.
-That is the layout `make libraries` writes, one library per depth estimator, into
-`data/library/`, the default, so the API serves all of them with nothing set:
+That is the layout `make libraries` writes, one dev-pool library per depth estimator, into
+`data/library_dev/`. `make api` sets `VIDEO_BOKEH_LIBRARY` to serve that root:
 
 ```
-data/library/
-├── da2-large-dev/
-├── da3-mono-large-dev/
-└── depth-pro-dev/
+data/library_dev/
+├── da2-large/
+├── da3-mono-large/
+└── depth-pro/
 ```
 
-Full-pool libraries use the estimator name without `-dev` and can live beside these dev
-libraries. See [Library names](../how-to/generate-a-dataset.md#library-names).
+Full-pool libraries use `data/library/<estimator>`. Neither root adds a suffix to estimator
+names. See [Library names](../how-to/generate-a-dataset.md#library-names).
 
 A subdirectory whose name starts with a dot is skipped, which is how a build still in progress
 stays out of view. A directory holding only one of `foregrounds/` and `backgrounds/` is a
@@ -81,7 +81,7 @@ What is mounted, in directory-name order.
 [
   {
     "id": "747c2380d504",
-    "name": "da2-large-dev",
+    "name": "da2-large",
     "n_foregrounds": 12,
     "n_backgrounds": 20,
     "depth_estimator": "da2-large",

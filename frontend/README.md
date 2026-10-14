@@ -12,8 +12,8 @@ The page is useless without the API, and the API is useless without a library, s
 the back:
 
 ```bash
-# 1. one terminal, from backend/
-uv run uvicorn video_bokeh.api.main:app --port 8000
+# 1. one terminal, from the repository root
+make api
 
 # 2. another terminal, from frontend/
 pnpm install --frozen-lockfile
@@ -22,10 +22,10 @@ pnpm dev
 
 Then open <http://localhost:3000>.
 
-It serves every library under `backend/data/library/`, including full-pool `<estimator>`
-and dev-pool `<estimator>-dev` libraries. If there is none yet, build the dev libraries once
-with `make libraries` from the repository root. The root `README.md` has the details, and
-a fresh clone has everything it needs.
+It serves every dev-pool library under `backend/data/library_dev/<estimator>`. Full-pool
+libraries live in `backend/data/library/<estimator>`. If there is none yet, build the dev
+libraries once with `make libraries` from the repository root. The root `README.md` has
+the details, and a fresh clone has everything it needs.
 
 The API address comes from `NEXT_PUBLIC_API_URL` and defaults to `http://localhost:8000`. It
 is baked in at build time, so a container built for one address cannot be pointed at another

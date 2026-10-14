@@ -15,7 +15,7 @@ end. [loader](../reference/loader.md) describes every stream and option.
 
 The stream needs torch. Install the `loader` extra as [loader](../reference/loader.md) says.
 
-It also needs a library. The example reads `data/library/da2-large-dev`, which `make libraries`
+It also needs a library. The example reads `data/library_dev/da2-large`, which `make libraries`
 builds from the development pools a clone carries, or Stage A alone in
 [generate-a-dataset](generate-a-dataset.md).
 
