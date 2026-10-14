@@ -311,7 +311,6 @@ code changes.
 | `flags` | object with every parsed flag, including defaults; names use underscores and paths are strings |
 | `library_root` | absolute library path |
 | `estimator` | the first non-null `estimator` in the library's foreground `meta.json` files, ordered by asset id; null if none records it. A library uses one estimator |
-| `git_commit` | checkout's full commit hash; null for an installed copy or unavailable git |
 | `date` | UTC ISO 8601 timestamp at the end of the run |
 | `versions` | object with `python`, `numpy`, `Pillow`, and, with `--bokeh`, `torch` version strings |
 | `bokeh_device` | resolved torch device used to render bokeh; null when no bokeh was rendered |

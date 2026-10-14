@@ -43,7 +43,6 @@ import numpy as np
 from PIL import Image
 
 from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
-from video_bokeh.core._provenance import _git_commit
 from video_bokeh.core._sequence_geometry import EASING_FNS, SampleConfig
 from video_bokeh.core._streams import (
     BOKEH_STRENGTH,
@@ -461,7 +460,6 @@ def generate_dataset(
         },
         "library_root": str(library_root.resolve()),
         "estimator": _library_estimator(library_root),
-        "git_commit": _git_commit(),
         "date": datetime.now(UTC).isoformat(),
         "versions": {
             "python": platform.python_version(),

@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import json
 import platform
-import subprocess
 from collections import Counter
 from datetime import datetime
 from importlib.metadata import version
@@ -849,10 +848,7 @@ def test_scene_records_match_the_sampled_scene(
     }
     assert run["library_root"] == str(library.resolve())
     assert run["estimator"] == "test-estimator"
-    assert (
-        run["git_commit"]
-        == subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    )
+    assert "git_commit" not in run
     assert datetime.fromisoformat(run["date"]).utcoffset().total_seconds() == 0
     assert run["versions"] == {
         "python": platform.python_version(),
