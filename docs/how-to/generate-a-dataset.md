@@ -105,6 +105,16 @@ uv run --frozen --no-sync python -m video_bokeh.library.build \
 The recipes below use the dev library. For the final dataset, pass
 `--library-root data/library/da2-large` to Stage B instead.
 
+**Existing checkouts.** Before running `make libraries`, rename each existing dev library
+from the repo root (leave full-pool libraries unsuffixed):
+
+```bash
+cd backend/data/library && for d in da2-base da2-large da2-small da3-metric-large da3-mono-large depth-pro; do [ -d "$d" ] && mv "$d" "$d-dev"; done
+```
+
+Two libraries with the same assets, estimator, and size share an ID and make the API answer
+503. `make libraries` stops if an unsuffixed library exists where it would build a dev copy.
+
 ## 1. Stage A — build the library
 
 Run the matching build command in [Library names](#library-names).

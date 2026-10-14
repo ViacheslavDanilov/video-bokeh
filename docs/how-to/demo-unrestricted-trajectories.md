@@ -32,12 +32,7 @@ either is enough for every recipe here.
 
 ## 1. The main check: does disparity follow size
 
-```bash
-cd backend
-uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large-dev --output data/demo \
-  --count 4 --frames 80 --size 512 --seed 0
-```
+Generate the demo sequences with [Stage B — generate sequences](generate-a-dataset.md#2-stage-b--generate-sequences).
 
 ```bash
 cd data/demo/sequences
