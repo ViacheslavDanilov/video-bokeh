@@ -73,7 +73,7 @@ same holds for a set of sequences and for Stage C.
 **A re-run picks up where the last one stopped.** A library or a bokeh stream that exists is
 not made again. Sequences are made again, with their bokeh, when `COUNT`, `FRAMES` or `SIZE`
 changed or the last set did not finish. To redo an estimator from scratch, delete both
-`backend/data/lab/libraries/<estimator>` and `backend/data/lab/sequences/<estimator>`.
+`backend/data/lab/libraries/<estimator>-dev` and `backend/data/lab/sequences/<estimator>`.
 
 **Send back the log** it names on its first and its last line,
 `backend/data/measurements/lab-<time>.log`. It carries the commands, the GPU, the torch and
@@ -114,7 +114,7 @@ exited 1.
 
 ## Look at the result
 
-The libraries land in `backend/data/lab/libraries/`, one per depth estimator, which is the
+The libraries land in `backend/data/lab/libraries/<estimator>-dev`, which is the
 layout the page's picker reads:
 
 ```bash

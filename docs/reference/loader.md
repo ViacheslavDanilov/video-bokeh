@@ -30,7 +30,7 @@ from video_bokeh.loader import SequenceStream
 
 def main() -> None:
     stream = SequenceStream(
-        Path("data/library/da2-large"),
+        Path("data/library/da2-large-dev"),
         n_frames=24,
         size=512,
         n_objects_min=1,
@@ -92,7 +92,7 @@ to ignore the padding.
 ### Choosing streams
 
 ```python
-stream = SequenceStream(Path("data/library/da2-large"), n_frames=24, size=512,
+stream = SequenceStream(Path("data/library/da2-large-dev"), n_frames=24, size=512,
                         streams=("rgb", "disparity"))
 ```
 
@@ -116,7 +116,7 @@ and [layered-bokeh](../explanation/layered-bokeh.md) explains. It is off by defa
 that does not ask for it pays nothing.
 
 ```python
-stream = SequenceStream(Path("data/library/da2-large"), n_frames=24, size=512,
+stream = SequenceStream(Path("data/library/da2-large-dev"), n_frames=24, size=512,
                         streams=("rgb", "bokeh"), bokeh_strength=16.0)
 ```
 
@@ -160,7 +160,7 @@ from video_bokeh.loader import SequenceStream, batch_bokeh
 
 def main() -> None:
     stream = SequenceStream(
-        Path("data/library/da2-large"),
+        Path("data/library/da2-large-dev"),
         n_frames=24,
         size=512,
         streams=("rgb", "object_alphas", "layers", "focus"),

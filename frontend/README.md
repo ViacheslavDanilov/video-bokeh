@@ -22,9 +22,10 @@ pnpm dev
 
 Then open <http://localhost:3000>.
 
-It serves every library under `backend/data/library/`, one per depth estimator. If there is
-none yet, build them once with `make libraries` from the repository root; the root
-`README.md` has the details, and a fresh clone has everything it needs.
+It serves every library under `backend/data/library/`, including full-pool `<estimator>`
+and dev-pool `<estimator>-dev` libraries. If there is none yet, build the dev libraries once
+with `make libraries` from the repository root. The root `README.md` has the details, and
+a fresh clone has everything it needs.
 
 The API address comes from `NEXT_PUBLIC_API_URL` and defaults to `http://localhost:8000`. It
 is baked in at build time, so a container built for one address cannot be pointed at another
