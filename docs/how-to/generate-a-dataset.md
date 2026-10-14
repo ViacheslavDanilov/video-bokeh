@@ -107,14 +107,32 @@ uv run --frozen --no-sync python -m video_bokeh.library.build \
 The recipes below use the dev library. For the final dataset, pass
 `--library-root data/library/da2-large` to Stage B instead.
 
-**Existing checkouts.** Dev-pool libraries built before this change sit in
-`data/library/<estimator>` or `data/library/<estimator>-dev`. From the repository root,
-move those dev libraries into `library_dev` with unsuffixed names (leave full-pool
-libraries in `library`):
+**Existing checkouts.** From the repository root, move one dev library at a time:
 
-```bash
-cd backend/data && mkdir -p library_dev && for d in da2-base da2-large da2-small da3-metric-large da3-mono-large depth-pro; do for s in "" -dev; do [ -d "library/$d$s" ] && mv "library/$d$s" "library_dev/$d"; done; done
-```
+1. Count its assets. A dev library uses the tracked dev pools: at most 30 foregrounds
+   and 30 backgrounds. A full library has thousands: about 8,586 foregrounds and
+   20,000 backgrounds. Leave every library with thousands of assets in place.
+   Replace `<name>` with the estimator name, or the estimator plus `-dev` if
+   PR #92's suffix was applied.
+
+   ```bash
+   ls backend/data/library/<name>/foregrounds | wc -l
+   ls backend/data/library/<name>/backgrounds | wc -l
+   ```
+
+2. Create the parent directory, then make sure `backend/data/library_dev/<estimator>`
+   does not exist. If it exists, stop to avoid nesting libraries.
+
+   ```bash
+   mkdir -p backend/data/library_dev
+   ```
+
+3. Move only a library identified as dev in step 1, using the unsuffixed estimator
+   name for `<estimator>`:
+
+   ```bash
+   mv backend/data/library/<name> backend/data/library_dev/<estimator>
+   ```
 
 ## 1. Stage A — build the library
 
