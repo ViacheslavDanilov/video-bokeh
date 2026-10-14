@@ -52,7 +52,7 @@ backend/data/magick/*
 backend/data/magick/images/*
 !backend/data/magick/images/.gitkeep
 backend/data/synth*/
-# The full pools and the full library are laid out empty, so a clone has the folders the
+# The full pools and both libraries are laid out empty, so a clone has the folders the
 # commands fill: nothing else in them is tracked. Any other library*/ stays ignored.
 backend/data/library*/
 !backend/data/bg-20k/
@@ -63,6 +63,9 @@ backend/data/bg-20k/images/*
 !backend/data/library/
 backend/data/library/*
 !backend/data/library/.gitkeep
+!backend/data/library_dev/
+backend/data/library_dev/*
+!backend/data/library_dev/.gitkeep
 # A predictions file classify was still writing when it stopped.
 backend/data/**/*.partial
 
