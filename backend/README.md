@@ -48,7 +48,7 @@ like. Both numbers below were measured on an Apple M3 Pro.
 ```bash
 uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output data/library/da2-small --size 512 --model da2-small
+  --output data/library/da2-small-dev --size 512 --model da2-small
 ```
 
 **11 s**, on MPS, once the depth model is cached; the first run also pulls it from Hugging
@@ -59,7 +59,7 @@ default elsewhere and is slower and better. The CLIP filter keeps 17 of the 30 f
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-small --output data/synth_dev \
+  --library-root data/library/da2-small-dev --output data/synth_dev \
   --count 4 --frames 80 --size 512 --seed 0
 ```
 
@@ -86,7 +86,7 @@ The API mounts libraries and generates sequences from the one a request names, o
 it at one library, or at a directory with one library per subdirectory:
 
 ```bash
-VIDEO_BOKEH_LIBRARY=data/library/da2-small \
+VIDEO_BOKEH_LIBRARY=data/library/da2-small-dev \
   uv run uvicorn video_bokeh.api.main:app --reload --port 8000
 ```
 
@@ -98,7 +98,7 @@ Without `VIDEO_BOKEH_LIBRARY` it looks for `$VIDEO_BOKEH_DATA_ROOT/library`, and
 repository root, writes one library per depth estimator, so after it the API needs no variable
 at all. Sequences are written under `$VIDEO_BOKEH_DATA_ROOT/sequences/`.
 
-Against `data/library/da2-small`, generate a sequence and watch it:
+Against `data/library/da2-small-dev`, generate a sequence and watch it:
 
 ```bash
 curl -X POST http://localhost:8000/sequences \

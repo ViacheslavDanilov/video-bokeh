@@ -26,7 +26,7 @@ services:
       VIDEO_BOKEH_DATA_ROOT: /data
     volumes:
     # The libraries are named separately from the root so that one library, such as
-    # data/library/da2-large, or a directory built elsewhere can be served; by default
+    # data/library/da2-large-dev, or a directory built elsewhere can be served; by default
     # they are data/library. Inside the container they always land at /data/library,
     # which is where the api looks by default, so VIDEO_BOKEH_LIBRARY is a host-side
     # setting only.

@@ -17,7 +17,7 @@ and transformed from the library, not estimated per frame.
 
 Usage:
     uv run python -m video_bokeh.scenes.generate \\
-        --library-root data/library/da2-large \\
+        --library-root data/library/da2-large-dev \\
         --output       data/synth_dev \\
         --count 10 --frames 80 --size 1024 --seed 0
 """

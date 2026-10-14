@@ -80,7 +80,7 @@ uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
 # 2. Stage A — build the artifact library (depth runs once per asset)
 uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output data/library/da2-large --size 1024 --model da2-large
+  --output data/library/da2-large-dev --size 1024 --model da2-large
 
 # 3. Stage B — generate sequences on the fly from the library
 #    Writes all_in_focus/*.png (RGB), alpha/*.tif (one page per object)
@@ -91,7 +91,7 @@ uv run python -m video_bokeh.library.build \
 #    (object trajectories and fallbacks), and run.json (settings and provenance).
 #    See docs/reference/dataset-layout.md.
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large --output data/synth_dev \
+  --library-root data/library/da2-large-dev --output data/synth_dev \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5 --layers
 
 # 4. Stage C — render bokeh into each sequence's bokeh/. layered, the default, runs

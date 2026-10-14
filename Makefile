@@ -24,14 +24,18 @@ setup: ## Install the backend, the frontend and the test browser
 
 # Builds under a hidden name and renames when done, so a half-built library is never
 # served. An existing library is skipped, so cached sequences stay valid.
-libraries: ## Build one library per depth estimator into LIBRARY
+libraries: ## Build one dev library per depth estimator into LIBRARY
 	@out="$(abspath $(LIBRARY))"; for estimator in $(ESTIMATORS); do \
-	  if [ -d "$$out/$$estimator" ]; then echo "$$estimator: exists, skipped"; continue; fi; \
-	  rm -rf "$$out/.$$estimator" && \
+	  if [ -d "$$out/$$estimator-dev" ]; then echo "$$estimator-dev: exists, skipped"; continue; fi; \
+	  if [ -d "$$out/$$estimator" ]; then \
+	    echo "$$estimator: exists; refusing to build $$estimator-dev beside a possible duplicate (API 503)." >&2; \
+	    echo "If it is a dev library, rename it first; see docs/how-to/generate-a-dataset.md#library-names." >&2; exit 1; \
+	  fi; \
+	  rm -rf "$$out/.$$estimator-dev" && \
 	  (cd backend && VIDEO_BOKEH_RUNNER=$(RUNNER) uv run --extra library python -m video_bokeh.library.build \
 	    --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-	    --output "$$out/.$$estimator" --model $$estimator $(BUILD_FLAGS)) && \
-	  mv "$$out/.$$estimator" "$$out/$$estimator" || exit 1; \
+	    --output "$$out/.$$estimator-dev" --model $$estimator $(BUILD_FLAGS)) && \
+	  mv "$$out/.$$estimator-dev" "$$out/$$estimator-dev" || exit 1; \
 	done
 
 images: ## Build the models' Docker images (NVIDIA only)

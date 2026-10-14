@@ -368,7 +368,7 @@ source.
 
 | flag | type | default | meaning |
 |---|---|---|---|
-| `--library-root` | path | `data/library/da2-large` | library the stream draws its sequences from |
+| `--library-root` | path | `data/library/da2-large-dev` | library the stream draws its sequences from |
 | `--steps` | int | `20` | training steps to run before it stops |
 
 ## `video_bokeh.loader.benchmark` — sequence-stream throughput

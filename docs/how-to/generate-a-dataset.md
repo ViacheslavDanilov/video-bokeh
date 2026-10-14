@@ -10,8 +10,8 @@ related: [dataset-layout, cli, pipeline-explainer]
 Two stages. Stage A estimates depth once per asset and is slow; Stage B composites sequences
 from those assets and is fast. Run Stage A once, then Stage B as often as you like.
 
-Every command here runs from `backend/` and has been executed as written. Output lands in
-`backend/data/`, which is gitignored.
+Every command here runs from `backend/`. Output lands in `backend/data/`, which is
+gitignored.
 
 For what the commands write, see [dataset-layout](../reference/dataset-layout.md). For every
 flag, see [cli](../reference/cli.md). For why the pipeline is shaped this way, see
@@ -27,7 +27,7 @@ flag, see [cli](../reference/cli.md). For why the pipeline is shaped this way, s
 4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says whether
    each depth estimator can run there, before a build finds out. See [cli](../reference/cli.md).
 
-If `data/library/da2-large/` already holds `foregrounds/` and `backgrounds/`, as `make
+If `data/library/da2-large-dev/` already holds `foregrounds/` and `backgrounds/`, as `make
 libraries` leaves it, Stage A is done and you can skip to Stage B. Built with the default class
 filter from the pools as of 2026-10-01, it holds 17 foregrounds and 30 backgrounds, and 30 and
 30 with the filter off. Either is enough for every recipe below.
@@ -84,13 +84,40 @@ Use `data/magick` and `data/bg-20k` as Stage A's source roots.
 
 ---
 
-## 1. Stage A — build the library
+## Library names
+
+Full-pool libraries use `data/library/<estimator>` with no suffix. Dev-pool libraries use
+`data/library/<estimator>-dev`. Build the full library after downloading the full pools
+above, or build the dev library from the pools a fresh clone carries:
 
 ```bash
-uv run python -m video_bokeh.library.build \
-  --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
+# Full pools: the library for the final dataset
+uv run --frozen --no-sync python -m video_bokeh.library.build \
+  --fg-data-root data/magick --bg-data-root data/bg-20k \
   --output data/library/da2-large --size 1024 --model da2-large
+
+# Dev pools: the library for the demo and examples
+uv run --frozen --no-sync python -m video_bokeh.library.build \
+  --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
+  --output data/library/da2-large-dev --size 1024 --model da2-large
 ```
+
+The recipes below use the dev library. For the final dataset, pass
+`--library-root data/library/da2-large` to Stage B instead.
+
+**Existing checkouts.** Before running `make libraries`, rename each existing dev library
+from the repo root (leave full-pool libraries unsuffixed):
+
+```bash
+cd backend/data/library && for d in da2-base da2-large da2-small da3-metric-large da3-mono-large depth-pro; do [ -d "$d" ] && mv "$d" "$d-dev"; done
+```
+
+Two libraries with the same assets, estimator, and size share an ID and make the API answer
+503. `make libraries` stops if an unsuffixed library exists where it would build a dev copy.
+
+## 1. Stage A — build the library
+
+Run the matching build command in [Library names](#library-names).
 
 **`--size` need not match Stage B.** Stage B maps each asset onto the frame whatever its
 size. A library smaller than the frame is only upscaled, and looks softer for it.
@@ -117,7 +144,7 @@ uv run python -m video_bokeh.library.build \
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large --output data/demo \
+  --library-root data/library/da2-large-dev --output data/demo \
   --count 4 --frames 80 --size 512 --seed 0
 ```
 
@@ -140,7 +167,7 @@ it is given. `--n-objects-max` defaults to 5.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large --output data/demo5 \
+  --library-root data/library/da2-large-dev --output data/demo5 \
   --count 3 --frames 8 --size 512 --n-objects-min 5 --n-objects-max 5
 ```
 
@@ -157,7 +184,7 @@ pass as the frames:
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large --output data/demo_flow \
+  --library-root data/library/da2-large-dev --output data/demo_flow \
   --count 3 --frames 80 --size 512 --seed 0 --flow
 ```
 
@@ -228,7 +255,7 @@ installed.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large --output data/demo_bokeh \
+  --library-root data/library/da2-large-dev --output data/demo_bokeh \
   --count 2 --frames 24 --size 512 --seed 0 --bokeh
 ```
 
@@ -239,7 +266,7 @@ It took 7 s on an Apple M3 Pro, on 2026-10-10.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library/da2-large --output data/demo_layers \
+  --library-root data/library/da2-large-dev --output data/demo_layers \
   --count 2 --frames 24 --size 512 --seed 0 --layers
 uv run --extra render python -m video_bokeh.render.run --data-root data/demo_layers \
   --renderer layered
