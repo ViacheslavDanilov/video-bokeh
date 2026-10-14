@@ -113,7 +113,7 @@ The recipes below use the dev library. For the final dataset, pass
    and 30 backgrounds. A full library has thousands: about 8,586 foregrounds and
    20,000 backgrounds. Leave every library with thousands of assets in place.
    Replace `<name>` with the estimator name, or the estimator plus `-dev` if
-   PR #92's suffix was applied.
+   a `-dev` suffix was applied.
 
    ```bash
    ls backend/data/library/<name>/foregrounds | wc -l
