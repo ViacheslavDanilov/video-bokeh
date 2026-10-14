@@ -62,8 +62,7 @@ def test_a_directory_of_libraries_lists_each_in_name_order(tmp_path: Path) -> No
     root = tmp_path / "library"
     depth_pro = _library(root / "depth-pro")
     da2 = _library(root / "da2-large")
-    da2_dev = _library(root / "da2-large-dev")
-    assert find_libraries(_settings(root)) == [da2, da2_dev, depth_pro]
+    assert find_libraries(_settings(root)) == [da2, depth_pro]
 
 
 def test_a_build_in_progress_is_not_a_library(tmp_path: Path) -> None:

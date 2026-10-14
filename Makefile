@@ -6,7 +6,7 @@
 # Libraries are not in git, so a second worktree uses the main checkout's.
 MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolute --git-common-dir))
 # One library, or a directory holding several, such as one per depth estimator.
-LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library
+LIBRARY ?= $(MAIN_CHECKOUT)/backend/data/library_dev
 ESTIMATORS := da2-large da3-mono-large depth-pro
 # Where the models run: their Docker images where Linux has docker's NVIDIA runtime, their
 # venvs elsewhere, as a Mac's Docker has no GPU to give. VIDEO_BOKEH_RUNNER overrides it.
@@ -26,16 +26,12 @@ setup: ## Install the backend, the frontend and the test browser
 # served. An existing library is skipped, so cached sequences stay valid.
 libraries: ## Build one dev library per depth estimator into LIBRARY
 	@out="$(abspath $(LIBRARY))"; for estimator in $(ESTIMATORS); do \
-	  if [ -d "$$out/$$estimator-dev" ]; then echo "$$estimator-dev: exists, skipped"; continue; fi; \
-	  if [ -d "$$out/$$estimator" ]; then \
-	    echo "$$estimator: exists; refusing to build $$estimator-dev beside a possible duplicate (API 503)." >&2; \
-	    echo "If it is a dev library, rename it first; see docs/how-to/generate-a-dataset.md#library-names." >&2; exit 1; \
-	  fi; \
-	  rm -rf "$$out/.$$estimator-dev" && \
+	  if [ -d "$$out/$$estimator" ]; then echo "$$estimator: exists, skipped"; continue; fi; \
+	  rm -rf "$$out/.$$estimator" && \
 	  (cd backend && VIDEO_BOKEH_RUNNER=$(RUNNER) uv run --extra library python -m video_bokeh.library.build \
 	    --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-	    --output "$$out/.$$estimator-dev" --model $$estimator $(BUILD_FLAGS)) && \
-	  mv "$$out/.$$estimator-dev" "$$out/$$estimator-dev" || exit 1; \
+	    --output "$$out/.$$estimator" --model $$estimator $(BUILD_FLAGS)) && \
+	  mv "$$out/.$$estimator" "$$out/$$estimator" || exit 1; \
 	done
 
 images: ## Build the models' Docker images (NVIDIA only)

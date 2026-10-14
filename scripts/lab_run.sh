@@ -13,7 +13,7 @@
 # run exits 1. A re-run picks up where the last stopped. A library or a bokeh stream
 # that exists is not made again, and sequences are made again only when COUNT, FRAMES
 # or SIZE changed, together with their bokeh. To redo an estimator from scratch, delete
-# backend/data/lab/libraries/<estimator>-dev and backend/data/lab/sequences/<estimator>.
+# backend/data/lab/libraries/<estimator> and backend/data/lab/sequences/<estimator>.
 #
 # The output lands in backend/data/lab/, which git ignores, and
 # `make api LIBRARY=backend/data/lab/libraries` shows the libraries in the page's picker.
@@ -252,7 +252,7 @@ for estimator in ${READY[@]+"${READY[@]}"}; do
     rm -rf "$dest"
     generated=0
     timed "sequences, $estimator" uv run --directory "$BACKEND" \
-        python -m video_bokeh.scenes.generate --library-root "$OUT/libraries/$estimator-dev" \
+        python -m video_bokeh.scenes.generate --library-root "$OUT/libraries/$estimator" \
         --output "$dest" --count "$COUNT" --frames "$FRAMES" --size "$SIZE" --seed 0 ||
         generated=$?
     if [ "$generated" -ne 0 ]; then

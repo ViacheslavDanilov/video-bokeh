@@ -24,7 +24,7 @@ def main() -> None:
     parser.add_argument(
         "--library-root",
         type=Path,
-        default=Path("data/library/da2-large-dev"),
+        default=Path("data/library_dev/da2-large"),
     )
     parser.add_argument("--steps", type=int, default=20)
     args = parser.parse_args()
