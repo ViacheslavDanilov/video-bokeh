@@ -193,7 +193,7 @@ The command exits 1 when any estimator it checked is not `ready`, or failed to m
 Samples scenes from the library and writes the sequence tree in [dataset-layout](dataset-layout.md).
 Each run also rewrites `manifest.csv` (including the background asset id), `objects.csv`
 (each object's trajectory endpoints and fallback flag), and `run.json` (flags, library,
-estimator, checkout, versions, bokeh device, counts, skipped seeds and elapsed time).
+estimator, versions, bokeh device, counts, skipped seeds and elapsed time).
 The writer removes any old manifest before writing sequences. It writes `objects.csv`
 and `run.json` first, then writes `manifest.csv` atomically as the run's completion marker.
 
