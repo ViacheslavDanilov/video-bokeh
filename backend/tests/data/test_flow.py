@@ -15,7 +15,13 @@ import pytest
 from PIL import Image, ImageFilter
 
 from video_bokeh.core._library import write_background, write_foreground
-from video_bokeh.core._streams import read_alpha_tiff, read_flow_png, read_paint_order
+from video_bokeh.core._streams import (
+    read_alpha_tiff,
+    read_flow_png,
+    read_mask_png,
+    read_paint_order,
+)
+from video_bokeh.scenes._compositor import occlusion_mask
 from video_bokeh.scenes.generate import generate_dataset, main
 
 FRAMES, SIZE = 6, 96
@@ -286,11 +292,98 @@ def test_writing_a_sequence_again_without_flow_drops_its_old_flow(
     textured_library: Path,
     tmp_path: Path,
 ) -> None:
-    seq = _generate(textured_library, tmp_path / "out", flow=True, flow_back=True)
+    seq = _generate(
+        textured_library, tmp_path / "out", flow=True, flow_back=True, occlusion=True
+    )
     assert (seq / "flow").is_dir() and (seq / "flow_back").is_dir()
+    assert (seq / "occlusion").is_dir()
     _generate(textured_library, tmp_path / "out")
     assert not (seq / "flow").exists()
     assert not (seq / "flow_back").exists()
+    assert not (seq / "occlusion").exists()
+
+
+def test_occlusion_marks_a_covered_pixel_and_one_that_leaves_the_frame() -> None:
+    """A 4 x 4 frame, by columns: object 0 holds columns 0 and 1, the background column
+    2, and object 1 column 3. In the next frame object 0 holds columns 1 and 2, the
+    background column 0, and object 1 stays on column 3.
+    """
+    front_now = np.full((4, 4), -1)
+    front_now[:, :2] = 0
+    front_now[:, 3] = 1
+    front_next = np.full((4, 4), -1)
+    front_next[:, 1:3] = 0
+    front_next[:, 3] = 1
+    flow = np.zeros((4, 4, 2), dtype=np.float32)
+
+    # Covered: object 0 moves one pixel right onto its own next columns, the
+    # background's column lands on column 1, which object 0 then holds.
+    flow[front_now == 0, 0] = 1.0
+    flow[front_now == -1, 0] = -1.0
+    expected = np.zeros((4, 4), dtype=bool)
+    expected[:, 2] = True
+    assert np.array_equal(occlusion_mask(front_now, front_next, flow), expected)
+
+    # Leaves the frame: the background's column moves three pixels left, to column -1.
+    flow[front_now == -1, 0] = -3.0
+    assert np.array_equal(occlusion_mask(front_now, front_next, flow), expected)
+
+    # Covered by the other object: object 0 moves two pixels right, so its column 1
+    # lands on column 3, which object 1 holds, while its column 0 lands on itself.
+    flow[front_now == 0, 0] = 2.0
+    occluded = occlusion_mask(front_now, front_next, flow)
+    assert occluded[:, 1].all() and not occluded[:, 0].any()
+
+
+def test_a_landing_at_the_edge_rounds_to_the_nearest_pixel() -> None:
+    front = np.zeros((1, 4), dtype=int)
+    flow = np.zeros((1, 4, 2), dtype=np.float32)
+    flow[0, 3, 0] = 0.4  # column 3 lands at 3.4: still column 3, inside
+    flow[0, 2, 0] = 1.6  # column 2 lands at 3.6: column 4, outside
+    assert occlusion_mask(front, front, flow).tolist() == [[False, False, True, False]]
+
+
+def test_a_still_scene_occludes_nothing() -> None:
+    front = np.array([[-1, 0], [1, 1]])
+    assert not occlusion_mask(front, front, np.zeros((2, 2, 2), np.float32)).any()
+
+
+def test_occlusion_is_written_for_every_frame_but_the_last(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    seq = _generate(textured_library, tmp_path / "out", occlusion=True)
+    written = sorted(p.name for p in (seq / "occlusion").glob("*.png"))
+    assert written == _names(seq)[:-1]
+    assert not (seq / "flow").exists()
+    mask = read_mask_png(seq / "occlusion" / written[0])
+    assert mask.shape == (SIZE, SIZE) and mask.dtype == bool
+
+
+def test_occlusion_agrees_with_the_written_alphas_and_flow(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    """Read back from the files, a pixel is marked exactly when the surface the alpha
+    pages put in front at its landing point differs from its own, or it lands outside.
+    """
+    seq = _generate(
+        textured_library, tmp_path / "out", 12, layers=True, flow=True, occlusion=True
+    )
+    names = _names(seq)
+    orders = read_paint_order(seq / "layers" / "paint_order.json")
+    marked = 0
+    for t in range(FRAMES - 1):
+        flow, _ = read_flow_png(seq / "flow" / names[t])
+        front_now, _ = _front(seq, names[t], orders[t])
+        front_next, _ = _front(seq, names[t + 1], orders[t + 1])
+        expected = occlusion_mask(front_now, front_next, flow)
+        mask = read_mask_png(seq / "occlusion" / names[t])
+        # The files hold the alphas at 8 bits and the flow in 1/64 px, so a pixel at
+        # the 0.5 alpha threshold or at a rounding boundary may differ.
+        assert (mask != expected).mean() < 0.002
+        marked += int(mask.sum())
+    assert 0 < marked < FRAMES * SIZE * SIZE / 2
 
 
 def test_the_command_writes_flow(textured_library: Path, tmp_path: Path) -> None:
@@ -311,10 +404,13 @@ def test_the_command_writes_flow(textured_library: Path, tmp_path: Path) -> None
             "2",
             "--flow",
             "--flow-back",
+            "--occlusion",
         ],
     )
     seq = out / "sequences" / "0001"
     assert len(list((seq / "flow").glob("*.png"))) == FRAMES - 1
     assert len(list((seq / "flow_back").glob("*.png"))) == FRAMES - 1
+    assert len(list((seq / "occlusion").glob("*.png"))) == FRAMES - 1
     record = json.loads((out / "run.json").read_text())
-    assert record["flags"]["flow"] and record["flags"]["flow_back"]
+    flags = record["flags"]
+    assert flags["flow"] and flags["flow_back"] and flags["occlusion"]

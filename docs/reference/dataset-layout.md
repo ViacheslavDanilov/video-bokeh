@@ -72,6 +72,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout Stage C, the previe
     ├── layers/                                   optional, written with --layers
     ├── flow/<frame>.png           RGB    uint16  optional, written with --flow
     ├── flow_back/<frame>.png      RGB    uint16  optional, written with --flow-back
+    ├── occlusion/<frame>.png      L      uint8   optional, written with --occlusion
     └── bokeh/<frame>.png          RGB    uint8   optional, by --bokeh or Stage C
 ```
 
@@ -168,9 +169,10 @@ layer moves by a known homography per frame, so the flow is computed, not estima
   sequence has `01` … `79`.
 - **The front-most surface at each pixel:** the last-painted object whose alpha is at least
   0.5 there, else the background. The focus rule uses the same 0.5.
-- **Occlusion is not marked.** A pixel whose surface is hidden in the next frame still carries
-  its surface's motion. Valid is 0 only where a vector falls outside the ±512 px the encoding
-  holds; it is never clipped.
+- **The flow marks no occlusion.** A pixel whose surface is hidden in the next frame still
+  carries its surface's motion; the `occlusion/` stream below says which pixels those are.
+  Valid is 0 only where a vector falls outside the ±512 px the encoding holds; it is never
+  clipped.
 - **1/64 px steps.** `read_flow_png` in `video_bokeh.core._streams` reads it back as float32.
   **Pillow reads the file as 8-bit color and loses the flow**, so read it with
   `imagecodecs`, as `read_flow_png` does, or another reader that keeps 16 bits.
@@ -186,6 +188,17 @@ pixel was in the previous frame, `(u, v)` in pixels, in the same KITTI encoding.
 sequence has `02` … `80`, each named after the frame it starts from. Nothing in the pipeline
 reads it; the loader hands out the same field, unquantized, as its `flow_back` stream. Writing
 a sequence again removes an old `flow_back/` too.
+
+**`occlusion/` marks the pixels the next frame does not show**, written by
+`scenes.generate --occlusion`, independently of `--flow`: for each frame but the last, an 8-bit
+grayscale PNG, 255 where the front-most surface at the pixel is not visible in the next frame
+and 0 elsewhere. A pixel is marked when it lands outside the frame under its forward flow, or
+when the front-most surface at the nearest pixel to where it lands is not the one it carries;
+the front-most surface is the one the flow uses, the last-painted object whose alpha is at
+least 0.5, else the background. Flow is undefined where the mask is set, so a flow method is
+scored on the pixels it leaves clear, as the KITTI and Sintel protocols do. `read_mask_png` in
+`video_bokeh.core._streams` reads it back as a boolean array. The loader hands out the same
+mask as its `occlusion` stream. Writing a sequence again removes an old `occlusion/` too.
 
 The writer uses PNG compression level 3. It preserves the same 16-bit pixels as the
 old imagecodecs default, level 6, while spending less time compressing them.

@@ -183,6 +183,22 @@ def read_flow_png(path: Path) -> tuple[np.ndarray, np.ndarray]:
     return flow, pixels[..., 2] > 0
 
 
+def write_mask_png(path: Path, mask: np.ndarray) -> None:
+    """Write an ``(H, W)`` boolean mask as an 8-bit grayscale PNG, 255 where True."""
+    Image.fromarray(np.where(mask, 255, 0).astype(np.uint8), "L").save(
+        path,
+        compress_level=3,
+    )
+
+
+def read_mask_png(path: Path) -> np.ndarray:
+    """Read a mask written by ``write_mask_png`` back as ``(H, W)`` bool."""
+    with Image.open(path) as im:
+        if im.mode != "L":
+            raise ValueError(f"{path} is {im.mode}, not an 8-bit grayscale mask")
+        return np.asarray(im) > 127
+
+
 def write_paint_order(path: Path, orders: list[list[int]]) -> None:
     """Write each frame's paint order: its object pages, far to near."""
     path.write_text(json.dumps(orders) + "\n", encoding="utf-8")

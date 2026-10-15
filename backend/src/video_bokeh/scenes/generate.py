@@ -11,7 +11,8 @@
         ├── disparity/<frame>.png      uint16
         ├── layers/                    with --layers: what each frame was composited from
         ├── flow/<frame>.png           with --flow: forward optical flow, KITTI 16-bit
-        └── flow_back/<frame>.png      with --flow-back: backward optical flow, the same
+        ├── flow_back/<frame>.png      with --flow-back: backward optical flow, the same
+        └── occlusion/<frame>.png      with --occlusion: not visible next frame, 8-bit
 
 Disparity is sampled and transformed from the library, not estimated per frame.
 
@@ -53,6 +54,7 @@ from video_bokeh.core._streams import (
     write_disparity_png,
     write_disparity_tiff,
     write_flow_png,
+    write_mask_png,
     write_paint_order,
     write_rgb_tiff,
 )
@@ -319,10 +321,11 @@ def write_sequence(
     Frames rendered with ``layers`` also write ``layers/``: the background and each
     object per frame, then ``paint_order.json``, the objects far to near in each frame.
     It comes last, so a ``layers/`` without it was interrupted. Frames rendered with
-    ``flow`` write ``flow/``, one file per frame but the last, and frames rendered with
-    ``flow_back`` write ``flow_back/``, one file per frame but the first. Any ``layers/``,
-    ``flow/``, ``flow_back/`` or ``bokeh/`` already in ``seq_dir`` is removed first: an
-    earlier run's would otherwise pass for this one's.
+    ``flow`` write ``flow/``, one file per frame but the last, frames rendered with
+    ``flow_back`` write ``flow_back/``, one file per frame but the first, and frames
+    rendered with ``occlusion`` write ``occlusion/``, one per frame but the last. Any
+    ``layers/``, ``flow/``, ``flow_back/``, ``occlusion/`` or ``bokeh/`` already in
+    ``seq_dir`` is removed first: an earlier run's would otherwise pass for this one's.
 
     ``frames`` may be a generator, written as it yields, so that a long sequence is
     never held whole; ``n_frames`` then says how many it yields.
@@ -344,6 +347,8 @@ def write_sequence(
     shutil.rmtree(flow_dir, ignore_errors=True)
     flow_back_dir = seq_dir / "flow_back"
     shutil.rmtree(flow_back_dir, ignore_errors=True)
+    occlusion_dir = seq_dir / "occlusion"
+    shutil.rmtree(occlusion_dir, ignore_errors=True)
     paint_orders: list[list[int]] = []
     for fi, frame in enumerate(frames):
         stem = _frame_stem(fi, n_frames)
@@ -360,6 +365,9 @@ def write_sequence(
         if frame.flow_back is not None:
             flow_back_dir.mkdir(exist_ok=True)
             write_flow_png(flow_back_dir / f"{stem}.png", frame.flow_back)
+        if frame.occlusion is not None:
+            occlusion_dir.mkdir(exist_ok=True)
+            write_mask_png(occlusion_dir / f"{stem}.png", frame.occlusion)
     if paint_orders:
         write_paint_order(layer_root / "paint_order.json", paint_orders)
 
@@ -378,13 +386,15 @@ def generate_dataset(
     bokeh_strength: float = BOKEH_STRENGTH,
     flow: bool = False,
     flow_back: bool = False,
+    occlusion: bool = False,
 ) -> int:
     """Write ``count`` sequences and return how many were actually written.
 
     With ``bokeh``, each sequence's bokeh is rendered in the same run, from the layers
     held in memory; ``layers`` decides separately whether they are written too. With
-    ``flow``, each sequence's forward optical flow is written in the same pass, and with
-    ``flow_back`` its backward flow.
+    ``flow``, each sequence's forward optical flow is written in the same pass, with
+    ``flow_back`` its backward flow, and with ``occlusion`` the mask of what the next
+    frame no longer shows.
 
     A sequence whose trajectories cannot be made collision-free is skipped, not
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
@@ -424,7 +434,13 @@ def generate_dataset(
         seq_name = f"{i + 1:04d}"
         seq_dir = output / "sequences" / seq_name
         focus: list[FrameFocus] = []
-        frames = iter_frames(scene, layers=layers, flow=flow, flow_back=flow_back)
+        frames = iter_frames(
+            scene,
+            layers=layers,
+            flow=flow,
+            flow_back=flow_back,
+            occlusion=occlusion,
+        )
         write_sequence(seq_dir, _measured(frames, focus) if bokeh else frames, n_frames)
         if bokeh:
             device = write_bokeh_stream(seq_dir, scene, seq_seed, focus, bokeh_strength)
@@ -466,6 +482,7 @@ def generate_dataset(
             "bokeh_strength": bokeh_strength,
             "flow": flow,
             "flow_back": flow_back,
+            "occlusion": occlusion,
         },
         "library_root": str(library_root.resolve()),
         "estimator": _library_estimator(library_root),
@@ -539,6 +556,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="also write flow_back/: each frame's exact backward optical flow to the "
         "previous, in the same format",
     )
+    parser.add_argument(
+        "--occlusion",
+        action="store_true",
+        help="also write occlusion/: for each frame but the last, an 8-bit mask of the "
+        "pixels whose surface the next frame does not show",
+    )
     return parser
 
 
@@ -560,6 +583,7 @@ def main(argv: list[str] | None = None) -> int:
             bokeh_strength=args.bokeh_strength,
             flow=args.flow,
             flow_back=args.flow_back,
+            occlusion=args.occlusion,
         )
     except ValueError as exc:
         parser.error(str(exc))
