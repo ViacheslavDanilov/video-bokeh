@@ -195,8 +195,8 @@ grayscale PNG, 255 where the front-most surface at the pixel is not visible in t
 and 0 elsewhere. A pixel is marked when it lands outside the frame under its forward flow, or
 when the front-most surface at the nearest pixel to where it lands is not the one it carries;
 the front-most surface is the one the flow uses, the last-painted object whose alpha is at
-least 0.5, else the background. Flow is undefined where the mask is set, so a flow method is
-scored on the pixels it leaves clear, as the KITTI and Sintel protocols do. `read_mask_png` in
+least 0.5, else the background. Flow is undefined where the mask is set, so a flow method can
+be scored on the marked pixels and on the clear ones apart. `read_mask_png` in
 `video_bokeh.core._streams` reads it back as a boolean array. The loader hands out the same
 mask as its `occlusion` stream. Writing a sequence again removes an old `occlusion/` too.
 
