@@ -1,0 +1,4 @@
+# Other methods' code, their environments and the tools that build them: never tracked.
+third_party/
+envs/
+tools/
