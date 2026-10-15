@@ -63,8 +63,8 @@ writer's defaults.
 An item holds the streams `streams` names, plus `n_objects` and `seed`. Without `streams` it
 holds `rgb`, `disparity`, `alpha` and `object_alphas`, as it always did.
 
-All tensors are float32 in `[0, 1]`, frames first, except `paint_order`, `flow` and `flow_back`. `T` is
-`n_frames`, `H` and `W` are `size`, and `N` is `n_objects_max`.
+All tensors are float32 in `[0, 1]`, frames first, except `paint_order`, `flow` and
+`flow_back`. `T` is `n_frames`, `H` and `W` are `size`, and `N` is `n_objects_max`.
 
 | stream | key | shape | meaning |
 |---|---|---|---|
