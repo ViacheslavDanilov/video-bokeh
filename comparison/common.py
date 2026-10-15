@@ -24,6 +24,7 @@ from video_bokeh.core._seq_io import (  # noqa: E402
     has_layers,
     list_sequences,
 )
+from video_bokeh.core._streams import read_disparity_png  # noqa: E402
 from video_bokeh.layered import LayeredFrame  # noqa: E402
 from video_bokeh.render.layered import _read_frames  # noqa: E402
 
@@ -55,6 +56,14 @@ def frames_with_focus(seq: Path) -> Iterator[tuple[str, float, LayeredFrame]]:
     names = frame_names(seq)
     zfs = focus_record(seq)["zf"]
     yield from zip(names, zfs, _read_frames(seq, names), strict=True)
+
+
+def composite_frame(seq: Path, name: str) -> tuple[np.ndarray, np.ndarray]:
+    """A frame as a single-image method takes it: the all-in-focus color, ``(H, W, 3)`` in
+    ``[0, 1]``, and the composite disparity, ``(H, W)`` in ``[0, 1]`` at 16 bits' precision."""
+    with Image.open(seq / "all_in_focus" / name) as im:
+        rgb = np.asarray(im.convert("RGB"), dtype=np.float32) / 255.0
+    return rgb, read_disparity_png(seq / "disparity" / name)
 
 
 def save_rgb(directory: Path, name: str, rgb: np.ndarray) -> None:

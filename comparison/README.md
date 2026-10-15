@@ -69,6 +69,28 @@ layers decide the result, and not for the blur inside an object, which our rende
 Dr.Bokeh's keep per pixel. The lens radius `K` is in pixels per unit of disparity from the
 focus, which is our strength scaled to the frame's width, and the focus goes in as a depth.
 
+## BokehMe
+
+[BokehMe](https://github.com/JuewenPeng/BokehMe) (CVPR 2022; Apache-2.0) is a single-image
+method: a classical scatter renderer, and two networks, whose weights ship in its repository,
+that repair the scatter where it is wrong. It takes one image and one disparity map and cannot
+take layers, so it must guess what an object hides. It is a comparator and not a reference.
+
+```bash
+comparison/setup.sh bokehme
+comparison/envs/render/bin/python comparison/run_bokehme.py --data-root backend/data/cmp
+comparison/envs/render/bin/python comparison/score.py --data-root backend/data/cmp --method bokehme
+comparison/envs/render/bin/python comparison/score.py --data-root backend/data/cmp --method bokehme_classical
+```
+
+`run_bokehme.py` reads each frame's `all_in_focus/` and `disparity/` and the focus and strength
+that our renderer recorded, and writes two streams: `bokeh_bokehme/`, the hybrid, and
+`bokeh_bokehme_classical/`, the scatter alone, which shows what the networks repair. It runs
+BokehMe's own `pipeline` function, read from its `demo.py` without the command line. The demo
+reads the disparity at 8 bits and rescales it to `[0, 1]` per image. Here the disparity keeps
+its 16 bits and its scale, because the focus our renderer recorded is on that scale, and
+`gamma` is 2.2, as for our renderer.
+
 ## Adding a method
 
 Add a function to `setup.sh` that clones the pinned commit and builds what the method needs,
