@@ -11,6 +11,13 @@
 #   envs/cuda-toolkit   nvcc and the CUDA 12.8 headers, from conda-forge through micromamba,
 #                       because the pip wheel of nvcc ships no compiler. Only CUDA extensions
 #                       are built with it.
+#   envs/any-to-bokeh   Python 3.10 with torch 2.7.1 from the CUDA 12.8 wheels and the
+#                       repository's own requirements: the demo pins diffusers 0.25 and
+#                       transformers 4.32, too old to share an environment with the others.
+#   third_party/any-to-bokeh  Any-to-Bokeh (https://github.com/vivoCameraResearch/any-to-bokeh,
+#                       CC BY-NC 4.0), with its checkpoints, 6.7 GB, and the Stable Video
+#                       Diffusion base model in the Hugging Face cache, 4.2 GiB of fp16
+#                       weights, whose license is Stability's own.
 #   third_party/bokehme BokehMe (https://github.com/JuewenPeng/BokehMe, Apache-2.0): a classical
 #                       scatter and two networks, whose weights ship in its repository.
 #   third_party/mpib    MPIB's ray tracer (https://github.com/JuewenPeng/MPIB, Apache-2.0), the
@@ -23,7 +30,7 @@
 # It is for a Linux x86-64 machine with an NVIDIA driver, g++ and GNU sed, and stops early
 # without a driver. A step that fails leaves no marker, so the next run does it again.
 #
-# Usage: comparison/setup.sh drbokeh | mpib | bokehme
+# Usage: comparison/setup.sh drbokeh | mpib | bokehme | a2b
 
 set -euo pipefail
 
@@ -33,6 +40,13 @@ TP="$HERE/third_party"
 TOOLS="$HERE/tools"
 RENDER="$ENVS/render"
 TOOLKIT="$ENVS/cuda-toolkit"
+
+A2B_URL="https://github.com/vivoCameraResearch/any-to-bokeh.git"
+A2B_SHA="f7a16959dd219080fb8eec0d32bb9602d8970c22"
+# The checkpoints, a zip of the UNet and the VAE, on Google Drive, as the repository's README
+# links them.
+A2B_CHECKPOINTS_ID="11UQcR7-GJtobPNKlF3f-q97xYX9pyEXb"
+SVD_REPO="stabilityai/stable-video-diffusion-img2vid-xt"
 
 BOKEHME_URL="https://github.com/JuewenPeng/BokehMe.git"
 BOKEHME_SHA="8b3ed556dc146207c9bb39fccd078a113f8d1bd8"
@@ -198,12 +212,64 @@ print("bokehme ready")
 PY
 }
 
+a2b() {
+    render_env
+    local src="$TP/any-to-bokeh" venv="$ENVS/any-to-bokeh"
+    if [ ! -f "$src/.ready" ]; then
+        echo "[a2b] clone at $A2B_SHA"
+        mkdir -p "$TP"
+        rm -rf "$src"
+        git clone -q "$A2B_URL" "$src"
+        git -C "$src" checkout -q "$A2B_SHA"
+        touch "$src/.ready"
+    else
+        echo "[a2b] clone exists, skipped"
+    fi
+    if [ ! -f "$venv/.ready" ]; then
+        echo "[a2b] Python 3.10 environment"
+        rm -rf "$venv"
+        uv venv --python 3.10 "$venv"
+        uv pip install --python "$venv/bin/python" torch==2.7.1 torchvision==0.22.1 \
+            torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+        uv pip install --python "$venv/bin/python" -r "$src/requirements.txt"
+        touch "$venv/.ready"
+    else
+        echo "[a2b] environment exists, skipped"
+    fi
+    uv pip install --python "$RENDER/bin/python" "imageio[ffmpeg]"
+    if [ ! -d "$src/checkpoints/unet" ] || [ ! -d "$src/checkpoints/vae" ]; then
+        echo "[a2b] checkpoints from Google Drive"
+        local archive="$src/_a2b_weights.zip"
+        uvx gdown "$A2B_CHECKPOINTS_ID" -O "$archive"
+        unzip -q "$archive" -d "$src"
+        rm -rf "$src/__MACOSX" "$archive"
+    else
+        echo "[a2b] checkpoints exist, skipped"
+    fi
+    # The demo loads the base model with local_files_only, so it must be cached first.
+    local cache="${HF_HOME:-$HOME/.cache/huggingface}/hub/models--${SVD_REPO//\//--}"
+    if [ ! -d "$cache" ]; then
+        echo "[a2b] Stable Video Diffusion base model from Hugging Face"
+        "$venv/bin/python" -c "
+from diffusers import StableVideoDiffusionPipeline
+import torch
+StableVideoDiffusionPipeline.from_pretrained(
+    '$SVD_REPO', torch_dtype=torch.float16, variant='fp16'
+)
+"
+    else
+        echo "[a2b] base model cached, skipped"
+    fi
+    echo "a2b ready"
+}
+
 case "${1:-}" in
+    a2b) a2b ;;
     drbokeh) drbokeh ;;
     bokehme) bokehme ;;
     mpib) mpib ;;
     *)
-        echo "usage: $0 drbokeh | mpib | bokehme" >&2
+        echo "usage: $0 drbokeh | mpib | bokehme | a2b" >&2
         exit 1
         ;;
 esac
