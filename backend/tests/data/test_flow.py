@@ -138,6 +138,28 @@ def test_backward_flow_is_written_for_every_frame_but_the_first(
     assert not (seq / "flow").exists()
 
 
+def test_a_one_frame_sequence_writes_no_flow_either_way(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    generate_dataset(
+        textured_library,
+        tmp_path / "out",
+        count=1,
+        n_frames=1,
+        size=SIZE,
+        seed=3,
+        n_objects_min=2,
+        n_objects_max=2,
+        flow=True,
+        flow_back=True,
+    )
+    seq = tmp_path / "out" / "sequences" / "0001"
+    assert _names(seq) == ["01.png"]
+    assert not (seq / "flow").exists()
+    assert not (seq / "flow_back").exists()
+
+
 def test_backward_flow_undoes_forward_flow_on_the_same_surface(
     textured_library: Path,
     tmp_path: Path,
@@ -168,8 +190,9 @@ def test_backward_flow_undoes_forward_flow_on_the_same_surface(
             & _interior(front_next)[yi, xi]
             & back_valid[yi, xi]
         )
-        # Sampled at the nearest pixel, so the two differ by that pixel's rounding
-        # times the motion's gradient; a flow of the wrong surface differs by pixels.
+        # The backward field is sampled bilinearly where the forward flow lands, so the
+        # two differ by that interpolation and the 1/64 px quantization; a flow of the
+        # wrong surface differs by pixels.
         returned = _bilinear(back, np.clip(x, 0, SIZE - 2), np.clip(y, 0, SIZE - 2))
         error = np.abs(returned + flow).max(axis=-1)[same]
         assert np.median(error) < 0.1, f"frame {t}: median {np.median(error):.3f}"
