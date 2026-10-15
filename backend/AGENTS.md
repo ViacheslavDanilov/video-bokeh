@@ -42,7 +42,7 @@ backend/
 │   └── video_bokeh/   # FastAPI runtime and dataset pipeline (the package shipped in the wheel)
 ├── tests/             # pytest tests
 ├── data/              # Datasets (gitignored)
-├── docker/            # One Dockerfile per model family, built by `make images`
+├── docker/            # The Dockerfile of the model that cannot share our environment, built by `make images`
 ├── envs/              # Venvs for models that cannot share ours, built by ../scripts/ (gitignored)
 └── pyproject.toml
 ```

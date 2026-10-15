@@ -59,12 +59,12 @@ Licenses as checked on 2026-09-30, and on 2026-10-01 for `da3-metric-large`. Non
 weights are fine for a research dataset. Both `da3-*` need an environment of their own first, as
 the next section says. `da3-metric-large` has not run yet; the lab machine runs it first.
 
-The `da2-*` and `depth-pro` run in this process. With `VIDEO_BOKEH_RUNNER=docker` they run in
-the `video-bokeh-da2` and `video-bokeh-depth-pro` images instead, which `make images` builds
-from one recipe at `uv.lock`'s versions; the image returns the raw output and this process
-resizes it, as it would have. On the RTX 5090 on 2026-10-07, libraries from the dev pools took
-61 s for `da2-small` and 89 s for `depth-pro` that way. Against the in-process libraries,
-Depth Pro's 60 depth maps were identical and `da2-small`'s at most 0.002% of the range apart.
+The `da2-*` and `depth-pro` run in this process, in the environment the `library` extra
+installs, under every runner: they need no environment of their own. Until 2026-10-15 they
+could also run in Docker images of their own at `uv.lock`'s versions; on the RTX 5090 on
+2026-10-07 the libraries those built took 61 s for `da2-small` and 89 s for `depth-pro`, and
+against the in-process libraries Depth Pro's 60 depth maps were identical and `da2-small`'s at
+most 0.002% of the range apart, so the images were dropped as adding nothing.
 
 **Depth Anything 3's other checkpoints are left out on purpose.** Small, Base and Large are
 multi-view models, which estimate depth from several views of one scene at once. Their output

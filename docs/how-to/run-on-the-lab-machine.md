@@ -20,9 +20,10 @@ M3 Pro, and "What has not run yet" lists the rest.
 
 1. `make setup` installs every backend extra, the frontend and the smoke test's browser. Run
    here.
-2. `make images` builds the models' Docker images: `video-bokeh-da3`, `video-bokeh-da2` and
-   `video-bokeh-depth-pro`, 8 to 12 GB each, with no weights in them. It needs Docker with the
-   NVIDIA Container Toolkit, and ran on the RTX 5090.
+2. `make images` builds the one model image, `video-bokeh-da3`, for Depth Anything 3, which
+   cannot share our environment: 8 to 12 GB, with no weights in it. It needs Docker with the
+   NVIDIA Container Toolkit, and ran on the RTX 5090. `da2-*` and `depth-pro` run in this
+   process and need no image.
 3. On a machine without Docker's NVIDIA runtime, such as the Mac,
    `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in
    instead. Run here. [cli](../reference/cli.md), section "Depth Anything 3's own environment",
