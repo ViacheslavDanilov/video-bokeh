@@ -6,7 +6,7 @@ FastAPI on Python 3.13, managed with `uv`. Type checker: `ty` (astral). Linter/f
 
 - **Python 3.13 only.** `requires-python = ">=3.13"` in `pyproject.toml`. Don't downgrade syntax for older versions.
   - One exception: `src/video_bokeh/library/depth/_da3_worker.py` runs under Depth Anything 3's own Python 3.12, so it stays compatible with that. `pyproject.toml` gives ruff a `py312` target for that file alone.
-- **Models that cannot share our environment run in their own.** `VIDEO_BOKEH_RUNNER=docker`, the default of `make` and `scripts/lab_run.sh` on Linux with Docker's NVIDIA runtime, runs each in the image its class names in `docker_image`, built from `docker/` by `make images`; `local`, the default elsewhere, runs them in their venvs or in this process. `core/_worker.py`'s `runner` reads the variable and `model_command` builds the command; the Makefile and `lab_run.sh` only pick the default. Tests reset the variable, so a shell export cannot change them.
+- **A model that cannot share our environment runs in its own.** Today that is Depth Anything 3 alone; every other model runs in this process. `VIDEO_BOKEH_RUNNER=docker`, the default of `make` and `scripts/lab_run.sh` on Linux with Docker's NVIDIA runtime, runs such a model in the image its class names in `docker_image`, built from `docker/` by `make images`; `local`, the default elsewhere, runs it in its venv. `core/_worker.py`'s `runner` reads the variable and `model_command` builds the command; the Makefile and `lab_run.sh` only pick the default. Tests reset the variable, so a shell export cannot change them.
 - **`uv` is the package manager** — not pip, not poetry, not conda. Lockfile is `../uv.lock` (at repo root because this is a uv workspace; `[tool.uv.workspace] members = ["backend"]`).
 - **All Python commands go through `uv run ...`** so they use the locked environment.
 
@@ -42,7 +42,7 @@ backend/
 │   └── video_bokeh/   # FastAPI runtime and dataset pipeline (the package shipped in the wheel)
 ├── tests/             # pytest tests
 ├── data/              # Datasets (gitignored)
-├── docker/            # One Dockerfile per model family, built by `make images`
+├── docker/            # The Dockerfile of the model that cannot share our environment, built by `make images`
 ├── envs/              # Venvs for models that cannot share ours, built by ../scripts/ (gitignored)
 └── pyproject.toml
 ```

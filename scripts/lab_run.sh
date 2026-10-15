@@ -17,12 +17,13 @@
 # The output lands in backend/data/lab/, which git ignores, and
 # `make api LIBRARY=backend/data/lab/libraries` shows the libraries in the page's picker.
 #
-# The models run in their Docker images where Linux has docker with the NVIDIA runtime,
-# and in their venvs elsewhere; VIDEO_BOKEH_RUNNER=docker or local chooses outright.
+# Depth Anything 3 runs in its Docker image where Linux has docker with the NVIDIA runtime,
+# and in its venv elsewhere; VIDEO_BOKEH_RUNNER=docker or local chooses outright. The other
+# depth models run in this process.
 #
 # Prerequisites, once per machine, from the repository root:
 #   make setup
-#   make images                        # the models' images, for the docker runner
+#   make images                        # Depth Anything 3's image, for the docker runner
 #   scripts/setup_depth_anything_3.sh  # the da3-* venv, for the local runner only
 #
 # Usage: scripts/lab_run.sh [estimator ...]

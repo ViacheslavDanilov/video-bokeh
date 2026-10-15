@@ -21,4 +21,3 @@ class DepthPro(TransformersDepthEstimator):
 
     name: ClassVar[str] = "depth-pro"
     hf_model_id: ClassVar[str] = "apple/DepthPro-hf"
-    docker_image: ClassVar[str] = "video-bokeh-depth-pro"
