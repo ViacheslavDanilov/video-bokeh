@@ -116,6 +116,9 @@ class RenderedFrame:
     #: (H, W, 2) float32, pixels to the next frame, from the front-most surface: only when
     #: asked for, and never on the last frame, which has no next.
     flow: np.ndarray | None = None
+    #: (H, W, 2) float32, pixels to the previous frame, from the front-most surface: only
+    #: when asked for, and never on the first frame, which has no previous.
+    flow_back: np.ndarray | None = None
 
 
 def sample_scene(
@@ -239,6 +242,7 @@ def render_scene(
     scene: Scene,
     layers: bool = False,
     flow: bool = False,
+    flow_back: bool = False,
 ) -> list[RenderedFrame]:
     """Render every frame: warp the precomputed triplet, band depth, composite.
 
@@ -249,15 +253,18 @@ def render_scene(
     With ``flow``, each frame but the last carries its forward optical flow. Every layer
     moves by a known homography, so the flow is exact: per pixel, the motion of the
     front-most surface, the last-painted object whose alpha is at least 0.5 there, else
-    the background's. Occlusion is not marked.
+    the background's. Occlusion is not marked. With ``flow_back``, each frame but the
+    first carries its backward flow the same way: where the front-most surface at each
+    pixel was in the previous frame.
     """
-    return list(iter_frames(scene, layers, flow))
+    return list(iter_frames(scene, layers, flow, flow_back))
 
 
 def iter_frames(
     scene: Scene,
     layers: bool = False,
     flow: bool = False,
+    flow_back: bool = False,
 ) -> Iterator[RenderedFrame]:
     """``render_scene`` one frame at a time, so a writer never holds the whole clip."""
     size = scene.size
@@ -266,10 +273,12 @@ def iter_frames(
 
     for i in range(scene.n_frames):
         t = 0.0 if scene.n_frames == 1 else i / (scene.n_frames - 1)
-        # The next frame's time, when there is one and the flow toward it is wanted.
+        # The next frame's time, when there is one and the flow toward it is wanted,
+        # and the previous frame's likewise.
         t_next = (
             (i + 1) / (scene.n_frames - 1) if flow and i + 1 < scene.n_frames else None
         )
+        t_prev = (i - 1) / (scene.n_frames - 1) if flow_back and i > 0 else None
 
         bg_pose = scene.bg_pose_start.lerp(scene.bg_pose_end, bg_easing_fn(t))
         bg_h = build_bg_homography(bg_pose, bg_src_size, size)
@@ -279,6 +288,14 @@ def iter_frames(
             frame_flow = homography_flow(
                 bg_h,
                 build_bg_homography(bg_next, bg_src_size, size),
+                size,
+            )
+        frame_flow_back = None
+        if t_prev is not None:
+            bg_prev = scene.bg_pose_start.lerp(scene.bg_pose_end, bg_easing_fn(t_prev))
+            frame_flow_back = homography_flow(
+                bg_h,
+                build_bg_homography(bg_prev, bg_src_size, size),
                 size,
             )
         bg_rgb = np.asarray(
@@ -351,6 +368,17 @@ def iter_frames(
                     build_fg_homography(pose_next, obj.asset.rgb.size[0], size),
                     size,
                 )[front]
+            if frame_flow_back is not None and t_prev is not None:
+                pose_prev = obj.pose_start.lerp(
+                    obj.pose_end,
+                    EASING_FNS[obj.easing](t_prev),
+                )
+                front = a >= 0.5
+                frame_flow_back[front] = homography_flow(
+                    fg_h,
+                    build_fg_homography(pose_prev, obj.asset.rgb.size[0], size),
+                    size,
+                )[front]
             if layers:
                 inside = a > 0
                 object_rgbs[idx] = np.where(inside[..., None], warped_rgba[..., :3], 0)
@@ -373,4 +401,5 @@ def iter_frames(
             if layers
             else None,
             flow=frame_flow,
+            flow_back=frame_flow_back,
         )

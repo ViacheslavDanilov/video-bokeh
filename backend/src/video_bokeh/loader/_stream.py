@@ -41,6 +41,7 @@ STREAMS = (
     "focus",
     "bokeh",
     "flow",
+    "flow_back",
 )
 #: What an item carries when ``streams`` is not given.
 DEFAULT_STREAMS = ("rgb", "disparity", "alpha", "object_alphas")
@@ -88,6 +89,8 @@ class SequenceStream(IterableDataset):
     CPU, with the focus it used. ``flow`` adds ``flow`` (T - 1, 2, H, W), each frame's
     exact forward optical flow to the next, in pixels rather than ``[0, 1]``: the motion of
     the front-most surface, as ``scenes.generate --flow`` writes it, unquantized.
+    ``flow_back`` adds ``flow_back`` (T - 1, 2, H, W), each frame but the first's exact
+    backward flow to the previous, as ``--flow-back`` writes it.
 
     Worker ``w`` of ``W`` takes seeds ``seed + w``, ``seed + w + W``, ...: workers never
     repeat each other, and one worker yields the scenes ``scenes.generate --seed``
@@ -193,6 +196,7 @@ class SequenceStream(IterableDataset):
             scene,
             layers=bool({"layers", "bokeh"} & self.streams),
             flow="flow" in self.streams,
+            flow_back="flow_back" in self.streams,
         )
         placed = len(scene.objects)
         item: dict[str, Any] = {"n_objects": placed, "seed": seq_seed}
@@ -203,7 +207,9 @@ class SequenceStream(IterableDataset):
         if "alpha" in self.streams:
             item["alpha"] = _maps([f.alpha for f in frames])
         if "flow" in self.streams:
-            item["flow"] = _flows(frames, self.size)
+            item["flow"] = _flows([f.flow for f in frames], self.size)
+        if "flow_back" in self.streams:
+            item["flow_back"] = _flows([f.flow_back for f in frames], self.size)
         rendering = "bokeh" in self.streams
         if {"object_alphas", "bokeh"} & self.streams:
             object_alphas = torch.from_numpy(
@@ -274,9 +280,11 @@ def _maps(maps: list[np.ndarray]) -> torch.Tensor:
     return torch.from_numpy(np.stack(maps))[:, None]
 
 
-def _flows(frames: list[RenderedFrame], size: int) -> torch.Tensor:
-    """(T - 1, 2, H, W) from each frame's flow to the next; the last frame has none."""
-    flows = [f.flow for f in frames if f.flow is not None]
+def _flows(fields: list[np.ndarray | None], size: int) -> torch.Tensor:
+    """(T - 1, 2, H, W) from the frames' flow fields, leaving out the frame without one:
+    the last for forward flow, the first for backward.
+    """
+    flows = [f for f in fields if f is not None]
     if not flows:
         return torch.zeros((0, 2, size, size), dtype=torch.float32)
     return torch.from_numpy(np.stack(flows).transpose(0, 3, 1, 2).copy())
