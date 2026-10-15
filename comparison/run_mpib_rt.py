@@ -85,6 +85,8 @@ def render_sequence(seq: Path, device: torch.device, samples: int) -> None:
             blur = renderer(
                 images, alphas, coffs, k, 1.0 / max(zf, MIN_DISPARITY), samples
             )
+        # A pixel whose every ray missed the frame is NaN; the opaque background makes it rare.
+        blur = torch.nan_to_num(blur)
         rgb = blur[0].clamp(0, 1).permute(1, 2, 0).cpu().numpy() ** (1.0 / GAMMA)
         save_rgb(out, name, rgb)
     write_settings(out, "MPIB ray tracer", seq, gamma=GAMMA, samples_per_side=samples)

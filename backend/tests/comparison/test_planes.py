@@ -46,11 +46,48 @@ def test_only_pixels_with_weight_are_fitted() -> None:
     assert fit_plane(disparity, weight) == pytest.approx((-1e-3, 0.0, 2.0), rel=1e-6)
 
 
-def test_too_few_pixels_give_a_flat_layer() -> None:
-    disparity = np.full((8, 8), 0.25)
+def test_too_few_pixels_give_a_flat_layer_at_their_own_disparity() -> None:
+    disparity = np.zeros((8, 8))  # a layer stores zero where it has no alpha
+    disparity[2, 3] = 0.5
     weight = np.zeros((8, 8))
     weight[2, 3] = 1.0
-    assert fit_plane(disparity, weight) == (0.0, 0.0, pytest.approx(4.0))
+    assert fit_plane(disparity, weight) == (0.0, 0.0, pytest.approx(2.0))
+
+
+def test_pixels_on_one_line_give_a_flat_layer() -> None:
+    disparity = np.zeros((8, 8))
+    disparity[3, 1:7] = 0.5
+    weight = (disparity > 0).astype(np.float64)
+    # A row of pixels fixes no tilt across the rows, so no tilt is invented.
+    assert fit_plane(disparity, weight) == (0.0, 0.0, pytest.approx(2.0))
+
+
+def test_fractional_weights_pull_the_fit_toward_the_heavier_pixels() -> None:
+    disparity = np.zeros((8, 8))
+    weight = np.zeros((8, 8))
+    # Four pixels in general position on the plane d = 0.5 + 0.01 x, and one off it.
+    for (y, x), w in {
+        (1, 1): 1.0,
+        (1, 6): 1.0,
+        (6, 1): 1.0,
+        (6, 6): 1.0,
+        (3, 3): 1.0,
+    }.items():
+        disparity[y, x] = 0.5 + 0.01 * x
+        weight[y, x] = w
+    disparity[3, 3] = 0.9  # off the plane
+    light = fit_plane(disparity, weight)
+    weight[3, 3] = 0.01
+    lighter = fit_plane(disparity, weight)
+    exact = (-0.01 / 0.5, 0.0, 1.0 / 0.5)
+
+    def distance(fit: tuple[float, float, float]) -> float:
+        return float(np.linalg.norm(np.array(fit) - np.array(exact)))
+
+    assert distance(lighter) < distance(light)
+    assert lighter == pytest.approx(exact, abs=1e-2)
+    weight[3, 3] = 1e-9
+    assert fit_plane(disparity, weight) == pytest.approx(exact, abs=1e-6)
 
 
 def test_a_plane_that_dips_below_the_minimum_is_flattened() -> None:

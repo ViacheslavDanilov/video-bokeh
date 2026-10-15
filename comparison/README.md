@@ -49,7 +49,8 @@ object's alpha mask.
 ## MPIB's ray tracer
 
 The generator behind MPIB's training data
-([MPIB](https://github.com/JuewenPeng/MPIB), ECCV 2022, Sec. 3.4; Apache-2.0) traces rays
+([MPIB](https://github.com/JuewenPeng/MPIB), ECCV 2022, Sec. 3.4, "Bokeh Generator and Training
+Data"; Apache-2.0) traces rays
 through a thin lens and the layers, which makes it the closest thing to a ray-traced reference
 for a layered renderer. It takes no weights.
 
@@ -72,5 +73,6 @@ focus, which is our strength scaled to the frame's width, and the focus goes in 
 
 Add a function to `setup.sh` that clones the pinned commit and builds what the method needs,
 and a `run_<method>.py` that writes `bokeh_<method>/` in our layout, with `common.py` doing the
-reading of our sequences. The method's name then works with `score.py` unchanged. A method that takes one frame and a disparity map, as BokehMe and
-the full MPIB pipeline do, reads `all_in_focus/` and `disparity/` instead of the layers.
+reading of our sequences. The method's name then works with `score.py` unchanged. A method
+that takes one frame and a disparity map, as BokehMe and the full MPIB pipeline do, reads
+`all_in_focus/` and `disparity/` instead of the layers.
