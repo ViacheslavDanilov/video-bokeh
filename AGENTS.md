@@ -139,6 +139,7 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 - `.assets/` — the README's demo video, `video-bokeh-demo.mp4`. The README plays a copy uploaded to GitHub, so this is the original
 - `CONTEXT.md` — the project glossary. Grilling adds a term to it once the term is settled
 - `.claude/skills/` — the agent lifecycle: `/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call. `docs/how-to/agent-lifecycle.md` shows how to drive it
+- `.agents/skills` — a symlink to `.claude/skills`, the path Codex reads, so both tools load the same skills. `.codex/config.toml` holds the project's Codex settings (model, sandbox, approvals); Claude Code's live in `.claude/settings.json`
 
 ## Working principles
 

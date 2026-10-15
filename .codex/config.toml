@@ -1,0 +1,6 @@
+# Project-level Codex settings, read only when the project is trusted. Skills are
+# shared with Claude Code through .agents/skills, a symlink to .claude/skills.
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
