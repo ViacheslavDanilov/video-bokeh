@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -9,7 +10,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "comparison"))
 
-from summary import collect, summarize, table  # noqa: E402
+from summary import (  # noqa: E402
+    check_same_sequences,
+    collect,
+    summarize,
+    table,
+)
 
 
 def _record(method: str, per_sequence: list[dict]) -> dict:
@@ -69,11 +75,29 @@ def test_a_method_without_a_title_keeps_its_own_name_and_n_a_marks_a_gap() -> No
 
 
 def test_only_a_file_under_its_own_methods_name_is_collected(tmp_path: Path) -> None:
-    import json
-
     record = _record("drbokeh", [_mean(40.0, 30.0, 1.0, 3.0)])
     (tmp_path / "comparison_drbokeh.json").write_text(json.dumps(record))
     # A copy kept under another name, and the summary this script wrote earlier.
     (tmp_path / "comparison_drbokeh_old.json").write_text(json.dumps(record))
     (tmp_path / "comparison_summary.json").write_text(json.dumps([summarize(record)]))
     assert [row["method"] for row in collect(tmp_path)] == ["drbokeh"]
+
+
+def test_a_method_with_no_sequence_has_no_values() -> None:
+    row = summarize(_record("drbokeh", []))
+    assert row["sequences"] == 0 and row["frames"] == 0 and row["psnr"] is None
+
+
+def test_rows_over_the_same_sequences_pass() -> None:
+    a = summarize(_record("drbokeh", [_mean(40.0, 30.0, 1.0, 3.0)]))
+    b = summarize(_record("bokehme", [_mean(43.0, 36.0, 0.5, 1.8)]))
+    check_same_sequences([a, b])
+
+
+def test_rows_over_different_sequences_are_refused_naming_the_methods() -> None:
+    a = summarize(_record("drbokeh", [_mean(40.0, 30.0, 1.0, 3.0)] * 2))
+    b = summarize(_record("bokehme", [_mean(43.0, 36.0, 0.5, 1.8)]))
+    with pytest.raises(SystemExit) as refused:
+        check_same_sequences([a, b])
+    message = str(refused.value)
+    assert "drbokeh: 2 sequences" in message and "bokehme: 1 sequences" in message

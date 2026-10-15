@@ -126,10 +126,12 @@ comparison/run_all.sh backend/data/cmp
 ```
 
 The sequences must hold their layers and our bokeh, so that every method gets the focus and
-the strength that our renderer recorded. `summary.py` averages each method's `score.py` file
-over the sequences and writes `comparison_summary.json` beside them. A test set is whatever
-those sequences are: the seeds, the counts and the size go into the paper's `results/` with
-the commit and the command that wrote them, as that folder's README asks.
+the strength that our renderer recorded. The command stops before it starts if a method is not
+set up. `summary.py` averages each method's `score.py` file over the sequences and writes
+`comparison_summary.json` beside them. It refuses files made over different sequences, so use
+a data root that holds only the set you want in the table. That set, with its seeds, counts and
+size, goes into the paper's `results/` with the commit and the command that wrote it, as that
+folder's README asks.
 
 ## Adding a method
 

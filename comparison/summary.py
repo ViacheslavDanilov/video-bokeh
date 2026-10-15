@@ -46,6 +46,7 @@ def summarize(record: dict) -> dict:
         "reference": record["reference"],
         "band": record["band"],
         "sequences": len(sequences),
+        "sequence_ids": [s["sequence"] for s in sequences],
         "frames": sum(len(s["frames"]) for s in sequences),
         **means,
     }
@@ -90,6 +91,22 @@ def collect(data_root: Path) -> list[dict]:
     return rows
 
 
+def check_same_sequences(rows: list[dict]) -> None:
+    """Refuse rows made over different sequences: a table compares methods on one set."""
+    sets = {row["method"]: tuple(row["sequence_ids"]) for row in rows}
+    if len(set(sets.values())) > 1:
+        lines = [
+            f"  {method}: {len(ids)} sequences, {ids[0]} to {ids[-1]}"
+            for method, ids in sets.items()
+            if ids
+        ]
+        raise SystemExit(
+            "the score files were made over different sequences, so their means are not "
+            "comparable; score them again over the same ones, or use a fresh data root:\n"
+            + "\n".join(lines)
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, required=True)
@@ -99,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(
             f"no comparison_<method>.json under {args.data_root}: run score.py"
         )
+    check_same_sequences(rows)
     (args.data_root / "comparison_summary.json").write_text(
         json.dumps(rows, indent=1) + "\n", encoding="utf-8"
     )
