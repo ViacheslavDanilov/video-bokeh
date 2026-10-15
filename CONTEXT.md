@@ -90,8 +90,19 @@ _Avoid_: depth, depth map
 
 **Optical flow**:
 Where each pixel's front-most surface moves from one frame to the next, in pixels. Exact,
-because every layer moves by a known homography.
+because every layer moves by a known homography. The last frame has none.
 _Avoid_: motion field, motion vectors
+
+**Backward flow**:
+Optical flow the other way: where each pixel's front-most surface was in the previous frame.
+The first frame has none. Written on request, as a stream of its own.
+_Avoid_: reverse flow
+
+**Occlusion mask**:
+For each frame but the last, the pixels whose front-most surface the next frame does not
+show, because it leaves the frame or another surface is in front where it lands. Optical
+flow is undefined there. Written on request, as a stream of its own.
+_Avoid_: visibility map, occlusion map
 
 **Background band**:
 The bottom sliver of disparity, reserved for the background.
@@ -161,8 +172,9 @@ Building the library; the only stage that runs the depth estimator.
 _Avoid_: preprocessing
 
 **Stage B**:
-Generating sequences from the library; it never runs the depth estimator. With bokeh or
-optical flow asked for, it renders them too, in the same run.
+Generating sequences from the library; it never runs the depth estimator. With bokeh,
+optical flow, backward flow or the occlusion mask asked for, it renders them too, in the same
+run.
 _Avoid_: rendering
 
 **Sequence stream**:
