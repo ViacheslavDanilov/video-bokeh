@@ -39,11 +39,12 @@ pixels with no alpha to size the blur at an edge.
 The two renders are not the same algorithm, and the score measures that difference. Ours
 blurs in linear light and composites in gamma values, and Dr.Bokeh composites in linear light
 and returns to gamma values once, both with the power of 2.2. Dr.Bokeh's radius is
-`K|d - zf| + 1`, so an in-focus pixel still spreads a small disk. `score.py` writes `comparison_drbokeh.json` with, per frame, the PSNR and the mean absolute
-difference over the whole frame and over a band around the object edges, where a layered and a
-single-layer renderer part.
+`K|d - zf| + 1`, so an in-focus pixel still spreads a small disk.
 
-The edge band is the square of 16 pixels around every edge of every object's alpha mask.
+`score.py` writes `comparison_drbokeh.json` with, per frame, the PSNR and the mean absolute
+difference over the whole frame and over a band around the object edges, where a layered and a
+single-layer renderer part. The band is the square of 16 pixels around every edge of every
+object's alpha mask.
 
 ## Adding a method
 

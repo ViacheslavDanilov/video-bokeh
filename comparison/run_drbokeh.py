@@ -2,9 +2,9 @@
 """Render sequences' bokeh with Dr.Bokeh's layer renderer, from our own layers.
 
 Runs inside ``comparison/envs/render`` (see ``comparison/README.md``), not in the backend's
-environment. For every sequence under ``--data-root`` that was written with ``--layers`` and
-holds a ``bokeh/focus.json``, and skips the others, it renders each frame from the same layers, focus disparity and
-strength as our layered renderer did, and writes
+environment. It skips every sequence under ``--data-root`` that was not written with
+``--layers`` or holds no ``bokeh/focus.json``. For each of the others, it renders every frame
+from the same layers, focus disparity and strength as our layered renderer did, and writes
 
     <sequence>/bokeh_drbokeh/<frame>.png   RGB uint8, the sequence's size
     <sequence>/bokeh_drbokeh/run.json      the settings, so the two renders compare like for like
