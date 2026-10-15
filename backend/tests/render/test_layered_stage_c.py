@@ -114,6 +114,16 @@ def test_focuses_where_the_same_run_would(
         assert record["zf"] == pytest.approx(expected["zf"], abs=1e-3)
 
 
+@pytest.mark.parametrize("focus", ["-0.1", "1.1", "nan"])
+def test_a_focus_outside_the_unit_range_is_refused_before_rendering(
+    dataset: Path,
+    focus: str,
+) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["--data-root", str(dataset), "--focus-disparity", focus])
+    assert not any((seq / "bokeh").exists() for seq in _sequences(dataset))
+
+
 def test_a_pinned_focus_holds_in_every_frame(dataset: Path) -> None:
     cli.main(
         [
