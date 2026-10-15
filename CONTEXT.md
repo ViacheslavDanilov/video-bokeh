@@ -101,7 +101,7 @@ _Avoid_: reverse flow
 **Occlusion mask**:
 For each frame but the last, the pixels whose front-most surface the next frame does not
 show, because it leaves the frame or another surface is in front where it lands. A per-pixel
-test between two frames, not the *Occlusion* of a scene below. The optical flow still carries
+test between two frames, not the Occlusion of a scene below. The optical flow still carries
 the surface's motion there, but the next frame cannot confirm it. Written on request, as a
 stream of its own.
 _Avoid_: visibility map, occlusion map
