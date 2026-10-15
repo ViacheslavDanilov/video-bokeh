@@ -20,9 +20,10 @@ M3 Pro, and "What has not run yet" lists the rest.
 
 1. `make setup` installs every backend extra, the frontend and the smoke test's browser. Run
    here.
-2. `make images` builds the models' Docker images: `video-bokeh-da3`, `video-bokeh-da2` and
-   `video-bokeh-depth-pro`, 8 to 12 GB each, with no weights in them. It needs Docker with the
-   NVIDIA Container Toolkit, and ran on the RTX 5090.
+2. `make images` builds the one model image, `video-bokeh-da3`, for Depth Anything 3, which
+   cannot share our environment: 8 to 12 GB, with no weights in it. It needs Docker with the
+   NVIDIA Container Toolkit, and ran on the RTX 5090. `da2-*` and `depth-pro` run in this
+   process and need no image.
 3. On a machine without Docker's NVIDIA runtime, such as the Mac,
    `scripts/setup_depth_anything_3.sh` builds the venv the `da3-*` depth estimators run in
    instead. Run here. [cli](../reference/cli.md), section "Depth Anything 3's own environment",
@@ -51,14 +52,15 @@ It does four things, in order:
    scenes, so only the disparity differs between libraries.
 4. **MP4s** of each sequence's frames, disparity and bokeh, next to the frames.
 
-**On Linux with Docker's NVIDIA runtime, every model runs in its own image.** The runner is
-`docker` when this user can reach a daemon that has that runtime, and `local` otherwise. A
-shell opened before joining the `docker` group gets `local`. The log's header says which ran,
-and `VIDEO_BOKEH_RUNNER` picks one outright. Under `docker` the run checks for the images
-before anything long starts, and names `make images` when one is missing. On the RTX 5090 on
-2026-10-07, with `COUNT=2 FRAMES=24` and any-to-bokeh still rendering the bokeh in a step of
-its own, the whole run took 15 minutes under `docker`: 62 to 90 s per library, and the device
-check's peak memory matched the venv run's for every estimator.
+**On Linux with Docker's NVIDIA runtime, Depth Anything 3 runs in its own image.** The other
+depth models run in this process. The runner is `docker` when this user can reach a daemon
+that has that runtime, and `local` otherwise. A shell opened before joining the `docker`
+group gets `local`. The log's header says which ran, and `VIDEO_BOKEH_RUNNER` picks one
+outright. Under `docker` the run checks for the image before anything long starts, and names
+`make images` when it is missing. On the RTX 5090 on 2026-10-07, with `COUNT=2 FRAMES=24`,
+any-to-bokeh still rendering the bokeh in a step of its own and each depth model in an image
+of its own, the whole run took 15 minutes under `docker`: 62 to 90 s per library, and the
+device check's peak memory matched the venv run's for every estimator.
 
 **One estimator failing does not stop the others.** A library that does not build is named in
 the summary, its estimator gets no sequences, and the rest go on. The run then exits 1. The
