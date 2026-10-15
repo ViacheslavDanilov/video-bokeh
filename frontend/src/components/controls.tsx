@@ -125,7 +125,7 @@ export function Controls({
         <Slider
           id="frames"
           aria-label="Frames"
-          // Stage C needs 13 or more, so every sequence made here can get its bokeh.
+          // The shortest clip the page offers.
           min={16}
           max={240}
           step={8}

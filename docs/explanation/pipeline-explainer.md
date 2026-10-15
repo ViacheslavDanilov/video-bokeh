@@ -43,9 +43,9 @@ flowchart LR
   share our Python environment run in one of its own.
   [0001-on-disk-formats-join-the-stages](../adr/0001-on-disk-formats-join-the-stages.md) records
   why.
-- **Cost rises at both ends.** Stage A runs a neural depth estimator and Stage B never does.
-  Stage C runs either any-to-bokeh, a diffusion model that needs an NVIDIA card, or our
-  layer-wise renderer, which runs on any machine.
+- **Cost rises at one end.** Stage A runs a neural depth estimator and Stage B never does.
+  The bokeh comes from our layer-wise renderer, which runs on any machine, in Stage B's run
+  or in Stage C.
 
 ---
 
@@ -196,22 +196,23 @@ explains the renderer that reads them.
 A bokeh renderer reads a finished sequence and writes what a camera with a shallow focus would
 have recorded: the `bokeh` stream, one frame for every `all_in_focus` frame.
 
-any-to-bokeh is the first renderer. It is a diffusion model with its own Python environment, so
-Stage C runs it as a separate program and reads its result back. By default the focus follows
-one object per sequence, drawn with odds in proportion to its area, so one object is sharp and
-the others blur by how far they are from it in depth. Stage C first ran end to end on
-2026-10-07, on an RTX 5090, and
-[run-any-to-bokeh-inference](../how-to/run-any-to-bokeh-inference.md) says where it stands.
+The layer-wise renderer is the one the dataset's bokeh comes from. It blurs each layer of a
+frame on its own and stacks them again, so a blurred object in front thins out at its edges and
+shows what is behind it. It runs in our own process, on a CPU or a GPU. By default the focus
+follows one object per sequence, drawn with odds in proportion to its area, so one object is
+sharp and the others blur by how far they are from it in depth.
+[layered-bokeh](layered-bokeh.md) explains it.
 
-The layer-wise renderer is the second, and the one the dataset's bokeh comes from. It blurs
-each layer of a frame on its own and stacks them again, so a blurred object in front thins out
-at its edges and shows what is behind it. It runs in our own process, on a CPU or a GPU, and
-focuses the way any-to-bokeh does. [layered-bokeh](layered-bokeh.md) explains it.
+any-to-bokeh, a diffusion model, was the first renderer. It left the pipeline on 2026-10-15,
+because it ran offline only, on an NVIDIA card, in an environment of its own, and could not
+join the same run as the frames. Comparing our renderer with it and with other published ones
+is a task of its own, outside the pipeline.
 
 **Bokeh is rendered end to end.** Stage B renders a sequence's bokeh in the same run as its
-frames, from the layers it holds in memory: `scenes.generate --bokeh` for a dataset, the API for
-the demo, the loader for training. Stage C still renders over sequences already written, for
-any-to-bokeh and for a new strength.
+frames, in a second pass over the scene from the layers it holds in memory:
+`scenes.generate --bokeh` for a dataset, the API for the demo, the loader for training. Stage C
+renders it again over sequences already written with their layers, for a new strength or
+focus.
 [0003-bokeh-is-rendered-in-the-same-pass](../adr/0003-bokeh-is-rendered-in-the-same-pass.md)
 records why.
 
@@ -244,8 +245,6 @@ then train on as many sequences as it likes, from the same distribution as the w
 - [dataset-layout](../reference/dataset-layout.md) — the on-disk contract, with formats and bit
   depths
 - [generate-a-dataset](../how-to/generate-a-dataset.md) — how to run Stages A, B and C
-- [run-any-to-bokeh-inference](../how-to/run-any-to-bokeh-inference.md) — how to run
-  any-to-bokeh, for comparison
 - [loader](../reference/loader.md) — the sequence stream, for training on the fly
 - [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) — how to judge
   the result by eye

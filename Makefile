@@ -1,7 +1,7 @@
 # Shortcuts for the common commands. `make` lists them.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup libraries images api bokeh web smoke test check
+.PHONY: help setup libraries images api web smoke test check
 
 # Libraries are not in git, so a second worktree uses the main checkout's.
 MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolute --git-common-dir))
@@ -35,16 +35,11 @@ libraries: ## Build one dev library per depth estimator into LIBRARY
 	done
 
 images: ## Build the models' Docker images (NVIDIA only)
-	docker build -t video-bokeh-a2b -f backend/docker/any-to-bokeh/Dockerfile .
 	docker build -t video-bokeh-da3 -f backend/docker/depth-anything-3/Dockerfile .
 	docker build -t video-bokeh-da2 -t video-bokeh-depth-pro -f backend/docker/transformers/Dockerfile .
 
 api: ## Serve the API on :8000 from LIBRARY
 	cd backend && VIDEO_BOKEH_LIBRARY="$(abspath $(LIBRARY))" uv run uvicorn video_bokeh.api.main:app --reload --port 8000
-
-bokeh: ## Render any-to-bokeh for the page's sequences without bokeh (NVIDIA only)
-	cd backend && VIDEO_BOKEH_RUNNER=$(RUNNER) uv run --extra render python -m video_bokeh.render.run \
-	  --data-root "$${VIDEO_BOKEH_DATA_ROOT:-data}" --renderer any-to-bokeh --missing
 
 web: ## Serve the page on :3000
 	cd frontend && pnpm dev

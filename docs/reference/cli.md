@@ -210,7 +210,7 @@ and `run.json` first, then writes `manifest.csv` atomically as the run's complet
 | `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [dataset-layout](dataset-layout.md) |
 | `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [dataset-layout](dataset-layout.md) |
 | `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
-| `--bokeh-strength` | float | `16` | the bokeh's strength, as any-to-bokeh's `k` |
+| `--bokeh-strength` | float | `16` | the bokeh's strength: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
 
@@ -238,59 +238,38 @@ Datasets without `objects.csv` or `run.json` produce a usage error naming the mi
 Renders bokeh for written sequences and writes each one's `bokeh/` stream, as
 [dataset-layout](dataset-layout.md) describes. It needs the `render` extra. The layered renderer
 is the default, and [generate-a-dataset](../how-to/generate-a-dataset.md) has its command.
-any-to-bokeh is there for comparison, and
-[run-any-to-bokeh-inference](../how-to/run-any-to-bokeh-inference.md) has its command. It first
-ran to completion on an RTX 5090 on 2026-10-07.
+Stage C is for rendering again, at another strength or focus, what `scenes.generate --bokeh`
+renders in the same run as the frames.
 
 | flag | type | default | meaning |
 |---|---|---|---|
 | `--data-root` | path | **required** | dataset root containing `sequences/` |
 | `--seqs` | list | all | comma-separated sequence ids, e.g. `0001,0003` |
 | `--renderer` | str | `layered` | a renderer below, or `package.module:ClassName` for your own |
-| `--strength` | float | `16` | blur strength, any-to-bokeh's `k`: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
+| `--strength` | float | `16` | blur strength: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 | `--focus-disparity` | float | one object, drawn by area | one in-focus disparity in `[0, 1]` for every frame |
 | `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any the renderer cannot take |
 
-`make bokeh` runs `--renderer any-to-bokeh --missing` over the API's data root, so it renders
-any-to-bokeh's bokeh for whatever the page generated without bokeh of its own, as it does
-without torch. A sequence shorter than the renderer's minimum, or without the layers `layered`
-needs, is named and left out rather than handed over, where it would fail the whole batch. A
-directory whose name starts with a dot is never a sequence: the API generates under `.tmp-*`
-and renames.
+With `--missing`, a sequence that already has `bokeh/`, or that has none of the layers
+`layered` needs, is named and left out rather than handed over, where it would fail the whole
+batch. A directory whose name starts with a dot is never a sequence: the API generates under
+`.tmp-*` and renames.
 
 | `--renderer` | runs in | setup |
 |---|---|---|
-| `any-to-bokeh` | its own Python 3.10 venv, or the `video-bokeh-a2b` image; NVIDIA only | `scripts/setup_third_party.sh`, then `make images` for the image |
 | `layered` | this process, on the CPU, an NVIDIA card or a Mac's GPU | sequences written with `scenes.generate --layers` |
 
-Both follow one object by default: the bridge's `--focus object`, described below.
-`bokeh/focus.json` records the object, each frame's in-focus disparity, the renderer and its
-strength.
-
-`VIDEO_BOKEH_A2B_ROOT` and `VIDEO_BOKEH_A2B_PYTHON` point at another checkout or interpreter.
-
-`VIDEO_BOKEH_RUNNER=docker` runs it in the `video-bokeh-a2b` image instead of the venv, with the
-GPU. The image holds the dependencies alone: the repository, the checkpoints, the temporary
-directory and the Hugging Face cache are mounted at their own paths, and the container runs as
-you. The setup script still provides the checkpoints and the cached base model. On the RTX 5090
-on 2026-10-07 one 80-frame sequence took 88 s in the image and 90 s in the venv, and the two
-differed by 0.83 gray levels on average, as much as two runs in the venv differ from each other.
-`local`, the venv, is the default.
-
-**any-to-bokeh needs thirteen frames or more per sequence.** It groups frames eight at a time,
-four overlapping. Its dataset cannot group eight frames or fewer. Its pipeline drops the
-trailing frames of a sequence that makes exactly two groups, nine to twelve frames. One such
-sequence would fail the whole batch after the model has loaded, so the renderer refuses the
-whole batch before it starts and names each short sequence.
+The focus follows one object by default, drawn by the area it holds alone, keyed on the
+scene's seed, so Stage C draws the object the same run would have. `bokeh/focus.json` records
+the object, each frame's in-focus disparity, the renderer and its strength.
 
 **`layered` is the layer-wise renderer** that [layered-bokeh](../explanation/layered-bokeh.md)
 explains. It reads `layers/`, `alpha/` and `disparity/` and writes `bokeh/` losslessly. It
 refuses the whole batch, before rendering any, when a sequence has no complete `layers/`. It
 runs on the CPU unless `VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the
 CPU when that device is not there. On the lab machine on 2026-10-10, an 80-frame sequence at 512
-pixels took 13 s on its 24 CPU cores and 6 s on the RTX 5090, where any-to-bokeh takes 88 s on
-the same card. At 1024 pixels it took 40 s and 20 s. Most of the time on the GPU is reading the
-layers and writing the PNGs.
+pixels took 13 s on its 24 CPU cores and 6 s on the RTX 5090. At 1024 pixels it took 40 s and
+20 s. Most of the time on the GPU is reading the layers and writing the PNGs.
 
 ### Your own renderer
 
@@ -299,18 +278,6 @@ and calls `render(self, sequence_dirs, strength, focus_disparity)` once, with ev
 It must write `<sequence>/bokeh/<frame>.png` for each one: RGB uint8, the sequence's own size,
 named like the `all_in_focus` frames. The interface is
 `video_bokeh.render.base.BokehRenderer`.
-
-## `video_bokeh.bridge.any_to_bokeh` — the inference bridge
-
-| flag | type | default | meaning |
-|---|---|---|---|
-| `--data-root` | path | **required** | dataset root containing `sequences/` |
-| `--a2b-root` | path | `third_party/any-to-bokeh` | vendored inference checkout |
-| `--dataset-name` | str | basename of `--data-root` | name under `demo_dataset/` and `csv_file/` |
-| `--k` | str | `16` | blur-strength column written to the CSV |
-| `--seqs` | list | all | comma-separated sequence ids, e.g. `0001,0003` |
-| `--focus-disparity` | float | unset | pin one focus in `[0, 1]` for every frame. Overrides `--focus` |
-| `--focus` | str | `object` | `object` = one object, drawn by area, in every frame; `alpha` = mean disparity under all the masks; `full` = whole frame |
 
 ## `video_bokeh.preview.pack` — PNG streams to MP4
 

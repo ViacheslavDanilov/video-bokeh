@@ -1,7 +1,8 @@
 """Stage C's output without a GPU: a sequence's frames copied into its ``bokeh/``.
 
-Real any-to-bokeh needs an NVIDIA card, so the API tests and the browser smoke test write
-the stream the way Stage C lands it, one RGB PNG per frame, and check it is served.
+Rendering it takes torch, which the API's own install leaves out, so the API tests and the
+browser smoke test write the stream the way Stage C lands it, one RGB PNG per frame, and
+check it is served.
 
 Run as a script on a sequence directory:
 

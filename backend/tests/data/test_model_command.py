@@ -82,7 +82,7 @@ def test_docker_runs_the_image_s_python_with_the_gpu(
         assert any(path.is_relative_to(host) for host, _ in volumes), path
     assert f"HF_HOME={tmp_path / 'hf'}" in _pairs(flags, "-e")
     assert _pairs(flags, "-w") == [str(data)]
-    # The demo's data loader starts many workers; Docker's default 64 MiB /dev/shm
+    # A model with data-loader workers shares tensors through /dev/shm; Docker's 64 MiB
     # would kill them.
     assert any(f.startswith("--shm-size") for f in flags) or "--ipc" in flags
 

@@ -15,8 +15,7 @@ the same request with the layered renderer, so `POST /sequences` takes longer: o
 Pro on 2026-10-11, 80 frames at 512 pixels with four to five objects, seeds 0 to 2, took 8 to
 14 s without bokeh and 16 to 25 s with it, optical flow included in both. A sequence cached
 without bokeh gets it when it is asked for again. Without torch, as in the API's own
-install, sequences come without bokeh, and `make bokeh` can still render it with Stage C;
-asking for a sequence again then lists its `bokeh` stream.
+install, sequences come without bokeh.
 
 Interactive docs are at `/docs` when the server is running.
 

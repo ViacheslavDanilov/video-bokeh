@@ -74,9 +74,7 @@ is the direction, rightward red, and white is still. The wheel under its pane is
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.
-Without torch, Stage C can still add any-to-bokeh's on a machine with an NVIDIA card: run
-`make bokeh` from the repository root and generate the same sequence again. The frames slider
-starts at 16, because any-to-bokeh needs 13 frames or more.
+Without torch, the page shows no bokeh pane.
 
 ## Conventions
 

@@ -293,17 +293,6 @@ uv run --extra render python -m video_bokeh.render.run --data-root data/demo_lay
 
 The render took 3 s on an Apple M3 Pro, on 2026-10-10.
 
-**any-to-bokeh needs an NVIDIA card.**
-[run-any-to-bokeh-inference](run-any-to-bokeh-inference.md) has the command and says how far it
-has been run.
-
-To look at what any-to-bokeh would receive without rendering anything, the bridge converts the
-sequences on any machine:
-
-```bash
-uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
-```
-
 ---
 
 ## Clean up

@@ -13,10 +13,9 @@ class BokehRenderer(Protocol):
     RGB uint8 at the sequence's own size, one file per ``all_in_focus`` frame and named
     like it. A sequence's ``bokeh/`` appears complete or not at all.
 
-    A renderer that cannot take short sequences may say so with a ``min_frames`` class
-    attribute, and one that renders from the ``layers/`` stream with ``needs_layers =
-    True``; ``render.run --missing`` then leaves such sequences out instead of handing
-    them over.
+    A renderer that renders from the ``layers/`` stream says so with ``needs_layers =
+    True``; ``render.run --missing`` then leaves the sequences without it out instead of
+    handing them over.
     """
 
     name: ClassVar[str]

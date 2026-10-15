@@ -27,7 +27,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 #: The frame width at which ``strength`` is the radius, in pixels, of a pixel one unit of
-#: disparity from the focus. any-to-bokeh renders 1024 pixels wide and calls it ``k``.
+#: disparity from the focus. Other widths scale the radius in proportion.
 REFERENCE_WIDTH = 1024
 
 #: The width of a radius bin, in pixels: a radius is off by up to it.

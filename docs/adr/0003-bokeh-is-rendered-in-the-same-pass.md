@@ -25,7 +25,8 @@ over written sequences.
 ## Consequences
 
 - The layered renderer is the default source of the dataset's bokeh, as agreed after the
-  2026-10-08 sync. any-to-bokeh stays a Stage C renderer for comparison.
+  2026-10-08 sync. any-to-bokeh stayed a Stage C renderer for comparison until 2026-10-15,
+  when it left the pipeline; comparing with it is a task outside the pipeline.
 - Stage B's warps run twice when bokeh is asked for.
 - Writing bokeh needs torch, which the base install and the API's own install leave out. The
   demo then shows no bokeh pane.

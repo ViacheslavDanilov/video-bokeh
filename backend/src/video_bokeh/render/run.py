@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 """Render bokeh for written sequences (Stage C).
 
-Reads each sequence's all_in_focus, alpha and disparity streams and writes its bokeh
-stream beside them:
+Reads each sequence's layers, alpha and disparity streams and writes its bokeh stream
+beside them:
 
     <data-root>/sequences/<id>/bokeh/<frame>.png   RGB uint8, the sequence's size
 
 Usage:
     uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
 
-The layered renderer is the default, over sequences written with ``--layers``.
-``--renderer any-to-bokeh`` runs any-to-bokeh instead, offline and on an NVIDIA card, for
-comparison.
+The layered renderer is the default, over sequences written with ``--layers``. Stage C is
+for rendering again, at another strength or focus, what ``scenes.generate --bokeh`` renders
+in the same run as the frames.
 
 With ``--missing`` it renders only the sequences that have no ``bokeh/`` yet, and leaves
 out any the renderer cannot take, saying which: without the layers the layered renderer
-needs, or shorter than any-to-bokeh can group. Pointed at the API's data root with
-any-to-bokeh, that renders its bokeh for whatever the page generated without bokeh of its
-own, as it does without torch: ``make bokeh``.
+needs.
 """
 
 from __future__ import annotations
@@ -27,12 +25,7 @@ from functools import partial
 from pathlib import Path
 
 from video_bokeh.core._plugins import validated_spec
-from video_bokeh.core._seq_io import (
-    has_layers,
-    list_png_frames,
-    list_sequences,
-    parse_names,
-)
+from video_bokeh.core._seq_io import has_layers, list_sequences, parse_names
 from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.render import RENDERERS, resolve_renderer
 
@@ -57,8 +50,8 @@ def _build_parser() -> argparse.ArgumentParser:
         "--strength",
         type=float,
         default=BOKEH_STRENGTH,
-        help="blur strength, as any-to-bokeh's k: the blur radius in pixels, at a "
-        "1024-pixel width, one unit of disparity from the focus (default: 16).",
+        help="blur strength: the blur radius in pixels, at a 1024-pixel width, one unit "
+        "of disparity from the focus (default: 16).",
     )
     parser.add_argument(
         "--focus-disparity",
@@ -76,11 +69,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _still_missing(
-    seq_dirs: list[Path],
-    min_frames: int,
-    needs_layers: bool,
-) -> list[Path]:
+def _still_missing(seq_dirs: list[Path], needs_layers: bool) -> list[Path]:
     """The sequences with no bokeh yet that the renderer can take, saying what it skips."""
     todo: list[Path] = []
     for seq in seq_dirs:
@@ -88,12 +77,6 @@ def _still_missing(
             continue
         if needs_layers and not has_layers(seq):
             print(f"  skip {seq.name}: no complete layers/, which the renderer needs")
-            continue
-        frames = len(list_png_frames(seq / "all_in_focus"))
-        if frames < min_frames:
-            print(
-                f"  skip {seq.name}: {frames} frames, the renderer needs {min_frames}",
-            )
             continue
         todo.append(seq)
     return todo
@@ -127,15 +110,10 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(
                 f"no complete layers/ in {', '.join(bare)}, which the {args.renderer} "
                 "renderer needs. Write the sequences again with scenes.generate --layers, "
-                "or --bokeh to render their bokeh in the same run, or pass "
-                "--renderer any-to-bokeh.",
+                "or --bokeh to render their bokeh in the same run.",
             )
     if args.missing:
-        seq_dirs = _still_missing(
-            seq_dirs,
-            getattr(renderer, "min_frames", 0),
-            needs_layers,
-        )
+        seq_dirs = _still_missing(seq_dirs, needs_layers)
         if not seq_dirs:
             print(
                 "Nothing to render: every sequence has bokeh or is one the renderer "
