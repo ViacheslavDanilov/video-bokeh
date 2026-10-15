@@ -289,6 +289,37 @@ def occlusion_mask(
     return ~inside | (landed != front_now)
 
 
+def _background_homography(scene: Scene, t: float) -> np.ndarray:
+    """The background's forward homography at time ``t`` in [0, 1]."""
+    pose = scene.bg_pose_start.lerp(scene.bg_pose_end, EASING_FNS[scene.bg_easing](t))
+    return build_bg_homography(pose, scene.background.rgb.size[0], scene.size)
+
+
+def _object_homography(scene: Scene, obj: ObjectTrack, t: float) -> np.ndarray:
+    """An object's forward homography at time ``t`` in [0, 1]."""
+    pose = obj.pose_start.lerp(obj.pose_end, EASING_FNS[obj.easing](t))
+    return build_fg_homography(pose, obj.asset.rgb.size[0], scene.size)
+
+
+def _draw_order(
+    scene: Scene,
+    t: float,
+) -> tuple[list[tuple[float, float]], list[int]]:
+    """Each object's target disparity band at time ``t``, and the objects far to near.
+
+    The bands are indexed by object. The order sorts them by the middle of the band, low
+    disparity first, which is the order they are painted in.
+    """
+    bands = []
+    for obj in scene.objects:
+        r = obj.depth_start.lerp(obj.depth_end, EASING_FNS[obj.easing](t))
+        bands.append((r.mind, r.maxd))
+    order = sorted(
+        range(len(bands)), key=lambda idx: (bands[idx][0] + bands[idx][1]) / 2.0
+    )
+    return bands, order
+
+
 def iter_frames(
     scene: Scene,
     layers: bool = False,
@@ -298,8 +329,6 @@ def iter_frames(
 ) -> Iterator[RenderedFrame]:
     """``render_scene`` one frame at a time, so a writer never holds the whole clip."""
     size = scene.size
-    bg_easing_fn = EASING_FNS[scene.bg_easing]
-    bg_src_size = scene.background.rgb.size[0]
 
     for i in range(scene.n_frames):
         t = 0.0 if scene.n_frames == 1 else i / (scene.n_frames - 1)
@@ -312,22 +341,17 @@ def iter_frames(
         )
         t_prev = (i - 1) / (scene.n_frames - 1) if flow_back and i > 0 else None
 
-        bg_pose = scene.bg_pose_start.lerp(scene.bg_pose_end, bg_easing_fn(t))
-        bg_h = build_bg_homography(bg_pose, bg_src_size, size)
+        bg_h = _background_homography(scene, t)
         frame_flow = None
         if t_next is not None:
-            bg_next = scene.bg_pose_start.lerp(scene.bg_pose_end, bg_easing_fn(t_next))
             frame_flow = homography_flow(
-                bg_h,
-                build_bg_homography(bg_next, bg_src_size, size),
-                size,
+                bg_h, _background_homography(scene, t_next), size
             )
         frame_flow_back = None
         if t_prev is not None:
-            bg_prev = scene.bg_pose_start.lerp(scene.bg_pose_end, bg_easing_fn(t_prev))
             frame_flow_back = homography_flow(
                 bg_h,
-                build_bg_homography(bg_prev, bg_src_size, size),
+                _background_homography(scene, t_prev),
                 size,
             )
         bg_rgb = np.asarray(
@@ -350,28 +374,14 @@ def iter_frames(
         object_disparities = [np.zeros((size, size), dtype=np.float32)] * n_kept
         background_disparity = disparity
 
-        def _band(idx: int, _t: float = t) -> tuple[float, float]:
-            """Target disparity band for object ``idx`` at ``_t``."""
-            o = scene.objects[idx]
-            ease = EASING_FNS[o.easing](_t)
-            r = o.depth_start.lerp(o.depth_end, ease)
-            return r.mind, r.maxd
-
-        bands = [_band(idx) for idx in range(len(scene.objects))]
-        # Far (low disparity) first.
-        draw_order = sorted(
-            range(len(scene.objects)),
-            key=lambda idx: (bands[idx][0] + bands[idx][1]) / 2.0,
-        )
+        bands, draw_order = _draw_order(scene, t)
         # The surface in front at each pixel, an object's index or -1, for the occlusion
         # mask; the same rule the flow uses.
         front_now = np.full((size, size), -1)
         for idx in draw_order:
             obj = scene.objects[idx]
-            ease = EASING_FNS[obj.easing](t)
-            pose = obj.pose_start.lerp(obj.pose_end, ease)
             band_lo, band_hi = bands[idx]
-            fg_h = build_fg_homography(pose, obj.asset.rgb.size[0], size)
+            fg_h = _object_homography(scene, obj, t)
 
             warped_rgba = np.asarray(
                 warp_pillow(obj.asset.rgb, fg_h, size),
@@ -395,23 +405,15 @@ def iter_frames(
             front = a >= 0.5
             front_now[front] = idx
             if frame_flow is not None and t_next is not None:
-                pose_next = obj.pose_start.lerp(
-                    obj.pose_end,
-                    EASING_FNS[obj.easing](t_next),
-                )
                 frame_flow[front] = homography_flow(
                     fg_h,
-                    build_fg_homography(pose_next, obj.asset.rgb.size[0], size),
+                    _object_homography(scene, obj, t_next),
                     size,
                 )[front]
             if frame_flow_back is not None and t_prev is not None:
-                pose_prev = obj.pose_start.lerp(
-                    obj.pose_end,
-                    EASING_FNS[obj.easing](t_prev),
-                )
                 frame_flow_back[front] = homography_flow(
                     fg_h,
-                    build_fg_homography(pose_prev, obj.asset.rgb.size[0], size),
+                    _object_homography(scene, obj, t_prev),
                     size,
                 )[front]
             if layers:
@@ -424,18 +426,9 @@ def iter_frames(
         frame_occlusion = None
         if occlusion and frame_flow is not None and t_next is not None:
             front_next = np.full((size, size), -1)
-            next_bands = [_band(idx, t_next) for idx in range(len(scene.objects))]
-            next_order = sorted(
-                range(len(scene.objects)),
-                key=lambda idx: (next_bands[idx][0] + next_bands[idx][1]) / 2.0,
-            )
-            for idx in next_order:
+            for idx in _draw_order(scene, t_next)[1]:
                 obj = scene.objects[idx]
-                pose_next = obj.pose_start.lerp(
-                    obj.pose_end,
-                    EASING_FNS[obj.easing](t_next),
-                )
-                h_next = build_fg_homography(pose_next, obj.asset.rgb.size[0], size)
+                h_next = _object_homography(scene, obj, t_next)
                 a_next = np.asarray(
                     warp_pillow(obj.asset.rgb.getchannel("A"), h_next, size),
                     dtype=np.float32,
