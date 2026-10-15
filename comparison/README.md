@@ -96,8 +96,8 @@ its 16 bits and its scale, because the focus our renderer recorded is on that sc
 [Any-to-Bokeh](https://github.com/vivoCameraResearch/any-to-bokeh) (ICLR 2026; code and
 weights CC BY-NC 4.0) is a video diffusion model, which this pipeline carried as a bokeh
 renderer until 2026-10-15. It is the learned baseline of the comparison, not a reference. It
-needs an environment of its own, Python 3.10 with the repository's pinned `diffusers` and
-`transformers`, 6.7 GB of checkpoints from Google Drive and the Stable Video Diffusion base
+needs an environment of its own, Python 3.10 with the `diffusers` and `transformers` versions
+that its requirements pin, 6.7 GB of checkpoints from Google Drive and the Stable Video Diffusion base
 model, 4.2 GiB under Stability's own license, which `setup.sh` downloads into the Hugging
 Face cache.
 

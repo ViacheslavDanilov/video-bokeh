@@ -254,17 +254,20 @@ a2b() {
         uvx --from "$GDOWN" gdown "$A2B_CHECKPOINTS_ID" -O "$archive"
         unzip -q "$archive" -d "$src"
         rm -rf "$src/__MACOSX" "$archive"
-        {
-            echo "$A2B_UNET_SHA256  $src/checkpoints/unet/diffusion_pytorch_model.safetensors"
-            echo "$A2B_VAE_SHA256  $src/checkpoints/vae/diffusion_pytorch_model.safetensors"
-        } | sha256sum -c - ||
-            { rm -rf "$src/checkpoints"; echo "error: the checkpoints do not match their checksums" >&2; exit 1; }
     else
-        echo "[a2b] checkpoints exist, skipped"
+        echo "[a2b] checkpoints exist"
     fi
+    # Checked on every run, so an interrupted extraction is found the next time.
+    {
+        echo "$A2B_UNET_SHA256  $src/checkpoints/unet/diffusion_pytorch_model.safetensors"
+        echo "$A2B_VAE_SHA256  $src/checkpoints/vae/diffusion_pytorch_model.safetensors"
+    } | sha256sum -c - ||
+        { rm -rf "$src/checkpoints"; echo "error: the checkpoints do not match their checksums; run again" >&2; exit 1; }
     # The demo loads the base model with local_files_only, so it must be cached first.
-    local cache="${HF_HOME:-$HOME/.cache/huggingface}/hub/models--${SVD_REPO//\//--}"
-    if [ ! -d "$cache" ]; then
+    local hub="${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}"
+    local cache="$hub/models--${SVD_REPO//\//--}"
+    # A finished download has its pipeline index in a snapshot; a bare folder may be partial.
+    if ! ls "$cache"/snapshots/*/model_index.json > /dev/null 2>&1; then
         echo "[a2b] Stable Video Diffusion base model from Hugging Face"
         "$venv/bin/python" -c "
 from diffusers import StableVideoDiffusionPipeline
