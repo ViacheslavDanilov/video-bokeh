@@ -11,6 +11,9 @@
 #   envs/cuda-toolkit   nvcc and the CUDA 12.8 headers, from conda-forge through micromamba,
 #                       because the pip wheel of nvcc ships no compiler. Only CUDA extensions
 #                       are built with it.
+#   third_party/mpib    MPIB's ray tracer (https://github.com/JuewenPeng/MPIB, Apache-2.0), the
+#                       generator of its paper's Sec. 3.4, with CuPy to run it. Its weights are
+#                       not needed: the ray tracer is not a network.
 #   third_party/drbokeh Dr.Bokeh's renderer (https://github.com/ShengCN/DrBokeh-Src) with its
 #                       scatter_cuda extension. Its code has no license file: it stays on this
 #                       machine and is not redistributed.
@@ -18,7 +21,7 @@
 # It is for a Linux x86-64 machine with an NVIDIA driver, g++ and GNU sed, and stops early
 # without a driver. A step that fails leaves no marker, so the next run does it again.
 #
-# Usage: comparison/setup.sh drbokeh
+# Usage: comparison/setup.sh drbokeh | mpib
 
 set -euo pipefail
 
@@ -28,6 +31,9 @@ TP="$HERE/third_party"
 TOOLS="$HERE/tools"
 RENDER="$ENVS/render"
 TOOLKIT="$ENVS/cuda-toolkit"
+
+MPIB_URL="https://github.com/JuewenPeng/MPIB.git"
+MPIB_SHA="d77d93dd29b9ae75bcd18b3b70d89d715c1b56f8"
 
 DRBOKEH_URL="https://github.com/ShengCN/DrBokeh-Src.git"
 DRBOKEH_SHA="24d96e4fb76a698494e86835c84a7c45ae2ebc10"
@@ -118,10 +124,44 @@ print("drbokeh ready")
 PY
 }
 
+mpib() {
+    render_env
+    local src="$TP/mpib"
+    if [ ! -f "$src/.ready" ]; then
+        echo "[mpib] clone at $MPIB_SHA"
+        mkdir -p "$TP"
+        rm -rf "$src"
+        git clone -q "$MPIB_URL" "$src"
+        git -C "$src" checkout -q "$MPIB_SHA"
+        # CuPy 13 removed the cupy.int alias that the launcher passes its sizes through.
+        sed -i 's/cupy\.int(/int(/g' "$src/bokeh_generator.py"
+        if grep -q 'cupy\.int(' "$src/bokeh_generator.py"; then
+            echo "error: the cupy.int patch did not apply to $src" >&2
+            exit 1
+        fi
+        touch "$src/.ready"
+    else
+        echo "[mpib] clone exists, skipped"
+    fi
+    uv pip install --python "$RENDER/bin/python" "cupy-cuda12x==14.2.0"
+    "$RENDER/bin/python" - << PY
+import sys
+
+import cupy  # noqa: F401
+import torch  # noqa: F401
+
+sys.path.insert(0, "$src")
+import bokeh_generator  # noqa: F401
+
+print("mpib ready")
+PY
+}
+
 case "${1:-}" in
     drbokeh) drbokeh ;;
+    mpib) mpib ;;
     *)
-        echo "usage: $0 drbokeh" >&2
+        echo "usage: $0 drbokeh | mpib" >&2
         exit 1
         ;;
 esac
