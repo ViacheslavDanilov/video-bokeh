@@ -60,11 +60,12 @@ weights are fine for a research dataset. Both `da3-*` need an environment of the
 the next section says. `da3-metric-large` has not run yet; the lab machine runs it first.
 
 The `da2-*` and `depth-pro` run in this process, in the environment the `library` extra
-installs, under every runner: they need no environment of their own. Until 2026-10-15 they
-could also run in Docker images of their own at `uv.lock`'s versions; on the RTX 5090 on
-2026-10-07 the libraries those built took 61 s for `da2-small` and 89 s for `depth-pro`, and
-against the in-process libraries Depth Pro's 60 depth maps were identical and `da2-small`'s at
-most 0.002% of the range apart, so the images were dropped as adding nothing.
+installs, under every runner: they need no environment of their own.
+
+Until 2026-10-15 they could also run in Docker images of their own at `uv.lock`'s versions. On
+the RTX 5090 on 2026-10-07 the libraries those built took 61 s for `da2-small` and 89 s for
+`depth-pro`. Against the in-process libraries, Depth Pro's 60 depth maps were identical and
+`da2-small`'s at most 0.002% of the range apart, so the images added nothing and were dropped.
 
 **Depth Anything 3's other checkpoints are left out on purpose.** Small, Base and Large are
 multi-view models, which estimate depth from several views of one scene at once. Their output

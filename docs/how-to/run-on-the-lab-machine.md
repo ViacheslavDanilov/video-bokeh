@@ -52,14 +52,15 @@ It does four things, in order:
    scenes, so only the disparity differs between libraries.
 4. **MP4s** of each sequence's frames, disparity and bokeh, next to the frames.
 
-**On Linux with Docker's NVIDIA runtime, every model runs in its own image.** The runner is
-`docker` when this user can reach a daemon that has that runtime, and `local` otherwise. A
-shell opened before joining the `docker` group gets `local`. The log's header says which ran,
-and `VIDEO_BOKEH_RUNNER` picks one outright. Under `docker` the run checks for the images
-before anything long starts, and names `make images` when one is missing. On the RTX 5090 on
-2026-10-07, with `COUNT=2 FRAMES=24` and any-to-bokeh still rendering the bokeh in a step of
-its own, the whole run took 15 minutes under `docker`: 62 to 90 s per library, and the device
-check's peak memory matched the venv run's for every estimator.
+**On Linux with Docker's NVIDIA runtime, Depth Anything 3 runs in its own image.** The other
+depth models run in this process. The runner is `docker` when this user can reach a daemon
+that has that runtime, and `local` otherwise. A shell opened before joining the `docker`
+group gets `local`. The log's header says which ran, and `VIDEO_BOKEH_RUNNER` picks one
+outright. Under `docker` the run checks for the image before anything long starts, and names
+`make images` when it is missing. On the RTX 5090 on 2026-10-07, with `COUNT=2 FRAMES=24`,
+any-to-bokeh still rendering the bokeh in a step of its own and each depth model in an image
+of its own, the whole run took 15 minutes under `docker`: 62 to 90 s per library, and the
+device check's peak memory matched the venv run's for every estimator.
 
 **One estimator failing does not stop the others.** A library that does not build is named in
 the summary, its estimator gets no sequences, and the rest go on. The run then exits 1. The
