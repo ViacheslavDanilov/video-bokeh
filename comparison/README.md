@@ -116,6 +116,21 @@ at 1024 x 576, so our square frames are stretched and its blur is 1.78 times tal
 it writes a lossy H.264 video, whose frames are resized back to the sequence's size; and the
 disparity is quantized to 8 bits. It takes sequences of 13 frames or more.
 
+## All methods at once
+
+After `setup.sh` has built each method, one command runs them all over written sequences,
+scores each against our bokeh and prints a table:
+
+```bash
+comparison/run_all.sh backend/data/cmp
+```
+
+The sequences must hold their layers and our bokeh, so that every method gets the focus and
+the strength that our renderer recorded. `summary.py` averages each method's `score.py` file
+over the sequences and writes `comparison_summary.json` beside them. A test set is whatever
+those sequences are: the seeds, the counts and the size go into the paper's `results/` with
+the commit and the command that wrote them, as that folder's README asks.
+
 ## Adding a method
 
 Add a function to `setup.sh` that clones the pinned commit and builds what the method needs,
