@@ -41,11 +41,19 @@ TOOLS="$HERE/tools"
 RENDER="$ENVS/render"
 TOOLKIT="$ENVS/cuda-toolkit"
 
+# micromamba, a release pinned by its checksum rather than the moving "latest" download.
+MICROMAMBA_URL="https://github.com/mamba-org/micromamba-releases/releases/download/2.9.0-0/micromamba-linux-64"
+MICROMAMBA_SHA256="366cd9cd8be14df1ab8ed50352a82111082a36686b2d389fdb79a92c3fafb3e3"
+GDOWN="gdown==6.4.2"
+
 A2B_URL="https://github.com/vivoCameraResearch/any-to-bokeh.git"
 A2B_SHA="f7a16959dd219080fb8eec0d32bb9602d8970c22"
 # The checkpoints, a zip of the UNet and the VAE, on Google Drive, as the repository's README
-# links them.
+# links them. The authors publish no checksum, so these are those of the files the archive held
+# on 2026-10-15, checked after the archive is extracted.
 A2B_CHECKPOINTS_ID="11UQcR7-GJtobPNKlF3f-q97xYX9pyEXb"
+A2B_UNET_SHA256="5f1fe1d79c5b778903caf89a6dc3773e58c554191a413422cb08e90241e68e10"
+A2B_VAE_SHA256="168738e8d246504b0dca7e2e9b1e5ba422ec6bd12e44de17674b5b94f019b390"
 SVD_REPO="stabilityai/stable-video-diffusion-img2vid-xt"
 
 BOKEHME_URL="https://github.com/JuewenPeng/BokehMe.git"
@@ -85,8 +93,11 @@ cuda_toolkit() {
         echo "[cuda-toolkit] nvcc 12.8 through micromamba"
         mkdir -p "$TOOLS"
         if [ ! -x "$TOOLS/bin/micromamba" ]; then
-            curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest |
-                tar -xj -C "$TOOLS" bin/micromamba
+            mkdir -p "$TOOLS/bin"
+            curl -fsSL "$MICROMAMBA_URL" -o "$TOOLS/bin/micromamba"
+            echo "$MICROMAMBA_SHA256  $TOOLS/bin/micromamba" | sha256sum -c - ||
+                { rm -f "$TOOLS/bin/micromamba"; echo "error: micromamba does not match its checksum" >&2; exit 1; }
+            chmod +x "$TOOLS/bin/micromamba"
         fi
         MAMBA_ROOT_PREFIX="$TOOLS/mamba" "$TOOLS/bin/micromamba" create -y -p "$TOOLKIT" \
             -c nvidia -c conda-forge "cuda-nvcc=12.8.*" "cuda-cudart-dev=12.8.*"
@@ -240,9 +251,14 @@ a2b() {
     if [ ! -d "$src/checkpoints/unet" ] || [ ! -d "$src/checkpoints/vae" ]; then
         echo "[a2b] checkpoints from Google Drive"
         local archive="$src/_a2b_weights.zip"
-        uvx gdown "$A2B_CHECKPOINTS_ID" -O "$archive"
+        uvx --from "$GDOWN" gdown "$A2B_CHECKPOINTS_ID" -O "$archive"
         unzip -q "$archive" -d "$src"
         rm -rf "$src/__MACOSX" "$archive"
+        {
+            echo "$A2B_UNET_SHA256  $src/checkpoints/unet/diffusion_pytorch_model.safetensors"
+            echo "$A2B_VAE_SHA256  $src/checkpoints/vae/diffusion_pytorch_model.safetensors"
+        } | sha256sum -c - ||
+            { rm -rf "$src/checkpoints"; echo "error: the checkpoints do not match their checksums" >&2; exit 1; }
     else
         echo "[a2b] checkpoints exist, skipped"
     fi
