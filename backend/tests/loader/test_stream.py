@@ -354,6 +354,30 @@ def test_the_flow_stream_is_the_written_flow(library: Path, tmp_path: Path) -> N
     assert set(item) == {"flow", "n_objects", "seed"}
 
 
+def test_the_backward_flow_stream_is_the_written_backward_flow(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    generate_dataset(
+        library,
+        tmp_path / "out",
+        1,
+        FRAMES,
+        SIZE,
+        seed=1,
+        n_objects_max=2,
+        flow_back=True,
+    )
+    back_dir = tmp_path / "out" / "sequences" / "0001" / "flow_back"
+    item = next(iter(_stream(library, seed=1, streams=("flow_back",))))
+    assert item["flow_back"].shape == (FRAMES - 1, 2, SIZE, SIZE)
+    written = np.stack(
+        [read_flow_png(p)[0] for p in sorted(back_dir.iterdir())],
+    ).transpose(0, 3, 1, 2)
+    assert np.abs(written - item["flow_back"].numpy()).max() <= 0.5 / 64 + 1e-6
+    assert set(item) == {"flow_back", "n_objects", "seed"}
+
+
 def test_the_bokeh_is_the_renderer_on_the_item_s_own_layers(library: Path) -> None:
     streams = ("bokeh", "layers", "object_alphas")
     item = next(iter(_stream(library, streams=streams)))

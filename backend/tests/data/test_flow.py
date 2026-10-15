@@ -7,6 +7,7 @@ the frame back, on a textured scene where a wrong flow could not hide.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -124,6 +125,79 @@ def test_no_flow_is_written_unless_asked(
 ) -> None:
     seq = _generate(textured_library, tmp_path / "out")
     assert not (seq / "flow").exists()
+    assert not (seq / "flow_back").exists()
+
+
+def test_backward_flow_is_written_for_every_frame_but_the_first(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    seq = _generate(textured_library, tmp_path / "out", flow_back=True)
+    written = sorted(p.name for p in (seq / "flow_back").glob("*.png"))
+    assert written == _names(seq)[1:]
+    assert not (seq / "flow").exists()
+
+
+def test_a_one_frame_sequence_writes_no_flow_either_way(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    generate_dataset(
+        textured_library,
+        tmp_path / "out",
+        count=1,
+        n_frames=1,
+        size=SIZE,
+        seed=3,
+        n_objects_min=2,
+        n_objects_max=2,
+        flow=True,
+        flow_back=True,
+    )
+    seq = tmp_path / "out" / "sequences" / "0001"
+    assert _names(seq) == ["01.png"]
+    assert not (seq / "flow").exists()
+    assert not (seq / "flow_back").exists()
+
+
+def test_backward_flow_undoes_forward_flow_on_the_same_surface(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    """Where frame t's forward flow lands in frame t + 1, that frame's backward flow
+    points back, on pixels well inside the same surface at both ends.
+    """
+    seq = _generate(
+        textured_library, tmp_path / "out", layers=True, flow=True, flow_back=True
+    )
+    names = _names(seq)
+    orders = read_paint_order(seq / "layers" / "paint_order.json")
+    ys, xs = np.mgrid[0:SIZE, 0:SIZE].astype(np.float32)
+    checked = 0
+    for t in range(FRAMES - 1):
+        flow, valid = read_flow_png(seq / "flow" / names[t])
+        back, back_valid = read_flow_png(seq / "flow_back" / names[t + 1])
+        front_now, _ = _front(seq, names[t], orders[t])
+        front_next, _ = _front(seq, names[t + 1], orders[t + 1])
+        x, y = xs + flow[..., 0], ys + flow[..., 1]
+        inside = valid & (x >= 0) & (x <= SIZE - 2) & (y >= 0) & (y <= SIZE - 2)
+        xi = np.clip(np.round(x), 0, SIZE - 1).astype(int)
+        yi = np.clip(np.round(y), 0, SIZE - 1).astype(int)
+        same = (
+            inside
+            & _interior(front_now)
+            & (front_next[yi, xi] == front_now)
+            & _interior(front_next)[yi, xi]
+            & back_valid[yi, xi]
+        )
+        # The backward field is sampled bilinearly where the forward flow lands, so the
+        # two differ by that interpolation and the 1/64 px quantization; a flow of the
+        # wrong surface differs by pixels.
+        returned = _bilinear(back, np.clip(x, 0, SIZE - 2), np.clip(y, 0, SIZE - 2))
+        error = np.abs(returned + flow).max(axis=-1)[same]
+        assert np.median(error) < 0.1, f"frame {t}: median {np.median(error):.3f}"
+        checked += int(same.sum())
+    assert checked > 10000
 
 
 def _flow_errors(seq: Path) -> dict[str, tuple[np.ndarray, np.ndarray]]:
@@ -212,10 +286,11 @@ def test_writing_a_sequence_again_without_flow_drops_its_old_flow(
     textured_library: Path,
     tmp_path: Path,
 ) -> None:
-    seq = _generate(textured_library, tmp_path / "out", flow=True)
-    assert (seq / "flow").is_dir()
+    seq = _generate(textured_library, tmp_path / "out", flow=True, flow_back=True)
+    assert (seq / "flow").is_dir() and (seq / "flow_back").is_dir()
     _generate(textured_library, tmp_path / "out")
     assert not (seq / "flow").exists()
+    assert not (seq / "flow_back").exists()
 
 
 def test_the_command_writes_flow(textured_library: Path, tmp_path: Path) -> None:
@@ -235,7 +310,11 @@ def test_the_command_writes_flow(textured_library: Path, tmp_path: Path) -> None
             "--n-objects-max",
             "2",
             "--flow",
+            "--flow-back",
         ],
     )
     seq = out / "sequences" / "0001"
     assert len(list((seq / "flow").glob("*.png"))) == FRAMES - 1
+    assert len(list((seq / "flow_back").glob("*.png"))) == FRAMES - 1
+    record = json.loads((out / "run.json").read_text())
+    assert record["flags"]["flow"] and record["flags"]["flow_back"]

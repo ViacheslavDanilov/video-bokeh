@@ -71,6 +71,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout Stage C, the previe
     ├── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
     ├── layers/                                   optional, written with --layers
     ├── flow/<frame>.png           RGB    uint16  optional, written with --flow
+    ├── flow_back/<frame>.png      RGB    uint16  optional, written with --flow-back
     └── bokeh/<frame>.png          RGB    uint8   optional, by --bokeh or Stage C
 ```
 
@@ -178,6 +179,13 @@ layer moves by a known homography per frame, so the flow is computed, not estima
   `flow` stream.
 - **Writing a sequence again removes its old `flow/` first**, with or without `--flow`, so an
   earlier run's flow never passes for this one's.
+
+**`flow_back/` is the same flow backward**, written by `scenes.generate --flow-back`,
+independently of `--flow`: for each frame but the first, where the front-most surface at each
+pixel was in the previous frame, `(u, v)` in pixels, in the same KITTI encoding. An 80-frame
+sequence has `02` … `80`, each named after the frame it starts from. Nothing in the pipeline
+reads it; the loader hands out the same field, unquantized, as its `flow_back` stream. Writing
+a sequence again removes an old `flow_back/` too.
 
 The writer uses PNG compression level 3. It preserves the same 16-bit pixels as the
 old imagecodecs default, level 6, while spending less time compressing them.

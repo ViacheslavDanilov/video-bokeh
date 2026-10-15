@@ -63,8 +63,8 @@ writer's defaults.
 An item holds the streams `streams` names, plus `n_objects` and `seed`. Without `streams` it
 holds `rgb`, `disparity`, `alpha` and `object_alphas`, as it always did.
 
-All tensors are float32 in `[0, 1]`, frames first, except `paint_order` and `flow`. `T` is
-`n_frames`, `H` and `W` are `size`, and `N` is `n_objects_max`.
+All tensors are float32 in `[0, 1]`, frames first, except `paint_order`, `flow` and
+`flow_back`. `T` is `n_frames`, `H` and `W` are `size`, and `N` is `n_objects_max`.
 
 | stream | key | shape | meaning |
 |---|---|---|---|
@@ -82,6 +82,7 @@ All tensors are float32 in `[0, 1]`, frames first, except `paint_order` and `flo
 | `bokeh` | `bokeh` | (T, 3, H, W) | the frames as the layered renderer blurs them |
 | | `focus_disparity`, `focus_object` | | the focus it blurred them at, as for `focus` |
 | `flow` | `flow` | (T − 1, 2, H, W) | each frame's forward optical flow to the next, `(u, v)` in pixels: the motion of the front-most surface, as `scenes.generate --flow` writes it, unquantized |
+| `flow_back` | `flow_back` | (T − 1, 2, H, W) | each frame but the first's backward optical flow to the previous, `(u, v)` in pixels, as `scenes.generate --flow-back` writes it, unquantized |
 | always | `n_objects` | int | objects actually placed |
 | always | `seed` | int | the seed this sequence came from |
 
@@ -107,7 +108,8 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
 - **`flow` is exact**, computed from the homographies every layer moves by, and off by default.
   It has one field fewer than there are frames, because the last frame has no next. The
   dataset's `flow` stream in [dataset-layout](dataset-layout.md) holds the same flow, in 1/64 px
-  steps.
+  steps. `flow_back` is the same field backward, one fewer than the frames because the first
+  frame has no previous.
 
 ### Bokeh
 

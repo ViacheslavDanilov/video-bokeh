@@ -9,7 +9,15 @@ from collections import Counter
 from pathlib import Path
 from statistics import median
 
-_STREAMS = ("all_in_focus", "alpha", "disparity", "layers", "flow", "bokeh")
+_STREAMS = (
+    "all_in_focus",
+    "alpha",
+    "disparity",
+    "layers",
+    "flow",
+    "flow_back",
+    "bokeh",
+)
 
 
 def _reuse(ids: list[str]) -> dict[str, int]:

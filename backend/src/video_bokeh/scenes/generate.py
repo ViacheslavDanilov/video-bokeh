@@ -10,7 +10,8 @@
         ├── alpha/<frame>.tif          multi-page uint8, one page per object
         ├── disparity/<frame>.png      uint16
         ├── layers/                    with --layers: what each frame was composited from
-        └── flow/<frame>.png           with --flow: forward optical flow, KITTI 16-bit
+        ├── flow/<frame>.png           with --flow: forward optical flow, KITTI 16-bit
+        └── flow_back/<frame>.png      with --flow-back: backward optical flow, the same
 
 Disparity is sampled and transformed from the library, not estimated per frame.
 
@@ -318,16 +319,17 @@ def write_sequence(
     Frames rendered with ``layers`` also write ``layers/``: the background and each
     object per frame, then ``paint_order.json``, the objects far to near in each frame.
     It comes last, so a ``layers/`` without it was interrupted. Frames rendered with
-    ``flow`` write ``flow/``, one file per frame but the last. Any ``layers/``, ``flow/``
-    or ``bokeh/`` already in ``seq_dir`` is removed first: an earlier run's would
-    otherwise pass for this one's.
+    ``flow`` write ``flow/``, one file per frame but the last, and frames rendered with
+    ``flow_back`` write ``flow_back/``, one file per frame but the first. Any ``layers/``,
+    ``flow/``, ``flow_back/`` or ``bokeh/`` already in ``seq_dir`` is removed first: an
+    earlier run's would otherwise pass for this one's.
 
     ``frames`` may be a generator, written as it yields, so that a long sequence is
     never held whole; ``n_frames`` then says how many it yields.
 
     The frame-number width comes from the frame count, so an 80-frame sequence is
-    ``01``..``80`` and a 100-frame one is ``001``..``100``. Stage C and
-    ``preview.pack`` both sort on the numeric prefix, so the width only has to be
+    ``01``..``80`` and a 100-frame one is ``001``..``100``. Stage C sorts on the numeric
+    prefix and ``preview.pack`` on the zero-padded name, so the width only has to be
     consistent inside a sequence.
     """
     aif = seq_dir / "all_in_focus"
@@ -340,6 +342,8 @@ def write_sequence(
     shutil.rmtree(seq_dir / "bokeh", ignore_errors=True)
     flow_dir = seq_dir / "flow"
     shutil.rmtree(flow_dir, ignore_errors=True)
+    flow_back_dir = seq_dir / "flow_back"
+    shutil.rmtree(flow_back_dir, ignore_errors=True)
     paint_orders: list[list[int]] = []
     for fi, frame in enumerate(frames):
         stem = _frame_stem(fi, n_frames)
@@ -353,6 +357,9 @@ def write_sequence(
         if frame.flow is not None:
             flow_dir.mkdir(exist_ok=True)
             write_flow_png(flow_dir / f"{stem}.png", frame.flow)
+        if frame.flow_back is not None:
+            flow_back_dir.mkdir(exist_ok=True)
+            write_flow_png(flow_back_dir / f"{stem}.png", frame.flow_back)
     if paint_orders:
         write_paint_order(layer_root / "paint_order.json", paint_orders)
 
@@ -370,12 +377,14 @@ def generate_dataset(
     bokeh: bool = False,
     bokeh_strength: float = BOKEH_STRENGTH,
     flow: bool = False,
+    flow_back: bool = False,
 ) -> int:
     """Write ``count`` sequences and return how many were actually written.
 
     With ``bokeh``, each sequence's bokeh is rendered in the same run, from the layers
     held in memory; ``layers`` decides separately whether they are written too. With
-    ``flow``, each sequence's forward optical flow is written in the same pass.
+    ``flow``, each sequence's forward optical flow is written in the same pass, and with
+    ``flow_back`` its backward flow.
 
     A sequence whose trajectories cannot be made collision-free is skipped, not
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
@@ -415,7 +424,7 @@ def generate_dataset(
         seq_name = f"{i + 1:04d}"
         seq_dir = output / "sequences" / seq_name
         focus: list[FrameFocus] = []
-        frames = iter_frames(scene, layers=layers, flow=flow)
+        frames = iter_frames(scene, layers=layers, flow=flow, flow_back=flow_back)
         write_sequence(seq_dir, _measured(frames, focus) if bokeh else frames, n_frames)
         if bokeh:
             device = write_bokeh_stream(seq_dir, scene, seq_seed, focus, bokeh_strength)
@@ -456,6 +465,7 @@ def generate_dataset(
             "bokeh": bokeh,
             "bokeh_strength": bokeh_strength,
             "flow": flow,
+            "flow_back": flow_back,
         },
         "library_root": str(library_root.resolve()),
         "estimator": _library_estimator(library_root),
@@ -523,6 +533,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="also write flow/: each frame's exact forward optical flow to the next, as "
         "KITTI's 16-bit PNG",
     )
+    parser.add_argument(
+        "--flow-back",
+        action="store_true",
+        help="also write flow_back/: each frame's exact backward optical flow to the "
+        "previous, in the same format",
+    )
     return parser
 
 
@@ -543,6 +559,7 @@ def main(argv: list[str] | None = None) -> int:
             bokeh=args.bokeh,
             bokeh_strength=args.bokeh_strength,
             flow=args.flow,
+            flow_back=args.flow_back,
         )
     except ValueError as exc:
         parser.error(str(exc))
