@@ -91,6 +91,31 @@ reads the disparity at 8 bits and rescales it to `[0, 1]` per image. Here the di
 its 16 bits and its scale, because the focus our renderer recorded is on that scale, and
 `gamma` is 2.2, as for our renderer.
 
+## Any-to-Bokeh
+
+[Any-to-Bokeh](https://github.com/vivoCameraResearch/any-to-bokeh) (ICLR 2026; code and
+weights CC BY-NC 4.0) is a video diffusion model, which this pipeline carried as a bokeh
+renderer until 2026-10-15. It is the learned baseline of the comparison, not a reference. It
+needs an environment of its own, Python 3.10 with the `diffusers` and `transformers` versions
+that its requirements pin, 6.7 GB of checkpoints from Google Drive and the Stable Video Diffusion base
+model, 4.2 GiB under Stability's own license, which `setup.sh` downloads into the Hugging
+Face cache.
+
+```bash
+comparison/setup.sh a2b
+comparison/envs/render/bin/python comparison/run_any_to_bokeh.py --data-root backend/data/cmp
+comparison/envs/render/bin/python comparison/score.py --data-root backend/data/cmp --method any_to_bokeh
+```
+
+`run_any_to_bokeh.py` writes the demo's inputs, a folder of frames and a folder of 8-bit
+disparity maps per sequence, with each frame's focus in the file name, and runs the demo
+through `a2b_launch.py`, which has the video model's encoder take a few frames at a time so
+that it fits a 32 GiB card. The focus and the strength are the ones our renderer recorded.
+Three things make its output differ from ours for reasons other than the model: the demo works
+at 1024 x 576, so our square frames are stretched and its blur is 1.78 times taller than wide;
+it writes a lossy H.264 video, whose frames are resized back to the sequence's size; and the
+disparity is quantized to 8 bits. It takes sequences of 13 frames or more.
+
 ## Adding a method
 
 Add a function to `setup.sh` that clones the pinned commit and builds what the method needs,

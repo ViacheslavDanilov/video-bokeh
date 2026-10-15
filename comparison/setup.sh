@@ -11,6 +11,13 @@
 #   envs/cuda-toolkit   nvcc and the CUDA 12.8 headers, from conda-forge through micromamba,
 #                       because the pip wheel of nvcc ships no compiler. Only CUDA extensions
 #                       are built with it.
+#   envs/any-to-bokeh   Python 3.10 with torch 2.7.1 from the CUDA 12.8 wheels and the
+#                       repository's own requirements: the demo pins diffusers 0.25 and
+#                       transformers 4.32, too old to share an environment with the others.
+#   third_party/any-to-bokeh  Any-to-Bokeh (https://github.com/vivoCameraResearch/any-to-bokeh,
+#                       CC BY-NC 4.0), with its checkpoints, 6.7 GB, and the Stable Video
+#                       Diffusion base model in the Hugging Face cache, 4.2 GiB of fp16
+#                       weights, whose license is Stability's own.
 #   third_party/bokehme BokehMe (https://github.com/JuewenPeng/BokehMe, Apache-2.0): a classical
 #                       scatter and two networks, whose weights ship in its repository.
 #   third_party/mpib    MPIB's ray tracer (https://github.com/JuewenPeng/MPIB, Apache-2.0), the
@@ -23,7 +30,7 @@
 # It is for a Linux x86-64 machine with an NVIDIA driver, g++ and GNU sed, and stops early
 # without a driver. A step that fails leaves no marker, so the next run does it again.
 #
-# Usage: comparison/setup.sh drbokeh | mpib | bokehme
+# Usage: comparison/setup.sh drbokeh | mpib | bokehme | a2b
 
 set -euo pipefail
 
@@ -33,6 +40,21 @@ TP="$HERE/third_party"
 TOOLS="$HERE/tools"
 RENDER="$ENVS/render"
 TOOLKIT="$ENVS/cuda-toolkit"
+
+# micromamba, a release pinned by its checksum rather than the moving "latest" download.
+MICROMAMBA_URL="https://github.com/mamba-org/micromamba-releases/releases/download/2.9.0-0/micromamba-linux-64"
+MICROMAMBA_SHA256="366cd9cd8be14df1ab8ed50352a82111082a36686b2d389fdb79a92c3fafb3e3"
+GDOWN="gdown==6.4.2"
+
+A2B_URL="https://github.com/vivoCameraResearch/any-to-bokeh.git"
+A2B_SHA="f7a16959dd219080fb8eec0d32bb9602d8970c22"
+# The checkpoints, a zip of the UNet and the VAE, on Google Drive, as the repository's README
+# links them. The authors publish no checksum, so these are those of the files the archive held
+# on 2026-10-15, checked after the archive is extracted.
+A2B_CHECKPOINTS_ID="11UQcR7-GJtobPNKlF3f-q97xYX9pyEXb"
+A2B_UNET_SHA256="5f1fe1d79c5b778903caf89a6dc3773e58c554191a413422cb08e90241e68e10"
+A2B_VAE_SHA256="168738e8d246504b0dca7e2e9b1e5ba422ec6bd12e44de17674b5b94f019b390"
+SVD_REPO="stabilityai/stable-video-diffusion-img2vid-xt"
 
 BOKEHME_URL="https://github.com/JuewenPeng/BokehMe.git"
 BOKEHME_SHA="8b3ed556dc146207c9bb39fccd078a113f8d1bd8"
@@ -71,8 +93,11 @@ cuda_toolkit() {
         echo "[cuda-toolkit] nvcc 12.8 through micromamba"
         mkdir -p "$TOOLS"
         if [ ! -x "$TOOLS/bin/micromamba" ]; then
-            curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest |
-                tar -xj -C "$TOOLS" bin/micromamba
+            mkdir -p "$TOOLS/bin"
+            curl -fsSL "$MICROMAMBA_URL" -o "$TOOLS/bin/micromamba"
+            echo "$MICROMAMBA_SHA256  $TOOLS/bin/micromamba" | sha256sum -c - ||
+                { rm -f "$TOOLS/bin/micromamba"; echo "error: micromamba does not match its checksum" >&2; exit 1; }
+            chmod +x "$TOOLS/bin/micromamba"
         fi
         MAMBA_ROOT_PREFIX="$TOOLS/mamba" "$TOOLS/bin/micromamba" create -y -p "$TOOLKIT" \
             -c nvidia -c conda-forge "cuda-nvcc=12.8.*" "cuda-cudart-dev=12.8.*"
@@ -198,12 +223,72 @@ print("bokehme ready")
 PY
 }
 
+a2b() {
+    render_env
+    local src="$TP/any-to-bokeh" venv="$ENVS/any-to-bokeh"
+    if [ ! -f "$src/.ready" ]; then
+        echo "[a2b] clone at $A2B_SHA"
+        mkdir -p "$TP"
+        rm -rf "$src"
+        git clone -q "$A2B_URL" "$src"
+        git -C "$src" checkout -q "$A2B_SHA"
+        touch "$src/.ready"
+    else
+        echo "[a2b] clone exists, skipped"
+    fi
+    if [ ! -f "$venv/.ready" ]; then
+        echo "[a2b] Python 3.10 environment"
+        rm -rf "$venv"
+        uv venv --python 3.10 "$venv"
+        uv pip install --python "$venv/bin/python" torch==2.7.1 torchvision==0.22.1 \
+            torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+        uv pip install --python "$venv/bin/python" -r "$src/requirements.txt"
+        touch "$venv/.ready"
+    else
+        echo "[a2b] environment exists, skipped"
+    fi
+    uv pip install --python "$RENDER/bin/python" "imageio[ffmpeg]"
+    if [ ! -d "$src/checkpoints/unet" ] || [ ! -d "$src/checkpoints/vae" ]; then
+        echo "[a2b] checkpoints from Google Drive"
+        local archive="$src/_a2b_weights.zip"
+        uvx --from "$GDOWN" gdown "$A2B_CHECKPOINTS_ID" -O "$archive"
+        unzip -q "$archive" -d "$src"
+        rm -rf "$src/__MACOSX" "$archive"
+    else
+        echo "[a2b] checkpoints exist"
+    fi
+    # Checked on every run, so an interrupted extraction is found the next time.
+    {
+        echo "$A2B_UNET_SHA256  $src/checkpoints/unet/diffusion_pytorch_model.safetensors"
+        echo "$A2B_VAE_SHA256  $src/checkpoints/vae/diffusion_pytorch_model.safetensors"
+    } | sha256sum -c - ||
+        { rm -rf "$src/checkpoints"; echo "error: the checkpoints do not match their checksums; run again" >&2; exit 1; }
+    # The demo loads the base model with local_files_only, so it must be cached first.
+    local hub="${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}"
+    local cache="$hub/models--${SVD_REPO//\//--}"
+    # A finished download has its pipeline index in a snapshot; a bare folder may be partial.
+    if ! ls "$cache"/snapshots/*/model_index.json > /dev/null 2>&1; then
+        echo "[a2b] Stable Video Diffusion base model from Hugging Face"
+        "$venv/bin/python" -c "
+from diffusers import StableVideoDiffusionPipeline
+import torch
+StableVideoDiffusionPipeline.from_pretrained(
+    '$SVD_REPO', torch_dtype=torch.float16, variant='fp16'
+)
+"
+    else
+        echo "[a2b] base model cached, skipped"
+    fi
+    echo "a2b ready"
+}
+
 case "${1:-}" in
+    a2b) a2b ;;
     drbokeh) drbokeh ;;
     bokehme) bokehme ;;
     mpib) mpib ;;
     *)
-        echo "usage: $0 drbokeh | mpib | bokehme" >&2
+        echo "usage: $0 drbokeh | mpib | bokehme | a2b" >&2
         exit 1
         ;;
 esac
