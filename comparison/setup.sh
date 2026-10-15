@@ -11,6 +11,8 @@
 #   envs/cuda-toolkit   nvcc and the CUDA 12.8 headers, from conda-forge through micromamba,
 #                       because the pip wheel of nvcc ships no compiler. Only CUDA extensions
 #                       are built with it.
+#   third_party/bokehme BokehMe (https://github.com/JuewenPeng/BokehMe, Apache-2.0): a classical
+#                       scatter and two networks, whose weights ship in its repository.
 #   third_party/mpib    MPIB's ray tracer (https://github.com/JuewenPeng/MPIB, Apache-2.0), the
 #                       generator of its paper's Sec. 3.4, with CuPy to run it. Its weights are
 #                       not needed: the ray tracer is not a network.
@@ -21,7 +23,7 @@
 # It is for a Linux x86-64 machine with an NVIDIA driver, g++ and GNU sed, and stops early
 # without a driver. A step that fails leaves no marker, so the next run does it again.
 #
-# Usage: comparison/setup.sh drbokeh | mpib
+# Usage: comparison/setup.sh drbokeh | mpib | bokehme
 
 set -euo pipefail
 
@@ -31,6 +33,9 @@ TP="$HERE/third_party"
 TOOLS="$HERE/tools"
 RENDER="$ENVS/render"
 TOOLKIT="$ENVS/cuda-toolkit"
+
+BOKEHME_URL="https://github.com/JuewenPeng/BokehMe.git"
+BOKEHME_SHA="8b3ed556dc146207c9bb39fccd078a113f8d1bd8"
 
 MPIB_URL="https://github.com/JuewenPeng/MPIB.git"
 MPIB_SHA="d77d93dd29b9ae75bcd18b3b70d89d715c1b56f8"
@@ -157,11 +162,48 @@ print("mpib ready")
 PY
 }
 
+bokehme() {
+    render_env
+    local src="$TP/bokehme"
+    if [ ! -f "$src/.ready" ]; then
+        echo "[bokehme] clone at $BOKEHME_SHA"
+        mkdir -p "$TP"
+        rm -rf "$src"
+        git clone -q "$BOKEHME_URL" "$src"
+        git -C "$src" checkout -q "$BOKEHME_SHA"
+        # CuPy 13 removed compile_with_cache and the cupy.int alias that the launcher uses.
+        for file in "$src"/classical_renderer/scatter.py "$src"/classical_renderer/scatter_ex.py; do
+            sed -i 's/cupy\.cuda\.compile_with_cache(strKernel)/cupy.RawModule(code=strKernel)/' "$file"
+            sed -i 's/cupy\.int(/int(/g' "$file"
+            if grep -q 'compile_with_cache\|cupy\.int(' "$file"; then
+                echo "error: the CuPy patch did not apply to $file" >&2
+                exit 1
+            fi
+        done
+        touch "$src/.ready"
+    else
+        echo "[bokehme] clone exists, skipped"
+    fi
+    uv pip install --python "$RENDER/bin/python" "cupy-cuda12x==14.2.0" opencv-python-headless
+    "$RENDER/bin/python" - << PY
+import sys
+
+import cupy  # noqa: F401
+import torch  # noqa: F401
+
+sys.path.insert(0, "$src")
+from classical_renderer.scatter import ModuleRenderScatter  # noqa: F401
+
+print("bokehme ready")
+PY
+}
+
 case "${1:-}" in
     drbokeh) drbokeh ;;
+    bokehme) bokehme ;;
     mpib) mpib ;;
     *)
-        echo "usage: $0 drbokeh | mpib" >&2
+        echo "usage: $0 drbokeh | mpib | bokehme" >&2
         exit 1
         ;;
 esac
