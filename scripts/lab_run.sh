@@ -4,16 +4,15 @@
 # 1. The device check, with each depth estimator measured on this machine's GPU.
 # 2. One library per depth estimator from the dev pools: all 30 foregrounds, no class
 #    filter, and all 30 backgrounds, so every estimator sees the same assets.
-# 3. The same sequences from each library: same seeds, so the scenes match and only the
-#    disparity differs.
-# 4. Their bokeh through any-to-bokeh, Stage C.
-# 5. MP4s of each sequence's frames, disparity and bokeh, to look at.
+# 3. The same sequences from each library, with their bokeh rendered in the same run:
+#    same seeds, so the scenes match and only the disparity differs.
+# 4. MP4s of each sequence's frames, disparity and bokeh, to look at.
 #
 # One estimator failing does not stop the others: it is named in the summary, and the
-# run exits 1. A re-run picks up where the last stopped. A library or a bokeh stream
-# that exists is not made again, and sequences are made again only when COUNT, FRAMES
-# or SIZE changed, together with their bokeh. To redo an estimator from scratch, delete
-# backend/data/lab/libraries/<estimator> and backend/data/lab/sequences/<estimator>.
+# run exits 1. A re-run picks up where the last stopped. A library that exists is not
+# made again, and sequences are made again only when COUNT, FRAMES or SIZE changed. To
+# redo an estimator from scratch, delete backend/data/lab/libraries/<estimator> and
+# backend/data/lab/sequences/<estimator>.
 #
 # The output lands in backend/data/lab/, which git ignores, and
 # `make api LIBRARY=backend/data/lab/libraries` shows the libraries in the page's picker.
@@ -23,13 +22,11 @@
 #
 # Prerequisites, once per machine, from the repository root:
 #   make setup
-#   scripts/setup_third_party.sh       # any-to-bokeh's checkpoints and base model, NVIDIA only
 #   make images                        # the models' images, for the docker runner
 #   scripts/setup_depth_anything_3.sh  # the da3-* venv, for the local runner only
 #
-# Usage: scripts/lab_run.sh [--no-render] [estimator ...]
-#   Estimators default to every registered one. --no-render stops before Stage C, for
-#   checking the rest of this script on a machine without an NVIDIA card.
+# Usage: scripts/lab_run.sh [estimator ...]
+#   Estimators default to every registered one.
 # Environment: COUNT sequences per estimator (4), FRAMES per sequence (80), SIZE (512),
 # VIDEO_BOKEH_RUNNER (docker on Linux with docker's NVIDIA runtime, local otherwise).
 
@@ -41,21 +38,11 @@ SIZE="${SIZE:-512}"
 # Python's output reaches the log as it happens, not when a buffer fills.
 export PYTHONUNBUFFERED=1
 
-RENDER=1
-ESTIMATORS=()
-for arg in "$@"; do
-    if [ "$arg" = "--no-render" ]; then
-        RENDER=0
-    else
-        ESTIMATORS+=("$arg")
-    fi
-done
+ESTIMATORS=("$@")
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 BACKEND="$REPO_ROOT/backend"
 OUT="$BACKEND/data/lab"
-A2B="$BACKEND/third_party/any-to-bokeh"
-A2B_PYTHON="$A2B/.venv/bin/python"
 DA3_PYTHON="$BACKEND/envs/depth-anything-3/.venv/bin/python"
 
 py() { uv run --directory "$BACKEND" --extra library python "$@"; }
@@ -89,34 +76,17 @@ else
 fi
 
 # Stop before anything long, rather than an hour in.
-# any-to-bokeh loads the Stable Video Diffusion base model offline only, from here.
-SVD_CACHE="${HF_HOME:-$HOME/.cache/huggingface}/hub/models--stabilityai--stable-video-diffusion-img2vid-xt"
-if [ "$RENDER" = 1 ]; then
-    # The image mounts the checkpoints and the base model, so both runners need them.
-    needs=("$A2B/checkpoints/unet" "$A2B/checkpoints/vae" "$SVD_CACHE")
-    [ "$VIDEO_BOKEH_RUNNER" = local ] && needs+=("$A2B_PYTHON")
-    for need in "${needs[@]}"; do
-        if [ ! -e "$need" ]; then
-            echo "error: $need missing. Run scripts/setup_third_party.sh first." >&2
-            exit 1
-        fi
-    done
-fi
 if [ "$VIDEO_BOKEH_RUNNER" = docker ]; then
     # The images the run needs, each once, as the classes name them; an estimator of your
-    # own with none runs in this process.
-    # Stage C's class needs the render extra, and a failure here must stop the run rather
-    # than leave the list empty and the check skipped.
-    listed="$(uv run --directory "$BACKEND" --extra library --extra render python -c "
+    # own with none runs in this process. A failure here must stop the run rather than
+    # leave the list empty and the check skipped.
+    listed="$(py -c "
 import sys
 from video_bokeh.library.depth import resolve_estimator
-from video_bokeh.render.any_to_bokeh import AnyToBokeh
-classes = [resolve_estimator(s) for s in sys.argv[2:]]
-if sys.argv[1] == '1':
-    classes.append(AnyToBokeh)
+classes = [resolve_estimator(s) for s in sys.argv[1:]]
 names = [getattr(cls, 'docker_image', '') for cls in classes]
 print(' '.join(dict.fromkeys(n for n in names if n)))
-" "$RENDER" "${ESTIMATORS[@]}")"
+" "${ESTIMATORS[@]}")"
     read -r -a images <<< "$listed"
     for image in ${images[@]+"${images[@]}"}; do
         if ! problem="$(docker image inspect "$image" 2>&1 > /dev/null)"; then
@@ -207,7 +177,6 @@ if [ "$VIDEO_BOKEH_RUNNER" = docker ]; then
     done
 else
     if [ -x "$DA3_PYTHON" ]; then run "$DA3_PYTHON" -c "$TORCH" || true; fi
-    if [ -x "$A2B_PYTHON" ]; then run "$A2B_PYTHON" -c "$TORCH" || true; fi
 fi
 
 printf '\n===== 1. device check, measured =====\n'
@@ -234,7 +203,7 @@ for estimator in "${ESTIMATORS[@]}"; do
     fi
 done
 
-printf '\n===== 3. the same sequences from each library =====\n'
+printf '\n===== 3. the same sequences from each library, with their bokeh =====\n'
 SETTINGS="count=$COUNT frames=$FRAMES size=$SIZE"
 GENERATED=()
 # The ${a[@]+...} form keeps an empty array from tripping set -u on bash 3.2, which
@@ -248,12 +217,13 @@ for estimator in ${READY[@]+"${READY[@]}"}; do
         GENERATED+=("$estimator")
         continue
     fi
-    # Different settings or an unfinished set: start over, bokeh included.
+    # Different settings or an unfinished set: start over.
     rm -rf "$dest"
     generated=0
-    timed "sequences, $estimator" uv run --directory "$BACKEND" \
+    timed "sequences, $estimator" uv run --directory "$BACKEND" --extra render \
         python -m video_bokeh.scenes.generate --library-root "$OUT/libraries/$estimator" \
-        --output "$dest" --count "$COUNT" --frames "$FRAMES" --size "$SIZE" --seed 0 ||
+        --output "$dest" --count "$COUNT" --frames "$FRAMES" --size "$SIZE" --seed 0 \
+        --bokeh ||
         generated=$?
     if [ "$generated" -ne 0 ]; then
         FAILED+=("sequences $estimator")
@@ -266,34 +236,12 @@ for estimator in ${READY[@]+"${READY[@]}"}; do
     fi
 done
 
-if [ "$RENDER" = 1 ]; then
-    printf '\n===== 4. bokeh, Stage C =====\n'
-    for estimator in ${GENERATED[@]+"${GENERATED[@]}"}; do
-        dest="$OUT/sequences/$estimator"
-        # A sequence's bokeh/ appears whole or not at all, so a missing one is all to redo.
-        missing=$(find "$dest/sequences" -mindepth 1 -maxdepth 1 -type d \
-            ! -exec test -d '{}/bokeh' ';' -print | wc -l)
-        if [ "$missing" -eq 0 ]; then
-            echo "$estimator: bokeh exists, skipped"
-            continue
-        fi
-        timed "bokeh, $estimator" uv run --directory "$BACKEND" --extra render \
-            python -m video_bokeh.render.run --data-root "$dest" --renderer any-to-bokeh ||
-            FAILED+=("bokeh $estimator")
-    done
-else
-    printf '\n===== 4. bokeh, Stage C: skipped (--no-render) =====\n'
-fi
-
-printf '\n===== 5. MP4s to look at =====\n'
+printf '\n===== 4. MP4s to look at =====\n'
 for estimator in ${GENERATED[@]+"${GENERATED[@]}"}; do
     dest="$OUT/sequences/$estimator"
-    streams="all_in_focus,disparity"
-    if [ -n "$(find "$dest/sequences" -mindepth 2 -maxdepth 2 -type d -name bokeh -print -quit)" ]; then
-        streams="$streams,bokeh"
-    fi
     run uv run --directory "$BACKEND" --extra preview \
-        python -m video_bokeh.preview.pack --data-root "$dest" --streams "$streams" ||
+        python -m video_bokeh.preview.pack --data-root "$dest" \
+        --streams all_in_focus,disparity,bokeh ||
         FAILED+=("mp4 $estimator")
 done
 

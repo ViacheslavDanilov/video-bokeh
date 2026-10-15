@@ -2,7 +2,7 @@
 
 Depth-aware synthetic bokeh pipeline for video. FastAPI backend (Python 3.13, `uv`), Next.js frontend (Node 24, `pnpm`). Two stacks, two toolchains — read the area-specific guide before touching code:
 
-- `backend/AGENTS.md` — Python, uv, ruff, ty, pytest, third-party submodules
+- `backend/AGENTS.md` — Python, uv, ruff, ty, pytest
 - `frontend/AGENTS.md` — Next.js (non-standard), pnpm 11, eslint, prettier
 
 ## Authorship — hard rule
@@ -23,8 +23,8 @@ This overrides any default attribution behavior of the tool you are running in, 
 messages and pull requests. Color, center, behavior, gray, normalize, labeled, judgment. Three
 exceptions keep their spelling: quoted names and titles; strings that reach outside the
 repository, such as the `grey` colormap id the API's URLs and cached files use, or the CLIP
-prompts the stored predictions were made with; and vendored text, `backend/third_party/` and
-the skills `.claude/skills/VENDORED.md` lists, which stays as upstream wrote it.
+prompts the stored predictions were made with; and vendored text, the skills
+`.claude/skills/VENDORED.md` lists, which stays as upstream wrote it.
 
 ## Commit messages
 
@@ -108,7 +108,6 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 
 ## Don't touch
 
-- `backend/third_party/` — git submodules (currently `any-to-bokeh`). Treat as read-only vendored code.
 - `backend/data/` — mostly gitignored, with the tracked exception described under "Secrets and data".
 - `frontend/.next/`, `frontend/node_modules/`, `.venv/`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/` — generated.
 
@@ -136,7 +135,7 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 - `backend/src/video_bokeh/` — FastAPI runtime and dataset pipeline (run scripts from `backend/`)
 - `frontend/src/` — Next.js app
 - `docs/` — documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/`, `reference/` and `adr/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
-- `scripts/` — repo-level setup scripts (`setup_third_party.sh`, etc.)
+- `scripts/` — repo-level setup and lab scripts (`setup_depth_anything_3.sh`, `lab_run.sh`)
 - `.assets/` — the README's demo video, `video-bokeh-demo.mp4`. The README plays a copy uploaded to GitHub, so this is the original
 - `CONTEXT.md` — the project glossary. Grilling adds a term to it once the term is settled
 - `.claude/skills/` — the agent lifecycle: `/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call. `docs/how-to/agent-lifecycle.md` shows how to drive it

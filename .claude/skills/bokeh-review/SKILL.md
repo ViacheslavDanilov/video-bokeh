@@ -81,7 +81,6 @@ branch was cut, reversed, as if this PR had undone it.
   - `backend/src/video_bokeh/scenes/generate.py`
   - `backend/src/video_bokeh/scenes/_compositor.py`
   - `backend/src/video_bokeh/library/build.py`
-  - `backend/src/video_bokeh/bridge/any_to_bokeh.py`
   - `docs/reference/dataset-layout.md`
 - the API the frontend consumes, both ends of it:
   - `backend/src/video_bokeh/api/main.py`

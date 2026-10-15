@@ -1915,7 +1915,6 @@ preview = [
     { name = "imageio", extra = ["ffmpeg"] },
 ]
 render = [
-    { name = "imageio", extra = ["ffmpeg"] },
     { name = "torch" },
 ]
 
@@ -1936,7 +1935,6 @@ requires-dist = [
     { name = "huggingface-hub", marker = "extra == 'library'", specifier = ">=0.26" },
     { name = "imagecodecs", specifier = ">=2026.1.1" },
     { name = "imageio", extras = ["ffmpeg"], marker = "extra == 'preview'", specifier = ">=2.34.0" },
-    { name = "imageio", extras = ["ffmpeg"], marker = "extra == 'render'", specifier = ">=2.34.0" },
     { name = "kagglehub", marker = "extra == 'acquire'", specifier = ">=1.0.0" },
     { name = "numpy", specifier = ">=2.4.0" },
     { name = "open-clip-torch", marker = "extra == 'acquire'", specifier = ">=2.30.0" },

@@ -139,17 +139,6 @@ Every column: [dataset-layout](../reference/dataset-layout.md).
 
 ---
 
-## 5. Bridge to any-to-bokeh
-
-```bash
-cd backend
-uv run python -m video_bokeh.bridge.any_to_bokeh --data-root data/demo
-```
-
-See [run-any-to-bokeh-inference](run-any-to-bokeh-inference.md).
-
----
-
 ## Cleaning up
 
 ```bash

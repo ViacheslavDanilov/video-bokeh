@@ -58,7 +58,7 @@ produces.
 
 ## Stage B — a generated sequence
 
-Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_bokeh.py` consumes.
+Written by `video_bokeh.scenes.generate`. This is the layout Stage C and the loader read.
 
 ```
 <output>/
@@ -76,7 +76,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout `bridge/any_to_boke
 
 - `<seq-id>` is 4 digits, 1-based: `0001`, `0002`.
 - `<frame>` is zero-padded to `max(2, len(str(n_frames)))` digits and 1-based, so an 80-frame
-  clip runs `01` … `80`. any-to-bokeh parses frame order from this numeric prefix.
+  clip runs `01` … `80`. Readers sort frames by this numeric prefix.
 - A sequence whose trajectories cannot be made collision-free is skipped, not written. The
   numbering keeps its gap, because sequence `i` is always seeded from `seed + i`.
 
@@ -227,11 +227,10 @@ old one.
   loses nothing.
 - **It is optional.** A sequence without it is still a complete Stage B sequence. The demo
   serves it; nothing in Stage B reads it.
-- **With any-to-bokeh it is lossy.** The vendored script writes an mp4 at 1024 × 576, which is
-  decoded and resized back to the sequence's size. A lossless path waits for a GPU run that
-  can check it.
-- **With the layered renderer it is lossless**, rendered from the layers, held in memory or
-  read from `layers/`, at the sequence's own size.
+- **It is lossless**, rendered by the layered renderer from the layers, held in memory or
+  read from `layers/`, at the sequence's own size. A sequence rendered by any-to-bokeh
+  before 2026-10-15 was decoded from an mp4 at 1024 × 576 and resized back, and its
+  `focus.json` names that renderer.
 
 ### How many objects a scene can hold
 
@@ -340,30 +339,6 @@ Root records and previews outside stream directories are excluded. A dataset pre
 
 ---
 
-## The any-to-bokeh bridge
-
-`video_bokeh.bridge.any_to_bokeh` converts a sequence tree into what the vendored inference code
-expects.
-
-```
-<a2b-root>/
-├── demo_dataset/<dataset-name>/
-│   ├── videos/<seq-id>/<frame>.png              RGB uint8
-│   └── disp/<seq-id>/<frame>_zf_<focus>.png     L   uint8
-└── csv_file/<dataset-name>.csv                  aif_folder, disp_folder, k
-```
-
-`<focus>` is the in-focus disparity, six decimals. By default it is the mean disparity of one
-object, over the pixels no other mask covers, the object drawn by that area for the whole
-sequence. `--focus alpha` takes the mean under all the objects' masks, and `--focus-disparity`
-pins one value for the whole clip instead, which is what you want when comparing frames rather
-than chasing the subject.
-
-The bridge reads the 16-bit disparity PNGs and quantizes them to the 8 bits any-to-bokeh
-reads, once.
-
----
-
 ## Measured sizes
 
 Real sequences, 1024 × 1024, three objects.
@@ -387,6 +362,4 @@ with `--layers`. Anything that shrinks the dataset meaningfully has to address
 
 - [pipeline-explainer](../explanation/pipeline-explainer.md) — why the pipeline is built this way
 - [generate-a-dataset](../how-to/generate-a-dataset.md) — how to produce this tree
-- [run-any-to-bokeh-inference](../how-to/run-any-to-bokeh-inference.md) — how to run
-  any-to-bokeh over it, for comparison
 - [cli](cli.md) — every flag of every module

@@ -30,5 +30,5 @@ def test_import_path_resolves_a_custom_renderer(
 
 
 def test_unknown_renderer_lists_the_registered_ones() -> None:
-    with pytest.raises(ValueError, match="any-to-bokeh"):
+    with pytest.raises(ValueError, match="layered"):
         resolve_renderer("blur-o-matic")

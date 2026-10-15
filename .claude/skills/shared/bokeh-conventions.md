@@ -9,7 +9,7 @@ its rules here would only let the two drift apart.
 | Topic | Canonical file |
 |---|---|
 | Commits, pull requests, authorship, git workflow, verification table | root `AGENTS.md` |
-| Python, uv, ruff, ty, pytest, submodules | `backend/AGENTS.md` |
+| Python, uv, ruff, ty, pytest | `backend/AGENTS.md` |
 | Next.js, pnpm, eslint, prettier | `frontend/AGENTS.md` |
 | Vault layout, naming, links, workflow | `docs/README.md` |
 | Prose style for anything under `docs/` | `docs/STYLE.md` |
@@ -42,7 +42,7 @@ gitignored:
 | `docs/templates/` | no | Templater scaffolds — read them, do not edit them |
 
 **Never `git add` anything under the gitignored half.** A file there is a working note, not
-a deliverable. Never commit `backend/data/` or `backend/third_party/` either.
+a deliverable. Never commit `backend/data/` either.
 
 ## Specs and tickets
 

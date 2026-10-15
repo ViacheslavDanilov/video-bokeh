@@ -12,8 +12,7 @@
         ├── layers/                    with --layers: what each frame was composited from
         └── flow/<frame>.png           with --flow: forward optical flow, KITTI 16-bit
 
-This layout matches what bridge/any_to_bokeh.py consumes. Disparity is sampled
-and transformed from the library, not estimated per frame.
+Disparity is sampled and transformed from the library, not estimated per frame.
 
 Usage:
     uv run python -m video_bokeh.scenes.generate \\
@@ -509,7 +508,8 @@ def _build_parser() -> argparse.ArgumentParser:
         "--bokeh-strength",
         type=float,
         default=BOKEH_STRENGTH,
-        help=f"the bokeh's strength, as any-to-bokeh's k (default: {BOKEH_STRENGTH:g})",
+        help="the bokeh's strength: the blur radius in pixels, at a 1024-pixel width, "
+        f"one unit of disparity from the focus (default: {BOKEH_STRENGTH:g})",
     )
     parser.add_argument(
         "--layers",

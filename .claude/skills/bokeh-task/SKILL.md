@@ -237,7 +237,6 @@ Module notes:
 - **`frontend/`** — **pnpm only**, never npm or yarn. Next.js 16 diverges from training
   data: read `node_modules/next/dist/docs/` before writing code, as `frontend/AGENTS.md`
   demands.
-- **`backend/third_party/`** — vendored submodules, read-only.
 - **`backend/data/`** — gitignored artifacts, never staged.
 
 If a folder's semantics changed, update the `AGENTS.md` in every folder you touched.
@@ -311,10 +310,9 @@ its review.
 - The acceptance criteria are yours to invent and the user has not confirmed them.
 - The source contradicts the code, or contradicts an earlier meeting's decision.
 - The change alters the on-disk dataset contract — stream layout, bit depth, channel
-  count. Downstream readers like `backend/src/video_bokeh/bridge/any_to_bokeh.py` break
+  count. Downstream readers like `backend/src/video_bokeh/render/layered.py` break
   silently.
 - An expansion from the CEO review changes the research direction, and Pablo and Valery
   have not agreed to it.
 - The work needs a decision from Pablo or Valery that nobody has made.
-- The task would touch `backend/third_party/`.
 - A number in the note that nobody measured is about to become a constant in the code.

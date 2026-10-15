@@ -8,7 +8,6 @@ FastAPI backend and dataset pipeline for the depth-aware synthetic bokeh video p
 backend/src/video_bokeh/
 ├── api/            # HTTP surface
 ├── acquire/        # Source pools
-├── bridge/         # Input conversion for any-to-bokeh
 ├── core/           # Geometry, streams, and shared contracts
 ├── layered/        # Layer-wise bokeh
 ├── library/        # Stage A

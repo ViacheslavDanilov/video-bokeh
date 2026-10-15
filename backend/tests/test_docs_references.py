@@ -20,12 +20,8 @@ import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
 _SRC = _REPO / "backend" / "src"
-# Everything we are responsible for. `third_party/` is vendored and read-only, so a module
-# living there is listed below by hand rather than scanned -- the submodule may not be
-# checked out, and a test that changes its mind based on that is worse than useless.
+# Everything we are responsible for.
 _OURS = (_SRC, _REPO / "backend" / "tests", _REPO / "scripts")
-# In third_party/any-to-bokeh: test/inference_demo.py and dataset_synthsis.py.
-_VENDORED = {"inference_demo.py", "dataset_synthsis.py"}
 _DOC_ROOTS = ("docs/explanation", "docs/how-to", "docs/reference")
 _DOC_FILES = (
     "AGENTS.md",
@@ -92,7 +88,7 @@ def test_doc_names_only_code_that_exists(doc: Path) -> None:
     text = doc.read_text(encoding="utf-8")
     rel = doc.relative_to(_REPO)
 
-    known_names = {f.name for root in _OURS for f in root.rglob("*.py")} | _VENDORED
+    known_names = {f.name for root in _OURS for f in root.rglob("*.py")}
 
     missing_paths = sorted(
         {

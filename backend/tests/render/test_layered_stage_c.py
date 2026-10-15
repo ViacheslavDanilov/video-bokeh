@@ -10,7 +10,6 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from video_bokeh.bridge.any_to_bokeh import write_inputs
 from video_bokeh.render import run as cli
 from video_bokeh.render.layered import Layered
 from video_bokeh.scenes.generate import generate_dataset
@@ -74,7 +73,7 @@ def test_stage_c_without_layers_says_what_to_do_instead_of_a_traceback(
         cli.main(["--data-root", str(dataset)])
     message = str(exit_.value)
     assert seqs[1].name in message and seqs[0].name not in message
-    assert "--layers" in message and "--renderer any-to-bokeh" in message
+    assert "--layers" in message and "--bokeh" in message
     assert not any((seq / "bokeh").exists() for seq in seqs)
 
 
@@ -87,21 +86,32 @@ def test_zero_strength_gives_back_the_all_in_focus_frames(dataset: Path) -> None
             assert np.abs(bokeh - _pixels(frame)).max() <= 2.0
 
 
-def test_focuses_where_any_to_bokeh_would(dataset: Path, tmp_path: Path) -> None:
+def test_focuses_where_the_same_run_would(
+    dataset: Path,
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    """Stage C over written layers draws the object the same scene draws when its bokeh
+    is rendered in the run that wrote it, so a dataset's bokeh can be rendered again.
+    """
     cli.main(["--data-root", str(dataset), "--renderer", "layered"])
-    seqs = _sequences(dataset)
-    bridged = write_inputs(
-        seqs,
-        tmp_path / "v",
-        tmp_path / "d",
-        tmp_path / "a.csv",
-        "16",
+    same_run = tmp_path / "same_run"
+    generate_dataset(
+        library,
+        same_run,
+        count=3,
+        n_frames=FRAMES,
+        size=SIZE,
+        seed=0,
+        n_objects_max=2,
+        bokeh=True,
     )
-    for seq, inputs in zip(seqs, bridged, strict=True):
+    for seq, other in zip(_sequences(dataset), _sequences(same_run), strict=True):
         record = json.loads((seq / "bokeh" / "focus.json").read_text())
-        assert record["object"] == inputs.focus_object
-        # The bridge reads the disparity at 8 bits, the layered renderer at 16.
-        assert record["zf"] == pytest.approx(inputs.zf, abs=1 / 255)
+        expected = json.loads((other / "bokeh" / "focus.json").read_text())
+        assert record["object"] == expected["object"]
+        # The same run reads the disparity in memory, Stage C from 16-bit PNGs.
+        assert record["zf"] == pytest.approx(expected["zf"], abs=1e-3)
 
 
 def test_a_pinned_focus_holds_in_every_frame(dataset: Path) -> None:

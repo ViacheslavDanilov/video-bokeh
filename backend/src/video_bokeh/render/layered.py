@@ -35,10 +35,11 @@ from video_bokeh.layered import (
 
 
 class Layered:
-    """The layer-wise renderer, with ``strength`` in any-to-bokeh's units of ``k``.
+    """The layer-wise renderer, with ``strength`` the blur radius in pixels, at a
+    1024-pixel width, one unit of disparity from the focus.
 
-    With no ``focus_disparity``, the focus follows one object, drawn by area, as
-    any-to-bokeh's does; ``bokeh/focus.json`` records which.
+    With no ``focus_disparity``, the focus follows one object, drawn by area;
+    ``bokeh/focus.json`` records which.
     """
 
     name: ClassVar[str] = RENDERER

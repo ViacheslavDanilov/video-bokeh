@@ -11,8 +11,9 @@ Our layer-wise renderer blurs each layer of a frame on its own, by how far it is
 focus, and then stacks the blurred layers back together. It is a classical algorithm in
 PyTorch, and it runs on a CPU, an NVIDIA card or a Mac's GPU.
 
-- **Decision, 2026-10-09:** this renderer is to replace any-to-bokeh as the source of the
-  dataset's bokeh. any-to-bokeh stays as a baseline. It follows the 2026-10-08 sync.
+- **Decision, 2026-10-09:** this renderer replaces any-to-bokeh as the source of the
+  dataset's bokeh. It follows the 2026-10-08 sync. On 2026-10-15 any-to-bokeh left the
+  pipeline altogether; comparing the two is a task of its own.
 
 This page explains the method.
 [0002-layers-are-stored-not-regenerated](../adr/0002-layers-are-stored-not-regenerated.md)
@@ -68,8 +69,9 @@ radii still mean more bins and more padding.
 
 ## Settings
 
-- **Strength** — how strong the blur is. It means what any-to-bokeh's `k` means, in pixels at
-  1024 pixels wide. any-to-bokeh runs at 16 by default.
+- **Strength** — how strong the blur is: the blur radius in pixels, at 1024 pixels wide, one
+  unit of disparity from the focus. 16 by default, the unit and the default any-to-bokeh
+  uses as `k`, so the two can be compared at the same setting.
 - **Radius step** — the width of a radius bin, 1 pixel by default. A wider step means fewer
   convolutions, and a radius off by up to the step. A step wider than every radius gives
   one blur per layer.
@@ -107,12 +109,12 @@ One thread is what each worker of a training loader gets.
   in the same object is see-through and more blurred. On real 1024-pixel layers at strength
   16, this takes more than 5 % of the alpha from 51 of 2.4 million blurred opaque pixels,
   17 % at most, on top of the fading at a blurred edge.
-- **any-to-bokeh blurs differently in height and width.** It squashes our square frames to
-  1024 × 576 and stretches the result back, so its blur is 1.78 times taller than it is wide.
-  The same strength in both renderers matches only horizontally.
-- **Prior art.** any-to-bokeh's own training data was made by a layered renderer, the
-  `dataset_synthsis.py` script in its repository. That one gives every object a single
-  disparity. Its blur kernel is not published.
+- **any-to-bokeh blurs differently in height and width.** It renders at 1024 × 576, so on our
+  square frames its blur is 1.78 times taller than it is wide once the result is stretched
+  back. The same strength in both renderers matches only horizontally.
+- **Prior art.** any-to-bokeh's own training data was made by a layered renderer, the data
+  synthesis script in its repository. That one gives every object a single disparity. Its
+  blur kernel is not published.
 
 ## Related
 
