@@ -304,9 +304,9 @@ def test_writing_a_sequence_again_without_flow_drops_its_old_flow(
 
 
 def test_occlusion_marks_a_covered_pixel_and_one_that_leaves_the_frame() -> None:
-    """A 4 x 4 frame: object 0 holds the left half and moves one pixel right, so its
-    rightmost column lands under object 1, which holds the right edge and stands still;
-    the background moves one pixel left, so its left column leaves the frame.
+    """A 4 x 4 frame, by columns: object 0 holds columns 0 and 1, the background column
+    2, and object 1 column 3. In the next frame object 0 holds columns 1 and 2, the
+    background column 0, and object 1 stays on column 3.
     """
     front_now = np.full((4, 4), -1)
     front_now[:, :2] = 0
@@ -315,16 +315,32 @@ def test_occlusion_marks_a_covered_pixel_and_one_that_leaves_the_frame() -> None
     front_next[:, 1:3] = 0
     front_next[:, 3] = 1
     flow = np.zeros((4, 4, 2), dtype=np.float32)
+
+    # Covered: object 0 moves one pixel right onto its own next columns, the
+    # background's column lands on column 1, which object 0 then holds.
     flow[front_now == 0, 0] = 1.0
     flow[front_now == -1, 0] = -1.0
-    occluded = occlusion_mask(front_now, front_next, flow)
     expected = np.zeros((4, 4), dtype=bool)
-    expected[:, 2] = True  # the background's column, which leaves the frame
-    assert np.array_equal(occluded, expected)
-    # Object 0's columns both land on object 0; object 1 stands still on itself.
+    expected[:, 2] = True
+    assert np.array_equal(occlusion_mask(front_now, front_next, flow), expected)
+
+    # Leaves the frame: the background's column moves three pixels left, to column -1.
+    flow[front_now == -1, 0] = -3.0
+    assert np.array_equal(occlusion_mask(front_now, front_next, flow), expected)
+
+    # Covered by the other object: object 0 moves two pixels right, so its column 1
+    # lands on column 3, which object 1 holds, while its column 0 lands on itself.
     flow[front_now == 0, 0] = 2.0
     occluded = occlusion_mask(front_now, front_next, flow)
     assert occluded[:, 1].all() and not occluded[:, 0].any()
+
+
+def test_a_landing_at_the_edge_rounds_to_the_nearest_pixel() -> None:
+    front = np.zeros((1, 4), dtype=int)
+    flow = np.zeros((1, 4, 2), dtype=np.float32)
+    flow[0, 3, 0] = 0.4  # column 3 lands at 3.4: still column 3, inside
+    flow[0, 2, 0] = 1.6  # column 2 lands at 3.6: column 4, outside
+    assert occlusion_mask(front, front, flow).tolist() == [[False, False, True, False]]
 
 
 def test_a_still_scene_occludes_nothing() -> None:

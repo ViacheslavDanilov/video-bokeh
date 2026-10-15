@@ -281,8 +281,9 @@ def occlusion_mask(
     """
     h, w = front_now.shape
     ys, xs = np.mgrid[0:h, 0:w]
-    x = np.round(xs + flow[..., 0]).astype(int)
-    y = np.round(ys + flow[..., 1]).astype(int)
+    # Plain nearest: np.round would send ties to the even pixel.
+    x = np.floor(xs + flow[..., 0] + 0.5).astype(int)
+    y = np.floor(ys + flow[..., 1] + 0.5).astype(int)
     inside = (x >= 0) & (x < w) & (y >= 0) & (y < h)
     landed = front_next[np.clip(y, 0, h - 1), np.clip(x, 0, w - 1)]
     return ~inside | (landed != front_now)
