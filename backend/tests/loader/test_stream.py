@@ -18,6 +18,7 @@ from video_bokeh.core._streams import (
     read_disparity_png,
     read_disparity_tiff,
     read_flow_png,
+    read_mask_png,
     read_paint_order,
     read_rgb_tiff,
 )
@@ -376,6 +377,28 @@ def test_the_backward_flow_stream_is_the_written_backward_flow(
     ).transpose(0, 3, 1, 2)
     assert np.abs(written - item["flow_back"].numpy()).max() <= 0.5 / 64 + 1e-6
     assert set(item) == {"flow_back", "n_objects", "seed"}
+
+
+def test_the_occlusion_stream_is_the_written_mask(
+    library: Path, tmp_path: Path
+) -> None:
+    generate_dataset(
+        library,
+        tmp_path / "out",
+        1,
+        FRAMES,
+        SIZE,
+        seed=1,
+        n_objects_max=2,
+        occlusion=True,
+    )
+    mask_dir = tmp_path / "out" / "sequences" / "0001" / "occlusion"
+    item = next(iter(_stream(library, seed=1, streams=("occlusion",))))
+    assert item["occlusion"].shape == (FRAMES - 1, 1, SIZE, SIZE)
+    assert item["occlusion"].dtype == torch.float32
+    written = np.stack([read_mask_png(p) for p in sorted(mask_dir.iterdir())])[:, None]
+    assert np.array_equal(written, item["occlusion"].numpy() > 0.5)
+    assert set(item) == {"occlusion", "n_objects", "seed"}
 
 
 def test_the_bokeh_is_the_renderer_on_the_item_s_own_layers(library: Path) -> None:

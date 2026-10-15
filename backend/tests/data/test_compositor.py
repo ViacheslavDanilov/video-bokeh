@@ -844,6 +844,7 @@ def test_scene_records_match_the_sampled_scene(
         "layers": True,
         "flow": True,
         "flow_back": False,
+        "occlusion": False,
         "bokeh": False,
         "bokeh_strength": 16.0,
     }
@@ -1011,6 +1012,7 @@ def test_stats_command_has_hand_calculated_totals(tmp_path, capsys):
             "layers": {"total": 8, "per_frame": 2.0},
             "flow": {"total": 2, "per_frame": 0.5},
             "flow_back": {"total": 0, "per_frame": 0.0},
+            "occlusion": {"total": 0, "per_frame": 0.0},
             "bokeh": {"total": 32, "per_frame": 8.0},
         },
         "run": {"seed": 7},

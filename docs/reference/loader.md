@@ -83,6 +83,7 @@ All tensors are float32 in `[0, 1]`, frames first, except `paint_order`, `flow` 
 | | `focus_disparity`, `focus_object` | | the focus it blurred them at, as for `focus` |
 | `flow` | `flow` | (T − 1, 2, H, W) | each frame's forward optical flow to the next, `(u, v)` in pixels: the motion of the front-most surface, as `scenes.generate --flow` writes it, unquantized |
 | `flow_back` | `flow_back` | (T − 1, 2, H, W) | each frame but the first's backward optical flow to the previous, `(u, v)` in pixels, as `scenes.generate --flow-back` writes it, unquantized |
+| `occlusion` | `occlusion` | (T − 1, 1, H, W) | 1 where a frame's front-most surface is not visible in the next frame, as `scenes.generate --occlusion` writes it |
 | always | `n_objects` | int | objects actually placed |
 | always | `seed` | int | the seed this sequence came from |
 
@@ -109,7 +110,8 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
   It has one field fewer than there are frames, because the last frame has no next. The
   dataset's `flow` stream in [dataset-layout](dataset-layout.md) holds the same flow, in 1/64 px
   steps. `flow_back` is the same field backward, one fewer than the frames because the first
-  frame has no previous.
+  frame has no previous. `occlusion` says where `flow` is undefined: the pixels the next frame
+  does not show.
 
 ### Bokeh
 

@@ -119,6 +119,9 @@ class RenderedFrame:
     #: (H, W, 2) float32, pixels to the previous frame, from the front-most surface: only
     #: when asked for, and never on the first frame, which has no previous.
     flow_back: np.ndarray | None = None
+    #: (H, W) bool, True where the front-most surface is not visible in the next frame:
+    #: only when asked for, and never on the last frame.
+    occlusion: np.ndarray | None = None
 
 
 def sample_scene(
@@ -243,6 +246,7 @@ def render_scene(
     layers: bool = False,
     flow: bool = False,
     flow_back: bool = False,
+    occlusion: bool = False,
 ) -> list[RenderedFrame]:
     """Render every frame: warp the precomputed triplet, band depth, composite.
 
@@ -253,11 +257,35 @@ def render_scene(
     With ``flow``, each frame but the last carries its forward optical flow. Every layer
     moves by a known homography, so the flow is exact: per pixel, the motion of the
     front-most surface, the last-painted object whose alpha is at least 0.5 there, else
-    the background's. Occlusion is not marked. With ``flow_back``, each frame but the
-    first carries its backward flow the same way: where the front-most surface at each
-    pixel was in the previous frame.
+    the background's. The flow itself marks no occlusion. With ``flow_back``, each frame
+    but the first carries its backward flow the same way: where the front-most surface at
+    each pixel was in the previous frame. With ``occlusion``, each frame but the last
+    carries a mask of the pixels whose surface is not visible in the next frame, because
+    it leaves the frame or another surface is in front of it there; ``occlusion_mask``
+    says how.
     """
-    return list(iter_frames(scene, layers, flow, flow_back))
+    return list(iter_frames(scene, layers, flow, flow_back, occlusion))
+
+
+def occlusion_mask(
+    front_now: np.ndarray,
+    front_next: np.ndarray,
+    flow: np.ndarray,
+) -> np.ndarray:
+    """Where a frame's front-most surface is not visible in the next frame.
+
+    ``front_now`` and ``front_next`` say which surface is in front at each pixel of the
+    two frames, an object's index or -1 for the background, and ``flow`` is the forward
+    flow. A pixel is occluded when it lands outside the next frame, or when the surface
+    at the nearest pixel to where it lands is not the one it carries.
+    """
+    h, w = front_now.shape
+    ys, xs = np.mgrid[0:h, 0:w]
+    x = np.round(xs + flow[..., 0]).astype(int)
+    y = np.round(ys + flow[..., 1]).astype(int)
+    inside = (x >= 0) & (x < w) & (y >= 0) & (y < h)
+    landed = front_next[np.clip(y, 0, h - 1), np.clip(x, 0, w - 1)]
+    return ~inside | (landed != front_now)
 
 
 def iter_frames(
@@ -265,6 +293,7 @@ def iter_frames(
     layers: bool = False,
     flow: bool = False,
     flow_back: bool = False,
+    occlusion: bool = False,
 ) -> Iterator[RenderedFrame]:
     """``render_scene`` one frame at a time, so a writer never holds the whole clip."""
     size = scene.size
@@ -276,7 +305,9 @@ def iter_frames(
         # The next frame's time, when there is one and the flow toward it is wanted,
         # and the previous frame's likewise.
         t_next = (
-            (i + 1) / (scene.n_frames - 1) if flow and i + 1 < scene.n_frames else None
+            (i + 1) / (scene.n_frames - 1)
+            if (flow or occlusion) and i + 1 < scene.n_frames
+            else None
         )
         t_prev = (i - 1) / (scene.n_frames - 1) if flow_back and i > 0 else None
 
@@ -331,6 +362,9 @@ def iter_frames(
             range(len(scene.objects)),
             key=lambda idx: (bands[idx][0] + bands[idx][1]) / 2.0,
         )
+        # The surface in front at each pixel, an object's index or -1, for the occlusion
+        # mask; the same rule the flow uses.
+        front_now = np.full((size, size), -1)
         for idx in draw_order:
             obj = scene.objects[idx]
             ease = EASING_FNS[obj.easing](t)
@@ -357,12 +391,13 @@ def iter_frames(
             union_alpha = np.maximum(union_alpha, a)
             disparity = a * obj_disp + (1.0 - a) * disparity
             object_alphas[idx] = a.astype(np.float32)
+            front = a >= 0.5
+            front_now[front] = idx
             if frame_flow is not None and t_next is not None:
                 pose_next = obj.pose_start.lerp(
                     obj.pose_end,
                     EASING_FNS[obj.easing](t_next),
                 )
-                front = a >= 0.5
                 frame_flow[front] = homography_flow(
                     fg_h,
                     build_fg_homography(pose_next, obj.asset.rgb.size[0], size),
@@ -373,7 +408,6 @@ def iter_frames(
                     obj.pose_end,
                     EASING_FNS[obj.easing](t_prev),
                 )
-                front = a >= 0.5
                 frame_flow_back[front] = homography_flow(
                     fg_h,
                     build_fg_homography(pose_prev, obj.asset.rgb.size[0], size),
@@ -385,6 +419,28 @@ def iter_frames(
                 object_disparities[idx] = np.where(inside, obj_disp, 0).astype(
                     np.float32,
                 )
+
+        frame_occlusion = None
+        if occlusion and frame_flow is not None and t_next is not None:
+            front_next = np.full((size, size), -1)
+            next_bands = [_band(idx, t_next) for idx in range(len(scene.objects))]
+            next_order = sorted(
+                range(len(scene.objects)),
+                key=lambda idx: (next_bands[idx][0] + next_bands[idx][1]) / 2.0,
+            )
+            for idx in next_order:
+                obj = scene.objects[idx]
+                pose_next = obj.pose_start.lerp(
+                    obj.pose_end,
+                    EASING_FNS[obj.easing](t_next),
+                )
+                h_next = build_fg_homography(pose_next, obj.asset.rgb.size[0], size)
+                a_next = np.asarray(
+                    warp_pillow(obj.asset.rgb.getchannel("A"), h_next, size),
+                    dtype=np.float32,
+                )
+                front_next[a_next >= 127.5] = idx
+            frame_occlusion = occlusion_mask(front_now, front_next, frame_flow)
 
         yield RenderedFrame(
             rgb=rgb.astype(np.float32),
@@ -400,6 +456,7 @@ def iter_frames(
             )
             if layers
             else None,
-            flow=frame_flow,
+            flow=frame_flow if flow else None,
             flow_back=frame_flow_back,
+            occlusion=frame_occlusion,
         )

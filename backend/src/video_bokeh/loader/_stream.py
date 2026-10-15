@@ -42,6 +42,7 @@ STREAMS = (
     "bokeh",
     "flow",
     "flow_back",
+    "occlusion",
 )
 #: What an item carries when ``streams`` is not given.
 DEFAULT_STREAMS = ("rgb", "disparity", "alpha", "object_alphas")
@@ -90,7 +91,9 @@ class SequenceStream(IterableDataset):
     exact forward optical flow to the next, in pixels rather than ``[0, 1]``: the motion of
     the front-most surface, as ``scenes.generate --flow`` writes it, unquantized.
     ``flow_back`` adds ``flow_back`` (T - 1, 2, H, W), each frame but the first's exact
-    backward flow to the previous, as ``--flow-back`` writes it.
+    backward flow to the previous, as ``--flow-back`` writes it. ``occlusion`` adds
+    ``occlusion`` (T - 1, 1, H, W), 1 where a frame's surface is not visible in the next,
+    as ``--occlusion`` writes it.
 
     Worker ``w`` of ``W`` takes seeds ``seed + w``, ``seed + w + W``, ...: workers never
     repeat each other, and one worker yields the scenes ``scenes.generate --seed``
@@ -197,6 +200,7 @@ class SequenceStream(IterableDataset):
             layers=bool({"layers", "bokeh"} & self.streams),
             flow="flow" in self.streams,
             flow_back="flow_back" in self.streams,
+            occlusion="occlusion" in self.streams,
         )
         placed = len(scene.objects)
         item: dict[str, Any] = {"n_objects": placed, "seed": seq_seed}
@@ -210,6 +214,13 @@ class SequenceStream(IterableDataset):
             item["flow"] = _flows([f.flow for f in frames], self.size)
         if "flow_back" in self.streams:
             item["flow_back"] = _flows([f.flow_back for f in frames], self.size)
+        if "occlusion" in self.streams:
+            masks = [f.occlusion for f in frames if f.occlusion is not None]
+            item["occlusion"] = (
+                _maps([m.astype(np.float32) for m in masks])
+                if masks
+                else torch.zeros((0, 1, self.size, self.size), dtype=torch.float32)
+            )
         rendering = "bokeh" in self.streams
         if {"object_alphas", "bokeh"} & self.streams:
             object_alphas = torch.from_numpy(

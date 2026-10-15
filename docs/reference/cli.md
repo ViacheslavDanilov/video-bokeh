@@ -210,6 +210,7 @@ and `run.json` first, then writes `manifest.csv` atomically as the run's complet
 | `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [dataset-layout](dataset-layout.md) |
 | `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [dataset-layout](dataset-layout.md) |
 | `--flow-back` | flag | off | also write `flow_back/`, each frame's exact backward optical flow to the previous, in the same format |
+| `--occlusion` | flag | off | also write `occlusion/`, for each frame but the last an 8-bit mask of the pixels whose surface the next frame does not show — see [dataset-layout](dataset-layout.md) |
 | `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
 | `--bokeh-strength` | float | `16` | the bokeh's strength: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 
