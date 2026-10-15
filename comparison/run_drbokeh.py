@@ -22,17 +22,25 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import sys
 from pathlib import Path
 
 import numpy as np
 import torch
-from PIL import Image
+from common import (
+    GAMMA,
+    REFERENCE_WIDTH,
+    REPO,
+    LayeredFrame,
+    focus_record,
+    frames_with_focus,
+    renderable_sequences,
+    save_rgb,
+    write_settings,
+)
+from scipy import ndimage
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "backend" / "src"))
 sys.path.insert(
     0, str(REPO / "comparison" / "third_party" / "drbokeh" / "app" / "cuda-src")
 )
@@ -44,18 +52,6 @@ sys.path.insert(
 )
 
 from scatter import Multi_Layer_Renderer  # noqa: E402
-from scipy import ndimage  # noqa: E402
-
-from video_bokeh.core._seq_io import (  # noqa: E402
-    frame_names,
-    has_layers,
-    list_sequences,
-)
-from video_bokeh.layered import LayeredFrame  # noqa: E402
-from video_bokeh.render.layered import _read_frames  # noqa: E402
-
-GAMMA = 2.2
-REFERENCE_WIDTH = 1024
 
 
 def _extend_disparity(disparity: np.ndarray, alpha: np.ndarray) -> np.ndarray:
@@ -105,15 +101,10 @@ def _lens_size(layers: list[np.ndarray], zf: float, k: float) -> int:
 
 
 def render_sequence(seq: Path, device: torch.device) -> None:
-    record = json.loads((seq / "bokeh" / "focus.json").read_text(encoding="utf-8"))
-    names = frame_names(seq)
-    strength = float(record["strength"])
+    strength = float(focus_record(seq)["strength"])
     out = seq / "bokeh_drbokeh"
-    out.mkdir(parents=True, exist_ok=True)
     renderers: dict[int, Multi_Layer_Renderer] = {}
-    for name, zf, frame in zip(
-        names, record["zf"], _read_frames(seq, names), strict=True
-    ):
+    for name, zf, frame in frames_with_focus(seq):
         layers = _layers_near_to_far(frame)
         width = layers[0].shape[1]
         k = strength * width / REFERENCE_WIDTH
@@ -126,17 +117,8 @@ def render_sequence(seq: Path, device: torch.device) -> None:
         ]
         with torch.no_grad():
             blur = renderers[lens].inference(gamma, k, zf)
-        rgb = np.clip(blur, 0.0, 1.0) ** (1.0 / GAMMA)
-        Image.fromarray(np.round(rgb * 255.0).astype(np.uint8)).save(out / name)
-    settings = {
-        "method": "Dr.Bokeh",
-        "strength": strength,
-        "gamma": GAMMA,
-        "zf": record["zf"],
-        "focus_object": record.get("object"),
-        "source": "our layers and our focus record",
-    }
-    (out / "run.json").write_text(json.dumps(settings) + "\n", encoding="utf-8")
+        save_rgb(out, name, np.clip(blur, 0.0, 1.0) ** (1.0 / GAMMA))
+    write_settings(out, "Dr.Bokeh", seq, gamma=GAMMA)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -146,10 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     names = args.seqs.split(",") if args.seqs else None
     device = torch.device("cuda:0")
-    for seq in list_sequences(args.data_root, names):
-        if not has_layers(seq) or not (seq / "bokeh" / "focus.json").is_file():
-            print(f"  skip {seq.name}: needs layers/ and bokeh/focus.json", flush=True)
-            continue
+    for seq in renderable_sequences(args.data_root, names):
         render_sequence(seq, device)
         print(f"  {seq.name}: bokeh_drbokeh written", flush=True)
     return 0

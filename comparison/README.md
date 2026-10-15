@@ -46,9 +46,33 @@ difference over the whole frame and over a band around the object edges, where a
 single-layer renderer part. The band is the square of 16 pixels around every edge of every
 object's alpha mask.
 
+## MPIB's ray tracer
+
+The generator behind MPIB's training data
+([MPIB](https://github.com/JuewenPeng/MPIB), ECCV 2022, Sec. 3.4, "Bokeh Generator and Training
+Data"; Apache-2.0) traces rays
+through a thin lens and the layers, which makes it the closest thing to a ray-traced reference
+for a layered renderer. It takes no weights.
+
+```bash
+comparison/setup.sh mpib
+comparison/envs/render/bin/python comparison/run_mpib_rt.py --data-root backend/data/cmp
+comparison/envs/render/bin/python comparison/score.py --data-root backend/data/cmp --method mpib_rt
+```
+
+It reads the same layers, focus and strength as `run_drbokeh.py`, and writes `bokeh_mpib_rt/`.
+Its layers differ in one respect that decides what the score can say: each layer is an alpha
+mask and one plane, `Z = C + A X + B Y` in depth, not a disparity map. `planes.py` fits each
+layer's plane to its disparity under its alpha, by least squares, so the relief inside an
+object is lost. That is why this render is a reference for the edges and the occlusion, where
+layers decide the result, and not for the blur inside an object, which our renderer and
+Dr.Bokeh's keep per pixel. The lens radius `K` is in pixels per unit of disparity from the
+focus, which is our strength scaled to the frame's width, and the focus goes in as a depth.
+
 ## Adding a method
 
 Add a function to `setup.sh` that clones the pinned commit and builds what the method needs,
-a `run_<method>.py` that writes `bokeh_<method>/` in our layout, and the method's name works
-with `score.py` unchanged. A method that takes one frame and a disparity map, as BokehMe and
-the full MPIB pipeline do, reads `all_in_focus/` and `disparity/` instead of the layers.
+and a `run_<method>.py` that writes `bokeh_<method>/` in our layout, with `common.py` doing the
+reading of our sequences. The method's name then works with `score.py` unchanged. A method
+that takes one frame and a disparity map, as BokehMe and the full MPIB pipeline do, reads
+`all_in_focus/` and `disparity/` instead of the layers.
