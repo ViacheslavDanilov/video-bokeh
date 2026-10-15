@@ -58,7 +58,7 @@ produces.
 
 ## Stage B — a generated sequence
 
-Written by `video_bokeh.scenes.generate`. This is the layout Stage C and the loader read.
+Written by `video_bokeh.scenes.generate`. This is the layout Stage C, the preview packer and the API read.
 
 ```
 <output>/

@@ -233,7 +233,7 @@ Module notes:
 
 - **`backend/`** — uv-managed. Run from `backend/`; `uv run pytest`, `uv run ruff check
   src/`, `uv run ty check src/`. Code lives under `backend/src/video_bokeh/`: `acquire`,
-  `library`, `scenes`, `core`, `preview`, `bridge`, `api`.
+  `library`, `scenes`, `core`, `preview`, `layered`, `render`, `loader`, `api`.
 - **`frontend/`** — **pnpm only**, never npm or yarn. Next.js 16 diverges from training
   data: read `node_modules/next/dist/docs/` before writing code, as `frontend/AGENTS.md`
   demands.
