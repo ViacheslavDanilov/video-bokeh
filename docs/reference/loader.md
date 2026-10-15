@@ -110,8 +110,8 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
   It has one field fewer than there are frames, because the last frame has no next. The
   dataset's `flow` stream in [dataset-layout](dataset-layout.md) holds the same flow, in 1/64 px
   steps. `flow_back` is the same field backward, one fewer than the frames because the first
-  frame has no previous. `occlusion` says where `flow` is undefined: the pixels the next frame
-  does not show.
+  frame has no previous. `occlusion` marks the pixels whose surface the next frame does not
+  show, where the next frame cannot confirm `flow`.
 
 ### Bokeh
 
