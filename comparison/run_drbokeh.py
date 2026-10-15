@@ -3,7 +3,7 @@
 
 Runs inside ``comparison/envs/render`` (see ``comparison/README.md``), not in the backend's
 environment. For every sequence under ``--data-root`` that was written with ``--layers`` and
-holds a ``bokeh/focus.json``, it renders each frame from the same layers, focus disparity and
+holds a ``bokeh/focus.json``, and skips the others, it renders each frame from the same layers, focus disparity and
 strength as our layered renderer did, and writes
 
     <sequence>/bokeh_drbokeh/<frame>.png   RGB uint8, the sequence's size
@@ -44,8 +44,13 @@ sys.path.insert(
 )
 
 from scatter import Multi_Layer_Renderer  # noqa: E402
+from scipy import ndimage  # noqa: E402
 
-from video_bokeh.core._seq_io import frame_names, list_sequences  # noqa: E402
+from video_bokeh.core._seq_io import (  # noqa: E402
+    frame_names,
+    has_layers,
+    list_sequences,
+)
 from video_bokeh.layered import LayeredFrame  # noqa: E402
 from video_bokeh.render.layered import _read_frames  # noqa: E402
 
@@ -53,14 +58,33 @@ GAMMA = 2.2
 REFERENCE_WIDTH = 1024
 
 
+def _extend_disparity(disparity: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """A layer's disparity defined everywhere, as Dr.Bokeh expects it.
+
+    Our object layers store disparity only under their alpha and zero elsewhere. The renderer
+    reads the disparity of every pixel, including those with no alpha, to size the blur at an
+    edge, and a zero would read as a pixel far behind the focus. Each pixel outside takes the
+    disparity of the nearest pixel under the alpha.
+    """
+    inside = alpha > 0
+    if not inside.any():
+        return disparity
+    nearest = ndimage.distance_transform_edt(
+        ~inside, return_distances=False, return_indices=True
+    )
+    return disparity[nearest[0], nearest[1]]
+
+
 def _layers_near_to_far(frame: LayeredFrame) -> list[np.ndarray]:
     """One ``(H, W, 5)`` array per layer, red, green, blue, alpha, disparity, nearest first."""
     layers = []
     for page in reversed(list(frame.paint_order)):
         color = frame.object_rgbs[page].transpose(1, 2, 0)
-        alpha = frame.object_alphas[page][..., None]
-        disparity = frame.object_disparities[page][..., None]
-        layers.append(np.concatenate([color, alpha, disparity], axis=2))
+        alpha = frame.object_alphas[page]
+        disparity = _extend_disparity(frame.object_disparities[page], alpha)
+        layers.append(
+            np.concatenate([color, alpha[..., None], disparity[..., None]], axis=2)
+        )
     color = frame.background.transpose(1, 2, 0)
     alpha = np.ones(color.shape[:2] + (1,), dtype=np.float32)
     layers.append(
@@ -80,11 +104,11 @@ def _lens_size(layers: list[np.ndarray], zf: float, k: float) -> int:
     return 2 * math.ceil(k * widest) + 3
 
 
-def render_sequence(seq: Path, output: Path | None, device: torch.device) -> None:
+def render_sequence(seq: Path, device: torch.device) -> None:
     record = json.loads((seq / "bokeh" / "focus.json").read_text(encoding="utf-8"))
     names = frame_names(seq)
     strength = float(record["strength"])
-    out = (output or seq) / "bokeh_drbokeh"
+    out = seq / "bokeh_drbokeh"
     out.mkdir(parents=True, exist_ok=True)
     renderers: dict[int, Multi_Layer_Renderer] = {}
     for name, zf, frame in zip(
@@ -103,7 +127,7 @@ def render_sequence(seq: Path, output: Path | None, device: torch.device) -> Non
         with torch.no_grad():
             blur = renderers[lens].inference(gamma, k, zf)
         rgb = np.clip(blur, 0.0, 1.0) ** (1.0 / GAMMA)
-        Image.fromarray(np.round(rgb * 255.0).astype(np.uint8), "RGB").save(out / name)
+        Image.fromarray(np.round(rgb * 255.0).astype(np.uint8)).save(out / name)
     settings = {
         "method": "Dr.Bokeh",
         "strength": strength,
@@ -123,7 +147,10 @@ def main(argv: list[str] | None = None) -> int:
     names = args.seqs.split(",") if args.seqs else None
     device = torch.device("cuda:0")
     for seq in list_sequences(args.data_root, names):
-        render_sequence(seq, None, device)
+        if not has_layers(seq) or not (seq / "bokeh" / "focus.json").is_file():
+            print(f"  skip {seq.name}: needs layers/ and bokeh/focus.json", flush=True)
+            continue
+        render_sequence(seq, device)
         print(f"  {seq.name}: bokeh_drbokeh written", flush=True)
     return 0
 

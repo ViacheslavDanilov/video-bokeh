@@ -5,7 +5,7 @@ Both streams are read from each sequence directory, ``bokeh/`` for ours by defau
 ``bokeh_<method>/`` for a method run by ``comparison/run_<method>.py``. For every frame it
 reports the peak signal-to-noise ratio and the mean absolute difference, in 8-bit gray
 levels, over the whole frame and over a band around the object edges, where layered and
-single-layer renderers part. The band is every pixel within ``--band`` pixels of an edge of
+single-layer renderers part. The band is the square of ``--band`` pixels around every edge of
 any object's alpha mask. The result is written to ``<data-root>/comparison_<method>.json``.
 
 Usage:
@@ -40,13 +40,31 @@ def psnr(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def edge_band(alphas: list[np.ndarray], width: int) -> np.ndarray:
-    """Pixels within ``width`` pixels of an edge of any alpha mask, as a boolean array."""
+    """The square band of ``width`` pixels around every edge of any alpha mask.
+
+    An edge is a step of more than ``EDGE_STEP`` between neighbors, marked on both of its
+    sides. A ramp softer than that per pixel is missed. The result is a boolean array.
+    """
     edges = np.zeros(alphas[0].shape, dtype=bool)
     for alpha in alphas:
-        step_y = np.abs(np.diff(alpha, axis=0, prepend=alpha[:1]))
-        step_x = np.abs(np.diff(alpha, axis=1, prepend=alpha[:, :1]))
-        edges |= (step_y > EDGE_STEP) | (step_x > EDGE_STEP)
-    return ndimage.binary_dilation(edges, iterations=width) if edges.any() else edges
+        step_y = np.abs(np.diff(alpha, axis=0)) > EDGE_STEP
+        step_x = np.abs(np.diff(alpha, axis=1)) > EDGE_STEP
+        edges[:-1] |= step_y
+        edges[1:] |= step_y
+        edges[:, :-1] |= step_x
+        edges[:, 1:] |= step_x
+    if not edges.any():
+        return edges
+    return ndimage.binary_dilation(edges, structure=np.ones((3, 3)), iterations=width)
+
+
+def _db(value: float) -> float | None:
+    """A PSNR for the JSON record: null for a match, which has no finite value."""
+    return float(value) if np.isfinite(value) else None
+
+
+def _fmt(value: float | None, unit: str = "") -> str:
+    return "n/a" if value is None else f"{value:.2f}{unit}"
 
 
 def _read(path: Path) -> np.ndarray:
@@ -65,10 +83,12 @@ def score_sequence(seq: Path, reference: str, method: str, band: int) -> dict:
         frames.append(
             {
                 "frame": name,
-                "psnr": psnr(ours, theirs),
+                "psnr": _db(psnr(ours, theirs)),
                 "mae": float(diff.mean()),
                 "band_share": float(near.mean()),
-                "band_psnr": psnr(ours[near], theirs[near]) if near.any() else None,
+                "band_psnr": _db(psnr(ours[near], theirs[near]))
+                if near.any()
+                else None,
                 "band_mae": float(diff[near].mean()) if near.any() else None,
             }
         )
@@ -99,10 +119,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seqs", default=None, help="comma-separated sequence ids")
     args = parser.parse_args(argv)
     names = args.seqs.split(",") if args.seqs else None
-    results = [
-        score_sequence(seq, args.reference, args.method, args.band)
-        for seq in list_sequences(args.data_root, names)
-    ]
+    results = []
+    for seq in list_sequences(args.data_root, names):
+        missing = [
+            s
+            for s in (args.reference, f"bokeh_{args.method}")
+            if not (seq / s).is_dir()
+        ]
+        if missing:
+            print(f"  skip {seq.name}: no {', '.join(missing)}")
+            continue
+        results.append(score_sequence(seq, args.reference, args.method, args.band))
+    if not results:
+        raise SystemExit(
+            f"no sequence under {args.data_root} holds both streams to compare"
+        )
     record = {
         "method": args.method,
         "reference": args.reference,
@@ -114,8 +145,9 @@ def main(argv: list[str] | None = None) -> int:
     for result in results:
         m = result["mean"]
         print(
-            f"  {result['sequence']}: PSNR {m['psnr']:.2f} dB, band {m['band_psnr']:.2f} dB, "
-            f"MAE {m['mae']:.2f}, band MAE {m['band_mae']:.2f}"
+            f"  {result['sequence']}: PSNR {_fmt(m['psnr'], ' dB')}, "
+            f"band {_fmt(m['band_psnr'], ' dB')}, MAE {_fmt(m['mae'])}, "
+            f"band MAE {_fmt(m['band_mae'])}"
         )
     print(f"written {out}")
     return 0

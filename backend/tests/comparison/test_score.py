@@ -32,8 +32,8 @@ def test_the_band_reaches_width_pixels_from_an_edge() -> None:
     alpha = np.zeros((32, 32), dtype=np.float32)
     alpha[:, 16:] = 1.0
     band = edge_band([alpha], width=4)
-    # The step is between columns 15 and 16, marked at 16, so the band holds 12 to 20.
-    assert band[:, 12:21].all()
+    # The step is between columns 15 and 16, marked on both, so the band holds 11 to 20.
+    assert band[:, 11:21].all()
     assert not band[:, :11].any() and not band[:, 21:].any()
 
 
@@ -48,3 +48,13 @@ def test_every_objects_edge_counts() -> None:
     second[:, 24:] = 1.0
     band = edge_band([first, second], width=2)
     assert band[0, 8] and band[0, 24] and not band[0, 16]
+
+
+def test_the_band_is_a_square_not_a_diamond() -> None:
+    alpha = np.zeros((33, 33), dtype=np.float32)
+    alpha[16, 16] = 1.0
+    band = edge_band([alpha], width=4)
+    # The edges are the pixel and its four neighbors. A square band of 4 reaches (12, 12)
+    # from the neighbor at (15, 16), three rows and four columns away; a diamond would not.
+    assert band[12, 12] and band[20, 20]
+    assert band[11, 16] and not band[11, 11] and not band[21, 21]
