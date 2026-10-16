@@ -133,6 +133,29 @@ a data root that holds only the set you want in the table. That set, with its se
 size, goes into the paper's `results/` with the commit and the command that wrote it, as that
 folder's README asks.
 
+## The test set
+
+The paper's comparison runs on one fixed set of 40 sequences, of 24 frames at 1024 pixels,
+that `test_set.py` writes into one data root:
+
+```bash
+cd backend && uv run --extra render python ../comparison/test_set.py --output data/test_set
+cd .. && comparison/run_all.sh backend/data/test_set
+for m in drbokeh mpib_rt bokehme bokehme_classical any_to_bokeh; do
+  comparison/envs/render/bin/python comparison/score.py --data-root backend/data/test_set/night --method $m
+done
+comparison/envs/render/bin/python comparison/summary.py --data-root backend/data/test_set/night
+```
+
+- `any-01` to `any-32` are the first 32 seeds from 1,000,000 that can be placed, far from the
+  seeds of a dataset written from seed 0.
+- `night-01` to `night-08` are eight seeds whose background is a night scene with small
+  lights, each a different background. Small bright spots on a dark ground are where a bokeh
+  renderer shows the most.
+- `night/` beside them is a second data root that links to the night sequences. The loop
+  above scores each method there, and `summary.py` gives the night subset its own table; the
+  renders are already in place.
+
 ## Adding a method
 
 Add a function to `setup.sh` that clones the pinned commit and builds what the method needs,
