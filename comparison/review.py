@@ -23,7 +23,8 @@ least four frames apart, are kept, each with two sheets: ``a`` holds its best tw
 
 ``sheets`` draws every candidate of ``boxes.json`` again, in the style its flags choose. A box
 can be moved, or a candidate added, by editing ``boxes.json``; ``--kept`` draws only the
-candidates whose sheet is still there, once the others are deleted.
+candidates whose sheet is still in ``sheets/``, once the others are deleted, into ``sheets/``
+or, with ``--name``, into a folder for a trial style.
 
     comparison/envs/render/bin/python comparison/review.py collect \\
         --data-root data/test_set --out data/test_set_review --link
@@ -258,7 +259,7 @@ def sheets(review: Path, outline: str, kept: bool, name: str) -> None:
         out = folder / name
         for sheet_id, sheet in json.loads(boxes_file.read_text()).items():
             path = out / f"{sheet_id}.png"
-            if kept and not path.exists():
+            if kept and not (folder / "sheets" / f"{sheet_id}.png").exists():
                 continue
             out.mkdir(exist_ok=True)
             draw_sheet(folder, sheet, outline).save(path, optimize=True)
@@ -290,7 +291,9 @@ def main(argv: list[str] | None = None) -> int:
         default="none",
         help="white along the colored lines: none, outside the boxes, or on both sides",
     )
-    s.add_argument("--kept", action="store_true", help="only the sheets still on disk")
+    s.add_argument(
+        "--kept", action="store_true", help="only the candidates still in sheets/"
+    )
     s.add_argument(
         "--name", default="sheets", help="the folder each sequence's sheets go in"
     )

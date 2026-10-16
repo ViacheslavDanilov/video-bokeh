@@ -95,6 +95,8 @@ def test_sheets_are_drawn_from_the_boxes_and_kept_ones_redrawn(tmp_path: Path) -
         path.unlink()
     main(["sheets", str(out), "--kept", "--outline", "both"])
     assert sorted((out / "any-01" / "sheets").glob("*.png")) == [keep]
+    main(["sheets", str(out), "--kept", "--outline", "outer", "--name", "trial"])
+    assert [p.name for p in (out / "any-01" / "trial").glob("*.png")] == [keep.name]
 
 
 def test_every_frame_can_be_linked(tmp_path: Path) -> None:

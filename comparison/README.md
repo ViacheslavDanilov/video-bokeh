@@ -179,7 +179,7 @@ comparison/envs/render/bin/python comparison/review.py sheets backend/data/test_
   frames side by side, two boxes on each, the boxed regions enlarged beneath.
 - `sheets` draws them again from `boxes.json`, so a box can be moved by editing it.
   `--outline` sets the white along the colored lines, `--name` another folder for a trial,
-  and `--kept` only the sheets left after the unwanted ones are deleted.
+  and `--kept` only the sheets left in `sheets/` after the unwanted ones are deleted.
 - Without `--every-frame`, only the candidates' frames are copied, for a folder to take
   elsewhere; `--link` links the frames instead of copying them.
 
