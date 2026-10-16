@@ -82,7 +82,8 @@ def ranked_boxes(weights: np.ndarray, count: int) -> list[tuple[list[int], float
 
     A box goes where the sum of ``weights`` under it is largest, then moves so that the
     weights' centroid under it is at its middle: many places hold the same sum when what
-    differs is a thin band, and the middle shows both sides of the edge.
+    differs is a thin band, and the middle shows both sides of the edge. A move that would
+    bring it within ``GAP`` of an earlier box is not made.
     """
     score = box_sums(weights, SIDE)
     height, width = weights.shape
@@ -96,10 +97,12 @@ def ranked_boxes(weights: np.ndarray, count: int) -> list[tuple[list[int], float
         patch = weights[top : top + SIDE, left : left + SIDE]
         if patch.sum() > 0:
             ys, xs = np.indices(patch.shape)
-            top += round(float((ys * patch).sum() / patch.sum())) - SIDE // 2
-            left += round(float((xs * patch).sum() / patch.sum())) - SIDE // 2
-            top = min(max(top, 0), height - SIDE)
-            left = min(max(left, 0), width - SIDE)
+            y = top + round(float((ys * patch).sum() / patch.sum())) - SIDE // 2
+            x = left + round(float((xs * patch).sum() / patch.sum())) - SIDE // 2
+            y = min(max(y, 0), height - SIDE)
+            x = min(max(x, 0), width - SIDE)
+            if all(max(abs(x - bx), abs(y - by)) >= reach for (bx, by, _), _ in boxes):
+                top, left = y, x
         boxes.append(([int(left), int(top), SIDE], value))
         score[
             max(0, top - reach) : top + reach, max(0, left - reach) : left + reach

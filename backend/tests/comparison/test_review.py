@@ -12,7 +12,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "comparison"))
 
-from review import METHODS, SIDE, main  # noqa: E402
+from review import GAP, METHODS, SIDE, main, ranked_boxes  # noqa: E402
 
 from video_bokeh.core._streams import write_alpha_tiff  # noqa: E402
 
@@ -69,6 +69,16 @@ def test_collect_lays_out_methods_and_places_boxes_where_they_part(
         assert sorted(p.stem for p in (seq / name).glob("*.png")) == sorted(frames)
     assert (out / "manifest.csv").is_file()
     assert (out / "scores" / "comparison_drbokeh.json").is_file()
+
+
+def test_centered_boxes_stay_clear_of_each_other() -> None:
+    weights = np.zeros((SIZE, SIZE))
+    weights[200:240, 100:260] = 1.0  # the first box takes this run of the band
+    weights[200:240, 260:282] = 0.5  # a second box, centered on this tail, covers it
+    boxes = [box for box, _ in ranked_boxes(weights, 3)]
+    for i, (a_left, a_top, side) in enumerate(boxes):
+        for b_left, b_top, _ in boxes[i + 1 :]:
+            assert max(abs(a_left - b_left), abs(a_top - b_top)) >= side + GAP
 
 
 def test_sheets_are_drawn_from_the_boxes_and_kept_ones_redrawn(tmp_path: Path) -> None:
