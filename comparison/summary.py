@@ -24,7 +24,7 @@ METRICS = ("psnr", "band_psnr", "mae", "band_mae")
 TITLES = {
     "bokehme": "BokehMe, hybrid",
     "bokehme_classical": "BokehMe, scatter alone",
-    "mpib_rt": "MPIB ray tracer",
+    "mpib_rt": "MPIB",
     "drbokeh": "Dr.Bokeh",
     "any_to_bokeh": "Any-to-Bokeh",
 }
