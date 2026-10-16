@@ -147,14 +147,41 @@ done
 comparison/envs/render/bin/python comparison/summary.py --data-root backend/data/test_set/night
 ```
 
-- `any-01` to `any-32` are the first 32 seeds from 1,000,000 that can be placed, far from the
-  seeds of a dataset written from seed 0.
+- Every sequence has one or two objects, so that a box on an object's edge shows one
+  transition, between the object and what lies behind it.
+- `any-01` to `any-32` are the first 32 seeds from 1,000,000 that can be placed and whose
+  background has detail, far from the seeds of a dataset written from seed 0. On a flat
+  background, such as a white wall, no renderer's blur shows; `test_set.py` says how detail
+  is measured.
 - `night-01` to `night-08` are eight seeds whose background is a night scene with small
   lights, each a different background. Small bright spots on a dark ground are where a bokeh
   renderer shows the most.
 - `night/` beside them is a second data root that links to the night sequences. The loop
   above scores each method there, and `summary.py` gives the night subset its own table; the
   renders are already in place.
+
+## Looking at the results
+
+`review.py` lays a compared test set out for looking at, one folder per sequence:
+
+```bash
+comparison/envs/render/bin/python comparison/review.py collect \
+  --data-root backend/data/test_set --out backend/data/test_set_review --link --every-frame
+comparison/envs/render/bin/python comparison/review.py sheets backend/data/test_set_review
+```
+
+- `<sequence>/<method>/<frame>.png` holds each method's frames, with the same file names in
+  every method's folder, so that a viewer such as VPV can flip between them. The methods are
+  `all_in_focus`, `ours`, `drbokeh`, `mpib`, `bokehme` and `any_to_bokeh`.
+- `<sequence>/boxes.json` lists candidate sheets: three frames where Dr.Bokeh, MPIB and
+  BokehMe part most from ours near an object's edge, each with two pairs of boxes.
+- `<sequence>/sheets/<frame>-<a|b>.png` draws each candidate as Dr.Bokeh's Fig. 1 does: the
+  frames side by side, two boxes on each, the boxed regions enlarged beneath.
+- `sheets` draws them again from `boxes.json`, so a box can be moved by editing it.
+  `--outline` sets the white along the colored lines, `--name` another folder for a trial,
+  and `--kept` only the sheets left after the unwanted ones are deleted.
+- Without `--every-frame`, only the candidates' frames are copied, for a folder to take
+  elsewhere; `--link` links the frames instead of copying them.
 
 ## Adding a method
 
