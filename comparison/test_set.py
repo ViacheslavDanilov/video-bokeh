@@ -11,7 +11,8 @@ be placed, far from the seeds a dataset is written with. ``night-01`` to ``night
 seeds whose background is a night scene with small lights: dark on average, with little bright
 area, in many small spots, where a bokeh renderer shows the most. They were found by scanning
 the backgrounds of seeds below 50,000 in the ``da2-large`` library and kept only where the
-background, looked at, is a night scene; each has a different background. ``manifest.csv`` and ``objects.csv`` hold every sequence, as a Stage B run writes them.
+background, looked at, is a night scene; each has a different background. ``manifest.csv``
+and ``objects.csv`` hold every sequence, as a Stage B run writes them.
 
 ``<output>/night`` is a second data root whose sequences link to the night ones, so that
 ``score.py`` and ``summary.py`` can report them apart without rendering them again.
