@@ -47,9 +47,9 @@ def test_writes_named_sequences_and_a_night_root(library: Path, tmp_path: Path) 
     assert not (out / ".staging").exists()
 
 
-def test_refuses_a_root_that_already_holds_one(library: Path, tmp_path: Path) -> None:
+def test_refuses_a_folder_that_is_not_empty(library: Path, tmp_path: Path) -> None:
     out = tmp_path / "test_set"
     out.mkdir()
-    (out / "manifest.csv").write_text("seq_id\n")
+    (out / "sequences").mkdir()  # as a run that stopped partway leaves it
     with pytest.raises(SystemExit):
         build(library, out, frames=2, size=32, any_count=1, night_seeds=())

@@ -10,8 +10,8 @@ Every sequence has 24 frames of 1024 pixels, its layers and our bokeh, which is 
 be placed, far from the seeds a dataset is written with. ``night-01`` to ``night-08`` take eight
 seeds whose background is a night scene with small lights: dark on average, with little bright
 area, in many small spots, where a bokeh renderer shows the most. They were found by scanning
-the backgrounds of seeds below 50,000 in the ``da2-large`` library, and each has a different
-background. ``manifest.csv`` and ``objects.csv`` hold every sequence, as a Stage B run writes them.
+the backgrounds of seeds below 50,000 in the ``da2-large`` library and kept only where the
+background, looked at, is a night scene; each has a different background. ``manifest.csv`` and ``objects.csv`` hold every sequence, as a Stage B run writes them.
 
 ``<output>/night`` is a second data root whose sequences link to the night ones, so that
 ``score.py`` and ``summary.py`` can report them apart without rendering them again.
@@ -31,7 +31,7 @@ FRAMES = 24
 SIZE = 1024
 ANY_FROM = 1_000_000
 ANY_COUNT = 32
-NIGHT_SEEDS = (9361, 14292, 20512, 23969, 42581, 28116, 17883, 26188)
+NIGHT_SEEDS = (9361, 14292, 20512, 23969, 42581, 15881, 20133, 19177)
 
 
 def _read_rows(path: Path) -> tuple[list[str], list[list[str]]]:
@@ -51,8 +51,8 @@ def build(
     night_seeds: tuple[int, ...] = NIGHT_SEEDS,
 ) -> dict[str, int]:
     """Write the test set under ``output`` and return each sequence's seed by its name."""
-    if (output / "manifest.csv").exists():
-        raise SystemExit(f"{output} already holds a test set")
+    if output.exists() and any(output.iterdir()):
+        raise SystemExit(f"{output} is not empty: write the test set into a new folder")
     staging = output / ".staging"
     (output / "sequences").mkdir(parents=True, exist_ok=True)
     tables: dict[str, tuple[list[str], list[list[str]]]] = {}
