@@ -14,10 +14,10 @@ The methods are ``all_in_focus``, ``ours``, ``drbokeh``, ``mpib``, ``bokehme`` a
 ``any_to_bokeh``. Each sheet is laid out as Dr.Bokeh's Fig. 1: the frames side by side, two
 boxes on each, and beneath each frame the boxed regions enlarged.
 
-The boxes go on the edge of the object in focus, the one ``bokeh/focus.json`` names, or of
-any object when the focus is on the background. A box is a square of 96, 128, 176 or 240
-pixels: every enlargement is drawn the same size, so a smaller box is a closer look. A box
-scores the product of four things:
+The boxes go on the edge of the object in focus, the one ``bokeh/focus.json`` names, where
+no nearer object hides it, or on the edge of any object when the focus is on the background.
+A box is a square of 96, 128, 176 or 240 pixels: every enlargement is drawn the same size, so
+a smaller box is a closer look. A box scores the product of four things:
 
 - how much Dr.Bokeh, MPIB and BokehMe differ from our bokeh, on average, in the 16-pixel band
   around the object's edge that ``score.py`` measures. Any-to-Bokeh is left out, since it
@@ -183,11 +183,22 @@ def _read(path: Path) -> np.ndarray:
         return np.asarray(im.convert("RGB"), dtype=np.float32)
 
 
-def focus_alpha(pages: list[np.ndarray], focus: int | None) -> np.ndarray:
-    """The alpha of the object in focus, or of every object when none is."""
+def focus_alpha(
+    pages: list[np.ndarray], focus: int | None, order: list[int] | None = None
+) -> np.ndarray:
+    """The alpha of the object in focus, or of every object when none is.
+
+    The pages are recorded before occlusion, so the focused object's page also holds what a
+    nearer object hides. ``order``, the frame's paint order far to near, takes that away:
+    an edge under a blurred object in front is not the focused object's to show.
+    """
     if focus is None or not 0 <= focus < len(pages):
         return np.max(pages, axis=0)
-    return pages[focus]
+    alpha = pages[focus]
+    if order is not None and focus in order:
+        for page in order[order.index(focus) + 1 :]:
+            alpha = alpha * (1.0 - pages[page])
+    return alpha
 
 
 def candidates(
@@ -253,7 +264,7 @@ def collect(
     for path in sorted(data_root.glob("**/comparison_*.json")):
         name = path.relative_to(data_root).as_posix().replace("/", "_")
         _place(path, out / "scores" / name, link=False)
-    from video_bokeh.core._streams import read_alpha_tiff
+    from video_bokeh.core._streams import read_alpha_tiff, read_paint_order
 
     streams = {name: stream for name, stream, _ in METHODS}
     for seq in list_sequences(data_root, None):
@@ -266,8 +277,21 @@ def collect(
         def image(method: str, frame: str, seq: Path = seq) -> np.ndarray:
             return _read(seq / streams[method] / f"{frame}.png")
 
-        def alpha(frame: str, seq: Path = seq, focus: int | None = focus) -> np.ndarray:
-            return focus_alpha(read_alpha_tiff(seq / "alpha" / f"{frame}.tif"), focus)
+        painted = seq / "layers" / "paint_order.json"
+        orders = (
+            dict(zip(frames, read_paint_order(painted), strict=True))
+            if painted.is_file()
+            else {}
+        )
+
+        def alpha(
+            frame: str,
+            seq: Path = seq,
+            focus: int | None = focus,
+            orders: dict[str, list[int]] = orders,
+        ) -> np.ndarray:
+            pages = read_alpha_tiff(seq / "alpha" / f"{frame}.tif")
+            return focus_alpha(pages, focus, orders.get(frame))
 
         sheets = candidates(image, alpha, frames, count)
         kept = frames if every_frame else sorted({s["frame"] for s in sheets.values()})
