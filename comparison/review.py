@@ -14,12 +14,26 @@ The methods are ``all_in_focus``, ``ours``, ``drbokeh``, ``mpib``, ``bokehme`` a
 ``any_to_bokeh``. Each sheet is laid out as Dr.Bokeh's Fig. 1: the frames side by side, two
 boxes on each, and beneath each frame the boxed regions enlarged.
 
-The candidates are placed where Dr.Bokeh, MPIB and BokehMe part most from ours near an
-object's edge: a box scores the mean absolute difference from our bokeh, over those three, in
-the 16-pixel band around every edge that ``score.py`` measures. Any-to-Bokeh is left out,
-since it differs everywhere. The ``--candidates`` frames whose two best boxes score most, at
-least four frames apart, are kept, each with two sheets: ``a`` holds its best two boxes and
-``b`` its best and third.
+The boxes go on the edge of the object in focus, the one ``bokeh/focus.json`` names, where
+no nearer object hides it, or on the edge of any object when the focus is on the background.
+A box is a square of 96, 128, 176 or 240 pixels: every enlargement is drawn the same size, so
+a smaller box is a closer look. A box scores the product of four things:
+
+- how much Dr.Bokeh, MPIB and BokehMe differ from our bokeh, on average, in the 16-pixel band
+  around the object's edge that ``score.py`` measures. Any-to-Bokeh is left out, since it
+  differs everywhere;
+- how blurred the rest of the box is, against the all-in-focus frame, so that the bokeh behind
+  the sharp edge shows;
+- how much of the box the object fills, best at about two fifths, so that both sides of the
+  edge show;
+- whether the object crosses the box from one side to the opposite one. A box that holds a
+  tip, such as a flame or the top of a head, whole scores almost three times as much as one
+  that cuts through it.
+
+A larger box, which shows more of what lies around the edge, is slightly preferred.
+
+The ``--candidates`` frames whose two best boxes score most, at least four frames apart, are
+kept, each with two sheets: ``a`` holds its best two boxes and ``b`` its best and third.
 
 ``sheets`` draws every candidate of ``boxes.json`` again, in the style its flags choose. A box
 can be moved, or a candidate added, by editing ``boxes.json``; ``--kept`` draws only the
@@ -37,6 +51,7 @@ import argparse
 import json
 import shutil
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -53,10 +68,21 @@ METHODS = (
 )
 #: The methods whose difference from ours places the boxes.
 PLACING = ("drbokeh", "mpib", "bokehme")
-SIDE = 160  # pixels a side of a box, in the frame's own pixels
+SIDES = (96, 128, 176, 240)  # pixels a side of a box, in the frame's own pixels
+STRIDE = 8  # pixels between the boxes tried
 GAP = 16  # pixels at least between two boxes
 SPACING = 4  # frames at least between two candidate frames
 BAND = 16  # pixels, as score.py's edge band
+BOKEH_FULL = (
+    12.0  # gray levels of blur at which the rest of a box counts as fully defocused
+)
+FILL_BEST = 0.4  # the share of a box the object fills at best
+CROSSED = (
+    0.35  # the factor of a box that the object crosses from one side to the opposite
+)
+SIZE_POWER = (
+    0.3  # how much a larger box, which shows more around the edge, is preferred
+)
 
 TILE = 768  # pixels a side of a frame on a sheet
 PAD = 6  # pixels between tiles
@@ -78,36 +104,77 @@ def box_sums(values: np.ndarray, side: int) -> np.ndarray:
     )
 
 
-def ranked_boxes(weights: np.ndarray, count: int) -> list[tuple[list[int], float]]:
-    """Up to ``count`` boxes, best first, each ``GAP`` pixels clear of the ones before it.
+def _edge_sums(mask: np.ndarray, side: int) -> tuple[np.ndarray, ...]:
+    """How much of ``mask`` lies on each side of every box: top, bottom, left, right."""
+    rows = np.pad(mask.astype(np.float64), ((0, 0), (1, 0))).cumsum(1)
+    across = rows[:, side:] - rows[:, :-side]
+    cols = np.pad(mask.astype(np.float64), ((1, 0), (0, 0))).cumsum(0)
+    down = cols[side:, :] - cols[:-side, :]
+    return (
+        across[: -side + 1],
+        across[side - 1 :],
+        down[:, : -side + 1],
+        down[:, side - 1 :],
+    )
 
-    A box goes where the sum of ``weights`` under it is largest, then moves so that the
-    weights' centroid under it is at its middle: many places hold the same sum when what
-    differs is a thin band, and the middle shows both sides of the edge. A move that would
-    bring it within ``GAP`` of an earlier box is not made.
-    """
-    score = box_sums(weights, SIDE)
-    height, width = weights.shape
-    boxes = []
-    reach = SIDE + GAP
-    for _ in range(count):
-        top, left = np.unravel_index(int(np.argmax(score)), score.shape)
-        if not np.isfinite(score[top, left]):
-            break
-        value = float(score[top, left]) / SIDE**2
-        patch = weights[top : top + SIDE, left : left + SIDE]
-        if patch.sum() > 0:
-            ys, xs = np.indices(patch.shape)
-            y = top + round(float((ys * patch).sum() / patch.sum())) - SIDE // 2
-            x = left + round(float((xs * patch).sum() / patch.sum())) - SIDE // 2
-            y = min(max(y, 0), height - SIDE)
-            x = min(max(x, 0), width - SIDE)
-            if all(max(abs(x - bx), abs(y - by)) >= reach for (bx, by, _), _ in boxes):
-                top, left = y, x
-        boxes.append(([int(left), int(top), SIDE], value))
-        score[
-            max(0, top - reach) : top + reach, max(0, left - reach) : left + reach
-        ] = -np.inf
+
+def box_scores(
+    alpha: np.ndarray,
+    band: np.ndarray,
+    difference: np.ndarray,
+    blur: np.ndarray,
+    side: int,
+) -> np.ndarray:
+    """The score of every box of ``side`` pixels, by its top-left corner; 0 where it fails."""
+    area = float(side * side)
+    in_band = box_sums(band, side)
+    differs = box_sums(difference * band, side) / np.maximum(in_band, 1.0)
+    behind = 1.0 - alpha
+    defocus = box_sums(blur * behind, side) / np.maximum(box_sums(behind, side), 1.0)
+    shown = 0.25 + 0.75 * np.minimum(defocus / BOKEH_FULL, 1.0)
+    fill = box_sums(alpha, side) / area
+    filled = np.clip(1.0 - np.abs(fill - FILL_BEST) / 0.35, 0.0, 1.0)
+    top, bottom, left, right = (e / side > 0.03 for e in _edge_sums(alpha > 0.5, side))
+    crossed = (top & bottom) | (left & right)
+    whole = np.where(crossed, CROSSED, 1.0)
+    context = (side / SIDES[-2]) ** SIZE_POWER
+    score = differs * shown * filled * whole * context
+    return np.where(in_band >= 0.04 * area, score, 0.0)
+
+
+def _clear(box: list[int], others: list[list[int]]) -> bool:
+    """Whether ``box`` stays ``GAP`` pixels clear of every box in ``others``."""
+    left, top, side = box
+    return all(
+        left + side + GAP <= o_left
+        or o_left + o_side + GAP <= left
+        or top + side + GAP <= o_top
+        or o_top + o_side + GAP <= top
+        for o_left, o_top, o_side in others
+    )
+
+
+def place_boxes(
+    alpha: np.ndarray, difference: np.ndarray, blur: np.ndarray, count: int
+) -> list[tuple[list[int], float]]:
+    """Up to ``count`` boxes on the edge of ``alpha``, best first, clear of each other."""
+    from score import edge_band  # the scoring script beside this one
+
+    band = edge_band([alpha], BAND).astype(np.float64)
+    tried = []
+    for side in SIDES:
+        score = box_scores(alpha, band, difference, blur, side)[::STRIDE, ::STRIDE]
+        tops, lefts = np.nonzero(score > 0)
+        tried += [
+            (float(score[t, x]), [int(x) * STRIDE, int(t) * STRIDE, side])
+            for t, x in zip(tops, lefts, strict=True)
+        ]
+    boxes: list[tuple[list[int], float]] = []
+    for value, box in sorted(tried, key=lambda x: -x[0]):
+        if _clear(box, [b for b, _ in boxes]):
+            boxes.append((box, value))
+            if len(boxes) == count:
+                break
     return boxes
 
 
@@ -116,26 +183,45 @@ def _read(path: Path) -> np.ndarray:
         return np.asarray(im.convert("RGB"), dtype=np.float32)
 
 
-def candidates(seq: Path, frames: list[str], count: int) -> dict[str, dict]:
-    """The candidate sheets of one sequence, by id."""
-    from score import edge_band  # the scoring script beside this one
+def focus_alpha(
+    pages: list[np.ndarray], focus: int | None, order: list[int] | None = None
+) -> np.ndarray:
+    """The alpha of the object in focus, or of every object when none is.
 
-    from video_bokeh.core._streams import read_alpha_tiff
+    The pages are recorded before occlusion, so the focused object's page also holds what a
+    nearer object hides. ``order``, the frame's paint order far to near, takes that away:
+    an edge under a blurred object in front is not the focused object's to show.
+    """
+    if focus is None or not 0 <= focus < len(pages):
+        return np.max(pages, axis=0)
+    alpha = pages[focus]
+    if order is not None and focus in order:
+        for page in order[order.index(focus) + 1 :]:
+            alpha = alpha * (1.0 - pages[page])
+    return alpha
 
-    streams = {name: stream for name, stream, _ in METHODS}
+
+def candidates(
+    image: Callable[[str, str], np.ndarray],
+    alpha: Callable[[str], np.ndarray],
+    frames: list[str],
+    count: int,
+) -> dict[str, dict]:
+    """The candidate sheets of one sequence, by id.
+
+    ``image(method, frame)`` reads a method's frame and ``alpha(frame)`` the alpha of the
+    object whose edge the boxes go on.
+    """
     per_frame = []
     for frame in frames:
-        ours = _read(seq / "bokeh" / f"{frame}.png")
+        ours = image("ours", frame)
         difference = np.mean(
-            [
-                np.abs(_read(seq / streams[m] / f"{frame}.png") - ours).mean(axis=2)
-                for m in PLACING
-            ],
-            axis=0,
+            [np.abs(image(m, frame) - ours).mean(axis=2) for m in PLACING], axis=0
         )
-        band = edge_band(read_alpha_tiff(seq / "alpha" / f"{frame}.tif"), BAND)
-        boxes = ranked_boxes(difference * band, 3)
-        per_frame.append((sum(s for _, s in boxes[:2]), frame, boxes))
+        blur = np.abs(image("all_in_focus", frame) - ours).mean(axis=2)
+        boxes = place_boxes(alpha(frame), difference, blur, 3)
+        if len(boxes) >= 2:  # a sheet holds two boxes
+            per_frame.append((sum(v for _, v in boxes[:2]), frame, boxes))
     chosen: list[tuple[float, str, list]] = []
     for item in sorted(per_frame, key=lambda x: -x[0]):
         position = frames.index(item[1])
@@ -178,11 +264,39 @@ def collect(
     for path in sorted(data_root.glob("**/comparison_*.json")):
         name = path.relative_to(data_root).as_posix().replace("/", "_")
         _place(path, out / "scores" / name, link=False)
+    from video_bokeh.core._streams import read_alpha_tiff, read_paint_order
+
+    streams = {name: stream for name, stream, _ in METHODS}
     for seq in list_sequences(data_root, None):
         frames = [Path(n).stem for n in frame_names(seq)]
-        sheets = candidates(seq, frames, count)
+        record = seq / "bokeh" / "focus.json"
+        focus = (
+            json.loads(record.read_text()).get("object") if record.is_file() else None
+        )
+
+        def image(method: str, frame: str, seq: Path = seq) -> np.ndarray:
+            return _read(seq / streams[method] / f"{frame}.png")
+
+        painted = seq / "layers" / "paint_order.json"
+        orders = (
+            dict(zip(frames, read_paint_order(painted), strict=True))
+            if painted.is_file()
+            else {}
+        )
+
+        def alpha(
+            frame: str,
+            seq: Path = seq,
+            focus: int | None = focus,
+            orders: dict[str, list[int]] = orders,
+        ) -> np.ndarray:
+            pages = read_alpha_tiff(seq / "alpha" / f"{frame}.tif")
+            return focus_alpha(pages, focus, orders.get(frame))
+
+        sheets = candidates(image, alpha, frames, count)
         kept = frames if every_frame else sorted({s["frame"] for s in sheets.values()})
         target = out / seq.name
+        target.mkdir(parents=True, exist_ok=True)
         for frame in kept:
             for name, stream, _ in METHODS:
                 _place(

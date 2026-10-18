@@ -174,7 +174,9 @@ comparison/envs/render/bin/python comparison/review.py sheets backend/data/test_
   every method's folder, so that a viewer such as VPV can flip between them. The methods are
   `all_in_focus`, `ours`, `drbokeh`, `mpib`, `bokehme` and `any_to_bokeh`.
 - `<sequence>/boxes.json` lists candidate sheets: three frames where Dr.Bokeh, MPIB and
-  BokehMe part most from ours near an object's edge, each with two pairs of boxes.
+  BokehMe part most from ours at the edge of the object in focus, each with two pairs of
+  boxes. A box is 96 to 240 pixels a side, so the enlargements show the edge at different
+  magnifications; the docstring of `review.py` gives the score that places them.
 - `<sequence>/sheets/<frame>-<a|b>.png` draws each candidate as Dr.Bokeh's Fig. 1 does: the
   frames side by side, two boxes on each, the boxed regions enlarged beneath.
 - `sheets` draws them again from `boxes.json`, so a box can be moved by editing it.
