@@ -88,13 +88,16 @@
 /*
  * The one piece of motion nobody asked for: a sweep along the depth axis while a sequence
  * generates, on the same scale that afterwards explains the depth map's colors.
+ *
+ * Percentages in translateX are of the highlight's own width, a third of the bar, so it
+ * starts one width before the bar and ends three widths in, wholly beyond the far end.
  */
 @keyframes depth-sweep {
   from {
-    transform: translateX(-110%);
+    transform: translateX(-100%);
   }
   to {
-    transform: translateX(110%);
+    transform: translateX(300%);
   }
 }
 
