@@ -995,3 +995,33 @@ test("counts the stream a pane falls back to as shown", async ({ page }) => {
     page.getByRole("button", { name: "All streams shown" }),
   ).toBeDisabled();
 });
+
+/**
+ * The disparity pane picks among the colormaps the API lists, Spectral first, and the
+ * legend under it follows the map on screen.
+ */
+test("chooses the disparity colormap and its legend", async ({ page }) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  const pane = page.locator("figure").filter({
+    has: page.getByRole("combobox", { name: "Stream" }).getByText("Disparity"),
+  });
+  const colormap = pane.getByRole("combobox", { name: "Colormap" });
+  await expect(colormap).toHaveText("Spectral");
+  await expect(
+    pane.getByRole("img", { name: /^Spectral scale/ }),
+  ).toBeVisible();
+
+  await colormap.click();
+  await expect(page.getByRole("option")).toHaveText(["Gray", "Spectral"]);
+  await page.getByRole("option", { name: "Gray" }).click();
+  await expect(colormap).toHaveText("Gray");
+  await expect(pane.locator("video")).toHaveAttribute(
+    "src",
+    /disparity\.mp4\?colormap=grey$/,
+  );
+  await waitForDecoded(videos);
+  await expect(pane.getByRole("img", { name: /^Gray scale/ })).toBeVisible();
+  // Only the disparity pane takes a colormap.
+  await expect(page.getByRole("combobox", { name: "Colormap" })).toHaveCount(1);
+});

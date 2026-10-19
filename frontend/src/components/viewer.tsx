@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { colormapName, DepthLegend } from "./depth-legend";
 import { FlowLegend } from "./flow-legend";
 import { GenerationProgress } from "./generation-progress";
 import { ObjectLegend } from "./object-legend";
@@ -58,6 +59,9 @@ const SPEEDS = [0.25, 0.5, 1, 2];
 type Pane = {
   key: number;
   stream: string;
+  /** The colormap picked in this pane, for a stream that takes one. Unset, the server's
+   *  default. */
+  colormap?: string;
 };
 
 // Presentation only: an unknown name still reads sensibly, so a stream the server adds
@@ -501,8 +505,15 @@ export function Viewer({
         {panes.map((pane, index) => {
           const stream = streamFor(pane);
           const info = sequence.streams[stream];
-          const src = streamUrl(info);
+          // The server names its default. Deriving it from the order of `colormaps` would
+          // make adding one whose name sorts last change this silently.
+          const colormap = pane.colormap ?? info.default ?? undefined;
+          const src = streamUrl(info, { colormap });
           const readyKey = `${pane.key} ${src}`;
+          const updatePane = (change: Partial<Pane>) =>
+            setPanes((c) =>
+              c.map((p) => (p.key === pane.key ? { ...p, ...change } : p)),
+            );
           return (
             <figure
               key={pane.key}
@@ -549,11 +560,7 @@ export function Viewer({
                 <Select
                   value={stream}
                   onValueChange={(v) =>
-                    setPanes((c) =>
-                      c.map((p) =>
-                        p.key === pane.key ? { ...p, stream: v } : p,
-                      ),
-                    )
+                    updatePane({ stream: v, colormap: undefined })
                   }
                 >
                   <SelectTrigger
@@ -646,7 +653,32 @@ export function Viewer({
                 />
               </div>
 
-              {stream === "disparity" && <SpectralScale />}
+              {/* Under the pane rather than in its header, which a narrow pane cannot
+                  spare. */}
+              {info.colormaps.length > 0 && colormap && (
+                <div className="flex items-center gap-3">
+                  <Select
+                    value={colormap}
+                    onValueChange={(v) => updatePane({ colormap: v })}
+                  >
+                    <SelectTrigger
+                      aria-label="Colormap"
+                      size="sm"
+                      className="shrink-0"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {info.colormaps.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {colormapName(c)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <DepthLegend colormap={colormap} />
+                </div>
+              )}
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}

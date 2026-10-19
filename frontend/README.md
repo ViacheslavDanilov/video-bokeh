@@ -54,8 +54,9 @@ without rebuilding.
   button. The header names the library picked; its `id` is a hash of the asset list, the depth
   estimator and the asset size, which every cached sequence is keyed on.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
-  the frames line up. Disparity is shown in Spectral, near red to far violet; the API also
-  serves it in gray, with `?colormap=grey`, but the page does not offer it. The transport
+  the frames line up. The disparity pane picks its colormap under the video, among those the
+  API lists: Spectral, near red to far violet, by default, or gray, near white to far black.
+  The legend beside the picker follows the map on screen. The transport
   plays every pane at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and
   the next sequence.
   The panes fit the window together, at the largest size that allows, in rows of even length.
