@@ -165,10 +165,12 @@ done
   background, of mean luminance below 0.25; a dark edge on a light one, above 0.65.
 - Each category takes seeds from its own start, and keeps one when the edge of the object in
   focus has a luminance contrast of 0.15 or more against what lies behind it and the object
-  shows on 1 % of the frame or more. No object is in focus more than twice. The docstring of
-  `balanced_test_set.py` gives the measures.
-- `selection.csv` gives each sequence's group, category, seed, objects, the object in focus,
-  its background, and the contrast and share it was kept for.
+  shows on 1 % of the frame or more. No object is in focus in more than two kept sequences,
+  or in more than three passed over. The docstring of `balanced_test_set.py` gives the
+  measures.
+- `selection.csv` gives each sequence's group, category, seed, number of objects and their
+  ids, the object in focus, its background and that background's side, dark or light, and
+  the contrast and share it was kept for.
 - `plain/`, `hard/`, `hair/`, `fire/`, `smoke/` and `fine/` beside `sequences/` are data roots
   that link to their own sequences. The loop above scores each method there, and `summary.py`
   gives each subset its own table; the renders are already in place.
