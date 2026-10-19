@@ -44,7 +44,7 @@ and returns to gamma values once, both with the power of 2.2. Dr.Bokeh's radius 
 `--composite gamma` writes `bokeh_drbokeh_cg/` instead, Dr.Bokeh composited as ours is. Each
 layer is still scattered by Dr.Bokeh's own kernel in linear light; its straight color then
 returns to gamma values on its own, and the layers are composited there with Dr.Bokeh's
-occupancy. With that composite left in linear light, the same code reproduces
+occupancy. The same composite, left in linear light (`power` 1 in `common.py`), reproduces
 `bokeh_drbokeh/` exactly. The published composite, `bokeh_drbokeh/`, stays Dr.Bokeh's row in
 the comparison; the other shows how much of the difference from ours is the compositing space.
 
@@ -155,12 +155,12 @@ comparison/run_all.sh backend/data/cmp
 The sequences must hold their layers and our bokeh, so that every method gets the focus and
 the strength that our renderer recorded. The command stops before it starts if a method is not
 set up. `summary.py` averages each method's `score.py` file over the sequences and writes
-`comparison_summary.json` beside them. The scores against MPIB go into `vs_mpib/` inside the
-data root, a data root of links to the same sequences, with a summary of their own. Ours
-against MPIB is the `mpib_rt_cg` row against ours, as both scores are symmetric. It refuses files made over different sequences, so use
-a data root that holds only the set you want in the table. That set, with its seeds, counts and
-size, goes into the paper's `results/` with the commit and the command that wrote it, as that
-folder's README asks.
+`comparison_summary.json` beside them. It refuses files made over different sequences, so use
+a data root that holds only the set you want in the table. The scores against MPIB go into
+`vs_mpib/` inside the data root, a data root of links to the same sequences, with a summary of
+their own. Ours against MPIB is the `mpib_rt_cg` row against ours, as both scores are
+symmetric. The set, with its seeds, counts and size, goes into the paper's `results/` with the
+commit and the command that wrote it, as that folder's README asks.
 
 ## The test set
 

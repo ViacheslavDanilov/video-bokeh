@@ -75,8 +75,8 @@ def test_the_runs_composited_in_gamma_values_are_named_apart() -> None:
         for method in ("drbokeh_cg", "mpib_rt_cg")
     ]
     text = table(rows)
-    assert "| Dr.Bokeh, composited in gamma | 1 |" in text
-    assert "| MPIB, composited in gamma | 1 |" in text
+    assert "| Dr.Bokeh, composited in gamma values | 1 |" in text
+    assert "| MPIB, composited in gamma values | 1 |" in text
 
 
 def test_a_method_without_a_title_keeps_its_own_name_and_n_a_marks_a_gap() -> None:

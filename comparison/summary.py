@@ -2,9 +2,9 @@
 """Collect every ``comparison_<method>.json`` under a data root into one table.
 
 ``score.py`` writes one file per method. This reads them all and averages each method over
-the sequences, giving the PSNR and the mean absolute difference against our bokeh over the
-whole frame and over the edge band. It prints a Markdown table, sorted from the nearest to
-ours, and writes ``comparison_summary.json`` beside the sources.
+the sequences, giving the PSNR and the mean absolute difference against the reference each
+file names, our bokeh by default, over the whole frame and over the edge band. It prints a
+Markdown table, sorted from the nearest to the reference, and writes ``comparison_summary.json`` beside the sources.
 
 Usage:
     comparison/envs/render/bin/python comparison/summary.py --data-root data/cmp
@@ -25,9 +25,9 @@ TITLES = {
     "bokehme": "BokehMe, hybrid",
     "bokehme_classical": "BokehMe, scatter alone",
     "mpib_rt": "MPIB",
-    "mpib_rt_cg": "MPIB, composited in gamma",
+    "mpib_rt_cg": "MPIB, composited in gamma values",
     "drbokeh": "Dr.Bokeh",
-    "drbokeh_cg": "Dr.Bokeh, composited in gamma",
+    "drbokeh_cg": "Dr.Bokeh, composited in gamma values",
     "any_to_bokeh": "Any-to-Bokeh",
 }
 
