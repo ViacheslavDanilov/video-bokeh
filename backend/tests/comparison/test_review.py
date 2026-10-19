@@ -199,9 +199,8 @@ def test_boxes_skip_the_outline_a_nearer_object_draws_on_the_focus(
     focused = np.zeros((SIZE, SIZE), np.float32)
     focused[:, 200:] = 1.0
     nearer = np.zeros((SIZE, SIZE), np.float32)
-    nearer[280:380, 300:400] = (
-        1.0  # in front of the focused object, its outline all on it
-    )
+    # in front of the focused object, its outline all on it
+    nearer[280:380, 300:400] = 1.0
     base = np.full((SIZE, SIZE, 3), 100, np.uint8)
     for frame in FRAMES[:2]:
         write_alpha_tiff(seq / "alpha" / f"{frame}.tif", [focused, nearer])

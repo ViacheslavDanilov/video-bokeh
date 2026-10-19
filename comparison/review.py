@@ -17,8 +17,8 @@ boxes on each, and beneath each frame the boxed regions enlarged.
 The boxes go on the edge of the object in focus, the one ``bokeh/focus.json`` names, where
 no nearer object hides it, or on the edge of any object when the focus is on the background.
 The outline a nearer object draws across the focused one is not that object's edge: what
-shows there is the nearer object's blur, so no box goes within 16 pixels of it, and no box
-holds more than a twentieth of a nearer object.
+shows there is the nearer object's blur, so the edge within 16 pixels of it does not count,
+and no box is more than a twentieth filled by a nearer object.
 A box is a square of 96, 128, 176 or 240 pixels: every enlargement is drawn the same size, so
 a smaller box is a closer look. A box scores the product of four things:
 
