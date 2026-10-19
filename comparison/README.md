@@ -135,30 +135,48 @@ folder's README asks.
 
 ## The test set
 
-The paper's comparison runs on one fixed set of 40 sequences, of 24 frames at 1024 pixels,
-that `test_set.py` writes into one data root:
+The paper's comparison runs on one fixed set of 120 sequences, of 24 frames at 1024 pixels,
+half of them plain and half with a hard edge in focus, that `balanced_test_set.py` writes into
+one data root. Every sequence is kept or passed over by a rule; none was chosen by looking
+at it.
 
 ```bash
-cd backend && uv run --extra render python ../comparison/test_set.py --output data/test_set
-cd .. && comparison/run_all.sh backend/data/test_set
-for m in drbokeh mpib_rt bokehme bokehme_classical any_to_bokeh; do
-  comparison/envs/render/bin/python comparison/score.py --data-root backend/data/test_set/night --method $m
+cd backend && uv run --extra render --extra library python ../comparison/balanced_test_set.py \
+  --output data/balanced_test_set
+cd .. && comparison/run_all.sh backend/data/balanced_test_set
+for sub in plain hard hair fire smoke fine; do
+  for m in drbokeh mpib_rt bokehme bokehme_classical any_to_bokeh; do
+    comparison/envs/render/bin/python comparison/score.py \
+      --data-root backend/data/balanced_test_set/$sub --method $m
+  done
+  comparison/envs/render/bin/python comparison/summary.py \
+    --data-root backend/data/balanced_test_set/$sub
 done
-comparison/envs/render/bin/python comparison/summary.py --data-root backend/data/test_set/night
 ```
 
 - Every sequence has one or two objects, so that a box on an object's edge shows one
   transition, between the object and what lies behind it.
-- `any-01` to `any-32` are the first 32 seeds from 1,000,000 that can be placed and whose
-  background has detail, far from the seeds of a dataset written from seed 0. On a flat
-  background, such as a white wall, no renderer's blur shows; `test_set.py` says how detail
-  is measured.
-- `night-01` to `night-08` are eight seeds whose background is a night scene with small
-  lights, each a different background. Small bright spots on a dark ground are where a bokeh
-  renderer shows the most.
-- `night/` beside them is a second data root that links to the night sequences. The loop
-  above scores each method there, and `summary.py` gives the night subset its own table; the
-  renders are already in place.
+- `plain-01` to `plain-60` are the first 60 seeds from 4,000,000 that can be placed and whose
+  background has detail, with any object of the library. On a flat background, such as a
+  white wall, no renderer's blur shows; `test_set.py` says how detail is measured.
+- `hair-01` to `hair-15`, and 15 each of `fire`, `smoke` and `fine` (fine detail), focus on
+  one of 107 library objects that `hard_edge_objects.txt` lists with their category, picked
+  by hand for their edges. A light edge, and every flame and wisp of smoke, goes on a dark
+  background, of mean luminance below 0.25; a dark edge on a light one, above 0.65.
+- Each category takes seeds from its own start, and keeps one when the edge of the object in
+  focus has a luminance contrast of 0.15 or more against what lies behind it and the object
+  shows on 1 % of the frame or more. No object is in focus more than twice. The docstring of
+  `balanced_test_set.py` gives the measures.
+- `selection.csv` gives each sequence's group, category, seed, objects, the object in focus,
+  its background, and the contrast and share it was kept for.
+- `plain/`, `hard/`, `hair/`, `fire/`, `smoke/` and `fine/` beside `sequences/` are data roots
+  that link to their own sequences. The loop above scores each method there, and `summary.py`
+  gives each subset its own table; the renders are already in place.
+
+`test_set.py` writes the earlier set of 40, which the comparison ran on until 2026-10-19:
+`any-01` to `any-32`, the first 32 seeds from 1,000,000 whose background has detail, and
+`night-01` to `night-08`, eight night scenes with small lights, each a different background,
+which `night/` links to.
 
 ## Looking at the results
 
