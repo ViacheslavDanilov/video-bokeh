@@ -629,6 +629,47 @@ test("stops the button, scale, and timer during the full bar hold", async ({
   ).toBeVisible();
 });
 
+/** The sweep crosses the whole scale, from beyond "near" to beyond "far". */
+test("sweeps the depth scale from end to end", async ({ page }) => {
+  await openPage(page);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/sequences", async (route) => {
+    await held;
+    await route.abort();
+  });
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const sweep = page.locator(".depth-sweep");
+  await expect(sweep).toHaveCount(1);
+
+  /** Where the highlight sits at a time in its cycle, against the bar it is clipped to. */
+  const at = (time: "start" | "end") =>
+    sweep.evaluate((el, time) => {
+      const [animation] = el.getAnimations();
+      const duration = Number(animation.effect!.getTiming().duration);
+      animation.pause();
+      // A full duration wraps an infinite animation back to its start, so take 1 ms less.
+      animation.currentTime = time === "start" ? 0 : duration - 1;
+      const bar = el.parentElement!;
+      const left = bar.getBoundingClientRect().left + bar.clientLeft;
+      const box = el.getBoundingClientRect();
+      return {
+        barLeft: left,
+        barRight: left + bar.clientWidth,
+        left: box.left,
+        right: box.right,
+      };
+    }, time);
+
+  const start = await at("start");
+  expect(start.right).toBeLessThanOrEqual(start.barLeft + 0.5);
+  const end = await at("end");
+  expect(end.left).toBeGreaterThanOrEqual(end.barRight - 0.5);
+  release();
+});
+
 /** The outer halves offer the first and last places, regardless of drag direction. */
 test("moves a pane before the first pane and after the last", async ({
   page,
