@@ -24,6 +24,11 @@ export type StreamInfo = {
   colormaps: string[];
   /** Which of `colormaps` `url` already renders. */
   default: string | null;
+  /** Whether the viewer opens a pane for the stream on its own, rather than leave it to
+   *  the stream picker. */
+  opens_pane: boolean;
+  /** The stream drawn over the frames it describes, for the occlusion mask, or null. */
+  overlay: string | null;
 };
 
 export type Sequence = {
@@ -207,15 +212,18 @@ async function readGeneration(
 
 /**
  * Absolute URL for a stream's video: in `colormap` when the stream takes it and it is not
- * the one the server renders anyway.
+ * the one the server renders anyway, and drawn over the frames when `overlay` is asked for
+ * and the stream has one.
  *
  * The server caches one file per rendering, so switching is a fetch the first time and a
  * file read after that.
  */
 export function streamUrl(
   stream: StreamInfo,
-  { colormap }: { colormap?: string } = {},
+  { colormap, overlay }: { colormap?: string; overlay?: boolean } = {},
 ): string {
+  if (overlay && stream.overlay)
+    return new URL(stream.overlay, BASE).toString();
   const url = new URL(stream.url, BASE);
   if (
     colormap &&

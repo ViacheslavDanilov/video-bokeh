@@ -145,22 +145,44 @@ curl -X POST http://localhost:8000/sequences \
     "all_in_focus": {
       "url": "/sequences/499a2ad706800460/all_in_focus.mp4",
       "colormaps": [],
-      "default": null
+      "default": null,
+      "opens_pane": true,
+      "overlay": null
     },
     "alpha": {
       "url": "/sequences/499a2ad706800460/alpha.mp4",
       "colormaps": [],
-      "default": null
+      "default": null,
+      "opens_pane": true,
+      "overlay": null
     },
     "disparity": {
       "url": "/sequences/499a2ad706800460/disparity.mp4",
       "colormaps": ["grey", "spectral_r"],
-      "default": "spectral_r"
+      "default": "spectral_r",
+      "opens_pane": true,
+      "overlay": null
     },
     "flow": {
       "url": "/sequences/499a2ad706800460/flow.mp4",
       "colormaps": [],
-      "default": null
+      "default": null,
+      "opens_pane": true,
+      "overlay": null
+    },
+    "flow_back": {
+      "url": "/sequences/499a2ad706800460/flow_back.mp4",
+      "colormaps": [],
+      "default": null,
+      "opens_pane": false,
+      "overlay": null
+    },
+    "occlusion": {
+      "url": "/sequences/499a2ad706800460/occlusion.mp4",
+      "colormaps": [],
+      "default": null,
+      "opens_pane": false,
+      "overlay": "/sequences/499a2ad706800460/occlusion.mp4?overlay=true"
     }
   }
 }
@@ -169,13 +191,20 @@ curl -X POST http://localhost:8000/sequences \
 **Each entry of `streams` is stream info: how the stream can be displayed, not only where it
 is.** `colormaps` is empty when the stream has one rendering, as every stream but
 `disparity` has. A client that renders
-what `streams` lists needs no change when a stream is added. `bokeh` and `flow` appear here
-once the sequence has them, in that order, with no colormaps, after the three every sequence
-has.
+what `streams` lists needs no change when a stream is added. `bokeh`, `flow`, `flow_back` and
+`occlusion` appear here once the sequence has them, in that order, with no colormaps, after
+the three every sequence has.
 
-**Every sequence of two frames or more comes with its optical flow.** Generation writes
-`flow/` in the same pass as the frames. A cached sequence generated before that gets it on its
-next request, whole or not at all.
+- **`opens_pane` says whether the demo opens a pane for the stream on its own.** It is false
+  for `flow_back` and `occlusion`, which wait in the demo's stream picker, so a sequence opens
+  with the panes it did before they were served.
+- **`overlay` is the stream drawn over the frames it describes**, for `occlusion`, and null
+  for every other stream. See `?overlay=` below.
+
+**Every sequence of two frames or more comes with its motion streams:** the optical flow, the
+backward flow and the occlusion mask. Generation writes `flow/`, `flow_back/` and
+`occlusion/` in the same pass as the frames. A cached sequence generated before that gets the
+ones it lacks on its next request, in one pass, each whole or not at all.
 
 Writing the flow costs about 40% more time. Measured on an Apple M3 Pro on 2026-10-11,
 80 frames, four objects, without bokeh, each pair back to back:
@@ -187,6 +216,14 @@ Writing the flow costs about 40% more time. Measured on an Apple M3 Pro on 2026-
 
 With bokeh, 80 frames at 1024 px took 61.1 s without flow and 67.9 s with it. The peak went
 from 4.67 to 4.68 GiB, set by the bokeh pass after the frames are freed.
+
+The backward flow and the occlusion mask cost about another third. Measured on the same
+machine on 2026-10-20, 80 frames, four objects, without bokeh, each pair back to back:
+
+| Size | Seeds | Forward flow only | All three motion streams |
+|---|---|---|---|
+| 512 px | 0 to 2 | 7.6 to 10.9 s, 1.06 GiB peak | 10.0 to 13.7 s, 1.25 GiB peak |
+| 1024 px | 0 and 1 | 39.9 to 40.9 s, 3.90 GiB peak | 53.4 to 55.5 s, 4.51 to 4.61 GiB peak |
 
 **`library` may be left out only while one library is mounted.** With several, leaving it out
 answers 422 and lists the ids. An id that is not mounted answers the same way. The API never
@@ -243,9 +280,13 @@ curl -N -X POST http://localhost:8000/sequences \
 
 - **The steps come in order, each counted from 0 to its total:** `sampling` (choosing
   collision-free trajectories, one step that retries can make the longest), `frames`
-  (rendering them, flow included), `writing`, and `bokeh` when the API renders it. A cached
-  sequence missing its flow or bokeh reports `sampling` once, then `flow`, or `frames` and
-  `bokeh`, or all three; one missing nothing reports no step, only itself. "Step", because
+  (rendering them, the motion streams included), `writing`, and `bokeh` when the API renders
+  it. A cached sequence missing any motion stream or its bokeh reports `sampling` once, then
+  `flow`, or `frames` and `bokeh`, or all three; one missing nothing reports no step, only
+  itself. `flow` adds every motion stream the sequence lacks, in one pass. It counts the
+  frames that give one of them a file. That is one fewer than the frames, or all of them
+  when backward flow is added with either of the others, because backward flow starts a
+  frame later. "Step", because
   "stage" names the pipeline's Stages A, B and C.
 - **`steps` comes first and names every step, in order, with the total it will count to.**
   The counts done over the counts named are how far the whole generation has got, which
@@ -267,8 +308,8 @@ when there is no library, or when two cannot be told apart.
 
 ## `GET /sequences/{id}/{stream}.mp4`
 
-Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh` and
-`flow` when the sequence has them.
+Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh`,
+`flow`, `flow_back` and `occlusion` when the sequence has them.
 
 **`alpha` is one color per object, not one silhouette.** The stream is a multi-page TIFF
 with one page per object, and the page index is that object's identity for the whole clip —
@@ -290,6 +331,17 @@ red, and the saturation the speed, white where nothing moves. One scale serves t
 sequence, the fastest valid motion in it, so the colors do not flicker from frame to frame.
 The last frame has no flow, since there is no next frame to move to, so the video shows it
 still. That keeps the video as long as the other streams and in step with them.
+
+**`flow_back` is colored the same way**, at its own sequence's scale. Its first frame has no
+previous one to come from, so that is the frame the video shows still.
+
+**`occlusion` is the mask as stored**: white where the pixel's surface is hidden in the next
+frame, black elsewhere. The last frame has no next one, so its video frame is black.
+**`?overlay=true` draws it over the all-in-focus frames instead**, darkened, with the occluded
+pixels tinted red, and the last frame darkened with nothing tinted. It is cached as its own
+file, `occlusion.overlay.mp4`. The value is a yes or no, as `true`, `1` or `yes` and their
+opposites, and anything else answers 422. Every other stream drops the parameter, whatever
+its value, as it drops `?colormap=`.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
@@ -328,9 +380,12 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── disparity/              uint16 PNG
 ├── bokeh/                  RGB uint8 PNG and focus.json, with torch or once Stage C wrote it
 ├── flow/                   KITTI 16-bit PNG, every frame but the last
+├── flow_back/              KITTI 16-bit PNG, every frame but the first
+├── occlusion/              8-bit PNG, every frame but the last
 ├── all_in_focus.mp4        written on first request
 ├── disparity.mp4           written on first request, Spectral
-└── disparity.grey.mp4      written if `grey` is ever asked for
+├── disparity.grey.mp4      written if `grey` is ever asked for
+└── occlusion.overlay.mp4   written if the overlay is ever asked for
 ```
 
 The three stream directories are the layout in [dataset-layout](dataset-layout.md), without the

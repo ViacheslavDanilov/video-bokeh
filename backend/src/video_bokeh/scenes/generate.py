@@ -35,7 +35,8 @@ import platform
 import random
 import shutil
 import time
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Collection, Iterable, Iterator
+from contextlib import ExitStack
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
@@ -271,33 +272,77 @@ def write_bokeh_stream(
     return str(device)
 
 
-def write_flow_stream(
+#: The streams of motion between frames: forward flow, backward flow and the occlusion mask.
+MOTION_STREAMS = ("flow", "flow_back", "occlusion")
+
+
+def motion_steps(streams: Collection[str], n_frames: int) -> int:
+    """How many frames write a file of at least one of ``streams``.
+
+    Forward flow and the occlusion mask have every frame but the last, backward flow every
+    frame but the first, so the two kinds together have every frame.
+    """
+    forward = bool({"flow", "occlusion"} & set(streams))
+    backward = "flow_back" in streams
+    if n_frames < 2 or not (forward or backward):
+        return 0
+    return n_frames if forward and backward else n_frames - 1
+
+
+def write_motion_streams(
     seq_dir: Path,
     scene: Scene,
+    streams: Collection[str],
     report: Report | None = None,
 ) -> None:
-    """Write a written sequence's optical flow from its scene into ``flow/``.
+    """Write the motion streams named in ``streams`` of a written sequence, from its scene.
 
-    For a sequence written without it. The frames are rendered again one at a time, and
-    the stream appears whole or not at all, through ``staged_stream``. A ``flow/`` that
-    appeared meanwhile, from another request for the same sequence, is kept.
+    For a sequence written without them: each of ``flow/``, ``flow_back/`` and
+    ``occlusion/`` as ``write_sequence`` writes it. The frames are rendered again one at a
+    time, once for all of them, and each stream appears whole or not at all, through
+    ``staged_stream``. One that appeared meanwhile, from another request for the same
+    sequence, is kept.
 
-    A single frame moves nowhere and writes nothing, as ``write_sequence`` writes no
-    ``flow/`` for it. ``report`` hears of each flow field as it is written, one per frame
-    but the last.
+    A single frame moves nowhere and writes nothing, as ``write_sequence`` writes none of
+    them for it. ``report`` hears of each frame as its files are written, out of
+    ``motion_steps``.
     """
-    if scene.n_frames < 2:
+    total = motion_steps(streams, scene.n_frames)
+    if total == 0:
         return
-    with staged_stream(seq_dir, "flow", replace=False) as staging:
-        fields = scene.n_frames - 1
+    with ExitStack() as stack:
+        staging = {
+            stream: stack.enter_context(staged_stream(seq_dir, stream, replace=False))
+            for stream in streams
+        }
         if report is not None:
-            report(0, fields)
-        for fi, frame in enumerate(iter_frames(scene, flow=True)):
-            if frame.flow is not None:
-                stem = _frame_stem(fi, scene.n_frames)
-                write_flow_png(staging / f"{stem}.png", frame.flow)
+            report(0, total)
+        frames = iter_frames(
+            scene,
+            flow="flow" in staging,
+            flow_back="flow_back" in staging,
+            occlusion="occlusion" in staging,
+        )
+        done = 0
+        for fi, frame in enumerate(frames):
+            stem = _frame_stem(fi, scene.n_frames)
+            fields = {
+                "flow": frame.flow,
+                "flow_back": frame.flow_back,
+                "occlusion": frame.occlusion,
+            }
+            written = {
+                stream: field
+                for stream, field in fields.items()
+                if stream in staging and field is not None
+            }
+            for stream, field in written.items():
+                write = write_mask_png if stream == "occlusion" else write_flow_png
+                write(staging[stream] / f"{stem}.png", field)
+            if written:
+                done += 1
                 if report is not None:
-                    report(fi + 1, fields)
+                    report(done, total)
 
 
 def _measured(

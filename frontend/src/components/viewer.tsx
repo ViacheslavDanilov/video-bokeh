@@ -18,6 +18,7 @@ import { colormapName, DepthLegend } from "./depth-legend";
 import { FlowLegend } from "./flow-legend";
 import { GenerationProgress } from "./generation-progress";
 import { ObjectLegend } from "./object-legend";
+import { OcclusionLegend } from "./occlusion-legend";
 import { SpectralScale } from "./spectral-scale";
 
 // A ceiling. "Add pane" adds only a stream not on screen, but a pane switched to a stream
@@ -62,6 +63,8 @@ type Pane = {
   /** The colormap picked in this pane, for a stream that takes one. Unset, the server's
    *  default. */
   colormap?: string;
+  /** Whether this pane draws its stream over the frames, for a stream that can be. */
+  overlay?: boolean;
 };
 
 // Presentation only: an unknown name still reads sensibly, so a stream the server adds
@@ -72,6 +75,8 @@ const LABELS: Record<string, string> = {
   alpha: "Alpha",
   bokeh: "Bokeh",
   flow: "Optical flow",
+  flow_back: "Backward flow",
+  occlusion: "Occlusion",
 };
 
 function label(name: string): string {
@@ -244,12 +249,16 @@ export function Viewer({
   // A stream the server did not list for the last sequence gets a pane of its own while
   // there is room: bokeh appears this way, when a sequence that had none is asked for again
   // with it. Only a stream new since the last sequence, so a closed pane stays
-  // closed while the streams do not change.
+  // closed while the streams do not change, and only one the server says opens a pane: the
+  // rest wait in the stream picker.
   const [knownStreams, setKnownStreams] = useState<string[]>([]);
   if (names.join(",") !== knownStreams.join(",")) {
     setKnownStreams(names);
     const appeared = names.filter(
-      (n) => !knownStreams.includes(n) && !panes.some((p) => p.stream === n),
+      (n) =>
+        sequence?.streams[n].opens_pane !== false &&
+        !knownStreams.includes(n) &&
+        !panes.some((p) => p.stream === n),
     );
     const room = MAX_PANES - panes.length;
     if (appeared.length > 0 && room > 0) {
@@ -508,7 +517,8 @@ export function Viewer({
           // The server names its default. Deriving it from the order of `colormaps` would
           // make adding one whose name sorts last change this silently.
           const colormap = pane.colormap ?? info.default ?? undefined;
-          const src = streamUrl(info, { colormap });
+          const overlay = !!pane.overlay && info.overlay !== null;
+          const src = streamUrl(info, { colormap, overlay });
           const readyKey = `${pane.key} ${src}`;
           const updatePane = (change: Partial<Pane>) =>
             setPanes((c) =>
@@ -560,7 +570,11 @@ export function Viewer({
                 <Select
                   value={stream}
                   onValueChange={(v) =>
-                    updatePane({ stream: v, colormap: undefined })
+                    updatePane({
+                      stream: v,
+                      colormap: undefined,
+                      overlay: undefined,
+                    })
                   }
                 >
                   <SelectTrigger
@@ -679,10 +693,26 @@ export function Viewer({
                   <DepthLegend colormap={colormap} />
                 </div>
               )}
+              {info.overlay !== null && (
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-pressed={overlay}
+                    title="Draw the mask over the darkened frames"
+                    className="aria-pressed:bg-muted aria-pressed:text-foreground shrink-0"
+                    onClick={() => updatePane({ overlay: !overlay })}
+                  >
+                    Overlay
+                  </Button>
+                  <OcclusionLegend overlay={overlay} />
+                </div>
+              )}
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}
-              {stream === "flow" && <FlowLegend />}
+              {(stream === "flow" || stream === "flow_back") && <FlowLegend />}
             </figure>
           );
         })}

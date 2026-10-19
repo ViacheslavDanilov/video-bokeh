@@ -4,7 +4,8 @@ Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B i
 CPU work measured in seconds, and the sequence id is a hash of the request and the
 library, so the cache is the directory on disk and there is no database.
 
-A generated sequence comes with its optical flow, written in the same request.
+A generated sequence comes with its optical flow, backward flow and occlusion mask,
+written in the same request.
 
 It comes with its bokeh too, rendered in the same request by the layered renderer, when
 torch is installed and ``VIDEO_BOKEH_RENDER_BOKEH`` does not turn it off. Without torch,
@@ -30,7 +31,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError, model_validator
 
 from video_bokeh.api._library import (
     DuplicateLibraryError,
@@ -38,6 +39,8 @@ from video_bokeh.api._library import (
     summarize_all,
 )
 from video_bokeh.api._sequences import (
+    FLOW_BACK,
+    OCCLUSION,
     OPTIONAL_STREAMS,
     VIDEO_STREAMS,
     Plan,
@@ -64,6 +67,14 @@ _FPS = 24
 _QUALITY = 10
 DEFAULT_COLORMAP = "spectral_r"
 
+#: Listed for the demo's stream picker, without a pane of their own, so the panes a
+#: sequence opens with stay the ones they were before these streams were served.
+_PICKER_ONLY = (FLOW_BACK, OCCLUSION)
+
+#: Reads `?overlay=` the way FastAPI reads a boolean parameter: true, 1, yes, on and
+#: their opposites.
+_YES_OR_NO = TypeAdapter(bool)
+
 #: The endpoint blocks while it generates, so the request has to be bounded. 240
 #: frames is three times the 80 every measurement so far has used.
 _MAX_FRAMES = 240
@@ -88,6 +99,10 @@ _MAX_FRAMES = 240
 #: from 21.8 to 30.4 s, each pair measured back to back on the same machine. Timings move
 #: by a third between sessions, hence the 31 s above. With bokeh, the peak went from 4.67
 #: to 4.68 GiB: it is the bokeh pass's, after the frames are freed.
+#:
+#: On 2026-10-20 the backward flow and occlusion mask, another eight bytes and one a
+#: pixel, raised the second's peak from 3.90 to 4.51 and 4.61 GiB without bokeh, and its
+#: time from 40 to 54 s, two seeds with four objects each measured back to back.
 #:
 #: The last one takes the whole machine down with it, which a synchronous endpoint
 #: must not let a caller do. The cap admits the second and refuses the third. Lifting
@@ -185,6 +200,11 @@ class StreamInfo(BaseModel):
     #: order of `colormaps`, so adding one whose name sorts last cannot silently
     #: change what a client shows.
     default: str | None
+    #: Whether the demo opens a pane for this stream on its own. The others wait in its
+    #: stream picker.
+    opens_pane: bool
+    #: The stream drawn over the frames it describes, for the occlusion mask, or null.
+    overlay: str | None
 
 
 class SequenceResponse(BaseModel):
@@ -335,6 +355,12 @@ def _sequence_response(
                 url=f"/sequences/{result.id}/{stream}.mp4",
                 colormaps=sorted(COLORMAPS) if stream == "disparity" else [],
                 default=DEFAULT_COLORMAP if stream == "disparity" else None,
+                opens_pane=stream not in _PICKER_ONLY,
+                overlay=(
+                    f"/sequences/{result.id}/{stream}.mp4?overlay=true"
+                    if stream == OCCLUSION
+                    else None
+                ),
             )
             for stream in video_streams(result.path)
         },
@@ -383,6 +409,7 @@ def read_sequence_video(
     sequence_id: Annotated[str, PathParam(pattern=r"^[0-9a-f]{16}$")],
     stream: str,
     colormap: Annotated[str, Query(pattern=r"^[a-z_]+$")] = DEFAULT_COLORMAP,
+    overlay: str = "false",
 ) -> FileResponse:
     """Serve one stream as H.264.
 
@@ -391,9 +418,12 @@ def read_sequence_video(
     itself, which is also what keeps it from naming a path outside `sequences/`.
 
     `colormap` applies to `disparity` only -- it is 16-bit gray on disk and gets its
-    color here. Every other stream has one rendering, RGB already or, for `flow`, the
-    colors optical-flow papers use, so the parameter is dropped rather than forking
-    that stream's cache into identical copies.
+    color here. `overlay` applies to `occlusion` only, and draws the mask over the
+    all-in-focus frames instead of on its own. Every other stream has one rendering, RGB
+    already or, for the flows, the colors optical-flow papers use, so each parameter is
+    dropped rather than forking that stream's cache into identical copies. `overlay` is
+    read as a yes or no for `occlusion` alone, so whatever another stream's URL carries
+    in it, that URL answers as it did before the parameter existed.
     """
     if stream not in (*VIDEO_STREAMS, *OPTIONAL_STREAMS):
         raise HTTPException(status_code=404, detail=f"no video for stream {stream!r}")
@@ -404,6 +434,15 @@ def read_sequence_video(
         )
     if stream != "disparity":
         colormap = DEFAULT_COLORMAP
+    over_frames = False
+    if stream == OCCLUSION:
+        try:
+            over_frames = _YES_OR_NO.validate_python(overlay)
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"overlay is a yes or no, not {overlay!r}",
+            ) from exc
 
     settings = load_settings()
     sequence_dir = settings.sequences / sequence_id
@@ -411,6 +450,8 @@ def read_sequence_video(
         raise HTTPException(status_code=404, detail=f"no sequence {sequence_id}")
 
     suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
+    if over_frames:
+        suffix = ".overlay"
     video = sequence_dir / f"{stream}{suffix}.mp4"
     # Re-encoded when the frames are newer than the video: Stage C run again replaces
     # bokeh/ whole, and the encode of the first render would otherwise be served for good.
@@ -439,8 +480,19 @@ def read_sequence_video(
             delete=False,
         ) as handle:
             partial = Path(handle.name)
+        background = (
+            list_stream_frames(sequence_dir, "all_in_focus") if over_frames else None
+        )
         try:
-            encode_stream(frames, partial, _FPS, _QUALITY, stream, colormap)
+            encode_stream(
+                frames,
+                partial,
+                _FPS,
+                _QUALITY,
+                stream,
+                colormap,
+                background=background,
+            )
             os.replace(partial, video)
         finally:
             partial.unlink(missing_ok=True)
