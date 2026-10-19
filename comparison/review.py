@@ -16,6 +16,8 @@ boxes on each, and beneath each frame the boxed regions enlarged.
 
 The boxes go on the edge of the object in focus, the one ``bokeh/focus.json`` names, where
 no nearer object hides it, or on the edge of any object when the focus is on the background.
+The outline a nearer object draws across the focused one is not that object's edge: what
+shows there is the nearer object's blur, so no box goes within 16 pixels of it.
 A box is a square of 96, 128, 176 or 240 pixels: every enlargement is drawn the same size, so
 a smaller box is a closer look. A box scores the product of four things:
 
@@ -155,12 +157,20 @@ def _clear(box: list[int], others: list[list[int]]) -> bool:
 
 
 def place_boxes(
-    alpha: np.ndarray, difference: np.ndarray, blur: np.ndarray, count: int
+    alpha: np.ndarray,
+    difference: np.ndarray,
+    blur: np.ndarray,
+    count: int,
+    nearer: np.ndarray | None = None,
 ) -> list[tuple[list[int], float]]:
-    """Up to ``count`` boxes on the edge of ``alpha``, best first, clear of each other."""
-    from score import edge_band  # the scoring script beside this one
+    """Up to ``count`` boxes on the edge of ``alpha``, best first, clear of each other,
+    and away from ``nearer``, the alpha of the objects in front of it."""
+    from score import EDGE_STEP, edge_band  # the scoring script beside this one
 
-    band = edge_band([alpha], BAND).astype(np.float64)
+    band = edge_band([alpha], BAND)
+    if nearer is not None:
+        band &= ~(edge_band([nearer], BAND) | (nearer > EDGE_STEP))
+    band = band.astype(np.float64)
     tried = []
     for side in SIDES:
         score = box_scores(alpha, band, difference, blur, side)[::STRIDE, ::STRIDE]
@@ -185,32 +195,36 @@ def _read(path: Path) -> np.ndarray:
 
 def focus_alpha(
     pages: list[np.ndarray], focus: int | None, order: list[int] | None = None
-) -> np.ndarray:
-    """The alpha of the object in focus, or of every object when none is.
+) -> tuple[np.ndarray, np.ndarray | None]:
+    """The alpha of the object in focus, or of every object when none is, and the alpha of
+    the objects in front of it, or ``None``.
 
     The pages are recorded before occlusion, so the focused object's page also holds what a
     nearer object hides. ``order``, the frame's paint order far to near, takes that away:
     an edge under a blurred object in front is not the focused object's to show.
     """
     if focus is None or not 0 <= focus < len(pages):
-        return np.max(pages, axis=0)
+        return np.max(pages, axis=0), None
     alpha = pages[focus]
-    if order is not None and focus in order:
-        for page in order[order.index(focus) + 1 :]:
-            alpha = alpha * (1.0 - pages[page])
-    return alpha
+    if order is None or focus not in order:
+        return alpha, None
+    nearer = [pages[page] for page in order[order.index(focus) + 1 :]]
+    for page in nearer:
+        alpha = alpha * (1.0 - page)
+    return alpha, (np.max(nearer, axis=0) if nearer else None)
 
 
 def candidates(
     image: Callable[[str, str], np.ndarray],
-    alpha: Callable[[str], np.ndarray],
+    alpha: Callable[[str], tuple[np.ndarray, np.ndarray | None]],
     frames: list[str],
     count: int,
 ) -> dict[str, dict]:
     """The candidate sheets of one sequence, by id.
 
     ``image(method, frame)`` reads a method's frame and ``alpha(frame)`` the alpha of the
-    object whose edge the boxes go on.
+    object whose edge the boxes go on, with that of the objects in front of it, as
+    ``focus_alpha`` returns them.
     """
     per_frame = []
     for frame in frames:
@@ -219,7 +233,8 @@ def candidates(
             [np.abs(image(m, frame) - ours).mean(axis=2) for m in PLACING], axis=0
         )
         blur = np.abs(image("all_in_focus", frame) - ours).mean(axis=2)
-        boxes = place_boxes(alpha(frame), difference, blur, 3)
+        focused, nearer = alpha(frame)
+        boxes = place_boxes(focused, difference, blur, 3, nearer)
         if len(boxes) >= 2:  # a sheet holds two boxes
             per_frame.append((sum(v for _, v in boxes[:2]), frame, boxes))
     chosen: list[tuple[float, str, list]] = []
@@ -289,7 +304,7 @@ def collect(
             seq: Path = seq,
             focus: int | None = focus,
             orders: dict[str, list[int]] = orders,
-        ) -> np.ndarray:
+        ) -> tuple[np.ndarray, np.ndarray | None]:
             pages = read_alpha_tiff(seq / "alpha" / f"{frame}.tif")
             return focus_alpha(pages, focus, orders.get(frame))
 

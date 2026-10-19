@@ -186,6 +186,43 @@ def test_boxes_skip_the_focus_edge_a_nearer_object_hides(tmp_path: Path) -> None
             assert not hidden  # a box on the hidden edge would show the nearer object
 
 
+def test_boxes_skip_the_outline_a_nearer_object_draws_on_the_focus(
+    tmp_path: Path,
+) -> None:
+    data = tmp_path / "data"
+    seq = data / "sequences" / "any-01"
+    (seq / "bokeh").mkdir(parents=True)
+    (seq / "bokeh" / "focus.json").write_text(json.dumps({"object": 0}))
+    (seq / "alpha").mkdir()
+    (seq / "layers").mkdir()
+    (seq / "layers" / "paint_order.json").write_text(json.dumps([[0, 1]] * 2))
+    focused = np.zeros((SIZE, SIZE), np.float32)
+    focused[:, 200:] = 1.0
+    nearer = np.zeros((SIZE, SIZE), np.float32)
+    nearer[280:380, 300:400] = (
+        1.0  # in front of the focused object, its outline all on it
+    )
+    base = np.full((SIZE, SIZE, 3), 100, np.uint8)
+    for frame in FRAMES[:2]:
+        write_alpha_tiff(seq / "alpha" / f"{frame}.tif", [focused, nearer])
+        for _, stream, _ in METHODS:
+            image = base.copy()
+            if stream not in ("bokeh", "all_in_focus"):
+                image[:, 180:220] = 120  # a little along the focused object's own edge
+                image[260:400, 280:420] = 250  # most along the blurred nearer outline
+                image[300:360, 320:380] = 100
+            _write(seq / stream / f"{frame}.png", image)
+    with (data / "manifest.csv").open("w", newline="") as f:
+        csv.writer(f).writerows([["seq_id", "seed"], ["any-01", "0"]])
+    out = tmp_path / "review"
+    main(["collect", "--data-root", str(data), "--out", str(out), "--candidates", "1"])
+    sheets = json.loads((out / "any-01" / "boxes.json").read_text())
+    assert sheets
+    for sheet in sheets.values():
+        for left, _, side in sheet["boxes"]:
+            assert left < 200 < left + side  # on the focused object's own edge
+
+
 def test_every_frame_can_be_linked(tmp_path: Path) -> None:
     out = tmp_path / "review"
     data = _data_root(tmp_path / "data")
