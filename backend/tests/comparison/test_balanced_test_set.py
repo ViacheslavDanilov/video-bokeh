@@ -26,11 +26,12 @@ OBJECTS = {
     "hair_mid": (128, "hair"),
     "hair_dark": (20, "hair"),
     "fire_a": (90, "fire"),  # fire goes on a dark background, though its edge is dark
+    "fire_b": (230, "fire"),
     "smoke_a": (200, "smoke"),
+    "smoke_b": (180, "smoke"),
     "fine_a": (230, "fine"),
+    "fine_b": (210, "fine"),
 }
-#: A fire object with a light edge, for a test that wants every category to show.
-FIRE_LIGHT = 230
 #: Each background's gray levels: noise between the two, or one flat level.
 BACKGROUNDS = {
     "bg_dark": (0, 50),
@@ -43,8 +44,7 @@ BACKGROUNDS = {
 @pytest.fixture
 def library(tmp_path: Path) -> Path:
     root = tmp_path / "library"
-    levels = {asset: level for asset, (level, _) in OBJECTS.items()}
-    for asset, level in (levels | {"fire_light": FIRE_LIGHT}).items():
+    for asset, (level, _) in OBJECTS.items():
         write_foreground(
             root,
             asset,
@@ -94,9 +94,9 @@ def test_light_edges_go_on_dark_backgrounds_and_dark_on_light(
             ("dark", ["hair_light", "hair_mid"], ["bg_dark"]),
             ("light", ["hair_dark"], ["bg_light"]),
         ],
-        "fire": [("dark", ["fire_a"], ["bg_dark"])],
-        "smoke": [("dark", ["smoke_a"], ["bg_dark"])],
-        "fine": [("dark", ["fine_a"], ["bg_dark"])],
+        "fire": [("dark", ["fire_a", "fire_b"], ["bg_dark"])],
+        "smoke": [("dark", ["smoke_a", "smoke_b"], ["bg_dark"])],
+        "fine": [("dark", ["fine_a", "fine_b"], ["bg_dark"])],
     }
 
 
@@ -104,7 +104,7 @@ def test_writes_plain_and_hard_sequences_with_their_subsets(
     library: Path, objects: Path, tmp_path: Path
 ) -> None:
     out = tmp_path / "test_set"
-    selection = _build(library, out, objects, hard_count=2)
+    selection = _build(library, out, objects, hard_count=2, max_focus=1)
 
     names = [row["name"] for row in selection]
     assert names == [
@@ -126,6 +126,7 @@ def test_writes_plain_and_hard_sequences_with_their_subsets(
             assert row["background"] != "bg_flat"
             continue
         assert row["category"] == row["name"].split("-")[0]
+        assert row["focus_fg"] == row["objects"].split(";")[int(row["focus"])]
         assert OBJECTS[row["focus_fg"]][1] == row["category"]
         assert set(row["objects"].split(";")) <= {
             a for a, (_, c) in OBJECTS.items() if c == row["category"]
@@ -135,6 +136,8 @@ def test_writes_plain_and_hard_sequences_with_their_subsets(
         assert row["background"] == f"bg_{row['side']}"
         assert float(row["contrast"]) >= 0.15
         assert float(row["share"]) >= 0.01
+    focused = [row["focus_fg"] for row in selection if row["group"] == "hard"]
+    assert len(set(focused)) == len(focused)  # each in focus once at most, as asked
     seeds = [int(row["seed"]) for row in selection if row["category"] == "hair"]
     assert {seed % 2 for seed in seeds} == {
         0,
@@ -158,11 +161,6 @@ def test_skips_an_edge_with_little_contrast(
     library: Path, objects: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     out = tmp_path / "test_set"
-    # The dark fire object would show too little against a dark background as well.
-    objects.write_text(
-        objects.read_text(encoding="utf-8").replace("fire_a", "fire_light"),
-        encoding="utf-8",
-    )
     selection = _build(
         library,
         out,
@@ -172,10 +170,18 @@ def test_skips_an_edge_with_little_contrast(
         min_contrast=0.6,
         max_focus=4,
     )
-    hair = [row for row in selection if row["category"] == "hair"]
-    assert len(hair) == 4
-    assert "hair_mid" not in {row["focus_fg"] for row in hair}
+    assert len(selection) == 16
+    # The middling hair and the dark fire show too little against a dark background.
+    assert not {"hair_mid", "fire_a"} & {row["focus_fg"] for row in selection}
     assert "contrast" in capsys.readouterr().out  # a candidate was skipped for it
+
+
+def test_stops_when_no_edge_shows_enough(
+    library: Path, objects: Path, tmp_path: Path
+) -> None:
+    out = tmp_path / "test_set"
+    with pytest.raises(SystemExit, match="hair: every object has been in focus"):
+        _build(library, out, objects, plain_count=0, min_contrast=2.0)
 
 
 def test_stops_when_every_object_has_been_in_focus_enough(
@@ -185,7 +191,7 @@ def test_stops_when_every_object_has_been_in_focus_enough(
     with pytest.raises(
         SystemExit, match="fire: every object has been in focus as often as allowed"
     ):
-        _build(library, out, objects, plain_count=0, hard_count=2, max_focus=1)
+        _build(library, out, objects, plain_count=0, hard_count=3, max_focus=1)
 
 
 def test_refuses_a_folder_that_is_not_empty(

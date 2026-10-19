@@ -15,13 +15,13 @@ chosen by looking at it.
 first 60 seeds from 4,000,000 that can be placed and whose background has detail, with any
 object of the library.
 
-``hair-01`` to ``hair-15``, ``fire-``, ``smoke-`` and ``fine-`` likewise have a hard edge in
-focus. Their objects come from ``hard_edge_objects.txt``, 107 library foregrounds picked by
+``hair-01`` to ``hair-15``, and 15 each of ``fire``, ``smoke`` and ``fine``, have a hard edge
+in focus. Their objects come from ``hard_edge_objects.txt``, 107 library foregrounds picked by
 hand for their edges, each with its category. A light edge shows against a dark background
 and a dark one against a light background, so each category's objects are split into pools:
 
-- an object whose edge is light, the mean luminance of the 8 pixels inside its alpha's edge
-  0.5 or more, and every fire and smoke object, goes on a dark background, of mean luminance
+- an object whose edge is light, its mean luminance over a band 8 pixels deep inside its
+  alpha's edge 0.5 or more, and every fire and smoke object, goes on a dark background, of mean luminance
   below 0.25; the others go on a light one, above 0.65;
 - either kind of background has detail of 3 or more, as the plain ones do.
 
@@ -36,12 +36,16 @@ passes two thresholds measured on the all-in-focus frames:
   hides taken away, as ``review.py`` does; the median over every third frame;
 - share of 0.01 or more: the median part of the frame that the object in focus shows.
 
-An object is in focus in two sequences at most: after its second, it leaves its pool, so that
-no few objects fill a category.
+A frame counts toward both medians when the object shows on 0.005 of it or more and either
+band has 200 pixels or more. An object leaves its pool once it is in focus in two kept
+sequences, so that no few objects fill a category, or once it has been in focus in three
+sequences passed over, so that an edge that never shows does not hold up the run. A hard
+seed draws from the objects left in its pool at that point, so it writes its sequence again
+only within the whole run.
 
 ``manifest.csv`` and ``objects.csv`` hold every sequence, as a Stage B run writes them, and
-``selection.csv`` each one's group, category, seed, objects, the object in focus, its
-background, the side of that background, and the contrast and share. ``plain``, ``hard``,
+``selection.csv`` each one's group, category, seed, number of objects and their ids, the object
+in focus, its background, the side of that background, and the contrast and share. ``plain``, ``hard``,
 ``hair``, ``fire``, ``smoke`` and ``fine`` beside ``sequences`` are data roots whose sequences
 link to their own, so that ``score.py`` and ``summary.py`` can report each subset apart
 without rendering it again.
@@ -97,6 +101,7 @@ MIN_DETAIL = 3.0
 MIN_CONTRAST = 0.15
 MIN_SHARE = 0.01
 MAX_FOCUS = 2
+MAX_PASSED = 3
 OBJECTS = Path(__file__).with_name("hard_edge_objects.txt")
 
 #: The weights of luminance, from RGB.
@@ -131,11 +136,15 @@ def edge_luminance(library_root: Path, foreground: str) -> float:
     """The mean luminance, in ``[0, 1]``, of the ``EDGE_DEPTH`` pixels inside an object's
     edge, where its alpha is above one half."""
     base = library_root / FOREGROUNDS / foreground
+    if not base.is_dir():
+        raise SystemExit(f"{foreground} is not a foreground of {library_root}")
     with Image.open(base / "alpha.png") as im:
         solid = np.asarray(im.convert("L"), np.float32) / 255 > 0.5
     with Image.open(base / "rgb.png") as im:
         lum = np.asarray(im.convert("RGB"), np.float32) / 255 @ _LUMA
     edge = solid & ~ndimage.binary_erosion(solid, iterations=EDGE_DEPTH)
+    if not edge.any():
+        raise SystemExit(f"{foreground} has no pixel of alpha above one half")
     return float(lum[edge].mean())
 
 
@@ -166,6 +175,9 @@ def pools(
             )
             sides["dark" if light else "light"].append(asset)
         out[category] = [(s, sides[s], backs[s]) for s in ("dark", "light") if sides[s]]
+        for side, _, bgs in out[category]:
+            if not bgs:
+                raise SystemExit(f"{category}: no {side} background with detail")
     return out
 
 
@@ -226,10 +238,12 @@ def build(
     min_contrast: float = MIN_CONTRAST,
     min_share: float = MIN_SHARE,
     max_focus: int = MAX_FOCUS,
+    max_passed: int = MAX_PASSED,
 ) -> list[dict[str, str]]:
     """Write the test set under ``output`` and return its rows of ``selection.csv``."""
     if output.exists() and any(output.iterdir()):
         raise SystemExit(f"{output} is not empty: write the test set into a new folder")
+    hard_pools = pools(library_root, read_objects(objects))  # a bad list fails early
     staging, linked = output / ".staging", output / ".pool"
     (output / "sequences").mkdir(parents=True, exist_ok=True)
     tables: dict[str, tuple[list[str], list[list[str]]]] = {}
@@ -305,20 +319,28 @@ def build(
             )
             break
 
-    picked = read_objects(objects)
     used: Counter[str] = Counter()
-    for category, sides in pools(library_root, picked).items():
+    passed: Counter[str] = Counter()
+    for category, sides in hard_pools.items():
         seeds = itertools.count(hard_from[category])
         for k in range(1, hard_count + 1):
             while True:
                 left = [
-                    (side, [f for f in fgs if used[f] < max_focus], bgs)
+                    (
+                        side,
+                        [
+                            f
+                            for f in fgs
+                            if used[f] < max_focus and passed[f] < max_passed
+                        ],
+                        bgs,
+                    )
                     for side, fgs, bgs in sides
                 ]
                 if not any(fgs for _, fgs, _ in left):
                     raise SystemExit(
                         f"{category}: every object has been in focus as often as allowed, "
-                        f"{max_focus}, with {k - 1} sequences kept of {hard_count}"
+                        f"with {k - 1} sequences kept of {hard_count}"
                     )
                 seed = next(seeds)
                 side, fgs_left, bgs = left[seed % len(left)]
@@ -330,10 +352,15 @@ def build(
                     continue
                 row, fgs = taken
                 focus, contrast, share = measure()
-                if focus is None or contrast is None or share is None:
+                if focus is None:
+                    print(f"  skip  seed={seed}  no object in focus")
+                    continue
+                if contrast is None or share is None:
+                    passed[fgs[focus]] += 1
                     print(f"  skip  seed={seed}  no edge in focus to measure")
                     continue
                 if contrast < min_contrast or share < min_share:
+                    passed[fgs[focus]] += 1
                     print(
                         f"  skip  seed={seed}  contrast {contrast:.3f}  share {share:.4f}"
                     )
