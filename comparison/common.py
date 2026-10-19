@@ -66,6 +66,29 @@ def composite_frame(seq: Path, name: str) -> tuple[np.ndarray, np.ndarray]:
     return rgb, read_disparity_png(seq / "disparity" / name)
 
 
+def composite_near_to_far(scattered, power: float = 1.0, eps: float = 1e-8):
+    """Composite scattered layers, nearest first, as Dr.Bokeh's ``defocus_render`` does.
+
+    Each layer is ``(color, weight, occupancy)``: its scattered color, the weight that color
+    was summed with, and the share of each pixel the layer covers. Its straight color, the
+    color over the weight, goes over what the nearer layers leave free. With ``power`` 1 that
+    is Dr.Bokeh's composite; any other power is applied to the straight color, clipped to
+    ``[0, 1]``, before it is composited, so that ``1 / GAMMA`` composites in gamma values.
+    Works on numpy arrays and torch tensors alike.
+    """
+    out = free = None
+    for color, weight, occupancy in scattered:
+        straight = color / (weight + eps)
+        if power != 1.0:
+            straight = straight.clip(0.0, 1.0) ** power
+        if out is None:
+            out, free = straight * occupancy, 1.0 - occupancy
+        else:
+            out = out + straight * free * occupancy
+            free = free * (1.0 - occupancy)
+    return out
+
+
 def save_rgb(directory: Path, name: str, rgb: np.ndarray) -> None:
     """Write an ``(H, W, 3)`` image in ``[0, 1]`` as an 8-bit PNG."""
     directory.mkdir(parents=True, exist_ok=True)

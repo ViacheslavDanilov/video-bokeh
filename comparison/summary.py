@@ -25,7 +25,9 @@ TITLES = {
     "bokehme": "BokehMe, hybrid",
     "bokehme_classical": "BokehMe, scatter alone",
     "mpib_rt": "MPIB",
+    "mpib_rt_cg": "MPIB, composited in gamma",
     "drbokeh": "Dr.Bokeh",
+    "drbokeh_cg": "Dr.Bokeh, composited in gamma",
     "any_to_bokeh": "Any-to-Bokeh",
 }
 
