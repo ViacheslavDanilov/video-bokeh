@@ -90,7 +90,7 @@
  * generates, on the same scale that afterwards explains the depth map's colors.
  *
  * Percentages in translateX are of the highlight's own width, a third of the bar, so it
- * starts one width before the bar and ends three widths in, just past the far end.
+ * starts one width before the bar and ends three widths in, wholly beyond the far end.
  */
 @keyframes depth-sweep {
   from {

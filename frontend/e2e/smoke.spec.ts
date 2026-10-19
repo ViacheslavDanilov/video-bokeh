@@ -650,6 +650,7 @@ test("sweeps the depth scale from end to end", async ({ page }) => {
       const [animation] = el.getAnimations();
       const duration = Number(animation.effect!.getTiming().duration);
       animation.pause();
+      // A full duration wraps an infinite animation back to its start, so take 1 ms less.
       animation.currentTime = time === "start" ? 0 : duration - 1;
       const bar = el.parentElement!;
       const left = bar.getBoundingClientRect().left + bar.clientLeft;
