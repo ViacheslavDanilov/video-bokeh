@@ -47,8 +47,8 @@ only within the whole run.
 ``selection.csv`` each one's group, category, seed, number of objects and their ids, the
 object in focus, its background, the side of that background, and the contrast and share.
 ``plain``, ``hard``, ``hair``, ``fire``, ``smoke`` and ``fine`` beside ``sequences`` are data
-roots whose sequences link to their own, so that ``score.py`` and ``summary.py`` can report each subset apart
-without rendering it again.
+roots whose sequences link to their own, so that ``score.py`` and ``summary.py`` can report
+each subset apart without rendering it again.
 """
 
 from __future__ import annotations
