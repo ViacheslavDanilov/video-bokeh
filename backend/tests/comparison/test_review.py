@@ -163,7 +163,7 @@ def test_boxes_skip_the_focus_edge_a_nearer_object_hides(tmp_path: Path) -> None
     focused = np.zeros((SIZE, SIZE), np.float32)
     focused[:, 200:] = 1.0
     nearer = np.zeros((SIZE, SIZE), np.float32)
-    nearer[:256, 100:450] = 1.0  # hides the focused object's edge above y = 256
+    nearer[:160, 100:450] = 1.0  # hides the focused object's edge above y = 160
     base = np.full((SIZE, SIZE, 3), 100, np.uint8)
     for frame in FRAMES[:2]:
         write_alpha_tiff(seq / "alpha" / f"{frame}.tif", [focused, nearer])
@@ -171,8 +171,8 @@ def test_boxes_skip_the_focus_edge_a_nearer_object_hides(tmp_path: Path) -> None
             image = base.copy()
             if stream not in ("bokeh", "all_in_focus"):
                 image[:, 180:220] = 120
-                image[:256, 180:220] = 250  # they part most where the edge is hidden
-                image[:256, 430:470] = 140
+                image[:160, 180:220] = 250  # they part most where the edge is hidden
+                image[:160, 430:470] = 140
             _write(seq / stream / f"{frame}.png", image)
     with (data / "manifest.csv").open("w", newline="") as f:
         csv.writer(f).writerows([["seq_id", "seed"], ["any-01", "0"]])
@@ -182,7 +182,7 @@ def test_boxes_skip_the_focus_edge_a_nearer_object_hides(tmp_path: Path) -> None
     assert sheets
     for sheet in sheets.values():
         for left, top, side in sheet["boxes"]:
-            hidden = left < 200 < left + side and top + side <= 256
+            hidden = left < 200 < left + side and top + side <= 160
             assert not hidden  # a box on the hidden edge would show the nearer object
 
 
@@ -221,6 +221,38 @@ def test_boxes_skip_the_outline_a_nearer_object_draws_on_the_focus(
     for sheet in sheets.values():
         for left, _, side in sheet["boxes"]:
             assert left < 200 < left + side  # on the focused object's own edge
+
+
+def test_boxes_hold_no_nearer_object(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    seq = data / "sequences" / "any-01"
+    (seq / "bokeh").mkdir(parents=True)
+    (seq / "bokeh" / "focus.json").write_text(json.dumps({"object": 0}))
+    (seq / "alpha").mkdir()
+    (seq / "layers").mkdir()
+    (seq / "layers" / "paint_order.json").write_text(json.dumps([[0, 1]] * 2))
+    focused = np.zeros((SIZE, SIZE), np.float32)
+    focused[:, 200:] = 1.0
+    nearer = np.zeros((SIZE, SIZE), np.float32)
+    nearer[60:140, 120:180] = 1.0  # in front, beside the focused object's edge
+    base = np.full((SIZE, SIZE, 3), 100, np.uint8)
+    for frame in FRAMES[:2]:
+        write_alpha_tiff(seq / "alpha" / f"{frame}.tif", [focused, nearer])
+        for _, stream, _ in METHODS:
+            image = base.copy()
+            if stream not in ("bokeh", "all_in_focus"):
+                image[:, 180:220] = 120  # a little along the focused object's edge
+                image[40:160, 100:200] = 250  # most where the nearer object blurs
+            _write(seq / stream / f"{frame}.png", image)
+    with (data / "manifest.csv").open("w", newline="") as f:
+        csv.writer(f).writerows([["seq_id", "seed"], ["any-01", "0"]])
+    out = tmp_path / "review"
+    main(["collect", "--data-root", str(data), "--out", str(out), "--candidates", "1"])
+    sheets = json.loads((out / "any-01" / "boxes.json").read_text())
+    assert sheets
+    for sheet in sheets.values():
+        for left, top, side in sheet["boxes"]:
+            assert nearer[top : top + side, left : left + side].mean() <= 0.05
 
 
 def test_every_frame_can_be_linked(tmp_path: Path) -> None:

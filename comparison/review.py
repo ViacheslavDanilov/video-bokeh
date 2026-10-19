@@ -17,7 +17,8 @@ boxes on each, and beneath each frame the boxed regions enlarged.
 The boxes go on the edge of the object in focus, the one ``bokeh/focus.json`` names, where
 no nearer object hides it, or on the edge of any object when the focus is on the background.
 The outline a nearer object draws across the focused one is not that object's edge: what
-shows there is the nearer object's blur, so no box goes within 16 pixels of it.
+shows there is the nearer object's blur, so no box goes within 16 pixels of it, and no box
+holds more than a twentieth of a nearer object.
 A box is a square of 96, 128, 176 or 240 pixels: every enlargement is drawn the same size, so
 a smaller box is a closer look. A box scores the product of four things:
 
@@ -82,6 +83,7 @@ FILL_BEST = 0.4  # the share of a box the object fills at best
 CROSSED = (
     0.35  # the factor of a box that the object crosses from one side to the opposite
 )
+NEARER_MAX = 0.05  # the share of a box a nearer object may fill at most
 SIZE_POWER = (
     0.3  # how much a larger box, which shows more around the edge, is preferred
 )
@@ -173,7 +175,11 @@ def place_boxes(
     band = band.astype(np.float64)
     tried = []
     for side in SIDES:
-        score = box_scores(alpha, band, difference, blur, side)[::STRIDE, ::STRIDE]
+        score = box_scores(alpha, band, difference, blur, side)
+        if nearer is not None:
+            held = box_sums(nearer, side) / float(side * side)
+            score = np.where(held > NEARER_MAX, 0.0, score)
+        score = score[::STRIDE, ::STRIDE]
         tops, lefts = np.nonzero(score > 0)
         tried += [
             (float(score[t, x]), [int(x) * STRIDE, int(t) * STRIDE, side])
