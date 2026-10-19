@@ -21,8 +21,8 @@ hand for their edges, each with its category. A light edge shows against a dark 
 and a dark one against a light background, so each category's objects are split into pools:
 
 - an object whose edge is light, its mean luminance over a band 8 pixels deep inside its
-  alpha's edge 0.5 or more, and every fire and smoke object, goes on a dark background, of mean luminance
-  below 0.25; the others go on a light one, above 0.65;
+  alpha's edge 0.5 or more, and every fire and smoke object, goes on a dark background, of
+  mean luminance below 0.25; the others go on a light one, above 0.65;
 - either kind of background has detail of 3 or more, as the plain ones do.
 
 Each category takes seeds from its own start, 4,100,000 for hair, 4,200,000 fire, 4,300,000
@@ -44,10 +44,10 @@ seed draws from the objects left in its pool at that point, so it writes its seq
 only within the whole run.
 
 ``manifest.csv`` and ``objects.csv`` hold every sequence, as a Stage B run writes them, and
-``selection.csv`` each one's group, category, seed, number of objects and their ids, the object
-in focus, its background, the side of that background, and the contrast and share. ``plain``, ``hard``,
-``hair``, ``fire``, ``smoke`` and ``fine`` beside ``sequences`` are data roots whose sequences
-link to their own, so that ``score.py`` and ``summary.py`` can report each subset apart
+``selection.csv`` each one's group, category, seed, number of objects and their ids, the
+object in focus, its background, the side of that background, and the contrast and share.
+``plain``, ``hard``, ``hair``, ``fire``, ``smoke`` and ``fine`` beside ``sequences`` are data
+roots whose sequences link to their own, so that ``score.py`` and ``summary.py`` can report each subset apart
 without rendering it again.
 """
 
@@ -133,8 +133,8 @@ def background_stats(library_root: Path, background: str) -> tuple[float, float]
 
 
 def edge_luminance(library_root: Path, foreground: str) -> float:
-    """The mean luminance, in ``[0, 1]``, of the ``EDGE_DEPTH`` pixels inside an object's
-    edge, where its alpha is above one half."""
+    """The mean luminance, in ``[0, 1]``, over a band ``EDGE_DEPTH`` pixels deep inside an
+    object's edge, where its alpha is above one half."""
     base = library_root / FOREGROUNDS / foreground
     if not base.is_dir():
         raise SystemExit(f"{foreground} is not a foreground of {library_root}")
@@ -339,8 +339,9 @@ def build(
                 ]
                 if not any(fgs for _, fgs, _ in left):
                     raise SystemExit(
-                        f"{category}: every object has been in focus as often as allowed, "
-                        f"with {k - 1} sequences kept of {hard_count}"
+                        f"{category}: every object has left its pool, kept {max_focus} "
+                        f"or passed over {max_passed} times, with {k - 1} sequences kept "
+                        f"of {hard_count}"
                     )
                 seed = next(seeds)
                 side, fgs_left, bgs = left[seed % len(left)]

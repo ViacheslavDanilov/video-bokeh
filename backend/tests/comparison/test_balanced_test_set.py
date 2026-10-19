@@ -180,7 +180,7 @@ def test_stops_when_no_edge_shows_enough(
     library: Path, objects: Path, tmp_path: Path
 ) -> None:
     out = tmp_path / "test_set"
-    with pytest.raises(SystemExit, match="hair: every object has been in focus"):
+    with pytest.raises(SystemExit, match="hair: every object has left its pool"):
         _build(library, out, objects, plain_count=0, min_contrast=2.0)
 
 
@@ -188,9 +188,7 @@ def test_stops_when_every_object_has_been_in_focus_enough(
     library: Path, objects: Path, tmp_path: Path
 ) -> None:
     out = tmp_path / "test_set"
-    with pytest.raises(
-        SystemExit, match="fire: every object has been in focus as often as allowed"
-    ):
+    with pytest.raises(SystemExit, match="fire: every object has left its pool"):
         _build(library, out, objects, plain_count=0, hard_count=3, max_focus=1)
 
 
