@@ -327,6 +327,10 @@ way optical-flow papers do: the hue is the direction, the saturation the speed, 
 still. One scale, the fastest motion in the sequence, serves every frame. `--colormap` does
 not apply. A still frame stands for the last frame, so the video is as long as the others.
 
+`--streams flow_back` colors the backward flow the same way, with the still frame first,
+since the first frame has no previous one. `--streams occlusion` packs the mask as stored,
+white where the pixel is hidden in the next frame, with a black frame for the last.
+
 The output name doesn't include the colormap, so re-running `--streams disparity` with a
 different `--colormap` overwrites the previous `disparity.mp4` rather than writing a second file.
 

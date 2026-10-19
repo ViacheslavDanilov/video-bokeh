@@ -20,6 +20,15 @@ export type LibraryInfo = {
 
 export type StreamInfo = {
   url: string;
+  /** The colormaps the stream can be shown in, empty when it has one rendering. */
+  colormaps: string[];
+  /** Which of `colormaps` `url` already renders. */
+  default: string | null;
+  /** Whether the viewer opens a pane for the stream on its own, rather than leave it to
+   *  the stream picker. */
+  opens_pane: boolean;
+  /** The stream drawn over the frames it describes, for the occlusion mask, or null. */
+  overlay: string | null;
 };
 
 export type Sequence = {
@@ -202,11 +211,26 @@ async function readGeneration(
 }
 
 /**
- * Absolute URL for a stream's video, in the colormap the server renders by default.
+ * Absolute URL for a stream's video: in `colormap` when the stream takes it and it is not
+ * the one the server renders anyway, and drawn over the frames when `overlay` is asked for
+ * and the stream has one.
  *
- * The page shows disparity in Spectral only. The API also serves the gray rendering,
- * with `?colormap=grey`, for anyone asking for it by hand.
+ * The server caches one file per rendering, so switching is a fetch the first time and a
+ * file read after that.
  */
-export function streamUrl(stream: StreamInfo): string {
-  return new URL(stream.url, BASE).toString();
+export function streamUrl(
+  stream: StreamInfo,
+  { colormap, overlay }: { colormap?: string; overlay?: boolean } = {},
+): string {
+  if (overlay && stream.overlay)
+    return new URL(stream.overlay, BASE).toString();
+  const url = new URL(stream.url, BASE);
+  if (
+    colormap &&
+    colormap !== stream.default &&
+    stream.colormaps.includes(colormap)
+  ) {
+    url.searchParams.set("colormap", colormap);
+  }
+  return url.toString();
 }

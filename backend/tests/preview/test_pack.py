@@ -11,8 +11,12 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from video_bokeh.core._streams import write_disparity_png
-from video_bokeh.preview.pack import _build_parser, encode_stream, load_frame
+from video_bokeh.core._streams import (
+    write_disparity_png,
+    write_flow_png,
+    write_mask_png,
+)
+from video_bokeh.preview.pack import _build_parser, encode_stream, load_frame, main
 
 
 def _write_ramp(path, height=8, width=16):
@@ -117,3 +121,37 @@ def test_rejects_quality_outside_the_cli_scale(tmp_path, quality):
         encode_stream(
             [], tmp_path / "bad.mp4", 24, quality, "all_in_focus", "spectral_r"
         )
+
+
+def _decoded(path):
+    with iio.get_reader(path) as reader:
+        return [np.asarray(frame, dtype=np.float32) for frame in reader]
+
+
+def test_packs_backward_flow_and_occlusion_as_long_as_the_frames(tmp_path):
+    """Four frames have three of each, backward flow from the second frame on and the
+    mask up to the third, and each video still plays four: backward flow still first,
+    the mask black last.
+    """
+    seq = tmp_path / "sequences" / "0001"
+    (seq / "flow_back").mkdir(parents=True)
+    (seq / "occlusion").mkdir()
+    rightward = np.zeros((16, 16, 2), dtype=np.float32)
+    rightward[..., 0] = 2.0
+    hidden = np.zeros((16, 16), dtype=bool)
+    hidden[:, :8] = True
+    for i in range(1, 4):
+        write_flow_png(seq / "flow_back" / f"{i + 1:02d}.png", rightward)
+        write_mask_png(seq / "occlusion" / f"{i:02d}.png", hidden)
+
+    assert main(["--data-root", str(tmp_path), "--streams", "flow_back,occlusion"]) == 0
+
+    flow = _decoded(seq / "flow_back.mp4")
+    assert len(flow) == 4
+    assert flow[0].min() > 240, "the first frame has no previous one: still, white"
+    assert flow[1][..., 0].mean() > flow[1][..., 2].mean() + 50, "rightward is red"
+    masks = _decoded(seq / "occlusion.mp4")
+    assert len(masks) == 4
+    assert masks[0][:, :6].min() > 230
+    assert masks[0][:, 10:].max() < 25
+    assert masks[-1].max() < 25, "the last frame has no next one: nothing hidden"

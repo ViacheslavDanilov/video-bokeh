@@ -54,8 +54,9 @@ without rebuilding.
   button. The header names the library picked; its `id` is a hash of the asset list, the depth
   estimator and the asset size, which every cached sequence is keyed on.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
-  the frames line up. Disparity is shown in Spectral, near red to far violet; the API also
-  serves it in gray, with `?colormap=grey`, but the page does not offer it. The transport
+  the frames line up. The disparity pane picks its colormap under the video, among those the
+  API lists: Spectral, near red to far violet, by default, or gray, near white to far black.
+  The legend beside the picker follows the map on screen. The transport
   plays every pane at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and
   the next sequence.
   The panes fit the window together, at the largest size that allows, in rows of even length.
@@ -64,13 +65,21 @@ without rebuilding.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
   "Add pane" adds a stream not on screen yet; once every stream is, it is disabled and reads
-  "All streams shown". A repeat comes from switching an open pane's stream.
+  "All streams shown". A repeat comes from switching an open pane's stream. Backward flow
+  and the occlusion mask open no pane of their own, so a sequence opens with the panes it
+  always did; "Add pane" or a pane's stream picker shows them.
 - **Arrange** — drag a pane by the grip in its header to a place between panes, where a
   line shows where it will go, or focus the grip and press the left or right arrow;
   playback goes on in step.
 
 **Optical flow comes with each sequence**, colored as optical-flow papers color it: the hue
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.
+Backward flow, where each pixel was in the previous frame, is colored the same way, under
+the same legend.
+
+**So does the occlusion mask**, white where a pixel's surface is hidden in the next frame,
+on black, as it is stored. The Overlay button under its pane draws it instead as red on the
+all-in-focus frames, darkened so the red stands out.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.

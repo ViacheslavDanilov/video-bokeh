@@ -15,6 +15,8 @@ than through `Image.convert`.
 Flow is a 16-bit KITTI PNG per frame but the last, colored as optical-flow
 papers color it (`preview/_flow.py`), at one scale for the whole sequence.
 A still frame stands for the last, so the video is as long as the others.
+Backward flow (`flow_back`) is colored the same, with the still frame first,
+and the occlusion mask is white on black, with a black frame last.
 
 Layout:
 
@@ -64,6 +66,7 @@ from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
     read_flow_png,
+    read_mask_png,
 )
 from video_bokeh.preview._colormap import COLORMAPS, apply_colormap
 from video_bokeh.preview._flow import flow_to_rgb
@@ -112,25 +115,66 @@ def load_frame(path: Path, stream: str, colormap: str) -> np.ndarray:
     return np.asarray(img, dtype=np.uint8)
 
 
-def _flow_frames(paths: list[Path]) -> Iterator[np.ndarray]:
-    """The flow stream in color, and a still frame after it for the last frame.
+def _flow_frames(paths: list[Path], backward: bool = False) -> Iterator[np.ndarray]:
+    """A flow stream in color, and a still frame for the frame it has no field for.
 
-    Read twice rather than held: once for the fastest valid motion in the sequence, the
-    scale every frame is colored at, once to color them. A vector the file marks
-    invalid is drawn still.
+    That is the last frame for the forward flow, which has no next frame, and the first
+    for the backward flow, which has no previous one. Read twice rather than held: once
+    for the fastest valid motion in the sequence, the scale every frame is colored at,
+    once to color them. A vector the file marks invalid is drawn still.
     """
     top = 0.0
+    shape = None
     for path in paths:
         flow, valid = read_flow_png(path)
+        shape = flow.shape
         if valid.any():
             top = max(top, float(np.hypot(*flow[valid].T).max()))
-    flow = None
+    if shape is None:
+        return
+    still = flow_to_rgb(np.zeros(shape, dtype=np.float32), 1.0)
+    if backward:
+        yield still
     for path in paths:
         flow, valid = read_flow_png(path)
         flow[~valid] = 0
         yield flow_to_rgb(flow, top or 1.0)
-    if flow is not None:
-        yield flow_to_rgb(np.zeros_like(flow), 1.0)
+    if not backward:
+        yield still
+
+
+#: The overlay darkens the frames this much, so the mask's red stands out on any of them.
+_OVERLAY_DIM = 0.4
+#: And mixes this much red into each occluded pixel.
+_OVERLAY_TINT = 0.6
+_RED = np.array([255.0, 0.0, 0.0])
+
+
+def _occlusion_frames(
+    paths: list[Path],
+    background: list[Path] | None,
+) -> Iterator[np.ndarray]:
+    """The occlusion stream, and a frame for the last, which has no next frame and so
+    nothing known to be hidden.
+
+    On its own each mask is white on black, as stored. Over ``background``, the
+    all-in-focus frames, each frame is darkened and its occluded pixels tinted red.
+    """
+    if background is None:
+        mask = None
+        for path in paths:
+            mask = read_mask_png(path)
+            yield np.repeat(np.where(mask, 255, 0).astype(np.uint8)[..., None], 3, -1)
+        if mask is not None:
+            yield np.zeros((*mask.shape, 3), dtype=np.uint8)
+        return
+    for index, frame in enumerate(background):
+        dimmed = load_frame(frame, "all_in_focus", "") * _OVERLAY_DIM
+        if index < len(paths):
+            mask = read_mask_png(paths[index])[..., None]
+            tinted = dimmed * (1 - _OVERLAY_TINT) + _RED * _OVERLAY_TINT
+            dimmed = np.where(mask, tinted, dimmed)
+        yield dimmed.round().astype(np.uint8)
 
 
 def encode_stream(
@@ -140,8 +184,12 @@ def encode_stream(
     quality: int,
     stream: str,
     colormap: str,
+    background: list[Path] | None = None,
 ) -> None:
-    """Encode frames as H.264 High, mapping quality 0..10 to CRF 51..17."""
+    """Encode frames as H.264 High, mapping quality 0..10 to CRF 51..17.
+
+    ``background``, the all-in-focus frames, draws an ``occlusion`` stream over them.
+    """
     if not 0 <= quality <= 10:
         raise ValueError("quality must be between 0 and 10")
     crf = round(51 - 3.4 * quality)
@@ -165,11 +213,12 @@ def encode_stream(
             macro_block_size=1,
         ),
     )
-    images = (
-        _flow_frames(frames)
-        if stream == "flow"
-        else (load_frame(p, stream, colormap) for p in frames)
-    )
+    if stream in ("flow", "flow_back"):
+        images = _flow_frames(frames, backward=stream == "flow_back")
+    elif stream == "occlusion":
+        images = _occlusion_frames(frames, background)
+    else:
+        images = (load_frame(p, stream, colormap) for p in frames)
     with writer:
         for image in images:
             writer.append_data(image)

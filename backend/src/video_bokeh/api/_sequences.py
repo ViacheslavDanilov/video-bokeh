@@ -28,10 +28,12 @@ from video_bokeh.scenes._compositor import (
     iter_frames,
 )
 from video_bokeh.scenes.generate import (
+    MOTION_STREAMS,
     counted,
+    motion_steps,
     sample_sequence,
     write_bokeh_stream,
-    write_flow_stream,
+    write_motion_streams,
     write_sequence,
 )
 
@@ -49,12 +51,13 @@ VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 #: all. It is served once it is there.
 BOKEH = "bokeh"
 
-#: The optical flow stream, written with every sequence, and added to one generated before
-#: flow came with it. Listed once it is there, as bokeh is.
-FLOW = "flow"
+#: The motion streams: the optical flow, the backward flow and the occlusion mask, written
+#: with every sequence, and added to one generated before they came with it. Each is listed
+#: once it is there, as bokeh is.
+FLOW, FLOW_BACK, OCCLUSION = MOTION_STREAMS
 
 #: Served once a sequence has them, after `VIDEO_STREAMS`, in this order.
-OPTIONAL_STREAMS = (BOKEH, FLOW)
+OPTIONAL_STREAMS = (BOKEH, FLOW, FLOW_BACK, OCCLUSION)
 
 
 def video_streams(sequence_dir: Path) -> list[str]:
@@ -146,9 +149,8 @@ def _generate_into(
         + ([("bokeh", n)] if bokeh else []),
     )
     scene = _scene(library_root, request, progress)
-    frames = list(
-        counted(iter_frames(scene, flow=True), n, partial(progress, "frames")),
-    )
+    rendered = iter_frames(scene, flow=True, flow_back=True, occlusion=True)
+    frames = list(counted(rendered, n, partial(progress, "frames")))
     focus = [frame_focus(f.object_alphas, f.disparity) for f in frames] if bokeh else []
     write_sequence(work_dir, counted(frames, n, partial(progress, "writing")), n)
     # The bokeh pass renders the frames again with their layers, a few at a time; holding
@@ -204,25 +206,26 @@ def _complete(
     progress: Progress,
     plan: Plan,
     *,
-    flow: bool,
+    motion: list[str],
     bokeh: bool,
 ) -> None:
-    """Add the flow, the bokeh or both to a sequence already on disk, from its scene.
+    """Add the motion streams named in ``motion``, the bokeh or both to a sequence already
+    on disk, from its scene.
 
     For a sequence generated before they came with it. Each stream appears whole or not
     at all, so whoever is reading the others meanwhile is not disturbed. The scene is
-    sampled once for both. The bokeh renders the frames twice, once for the focus and
-    once for itself.
+    sampled once for all of them, and the motion streams are one step, ``flow``, written in
+    one pass. The bokeh renders the frames twice, once for the focus and once for itself.
     """
     n = request.frames
     plan(
         [("sampling", 1)]
-        + ([("flow", n - 1)] if flow else [])
+        + ([("flow", motion_steps(motion, n))] if motion else [])
         + ([("frames", n), ("bokeh", n)] if bokeh else []),
     )
     scene = _scene(library_root, request, progress)
-    if flow:
-        write_flow_stream(dest, scene, report=partial(progress, "flow"))
+    if motion:
+        write_motion_streams(dest, scene, motion, report=partial(progress, "flow"))
     if bokeh:
         frames = iter_frames(scene)
         measured = counted(frames, scene.n_frames, partial(progress, "frames"))
@@ -249,10 +252,11 @@ def ensure_sequence(
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
 
-    The sequence comes with its optical flow, written with it, or added to a cached one
-    that has none. With ``bokeh``, which needs torch, it comes with its bokeh stream the
-    same way. ``progress`` hears of each step as it goes, frame by frame, and ``plan``
-    of them all before the first; a cached sequence that lacks nothing reports none.
+    The sequence comes with its motion streams, the optical flow, the backward flow and
+    the occlusion mask, written with it, or added to a cached one that lacks any. With
+    ``bokeh``, which needs torch, it comes with its bokeh stream the same way.
+    ``progress`` hears of each step as it goes, frame by frame, and ``plan`` of them all
+    before the first; a cached sequence that lacks nothing reports none.
 
     Generation writes to a temporary directory beside the destination and renames it
     into place, so a sequence is either absent or complete. That is what makes a crashed
@@ -263,17 +267,21 @@ def ensure_sequence(
     dest = sequences_root / sid
     cached = _read_cached(dest, sid)
     if cached is not None:
-        # A single frame has no flow, so it is never missing one.
-        missing_flow = request.frames > 1 and not (dest / FLOW).is_dir()
+        # A single frame has no motion, so it is never missing any.
+        missing_motion = [
+            stream
+            for stream in MOTION_STREAMS
+            if request.frames > 1 and not (dest / stream).is_dir()
+        ]
         missing_bokeh = bokeh and not (dest / BOKEH).is_dir()
-        if missing_flow or missing_bokeh:
+        if missing_motion or missing_bokeh:
             _complete(
                 dest,
                 library_root,
                 request,
                 progress,
                 plan,
-                flow=missing_flow,
+                motion=missing_motion,
                 bokeh=missing_bokeh,
             )
         return cached
