@@ -41,6 +41,13 @@ blurs in linear light and composites in gamma values, and Dr.Bokeh composites in
 and returns to gamma values once, both with the power of 2.2. Dr.Bokeh's radius is
 `K|d - zf| + 1`, so an in-focus pixel still spreads a small disk.
 
+`--composite gamma` writes `bokeh_drbokeh_cg/` instead, Dr.Bokeh composited as ours is. Each
+layer is still scattered by Dr.Bokeh's own kernel in linear light; its straight color then
+returns to gamma values on its own, and the layers are composited there with Dr.Bokeh's
+occupancy. With that composite left in linear light, the same code reproduces
+`bokeh_drbokeh/` exactly. The published composite, `bokeh_drbokeh/`, stays Dr.Bokeh's row in
+the comparison; the other shows how much of the difference from ours is the compositing space.
+
 `score.py` writes `comparison_drbokeh.json` with, per frame, the PSNR and the mean absolute
 difference over the whole frame and over a band around the object edges, where a layered and a
 single-layer renderer part. The band is the square of 16 pixels around every edge of every
@@ -68,6 +75,25 @@ object is lost. That is why this render is a reference for the edges and the occ
 layers decide the result, and not for the blur inside an object, which our renderer and
 Dr.Bokeh's keep per pixel. The lens radius `K` is in pixels per unit of disparity from the
 focus, which is our strength scaled to the frame's width, and the focus goes in as a depth.
+
+Each ray composites the layers it meets, and the kernel averages the rays of a pixel. As
+published, both happen in linear light. Our frames, Stage B's `all_in_focus/` and our bokeh,
+composite the layers in gamma values, and on a soft in-focus edge, such as hair or smoke, the
+two composites differ before any blur does. So the comparison's reference is MPIB composited in
+gamma values:
+
+```bash
+comparison/envs/render/bin/python comparison/run_mpib_rt.py --data-root backend/data/cmp \
+  --composite gamma
+```
+
+It writes `bokeh_mpib_rt_cg/`. `mpib_kernel.py` edits MPIB's kernel so that each ray
+composites the layers in gamma values and its color is raised to 2.2 before the rays are
+averaged, so that the blur stays in linear light. At an in-focus edge every ray lands on the
+same pixel, and the result is Stage B's composite; at the fringe of a defocused occluder, the
+rays still mix in linear light, where ours composites the blurred alpha in gamma values. Given
+linear colors and the power 1, the edited kernel reproduces `bokeh_mpib_rt/` to within one gray
+level, on 0.0023 % of the values of a 24-frame sequence, from the order of the sums.
 
 ## BokehMe
 
@@ -119,7 +145,8 @@ disparity is quantized to 8 bits. It takes sequences of 13 frames or more.
 ## All methods at once
 
 After `setup.sh` has built each method, one command runs them all over written sequences,
-scores each against our bokeh and prints a table:
+Dr.Bokeh and MPIB in both compositing spaces, scores each against our bokeh and against MPIB
+composited in gamma values, and prints a table of each:
 
 ```bash
 comparison/run_all.sh backend/data/cmp
@@ -128,7 +155,9 @@ comparison/run_all.sh backend/data/cmp
 The sequences must hold their layers and our bokeh, so that every method gets the focus and
 the strength that our renderer recorded. The command stops before it starts if a method is not
 set up. `summary.py` averages each method's `score.py` file over the sequences and writes
-`comparison_summary.json` beside them. It refuses files made over different sequences, so use
+`comparison_summary.json` beside them. The scores against MPIB go into `vs_mpib/` inside the
+data root, a data root of links to the same sequences, with a summary of their own. Ours
+against MPIB is the `mpib_rt_cg` row against ours, as both scores are symmetric. It refuses files made over different sequences, so use
 a data root that holds only the set you want in the table. That set, with its seeds, counts and
 size, goes into the paper's `results/` with the commit and the command that wrote it, as that
 folder's README asks.
