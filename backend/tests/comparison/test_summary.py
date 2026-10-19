@@ -69,6 +69,16 @@ def test_the_table_puts_the_nearest_method_first_and_names_it() -> None:
     assert lines[3].startswith("| Any-to-Bokeh | 1 | 28.0 | 27.0 |")
 
 
+def test_the_runs_composited_in_gamma_values_are_named_apart() -> None:
+    rows = [
+        summarize(_record(method, [_mean(40.0, 30.0, 1.0, 3.0)]))
+        for method in ("drbokeh_cg", "mpib_rt_cg")
+    ]
+    text = table(rows)
+    assert "| Dr.Bokeh, composited in gamma values | 1 |" in text
+    assert "| MPIB, composited in gamma values | 1 |" in text
+
+
 def test_a_method_without_a_title_keeps_its_own_name_and_n_a_marks_a_gap() -> None:
     row = summarize(_record("other", [_mean(None, None, 0.0, 0.0)]))
     assert "| other | 1 | n/a | n/a |" in table([row])

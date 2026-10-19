@@ -9,11 +9,18 @@ from the same layers, focus disparity and strength as our layered renderer did, 
     <sequence>/bokeh_drbokeh/<frame>.png   RGB uint8, the sequence's size
     <sequence>/bokeh_drbokeh/run.json      the settings, so the two renders compare like for like
 
+or, with ``--composite gamma``, the same under ``bokeh_drbokeh_cg/``.
+
 Dr.Bokeh's renderer takes a list of layers, nearest first, each with color, alpha and
 disparity per pixel. Ours come from ``layers/`` and ``alpha/``, the background last and
 opaque. Strength is Dr.Bokeh's ``K``, the blur radius in pixels at one unit of disparity from
 the focus, so it is our strength scaled to the frame's width. Colors go through the same
 power of 2.2 around the render that Dr.Bokeh's own entry script applies.
+
+By default Dr.Bokeh composites the blurred layers in linear light, as it was published.
+``--composite gamma`` scatters each layer with Dr.Bokeh's own kernel, in linear light as
+before, then brings each layer's straight color back to gamma values and composites the layers
+there, as Stage B and our renderer do.
 
 Usage:
     comparison/envs/render/bin/python comparison/run_drbokeh.py --data-root data/synth_dev
@@ -33,6 +40,7 @@ from common import (
     REFERENCE_WIDTH,
     REPO,
     LayeredFrame,
+    composite_near_to_far,
     focus_record,
     frames_with_focus,
     renderable_sequences,
@@ -100,9 +108,35 @@ def _lens_size(layers: list[np.ndarray], zf: float, k: float) -> int:
     return 2 * math.ceil(k * widest) + 3
 
 
-def render_sequence(seq: Path, device: torch.device) -> None:
+#: The stream each compositing space writes.
+STREAMS = {"linear": "bokeh_drbokeh", "gamma": "bokeh_drbokeh_cg"}
+
+
+def scatter_layers(
+    renderer: Multi_Layer_Renderer,
+    layers: list[np.ndarray],
+    k: float,
+    zf: float,
+    device: torch.device,
+) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    """Each layer scattered on its own by Dr.Bokeh's kernel, as its ``inference`` does before
+    it composites: the scattered color, its weight and the layer's occupancy."""
+    x = torch.cat(
+        [torch.tensor(layer.transpose(2, 0, 1))[None] for layer in layers], dim=1
+    )
+    x = x.to(device).float()
+    x[:, 4::5] -= zf
+    lens_effect = (torch.ones(1, 1) * k).to(device).float()
+    scattered = []
+    for i in range(len(layers)):
+        out = renderer.renderer.forward(x[:, 5 * i : 5 * (i + 1)], lens_effect)
+        scattered.append((out[:, :3], out[:, 3:4], out[:, 4:5]))
+    return scattered
+
+
+def render_sequence(seq: Path, device: torch.device, composite: str = "linear") -> None:
     strength = float(focus_record(seq)["strength"])
-    out = seq / "bokeh_drbokeh"
+    out = seq / STREAMS[composite]
     renderers: dict[int, Multi_Layer_Renderer] = {}
     for name, zf, frame in frames_with_focus(seq):
         layers = _layers_near_to_far(frame)
@@ -116,21 +150,33 @@ def render_sequence(seq: Path, device: torch.device) -> None:
             for layer in layers
         ]
         with torch.no_grad():
+            if composite == "gamma":
+                scattered = scatter_layers(renderers[lens], gamma, k, zf, device)
+                blur = composite_near_to_far(scattered, 1.0 / GAMMA)
+                save_rgb(out, name, blur[0].cpu().numpy().transpose(1, 2, 0))
+                continue
             blur = renderers[lens].inference(gamma, k, zf)
         save_rgb(out, name, np.clip(blur, 0.0, 1.0) ** (1.0 / GAMMA))
-    write_settings(out, "Dr.Bokeh", seq, gamma=GAMMA)
+    write_settings(out, "Dr.Bokeh", seq, gamma=GAMMA, composite=composite)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--seqs", default=None, help="comma-separated sequence ids")
+    parser.add_argument(
+        "--composite",
+        choices=sorted(STREAMS),
+        default="linear",
+        help="the space the blurred layers are composited in (default: linear, "
+        "as Dr.Bokeh's)",
+    )
     args = parser.parse_args(argv)
     names = args.seqs.split(",") if args.seqs else None
     device = torch.device("cuda:0")
     for seq in renderable_sequences(args.data_root, names):
-        render_sequence(seq, device)
-        print(f"  {seq.name}: bokeh_drbokeh written", flush=True)
+        render_sequence(seq, device, args.composite)
+        print(f"  {seq.name}: {STREAMS[args.composite]} written", flush=True)
     return 0
 
 
