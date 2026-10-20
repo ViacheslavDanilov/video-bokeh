@@ -342,12 +342,12 @@ sequence response names this URL as the flow's `backward` rather than as a strea
 
 **`occlusion` is the mask as stored**: white where the pixel's surface is hidden in the next
 frame, black elsewhere. The last frame has no next one, so its video frame is black.
-**`?overlay=true` draws it over the all-in-focus frames instead**, grayed at 90% of their
-brightness, with the occluded pixels in a semi-transparent orange, Okabe-Ito's `#E69F00`, and
-the last frame grayed with nothing drawn on it. It is cached as its own file,
-`occlusion.overlay-orange.mp4`. An earlier version drew the overlay in red and cached it as
-`occlusion.overlay.mp4`, which is left on disk and never served. The value is a yes or no, as `true`, `1` or `yes` and their
-opposites, and anything else answers 422. Every other stream drops the parameter, whatever
+**`?overlay=true` draws it over the all-in-focus frames instead.** The frames turn gray at 90%
+of their brightness. The occluded pixels are drawn over them in a semi-transparent orange,
+Okabe-Ito's `#E69F00`. The last frame is gray with nothing drawn on it. The overlay is cached
+as its own file, `occlusion.overlay-orange.mp4`. An earlier version drew it in red and cached
+it as `occlusion.overlay.mp4`, which is left on disk and never served. The value is a yes or
+no, as `true`, `1` or `yes` and their opposites, and anything else answers 422. Every other stream drops the parameter, whatever
 its value, as it drops `?colormap=`.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
