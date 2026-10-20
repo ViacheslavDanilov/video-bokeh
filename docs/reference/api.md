@@ -347,8 +347,8 @@ of their brightness. The occluded pixels are drawn over them in a semi-transpare
 Okabe-Ito's `#E69F00`. The last frame is gray with nothing drawn on it. The overlay is cached
 as its own file, `occlusion.overlay-orange.mp4`. An earlier version drew it in red and cached
 it as `occlusion.overlay.mp4`, which is left on disk and never served. The value is a yes or
-no, as `true`, `1` or `yes` and their opposites, and anything else answers 422. Every other stream drops the parameter, whatever
-its value, as it drops `?colormap=`.
+no, as `true`, `1` or `yes` and their opposites, and anything else answers 422. Every other
+stream drops the parameter, whatever its value, as it drops `?colormap=`.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
@@ -385,7 +385,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── all_in_focus/                 RGB uint8 PNG
 ├── alpha/                        multi-page uint8 TIFF, one page per object
 ├── disparity/                    uint16 PNG
-├── bokeh/                        RGB uint8 PNG and focus.json, with torch or once Stage C wrote it
+├── bokeh/                        RGB uint8 PNG and focus.json, with torch or after Stage C
 ├── flow/                         KITTI 16-bit PNG, every frame but the last
 ├── flow_back/                    KITTI 16-bit PNG, every frame but the first
 ├── occlusion/                    8-bit PNG, every frame but the last
