@@ -80,6 +80,23 @@ const FRAME_KEYS: Record<string, number> = {
   PageUp: 10,
 };
 
+// Videos given a new source, from when it empties them until they are put back where the
+// transport is. Their time reads 0 meanwhile, which the transport must not follow: the
+// first pane's once rewound every pane to the start.
+const reloading = new WeakSet<HTMLVideoElement>();
+
+/**
+ * The video the transport follows: the first pane's, unless it is still loading, when the
+ * next pane's with its video in place stands in.
+ */
+function leadVideo(
+  videos: Map<number, HTMLVideoElement>,
+): HTMLVideoElement | undefined {
+  for (const v of videos.values())
+    if (v.readyState >= HTMLMediaElement.HAVE_METADATA && !reloading.has(v))
+      return v;
+}
+
 /** A pane's frames decoded into memory, and the video they came from. */
 type Decoded = { src: string; frames: ImageBitmap[]; abort: AbortController };
 
@@ -296,6 +313,7 @@ export function Viewer({
   useLayoutEffect(() => {
     playingRef.current = false;
     scrubRef.current = null;
+    timeRef.current = 0;
   }, [sequenceId]);
 
   // A stream the server did not list for the last sequence gets a pane of its own while
@@ -358,7 +376,7 @@ export function Viewer({
     const next = !playingRef.current;
     playingRef.current = next;
     setPlaying(next);
-    const lead = videos.current.values().next().value;
+    const lead = leadVideo(videos.current);
     if (!next) {
       videos.current.forEach((v) => v.pause());
       // Where it stopped, rather than at the last timeupdate event, up to a quarter of a
@@ -369,7 +387,7 @@ export function Viewer({
       }
       return;
     }
-    const at = lead ? lead.currentTime : 0;
+    const at = lead ? lead.currentTime : timeRef.current;
     timeRef.current = at;
     videos.current.forEach((v) => {
       v.currentTime = at;
@@ -785,6 +803,7 @@ export function Viewer({
                   muted
                   playsInline
                   preload="metadata"
+                  onEmptied={(e) => reloading.add(e.currentTarget)}
                   onLoadedMetadata={(e) => {
                     setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
                     setDuration(e.currentTarget.duration);
@@ -804,16 +823,21 @@ export function Viewer({
                       return;
                     }
                     // A stream change swapped src on an element React
-                    // kept, which resets it. Put it back where the transport is and
-                    // resume with the others, or this pane silently stops driving
+                    // kept, which resets it. Put it back where the transport is, which
+                    // while playing the panes that kept their video have moved on from,
+                    // and resume with the others, or this pane silently stops driving
                     // the ones that follow it.
-                    e.currentTarget.currentTime = timeRef.current;
-                    if (playingRef.current) void e.currentTarget.play();
+                    const video = e.currentTarget;
+                    const lead = leadVideo(videos.current);
+                    video.currentTime = lead
+                      ? lead.currentTime
+                      : timeRef.current;
+                    reloading.delete(video);
+                    if (playingRef.current) void video.play();
                   }}
                   onTimeUpdate={(e) => {
-                    // Only the first pane reports, or the panes fight over the value.
-                    const lead = videos.current.values().next().value;
-                    if (lead !== e.currentTarget) return;
+                    // Only the lead reports, or the panes fight over the value.
+                    if (leadVideo(videos.current) !== e.currentTarget) return;
                     const at = e.currentTarget.currentTime;
                     timeRef.current = at;
                     // Playing, the slider reads the time itself every animation frame.
@@ -1008,15 +1032,15 @@ function nearestFrame(position: number, frames: number) {
 }
 
 /**
- * Where the leading video is, as a slider position and the frame it shows. Null for a lead
- * loading a new stream, which reads 0 until it is put back where the transport is.
+ * Where the leading video is, as a slider position and the frame it shows. Null while every
+ * pane is loading.
  */
 function leadPosition(
   videos: Map<number, HTMLVideoElement>,
   frames: number,
 ): { position: number; frame: number } | null {
-  const lead = videos.values().next().value;
-  if (!lead || lead.readyState < HTMLMediaElement.HAVE_METADATA) return null;
+  const lead = leadVideo(videos);
+  if (!lead) return null;
   const at = (lead.currentTime / lead.duration) * frames;
   const lastFrame = Math.max(frames - 1, 0);
   // Between frames, where the time is: half a frame back, so that the frame nearest the

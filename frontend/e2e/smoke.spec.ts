@@ -1723,3 +1723,128 @@ test("keeps a sequence that arrives mid-drag paused", async ({ page }) => {
   ).toEqual([true, true, true, true]);
   expect(await times()).toEqual(before);
 });
+
+/**
+ * Loading another video in a pane, by its stream, colormap, direction or overlay, keeps
+ * every pane on the frame the transport is at, playing or paused. A video given a new
+ * source reads time 0 until it loads, and the first pane's once dragged every pane there.
+ */
+test("keeps the frame when a pane loads another video", async ({ page }) => {
+  // A generation and every switch encoded on first request, at a quarter speed.
+  test.slow();
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  await addPaneFor(page, "Occlusion");
+  await expect(videos).toHaveCount(5);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+  const counter = page.getByText(/^\d+ \/ 80$/);
+  const panes = page.locator("figure");
+
+  /** Pick `option` in the `name` dropdown of the pane at `index`. */
+  const choose = async (index: number, name: string, option: string) => {
+    await panes.nth(index).getByRole("combobox", { name }).click();
+    await page.getByRole("option", { name: option, exact: true }).click();
+  };
+  // Each one loads another video in one pane: there and, on the second pass, back.
+  const switches: [string, number, (back: boolean) => Promise<void>][] = [
+    [
+      "first pane's stream",
+      0,
+      (back) => choose(0, "Stream", back ? "All in focus" : "Disparity"),
+    ],
+    [
+      "second pane's stream",
+      1,
+      (back) => choose(1, "Stream", back ? "Alpha" : "Optical flow"),
+    ],
+    [
+      "colormap",
+      2,
+      (back) => choose(2, "Colormap", back ? "Spectral" : "Gray"),
+    ],
+    [
+      "flow direction",
+      3,
+      (back) => choose(3, "Direction", back ? "Forward" : "Backward"),
+    ],
+    [
+      "occlusion overlay",
+      4,
+      () => panes.nth(4).getByRole("button", { name: "Overlay" }).click(),
+    ],
+  ];
+
+  /** The frame each pane with a loaded video shows, null for one still loading. */
+  const frames = () =>
+    videos.evaluateAll((els) =>
+      els.map((el) => {
+        const v = el as HTMLVideoElement;
+        return v.readyState < 1
+          ? null
+          : Math.floor((v.currentTime / v.duration) * 80);
+      }),
+    );
+  /** Until the pane at `index` has a new video, decoded. */
+  const reloaded = async (index: number, was: string) => {
+    const video = videos.nth(index);
+    await expect(video).not.toHaveAttribute("src", was);
+    await waitForDecoded(video);
+  };
+  const seekTo = async (frame: number) => {
+    await slider.focus();
+    await page.keyboard.press("Home");
+    for (let i = 0; i < frame / 10; i++) await page.keyboard.press("PageUp");
+  };
+
+  await page.getByRole("combobox", { name: "Playback speed" }).click();
+  await page.getByRole("option", { name: "0.25×" }).click();
+  await page.getByRole("button", { name: "Play" }).click();
+  for (const [name, index, change] of switches) {
+    await seekTo(20);
+    await expect
+      .poll(async () => Math.min(...((await frames()) as number[])))
+      .toBeGreaterThan(20);
+    const before = Math.min(...((await frames()) as number[]));
+    const was = (await videos.nth(index).getAttribute("src"))!;
+    await change(false);
+    // Every pane and the counter, from the switch until the new video plays.
+    const seen: number[] = [];
+    const watch = async () => {
+      seen.push(
+        ...((await frames()).filter((f) => f !== null) as number[]),
+        Number((await counter.innerText()).split(" ")[0]) - 1,
+      );
+    };
+    await watch();
+    await reloaded(index, was);
+    for (let i = 0; i < 5; i++) {
+      await watch();
+      await page.waitForTimeout(100);
+    }
+    expect.soft(Math.min(...seen), name).toBeGreaterThanOrEqual(before - 1);
+    const after = (await frames()) as number[];
+    expect
+      .soft(Math.max(...after) - Math.min(...after), name)
+      .toBeLessThanOrEqual(1);
+    expect(
+      await videos.evaluateAll((els) =>
+        els.map((el) => (el as HTMLVideoElement).paused),
+      ),
+      name,
+    ).toEqual([false, false, false, false, false]);
+  }
+
+  await page.getByRole("button", { name: "Pause" }).click();
+  for (const [name, index, change] of switches) {
+    await seekTo(30);
+    await expect.poll(frames).toEqual([30, 30, 30, 30, 30]);
+    const was = (await videos.nth(index).getAttribute("src"))!;
+    await change(true);
+    await reloaded(index, was);
+    await expect.poll(frames, { message: name }).toEqual([30, 30, 30, 30, 30]);
+    await expect(counter, name).toHaveText("31 / 80");
+    await expect(slider, name).toHaveAttribute("aria-valuenow", "30");
+  }
+});
