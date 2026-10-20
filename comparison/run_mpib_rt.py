@@ -28,8 +28,10 @@ By default the colors are raised to 2.2 before the render, so each ray composite
 linear light, as MPIB's generator does. ``--composite gamma`` gives the kernel the colors in
 gamma values instead, so that each ray composites the layers as Stage B and our renderer do,
 and raises each ray's color to 2.2 before the rays are averaged, so that the blur stays in
-linear light; ``mpib_kernel.py`` has the edit. At an in-focus edge this matches the composite of
-our frames; at the fringe of a defocused occluder the rays still mix in linear light.
+linear light; ``mpib_kernel.py`` has the edit. Where every layer that a pixel's rays meet lies
+at the focus plane, this matches the composite of our frames; where the rays spread, over a
+defocused background behind an edge in focus or across the fringe of a defocused occluder,
+they still mix in linear light.
 
 Usage:
     comparison/envs/render/bin/python comparison/run_mpib_rt.py --data-root data/synth_dev

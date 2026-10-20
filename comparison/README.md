@@ -89,9 +89,11 @@ comparison/envs/render/bin/python comparison/run_mpib_rt.py --data-root backend/
 
 It writes `bokeh_mpib_rt_cg/`. `mpib_kernel.py` edits MPIB's kernel so that each ray
 composites the layers in gamma values and its color is raised to 2.2 before the rays are
-averaged, so that the blur stays in linear light. At an in-focus edge every ray lands on the
-same pixel, and the result is Stage B's composite; at the fringe of a defocused occluder, the
-rays still mix in linear light, where ours composites the blurred alpha in gamma values. Given
+averaged, so that the blur stays in linear light. Where every layer that a pixel's rays meet
+lies at the focus plane, the rays land on the same pixels and the result is Stage B's
+composite. Elsewhere the rays spread, over a defocused background behind hair in focus or
+across the fringe of a defocused occluder, and still mix in linear light there, where ours
+composites the blurred alpha in gamma values. Given
 linear colors and the power 1, the edited kernel reproduces `bokeh_mpib_rt/` to within one gray
 level, on 0.0023 % of the values of a 24-frame sequence, from the order of the sums.
 
