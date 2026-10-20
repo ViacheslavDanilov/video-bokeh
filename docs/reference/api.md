@@ -337,9 +337,11 @@ previous one to come from, so that is the frame the video shows still.
 
 **`occlusion` is the mask as stored**: white where the pixel's surface is hidden in the next
 frame, black elsewhere. The last frame has no next one, so its video frame is black.
-**`?overlay=true` draws it over the all-in-focus frames instead**, darkened, with the occluded
-pixels tinted red, and the last frame darkened with nothing tinted. It is cached as its own
-file, `occlusion.overlay.mp4`. The value is a yes or no, as `true`, `1` or `yes` and their
+**`?overlay=true` draws it over the all-in-focus frames instead**, grayed at 90% of their
+brightness, with the occluded pixels in a semi-transparent orange, Okabe-Ito's `#E69F00`, and
+the last frame grayed with nothing drawn on it. It is cached as its own file,
+`occlusion.overlay-orange.mp4`. An earlier version drew the overlay in red and cached it as
+`occlusion.overlay.mp4`, which is left on disk and never served. The value is a yes or no, as `true`, `1` or `yes` and their
 opposites, and anything else answers 422. Every other stream drops the parameter, whatever
 its value, as it drops `?colormap=`.
 
@@ -374,18 +376,18 @@ hash.
 
 ```
 $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
-├── sequence.json           the request, the library id and the object count
-├── all_in_focus/           RGB uint8 PNG
-├── alpha/                  multi-page uint8 TIFF, one page per object
-├── disparity/              uint16 PNG
-├── bokeh/                  RGB uint8 PNG and focus.json, with torch or once Stage C wrote it
-├── flow/                   KITTI 16-bit PNG, every frame but the last
-├── flow_back/              KITTI 16-bit PNG, every frame but the first
-├── occlusion/              8-bit PNG, every frame but the last
-├── all_in_focus.mp4        written on first request
-├── disparity.mp4           written on first request, Spectral
-├── disparity.grey.mp4      written if `grey` is ever asked for
-└── occlusion.overlay.mp4   written if the overlay is ever asked for
+├── sequence.json                 the request, the library id and the object count
+├── all_in_focus/                 RGB uint8 PNG
+├── alpha/                        multi-page uint8 TIFF, one page per object
+├── disparity/                    uint16 PNG
+├── bokeh/                        RGB uint8 PNG and focus.json, with torch or once Stage C wrote it
+├── flow/                         KITTI 16-bit PNG, every frame but the last
+├── flow_back/                    KITTI 16-bit PNG, every frame but the first
+├── occlusion/                    8-bit PNG, every frame but the last
+├── all_in_focus.mp4              written on first request
+├── disparity.mp4                 written on first request, Spectral
+├── disparity.grey.mp4            written if `grey` is ever asked for
+└── occlusion.overlay-orange.mp4  written if the overlay is ever asked for
 ```
 
 The three stream directories are the layout in [dataset-layout](dataset-layout.md), without the

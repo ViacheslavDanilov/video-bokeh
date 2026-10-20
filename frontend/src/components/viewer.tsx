@@ -700,7 +700,7 @@ export function Viewer({
                     variant="outline"
                     size="sm"
                     aria-pressed={overlay}
-                    title="Draw the mask over the darkened frames"
+                    title="Draw the mask over the frames in gray"
                     className="aria-pressed:bg-muted aria-pressed:text-foreground shrink-0"
                     onClick={() => updatePane({ overlay: !overlay })}
                   >

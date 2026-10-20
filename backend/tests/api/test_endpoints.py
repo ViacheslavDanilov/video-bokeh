@@ -711,10 +711,15 @@ def test_backward_flow_starts_still(client: TestClient, tmp_path: Path) -> None:
     assert _frames_of(video, tmp_path)[0].min() > 240
 
 
-def _paint_occlusion(sequence_dir: Path) -> None:
-    """Gray frames, and masks whose left half is occluded, so the colors are known."""
+def _paint_occlusion(
+    sequence_dir: Path,
+    color: tuple[int, int, int] = (200, 200, 200),
+) -> None:
+    """Frames of one color, and masks whose left half is occluded, so the colors are
+    known.
+    """
     for frame in (sequence_dir / "all_in_focus").iterdir():
-        Image.new("RGB", Image.open(frame).size, (200, 200, 200)).save(frame)
+        Image.new("RGB", Image.open(frame).size, color).save(frame)
     for mask in (sequence_dir / "occlusion").iterdir():
         pixels = np.zeros_like(np.asarray(Image.open(mask)))
         pixels[:, : pixels.shape[1] // 2] = 255
@@ -736,28 +741,34 @@ def test_occlusion_is_served_white_on_black_as_stored(
     assert frames[-1].max() < 25
 
 
-def test_the_overlay_tints_occluded_pixels_red_on_the_darkened_frame(
+#: A warm frame, so that a gray one can be told from it, and its Rec. 709 luma.
+_WARM = (220, 160, 90)
+_WARM_LUMA = 0.2126 * 220 + 0.7152 * 160 + 0.0722 * 90
+
+
+def test_the_overlay_draws_occluded_pixels_orange_on_the_gray_frame(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
     body = client.post("/sequences", json=SEQUENCE_BODY).json()
-    _paint_occlusion(tmp_path / "sequences" / body["id"])
+    _paint_occlusion(tmp_path / "sequences" / body["id"], _WARM)
     video = client.get(body["streams"]["occlusion"]["overlay"]).content
     frames = _frames_of(video, tmp_path)
     half = frames[0].shape[1] // 2
     occluded = frames[0][8:-8, 8 : half - 8].reshape(-1, 3).mean(axis=0)
     visible = frames[0][8:-8, half + 8 : -8].reshape(-1, 3).mean(axis=0)
+    # Okabe-Ito orange, #E69F00, over the gray: red first, then green, little blue.
     red, green, blue = occluded
-    assert red > 150
-    assert red > 2 * green
-    assert red > 2 * blue
-    # Darker than the 200 gray it was, and still gray.
-    assert visible.max() < 120
+    assert red > 180
+    assert 0.55 < green / red < 0.85
+    assert blue < 90
+    # Gray, at about the frame's own brightness rather than darkened.
     assert visible.max() - visible.min() < 10
-    # The last frame has no mask: the frame darkened, nothing tinted.
+    assert visible.mean() > 0.85 * _WARM_LUMA
+    # The last frame has no mask: the frame grayed, nothing drawn on it.
     last = frames[-1][8:-8, 8:-8].reshape(-1, 3).mean(axis=0)
-    assert last.max() < 120
     assert last.max() - last.min() < 10
+    assert last.mean() > 0.85 * _WARM_LUMA
 
 
 def test_the_overlay_is_cached_beside_the_mask(
@@ -770,7 +781,21 @@ def test_the_overlay_is_cached_beside_the_mask(
     written = sorted(
         p.name for p in (tmp_path / "sequences" / body["id"]).glob("occlusion*.mp4")
     )
-    assert written == ["occlusion.mp4", "occlusion.overlay.mp4"]
+    assert written == ["occlusion.mp4", "occlusion.overlay-orange.mp4"]
+
+
+def test_an_overlay_cached_in_red_is_not_served(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """An earlier version drew the overlay in red and cached it as
+    ``occlusion.overlay.mp4``, which no change to the frames would ever re-encode.
+    """
+    body = client.post("/sequences", json=SEQUENCE_BODY).json()
+    (tmp_path / "sequences" / body["id"] / "occlusion.overlay.mp4").write_bytes(b"red")
+    response = client.get(body["streams"]["occlusion"]["overlay"])
+    assert response.status_code == 200
+    assert _frame_count(response.content, tmp_path) == SEQUENCE_BODY["frames"]
 
 
 def test_the_overlay_is_ignored_for_every_other_stream(

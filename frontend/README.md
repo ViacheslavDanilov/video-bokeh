@@ -78,8 +78,8 @@ Backward flow, where each pixel was in the previous frame, is colored the same w
 the same legend.
 
 **So does the occlusion mask**, white where a pixel's surface is hidden in the next frame,
-on black, as it is stored. The Overlay button under its pane draws it instead as red on the
-all-in-focus frames, darkened so the red stands out.
+on black, as it is stored. The Overlay button under its pane draws it instead as orange on the
+all-in-focus frames, shown in gray so the orange stands out.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.

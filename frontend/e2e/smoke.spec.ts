@@ -1062,7 +1062,7 @@ test("shows backward flow and occlusion from the stream picker", async ({
 
 /**
  * The occlusion pane shows the mask as stored, white on black, and a toggle in the pane
- * draws it red over the darkened frames instead, and back.
+ * draws it orange over the frames in gray instead, and back.
  */
 test("switches the occlusion pane to the overlay and back", async ({
   page,
@@ -1079,7 +1079,9 @@ test("switches the occlusion pane to the overlay and back", async ({
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
   await waitForDecoded(video);
-  await expect(pane.getByText("Red: hidden in the next frame")).toBeVisible();
+  await expect(
+    pane.getByText("Orange: hidden in the next frame"),
+  ).toBeVisible();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");

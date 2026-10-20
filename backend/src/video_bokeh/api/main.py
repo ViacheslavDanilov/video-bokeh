@@ -71,6 +71,11 @@ DEFAULT_COLORMAP = "spectral_r"
 #: sequence opens with stay the ones they were before these streams were served.
 _PICKER_ONLY = (FLOW_BACK, OCCLUSION)
 
+#: The overlay's cached file is named after its look. An earlier version cached a red
+#: overlay as `occlusion.overlay.mp4`, and nothing about the frames would make that file
+#: stale, so a new look needs a new name.
+_OVERLAY_SUFFIX = ".overlay-orange"
+
 #: Reads `?overlay=` the way FastAPI reads a boolean parameter: true, 1, yes, on and
 #: their opposites.
 _YES_OR_NO = TypeAdapter(bool)
@@ -451,7 +456,7 @@ def read_sequence_video(
 
     suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
     if over_frames:
-        suffix = ".overlay"
+        suffix = _OVERLAY_SUFFIX
     video = sequence_dir / f"{stream}{suffix}.mp4"
     # Re-encoded when the frames are newer than the video: Stage C run again replaces
     # bokeh/ whole, and the encode of the first render would otherwise be served for good.
