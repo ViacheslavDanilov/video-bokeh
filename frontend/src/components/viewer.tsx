@@ -1003,8 +1003,12 @@ export function Viewer({
             value={[thumbAt]}
             onValueChange={([position]) => scrubTo(position)}
             onValueCommit={endScrub}
-            // A drag that ends where it began commits nothing, and must still end.
+            // A drag that ends where it began commits nothing, and must still end. So must
+            // one the browser cancels, or one the page losing focus cuts short: the thumb
+            // a drag focuses loses it then.
             onPointerUp={endScrub}
+            onPointerCancel={endScrub}
+            onBlur={endScrub}
             onKeyDown={(e) => {
               // Home and End too: the slider's own commits before it changes, which would
               // leave the scrub it starts open.

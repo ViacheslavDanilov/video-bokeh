@@ -1450,3 +1450,41 @@ test("moves the position thumb smoothly while the panes play", async ({
     );
   }
 });
+
+/**
+ * A drag the browser cancels, or one cut short by the page losing focus, ends like one let
+ * go: the panes play on rather than sit paused until the slider is touched again.
+ */
+test("plays on after a drag that is cancelled", async ({ page }) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const paused = () =>
+    videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    );
+  await page.getByRole("button", { name: "Play" }).click();
+
+  const cancels: [string, () => Promise<void>][] = [
+    ["pointercancel", () => slider.dispatchEvent("pointercancel")],
+    ["blur", () => slider.evaluate((el) => (el as HTMLElement).blur())],
+  ];
+  for (const [name, cancel] of cancels) {
+    const thumb = (await slider.boundingBox())!;
+    const y = thumb.y + thumb.height / 2;
+    await page.mouse.move(thumb.x + thumb.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(thumb.x + track.width / 4, y, { steps: 5 });
+    expect(await paused(), name).toEqual([true, true, true, true]);
+    await cancel();
+    await expect
+      .poll(paused, { message: name })
+      .toEqual([false, false, false, false]);
+    await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+    await page.mouse.up();
+  }
+});
