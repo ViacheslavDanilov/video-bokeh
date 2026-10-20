@@ -1235,3 +1235,112 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
   const caption = page.getByText("Color = direction; paler = slower");
   expect((await caption.boundingBox())!.height).toBeLessThan(20);
 });
+
+/**
+ * Dragging the position slider moves its thumb smoothly, between frames, and every pane
+ * shows the frame nearest to it at once: one decoded in memory, not a seek. Let go, the
+ * videos are on that frame.
+ */
+test("scrubs every pane to the nearest frame while dragging", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1760, height: 640 });
+  await openPage(page);
+  const videos = await openSixPanes(page, 91);
+  const canvases = page.locator("figure canvas");
+  await expect(canvases).toHaveCount(6);
+  // Every pane's frames decoded into memory.
+  await expect
+    .poll(
+      () =>
+        canvases.evaluateAll((els) =>
+          els.map((el) => el.getAttribute("data-decoded")),
+        ),
+      { timeout: 60_000 },
+    )
+    .toEqual(Array(6).fill("80"));
+
+  /** The first pane as it looks on screen, canvas or video, as RGBA values. */
+  const frameBox = videos.first().locator("xpath=..");
+  const pixels = async () => {
+    const png = (await frameBox.screenshot()).toString("base64");
+    return page.evaluate(async (png) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${png}`;
+      await image.decode();
+      const probe = document.createElement("canvas");
+      probe.width = image.width;
+      probe.height = image.height;
+      const context = probe.getContext("2d")!;
+      context.drawImage(image, 0, 0);
+      return Array.from(
+        context.getImageData(0, 0, probe.width, probe.height).data,
+      );
+    }, png);
+  };
+  const meanDifference = (a: number[], b: number[]) =>
+    a.reduce((sum, value, i) => sum + Math.abs(value - b[i]), 0) / a.length;
+  const start = await pixels();
+
+  const slider = page.getByRole("slider", { name: "Position" });
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const thumb = (await slider.boundingBox())!;
+  const y = thumb.y + thumb.height / 2;
+  await page.mouse.move(thumb.x + thumb.width / 2, y);
+  await page.mouse.down();
+  const values: number[] = [];
+  for (let i = 1; i <= 30; i++) {
+    await page.mouse.move(track.x + (track.width * 0.4 * i) / 30, y);
+    values.push(Number(await slider.getAttribute("aria-valuenow")));
+  }
+  // Continuous: the thumb sits between frames, not only on them.
+  expect(values.some((v) => !Number.isInteger(v))).toBe(true);
+  expect(values).toEqual([...values].sort((a, b) => a - b));
+
+  // Mid-drag, every pane shows the counter's frame, drawn from memory.
+  const counter = page.getByText(/^\d+ \/ 80$/);
+  const shown = Number((await counter.innerText()).split(" / ")[0]) - 1;
+  expect(shown).toBe(Math.round(values.at(-1)!));
+  expect(
+    await canvases.evaluateAll((els) =>
+      els.map((el) => [
+        getComputedStyle(el).visibility,
+        el.getAttribute("data-frame"),
+      ]),
+    ),
+  ).toEqual(Array(6).fill(["visible", String(shown)]));
+  const dragged = await pixels();
+
+  await page.mouse.up();
+  // Let go, the thumb rests on the frame shown and the videos have caught up with it.
+  await expect(slider).toHaveAttribute("aria-valuenow", String(shown));
+  await expect
+    .poll(() =>
+      canvases.evaluateAll((els) =>
+        els.map((el) => getComputedStyle(el).visibility),
+      ),
+    )
+    .toEqual(Array(6).fill("hidden"));
+  // The frame drawn from memory is the one the video shows there, and not the first.
+  const settled = await pixels();
+  const there = meanDifference(dragged, settled);
+  expect(there).toBeLessThan(4);
+  expect(meanDifference(start, settled)).toBeGreaterThan(there);
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => {
+        const video = el as HTMLVideoElement;
+        return Math.floor((video.currentTime / video.duration) * 80);
+      }),
+    ),
+  ).toEqual(Array(6).fill(shown));
+
+  // The arrow keys still step one whole frame.
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(counter).toHaveText(`${shown + 2} / 80`);
+  await expect(slider).toHaveAttribute("aria-valuenow", String(shown + 1));
+});
