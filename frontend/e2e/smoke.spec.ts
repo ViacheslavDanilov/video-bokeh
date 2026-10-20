@@ -1225,6 +1225,8 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
     page.getByRole("combobox", { name: "Colormap" }),
     page.getByRole("button", { name: "Overlay" }),
     page.getByRole("combobox", { name: "Direction" }),
+    // The wheel, with the caption beside it.
+    page.getByRole("button", { name: "Color = direction; paler = slower" }),
   ]) {
     // Directly beneath the frame: the figure's 8 px gap, no more.
     await expect
@@ -1338,9 +1340,26 @@ test("scrubs every pane to the nearest frame while dragging", async ({
     ),
   ).toEqual(Array(6).fill(shown));
 
-  // The arrow keys still step one whole frame.
+  // The arrow keys still step one whole frame. The frames either side of the one shown
+  // look less like it than the video's own: the frame drawn is that frame, not a neighbor.
+  const settledAt = async (frame: number) => {
+    await expect(counter).toHaveText(`${frame + 1} / 80`);
+    await expect(slider).toHaveAttribute("aria-valuenow", String(frame));
+    await expect
+      .poll(() =>
+        canvases.evaluateAll((els) =>
+          els.map((el) => getComputedStyle(el).visibility),
+        ),
+      )
+      .toEqual(Array(6).fill("hidden"));
+    return pixels();
+  };
   await slider.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(counter).toHaveText(`${shown + 2} / 80`);
-  await expect(slider).toHaveAttribute("aria-valuenow", String(shown + 1));
+  const next = await settledAt(shown + 1);
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  const previous = await settledAt(shown - 1);
+  expect(meanDifference(dragged, next)).toBeGreaterThan(there);
+  expect(meanDifference(dragged, previous)).toBeGreaterThan(there);
 });
