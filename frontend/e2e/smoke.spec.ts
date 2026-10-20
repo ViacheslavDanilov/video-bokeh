@@ -152,6 +152,48 @@ test("sets every pane to the chosen speed", async ({ page }) => {
 });
 
 /**
+ * The transport's button shows a triangle to play and two bars to pause, with no words, and
+ * says which it is to a screen reader. The button stays where it was and keeps its size.
+ */
+test("shows the play and pause symbols on the transport button", async ({
+  page,
+}) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  const pause = page.getByRole("button", { name: "Pause", exact: true });
+
+  await expect(play).toHaveText("");
+  await expect(play.locator("svg.lucide-play")).toBeVisible();
+  const box = await play.boundingBox();
+
+  await play.click();
+  await expect(pause).toBeFocused();
+  await expect(pause).toHaveText("");
+  await expect(pause.locator("svg.lucide-pause")).toBeVisible();
+  await expect(play).toHaveCount(0);
+  expect(await pause.boundingBox()).toEqual(box);
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    ),
+  ).toEqual([false, false, false, false]);
+
+  // The keyboard works it as before: Enter on the focused button.
+  await page.keyboard.press("Enter");
+  await expect(play).toBeFocused();
+  await expect(play.locator("svg.lucide-play")).toBeVisible();
+  await expect
+    .poll(() =>
+      videos.evaluateAll((els) =>
+        els.map((el) => (el as HTMLVideoElement).paused),
+      ),
+    )
+    .toEqual([true, true, true, true]);
+});
+
+/**
  * The picker chooses the library a sequence comes from, and the sequence keeps naming its
  * own estimator after the picker moves on, so what is playing is never mislabeled.
  */
@@ -1507,6 +1549,90 @@ test("moves the position thumb smoothly while the panes play", async ({
   );
   expect(Math.min(...after)).toBeGreaterThanOrEqual(Math.round(target) - 0.5);
   await page.getByRole("button", { name: "Pause" }).click();
+});
+
+/**
+ * Six panes playing on a slow machine, which CPU throttling stands in for: on every animation
+ * frame the thumb is where the leading video is, not a render behind it. A thumb that waits
+ * for a render stands still while the video moves on, then jumps. Measured on its rendered
+ * position against the video's time, read in the same animation frame. Following the video
+ * renders nothing either, which the script time shows, at this throttling: a render of
+ * every pane on each timeupdate took 470 ms of it a second, one of the slider on each
+ * animation frame 140 ms, and following without rendering 8 ms.
+ */
+test("keeps the position thumb on the playing video under a loaded main thread", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1760, height: 640 });
+  await openPage(page);
+  const videos = await openSixPanes(page, 101);
+  const slider = page.getByRole("slider", { name: "Position" });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  await cdp.send("Performance.enable");
+  const scriptSeconds = async () =>
+    (await cdp.send("Performance.getMetrics")).metrics.find(
+      (m) => m.name === "ScriptDuration",
+    )!.value;
+
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await page.getByRole("button", { name: "Play" }).click();
+  // Started after the play, so each animation frame reads the thumb after it has moved.
+  await page.waitForTimeout(400);
+  const scriptBefore = await scriptSeconds();
+  const seen = await slider.evaluate(
+    async (thumb, lead) => {
+      const video = lead as HTMLVideoElement;
+      const track = thumb
+        .closest('[data-slot="slider"]')!
+        .querySelector('[data-slot="slider-track"]')!;
+      const lastFrame = Number(thumb.getAttribute("aria-valuemax"));
+      // Where the thumb is, in frames: its center travels the track less its own width.
+      const position = () => {
+        const box = thumb.getBoundingClientRect();
+        const rail = track.getBoundingClientRect();
+        return ((box.left - rail.left) / (rail.width - box.width)) * lastFrame;
+      };
+      // Where the video is, in frames, half a frame back, as the slider shows it.
+      const playing = () =>
+        Math.min(
+          Math.max(
+            (video.currentTime / video.duration) * (lastFrame + 1) - 0.5,
+            0,
+          ),
+          lastFrame,
+        );
+      const behind: number[] = [];
+      const started = performance.now();
+      await new Promise<void>((done) => {
+        const read = (when: number) => {
+          behind.push(playing() - position());
+          if (when < started + 2000) requestAnimationFrame(read);
+          else done();
+        };
+        requestAnimationFrame(read);
+      });
+      return { behind, seconds: (performance.now() - started) / 1000 };
+    },
+    await videos.first().elementHandle(),
+  );
+  const scriptPerSecond =
+    ((await scriptSeconds()) - scriptBefore) / seen.seconds;
+  await page.getByRole("button", { name: "Pause" }).click();
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+
+  expect(seen.behind.length).toBeGreaterThan(20);
+  // How far the thumb trails the video, in frames, apart from the loop back to the start.
+  const trailing = seen.behind.filter((d) => Math.abs(d) < 40);
+  const spread = Math.sqrt(
+    trailing.reduce((sum, d) => sum + d * d, 0) / trailing.length,
+  );
+  // About 0.01 of a frame following the video, against 0.8 a render behind and 1.5 when
+  // every pane renders too.
+  expect(spread).toBeLessThan(0.25);
+  expect(scriptPerSecond).toBeLessThan(0.05);
 });
 
 /**
