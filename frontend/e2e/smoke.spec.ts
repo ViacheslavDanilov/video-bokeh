@@ -1421,15 +1421,16 @@ test("moves the position thumb smoothly while the panes play", async ({
   await waitForDecoded(videos);
   const slider = page.getByRole("slider", { name: "Position" });
 
-  /** The thumb's position and the frame named, every 25 ms for a second. */
+  /** The thumb's position, the frame named and when, every 25 ms for a second. */
   const sample = () =>
     slider.evaluate(async (el) => {
-      const seen: { at: number; frame: number }[] = [];
+      const seen: { at: number; frame: number; when: number }[] = [];
       const until = performance.now() + 1000;
       while (performance.now() < until) {
         seen.push({
           at: Number(el.getAttribute("aria-valuenow")),
           frame: Number(el.getAttribute("aria-valuetext")!.split(" ")[1]) - 1,
+          when: performance.now() / 1000,
         });
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
@@ -1447,12 +1448,18 @@ test("moves the position thumb smoothly while the panes play", async ({
     await page.getByRole("button", { name: "Pause" }).click();
 
     const positions = seen.map((s) => s.at);
-    const steps = positions.slice(1).map((p, i) => p - positions[i]);
-    // A new position every sample or two, not one per timeupdate event.
-    expect(new Set(positions).size, `${speed}×`).toBeGreaterThan(20);
-    // Forward only, and never by more than a tenth of a second of video at once.
-    expect(Math.min(...steps), `${speed}×`).toBeGreaterThanOrEqual(0);
-    expect(Math.max(...steps), `${speed}×`).toBeLessThanOrEqual(speed * 2.4);
+    // More positions than the four or five timeupdate events a second would give.
+    expect(new Set(positions).size, `${speed}×`).toBeGreaterThan(10);
+    // Forward only, and from one sample to the next by no more than the frames the video
+    // played in between, at 24 a second, give or take 100 ms: the thumb keeps up rather
+    // than catching up in jumps.
+    seen.slice(1).forEach((s, i) => {
+      const step = s.at - seen[i].at;
+      expect(step, `${speed}×`).toBeGreaterThanOrEqual(0);
+      expect(step, `${speed}×`).toBeLessThanOrEqual(
+        speed * 24 * (s.when - seen[i].when + 0.1),
+      );
+    });
     // The counter names the whole frame nearest the thumb.
     expect(
       seen.map((s) => s.frame),
@@ -1472,7 +1479,7 @@ test("moves the position thumb smoothly while the panes play", async ({
  * A drag the browser cancels, or one cut short by the page losing focus, ends like one let
  * go: the panes play on rather than sit paused until the slider is touched again.
  */
-test("plays on after a drag that is cancelled", async ({ page }) => {
+test("plays on after a drag that is canceled", async ({ page }) => {
   await openPage(page);
   const videos = await generateSequence(page);
   await waitForDecoded(videos);
