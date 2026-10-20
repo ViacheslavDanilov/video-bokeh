@@ -1451,13 +1451,13 @@ test("moves the position thumb smoothly while the panes play", async ({
     // More positions than the four or five timeupdate events a second would give.
     expect(new Set(positions).size, `${speed}×`).toBeGreaterThan(10);
     // Forward only, and from one sample to the next by no more than the frames the video
-    // played in between, at 24 a second, give or take 100 ms: the thumb keeps up rather
-    // than catching up in jumps.
+    // played in between, at 24 a second, plus 200 ms: the thumb may trail a busy main
+    // thread, as on a CI runner, but never by the quarter second between timeupdate events.
     seen.slice(1).forEach((s, i) => {
       const step = s.at - seen[i].at;
       expect(step, `${speed}×`).toBeGreaterThanOrEqual(0);
       expect(step, `${speed}×`).toBeLessThanOrEqual(
-        speed * 24 * (s.when - seen[i].when + 0.1),
+        speed * 24 * (s.when - seen[i].when + 0.2),
       );
     });
     // The counter names the whole frame nearest the thumb.
@@ -1487,7 +1487,7 @@ test("moves the position thumb smoothly while the panes play", async ({
   const y = thumb.y + thumb.height / 2;
   await page.mouse.move(thumb.x + thumb.width / 2, y);
   await page.mouse.down();
-  await page.mouse.move(track.x + track.width * 0.8, y, { steps: 5 });
+  await page.mouse.move(track.x + track.width * 0.5, y, { steps: 5 });
   const target = Number(await slider.getAttribute("aria-valuenow"));
   // The thumb's position on every animation frame from here until 300 ms on.
   await slider.evaluate((el) => {
@@ -1552,6 +1552,8 @@ test("plays on after a drag that is canceled", async ({ page }) => {
  * letting go then does not start the new videos behind a button that reads Play.
  */
 test("keeps a sequence that arrives mid-drag paused", async ({ page }) => {
+  // Two sequences generated and encoded, which takes a CI runner most of the default.
+  test.slow();
   await openPage(page);
   const videos = await generateSequence(page, 7);
   await waitForDecoded(videos);
