@@ -936,9 +936,11 @@ export function Viewer({
                 <ObjectLegend colors={sequence.object_colors} />
               )}
               {/* The direction comes from the stream info, as the colormap does; the
-                  legend is the flow's own. */}
+                  legend is the flow's own. Top-aligned, as the overlay's row is, so a
+                  caption wrapped onto two lines does not push the dropdown down, and a
+                  narrower gap, which leaves that caption room for two lines, not three. */}
               {(info.backward !== null || stream === "flow") && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-2">
                   {info.backward !== null && (
                     <Select
                       value={backward ? "backward" : "forward"}

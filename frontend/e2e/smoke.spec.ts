@@ -1199,8 +1199,8 @@ async function openSixPanes(page: Page, seed: number) {
 
 /**
  * Under every pane the controls start on one line, directly beneath the frame, however
- * narrow six panes side by side make them: the flow's caption stays one line rather than
- * push its dropdown down.
+ * narrow six panes side by side make them: the flow's caption wraps beside its wheel, onto
+ * two lines at most, whole, rather than push its dropdown down or lose its end.
  */
 test("lines up the controls under six narrow panes", async ({ page }) => {
   test.slow();
@@ -1233,9 +1233,26 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
       .poll(async () => Math.round((await control.boundingBox())!.y))
       .toBe(Math.round(frameBottom + 8));
   }
-  // The caption is one line, not a paragraph wrapped down the pane.
+  // The wheel is level with the dropdowns too, not pushed down by the caption beside it.
+  const wheel = page
+    .getByRole("button", { name: "Color = direction; paler = slower" })
+    .locator("span")
+    .first();
+  expect(Math.round((await wheel.boundingBox())!.y)).toBe(
+    Math.round(frameBottom + 8),
+  );
+  // The caption shows all of itself, on two lines at most, not a paragraph wrapped down the
+  // pane and not cut off with an ellipsis.
   const caption = page.getByText("Color = direction; paler = slower");
-  expect((await caption.boundingBox())!.height).toBeLessThan(20);
+  const shown = await caption.evaluate((el) => ({
+    whole:
+      el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
+    lines:
+      el.getBoundingClientRect().height /
+      parseFloat(getComputedStyle(el).lineHeight),
+  }));
+  expect(shown.whole).toBe(true);
+  expect(shown.lines).toBeLessThanOrEqual(2);
 });
 
 /**
