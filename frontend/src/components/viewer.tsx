@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type RefObject,
+  useState,
+} from "react";
 import { Check, Copy, GripVertical, X } from "lucide-react";
 import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
@@ -206,6 +213,9 @@ export function Viewer({
   const [panes, setPanes] = useState<Pane[]>([]);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
+  // Counts the transport's seeks, so that the position slider drops the time it follows
+  // while playing for the one sought, even when that is the time it had before.
+  const [seeks, setSeeks] = useState(0);
   const [duration, setDuration] = useState(0);
   // A viewer setting rather than part of the sequence, so a new sequence keeps it.
   const [speed, setSpeed] = useState(1);
@@ -280,7 +290,16 @@ export function Viewer({
     setDuration(0);
     // The last sequence's frames, which a canvas waiting on a video now gone would keep.
     setCovering(new Set());
+    // A drag under way when it arrives ends with it; one that goes on starts afresh.
+    setScrub(null);
   }
+  // The refs follow in the commit, before any event can read them: a drag let go before
+  // the new videos load would otherwise play them behind a button that reads Play.
+  const sequenceId = sequence?.id ?? null;
+  useLayoutEffect(() => {
+    playingRef.current = false;
+    scrubRef.current = null;
+  }, [sequenceId]);
 
   // A stream the server did not list for the last sequence gets a pane of its own while
   // there is room: bokeh appears this way, when a sequence that had none is asked for again
@@ -342,11 +361,17 @@ export function Viewer({
     const next = !playingRef.current;
     playingRef.current = next;
     setPlaying(next);
+    const lead = videos.current.values().next().value;
     if (!next) {
       videos.current.forEach((v) => v.pause());
+      // Where it stopped, rather than at the last timeupdate event, up to a quarter of a
+      // second back, which the thumb would otherwise jump to.
+      if (lead) {
+        timeRef.current = lead.currentTime;
+        setTime(lead.currentTime);
+      }
       return;
     }
-    const lead = videos.current.values().next().value;
     const at = lead ? lead.currentTime : 0;
     timeRef.current = at;
     videos.current.forEach((v) => {
@@ -432,25 +457,12 @@ export function Viewer({
     ]);
   };
 
-  // The transport counts frames, not seconds. A slider stepping by duration/frames
-  // lands on fractions the browser then rounds back, so arrow keys stalled after two
-  // presses -- and a screen reader read out seconds when the interesting number is the
-  // frame. The keys move it by whole frames, and its text names the frame shown.
-  // The frame on screen is the one whose time span holds the current time, so the counter
-  // rounds down, and a seek goes to the middle of a frame, which no rounding moves out.
-  const lastFrame = Math.max(sequence.frames - 1, 0);
-  const nearest = (position: number) =>
-    Math.min(Math.max(Math.round(position), 0), lastFrame);
-  const frameIndex =
-    scrub !== null
-      ? nearest(scrub)
-      : duration
-        ? Math.min(Math.floor((time / duration) * sequence.frames), lastFrame)
-        : 0;
+  const nearest = (position: number) => nearestFrame(position, sequence.frames);
   const seekToFrame = (frame: number) => {
     const to = duration ? frameTime(frame, sequence.frames, duration) : 0;
     timeRef.current = to;
     setTime(to);
+    setSeeks((n) => n + 1);
     videos.current.forEach((v) => {
       v.currentTime = to;
     });
@@ -881,9 +893,12 @@ export function Viewer({
                 <ObjectLegend colors={sequence.object_colors} />
               )}
               {/* The direction comes from the stream info, as the colormap does; the
-                  legend is the flow's own. */}
+                  legend is the flow's own. Top-aligned, as the overlay's row is, so a
+                  caption wrapped onto two lines does not push the dropdown down, and
+                  with narrower gaps, which leave that caption room for two lines at six
+                  panes, not three. */}
               {(info.backward !== null || stream === "flow") && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-1.5">
                   {info.backward !== null && (
                     <Select
                       value={backward ? "backward" : "forward"}
@@ -952,42 +967,18 @@ export function Viewer({
             ))}
           </SelectContent>
         </Select>
-        <div className="flex min-w-60 flex-1 items-center gap-4">
-          <Slider
-            aria-label="Position"
-            aria-valuetext={`Frame ${frameIndex + 1} of ${sequence.frames}`}
-            className="flex-1"
-            min={0}
-            max={lastFrame}
-            step={SCRUB_STEP}
-            value={[scrub ?? frameIndex]}
-            onValueChange={([position]) => scrubTo(position)}
-            onValueCommit={endScrub}
-            // A drag that ends where it began commits nothing, and must still end.
-            onPointerUp={endScrub}
-            onKeyDown={(e) => {
-              // Home and End too: the slider's own commits before it changes, which would
-              // leave the scrub it starts open.
-              let to: number;
-              if (e.key === "Home") to = 0;
-              else if (e.key === "End") to = lastFrame;
-              else {
-                const by = FRAME_KEYS[e.key];
-                if (by === undefined) return;
-                // Shift with an arrow is ten frames, as Page Up and Page Down are.
-                to =
-                  frameIndex +
-                  (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
-              }
-              e.preventDefault();
-              scrubTo(nearest(to));
-              endScrub();
-            }}
-          />
-          <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
-            {frameIndex + 1} / {sequence.frames}
-          </span>
-        </div>
+        <Position
+          frames={sequence.frames}
+          duration={duration}
+          time={time}
+          seeks={seeks}
+          playing={playing}
+          scrub={scrub}
+          videos={videos}
+          scrubbing={scrubRef}
+          onScrub={scrubTo}
+          onEndScrub={endScrub}
+        />
         {/* Here rather than beside the panes, where it took a column's width from them. */}
         {names.length > 0 && (
           <Button
@@ -1005,6 +996,149 @@ export function Viewer({
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The whole frame nearest a position on the slider, within the sequence. */
+function nearestFrame(position: number, frames: number) {
+  return Math.min(Math.max(Math.round(position), 0), Math.max(frames - 1, 0));
+}
+
+/**
+ * The position slider and the frame counter beside it.
+ *
+ * The transport counts frames, not seconds. A slider stepping by duration/frames lands on
+ * fractions the browser then rounds back, so arrow keys stalled after two presses -- and a
+ * screen reader read out seconds when the interesting number is the frame. The keys move it
+ * by whole frames, and its text names the frame shown. The frame on screen is the one whose
+ * time span holds the current time, so the counter rounds down, and a seek goes to the
+ * middle of a frame, which no rounding moves out.
+ *
+ * While playing, the time comes from the leading video every animation frame rather than
+ * from its timeupdate events, about four a second, so the thumb glides instead of jumping
+ * several frames at a time. That time is this component's own, so only the slider and the
+ * counter render on each frame, not every pane. Nothing runs while paused or while the page
+ * is hidden, nor during a drag, which places the thumb itself.
+ */
+function Position({
+  frames,
+  duration,
+  time,
+  seeks,
+  playing,
+  scrub,
+  videos,
+  scrubbing,
+  onScrub,
+  onEndScrub,
+}: {
+  frames: number;
+  duration: number;
+  /** The transport's time while paused, from the videos' own events and from seeks. */
+  time: number;
+  /** How many seeks the transport has made; each one replaces the time followed. */
+  seeks: number;
+  playing: boolean;
+  /** Where a drag holds the thumb, or null. */
+  scrub: number | null;
+  videos: RefObject<Map<number, HTMLVideoElement>>;
+  /** The drag's position for the animation loop, which must not restart on every move. */
+  scrubbing: RefObject<number | null>;
+  onScrub: (position: number) => void;
+  onEndScrub: () => void;
+}) {
+  const [live, setLive] = useState<number | null>(null);
+  // A seek while playing, such as a drag let go or a key, moves the thumb to the frame
+  // sought at once. The time followed stopped during the drag, and would show where it
+  // began until the next animation frame.
+  const [seenSeeks, setSeenSeeks] = useState(seeks);
+  if (seeks !== seenSeeks) {
+    setSeenSeeks(seeks);
+    setLive(null);
+  }
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    const follow = () => {
+      const lead = videos.current.values().next().value;
+      // A lead loading a new stream reads 0 until it is put back where the transport is.
+      if (
+        lead &&
+        lead.readyState >= HTMLMediaElement.HAVE_METADATA &&
+        scrubbing.current === null
+      )
+        setLive(lead.currentTime);
+      frame = requestAnimationFrame(follow);
+    };
+    const resume = () => {
+      cancelAnimationFrame(frame);
+      if (!document.hidden) frame = requestAnimationFrame(follow);
+    };
+    resume();
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", resume);
+      // So that playing again starts from the transport's time, not from where this left.
+      setLive(null);
+    };
+  }, [playing, videos, scrubbing]);
+
+  const lastFrame = Math.max(frames - 1, 0);
+  const at = playing && live !== null ? live : time;
+  const frameIndex =
+    scrub !== null
+      ? nearestFrame(scrub, frames)
+      : duration
+        ? Math.min(Math.floor((at / duration) * frames), lastFrame)
+        : 0;
+  // Playing, the thumb sits between frames, where the time is: half a frame back, so that
+  // the frame nearest it is the one shown, as while dragging. Paused, it rests on that frame.
+  const thumbAt =
+    scrub ??
+    (playing && duration
+      ? Math.min(Math.max((at / duration) * frames - 0.5, 0), lastFrame)
+      : frameIndex);
+
+  return (
+    <div className="flex min-w-60 flex-1 items-center gap-4">
+      <Slider
+        aria-label="Position"
+        aria-valuetext={`Frame ${frameIndex + 1} of ${frames}`}
+        className="flex-1"
+        min={0}
+        max={lastFrame}
+        step={SCRUB_STEP}
+        value={[thumbAt]}
+        onValueChange={([position]) => onScrub(position)}
+        onValueCommit={onEndScrub}
+        // A drag that ends where it began commits nothing, and must still end. So must one
+        // the browser cancels, or one the page losing focus cuts short: the thumb a drag
+        // focuses loses it then.
+        onPointerUp={onEndScrub}
+        onPointerCancel={onEndScrub}
+        onBlur={onEndScrub}
+        onKeyDown={(e) => {
+          // Home and End too: the slider's own commits before it changes, which would
+          // leave the scrub it starts open.
+          let to: number;
+          if (e.key === "Home") to = 0;
+          else if (e.key === "End") to = lastFrame;
+          else {
+            const by = FRAME_KEYS[e.key];
+            if (by === undefined) return;
+            // Shift with an arrow is ten frames, as Page Up and Page Down are.
+            to = frameIndex + (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
+          }
+          e.preventDefault();
+          onScrub(nearestFrame(to, frames));
+          onEndScrub();
+        }}
+      />
+      <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
+        {frameIndex + 1} / {frames}
+      </span>
     </div>
   );
 }

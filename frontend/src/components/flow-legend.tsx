@@ -16,9 +16,9 @@ import {
  * The backward flow uses the same wheel, but its vectors point to where a pixel came from,
  * so a pixel moving right is drawn in the color of left, cyan.
  *
- * Under the pane it is one short line, which six narrow panes side by side can still fit
- * level with the other panes' controls. The full reading, which depends on the direction,
- * is a tooltip on the legend, which a keyboard reaches as a button.
+ * Under the pane it is one short line, which six narrow panes side by side wrap onto two,
+ * the wheel staying level with the other panes' controls. The full reading, which depends
+ * on the direction, is a tooltip on the legend, which a keyboard reaches as a button.
  */
 
 // Each anchor's place on the wheel, 0 to 54, as the backend counts its 55 colors.
@@ -49,15 +49,18 @@ export function FlowLegend({ backward }: { backward: boolean }) {
         <TooltipTrigger asChild>
           <button
             type="button"
-            className="text-muted-foreground focus-visible:ring-ring/50 flex h-7 min-w-0 cursor-help items-center gap-2 rounded-md text-left text-xs outline-none focus-visible:ring-3"
+            className="text-muted-foreground focus-visible:ring-ring/50 flex min-h-7 min-w-0 cursor-help items-start gap-1 rounded-md text-left text-xs outline-none focus-visible:ring-3"
           >
-            {/* The height of the controls beside it, so the row stays theirs. */}
+            {/* The height of the controls beside it, and level with their tops however
+                many lines the caption takes. */}
             <span
               className="border-border size-7 shrink-0 rounded-full border"
               style={{ background: WHEEL }}
               aria-hidden
             />
-            <span className="truncate">Color = direction; paler = slower</span>
+            <span className="line-clamp-2 self-center tracking-tight">
+              Color = direction; paler = slower
+            </span>
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64">

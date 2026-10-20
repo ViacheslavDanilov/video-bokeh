@@ -1199,8 +1199,8 @@ async function openSixPanes(page: Page, seed: number) {
 
 /**
  * Under every pane the controls start on one line, directly beneath the frame, however
- * narrow six panes side by side make them: the flow's caption stays one line rather than
- * push its dropdown down.
+ * narrow six panes side by side make them: the flow's caption wraps beside its wheel, onto
+ * two lines at most, whole, rather than push its dropdown down or lose its end.
  */
 test("lines up the controls under six narrow panes", async ({ page }) => {
   test.slow();
@@ -1233,9 +1233,26 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
       .poll(async () => Math.round((await control.boundingBox())!.y))
       .toBe(Math.round(frameBottom + 8));
   }
-  // The caption is one line, not a paragraph wrapped down the pane.
+  // The wheel is level with the dropdowns too, not pushed down by the caption beside it.
+  const wheel = page
+    .getByRole("button", { name: "Color = direction; paler = slower" })
+    .locator("span")
+    .first();
+  expect(Math.round((await wheel.boundingBox())!.y)).toBe(
+    Math.round(frameBottom + 8),
+  );
+  // The caption shows all of itself, on two lines at most, not a paragraph wrapped down the
+  // pane and not cut off with an ellipsis.
   const caption = page.getByText("Color = direction; paler = slower");
-  expect((await caption.boundingBox())!.height).toBeLessThan(20);
+  const shown = await caption.evaluate((el) => ({
+    whole:
+      el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
+    lines:
+      el.getBoundingClientRect().height /
+      parseFloat(getComputedStyle(el).lineHeight),
+  }));
+  expect(shown.whole).toBe(true);
+  expect(shown.lines).toBeLessThanOrEqual(2);
 });
 
 /**
@@ -1388,4 +1405,195 @@ test("scrubs every pane to the nearest frame while dragging", async ({
     )
     .toEqual(Array(6).fill(false));
   await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+});
+
+/**
+ * While the panes play, the position thumb glides: it follows the leading video every
+ * animation frame, between frames, at every speed, and does not jump from one timeupdate
+ * event to the next, about four a second. The counter names the frame shown, the one
+ * nearest the thumb. Paused, the thumb rests on that frame.
+ */
+test("moves the position thumb smoothly while the panes play", async ({
+  page,
+}) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+
+  /** The thumb's position, the frame named and when, every 25 ms for a second. */
+  const sample = () =>
+    slider.evaluate(async (el) => {
+      const seen: { at: number; frame: number; when: number }[] = [];
+      const until = performance.now() + 1000;
+      while (performance.now() < until) {
+        seen.push({
+          at: Number(el.getAttribute("aria-valuenow")),
+          frame: Number(el.getAttribute("aria-valuetext")!.split(" ")[1]) - 1,
+          when: performance.now() / 1000,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      return seen;
+    });
+
+  for (const speed of [0.25, 1, 2]) {
+    await slider.focus();
+    await page.keyboard.press("Home");
+    await expect(slider).toHaveAttribute("aria-valuenow", "0");
+    await page.getByRole("combobox", { name: "Playback speed" }).click();
+    await page.getByRole("option", { name: `${speed}×` }).click();
+    await page.getByRole("button", { name: "Play" }).click();
+    const seen = await sample();
+    await page.getByRole("button", { name: "Pause" }).click();
+
+    const positions = seen.map((s) => s.at);
+    // More positions than the four or five timeupdate events a second would give.
+    expect(new Set(positions).size, `${speed}×`).toBeGreaterThan(10);
+    // Forward only, and from one sample to the next by no more than the frames the video
+    // played in between, at 24 a second, plus 200 ms: the thumb may trail a busy main
+    // thread, as on a CI runner, but never by the quarter second between timeupdate events.
+    seen.slice(1).forEach((s, i) => {
+      const step = s.at - seen[i].at;
+      expect(step, `${speed}×`).toBeGreaterThanOrEqual(0);
+      expect(step, `${speed}×`).toBeLessThanOrEqual(
+        speed * 24 * (s.when - seen[i].when + 0.2),
+      );
+    });
+    // The counter names the whole frame nearest the thumb.
+    expect(
+      seen.map((s) => s.frame),
+      `${speed}×`,
+    ).toEqual(positions.map((p) => Math.round(p)));
+
+    // Paused, the thumb rests on the whole frame shown.
+    const resting = Number(await slider.getAttribute("aria-valuenow"));
+    expect(Number.isInteger(resting), `${speed}×`).toBe(true);
+    await expect(page.getByText(/^\d+ \/ 80$/)).toHaveText(
+      `${resting + 1} / 80`,
+    );
+  }
+
+  // A drag let go while playing goes on from where it was let go, from the first frame
+  // drawn after, and does not flash back to where the drag began.
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await page.getByRole("button", { name: "Play" }).click();
+  await page.waitForTimeout(500);
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const thumb = (await slider.boundingBox())!;
+  const y = thumb.y + thumb.height / 2;
+  await page.mouse.move(thumb.x + thumb.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width * 0.5, y, { steps: 5 });
+  const target = Number(await slider.getAttribute("aria-valuenow"));
+  // The thumb's position on every animation frame from here until 300 ms on.
+  await slider.evaluate((el) => {
+    const seen: number[] = [];
+    (window as unknown as { seen: number[] }).seen = seen;
+    const until = performance.now() + 300;
+    const read = () => {
+      seen.push(Number(el.getAttribute("aria-valuenow")));
+      if (performance.now() < until) requestAnimationFrame(read);
+    };
+    requestAnimationFrame(read);
+  });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const after = await page.evaluate(
+    () => (window as unknown as { seen: number[] }).seen,
+  );
+  expect(Math.min(...after)).toBeGreaterThanOrEqual(Math.round(target) - 0.5);
+  await page.getByRole("button", { name: "Pause" }).click();
+});
+
+/**
+ * A drag the browser cancels, or one cut short by the page losing focus, ends like one let
+ * go: the panes play on rather than sit paused until the slider is touched again.
+ */
+test("plays on after a drag that is canceled", async ({ page }) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const paused = () =>
+    videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    );
+  await page.getByRole("button", { name: "Play" }).click();
+
+  const cancels: [string, () => Promise<void>][] = [
+    ["pointercancel", () => slider.dispatchEvent("pointercancel")],
+    ["blur", () => slider.evaluate((el) => (el as HTMLElement).blur())],
+  ];
+  for (const [name, cancel] of cancels) {
+    const thumb = (await slider.boundingBox())!;
+    const y = thumb.y + thumb.height / 2;
+    await page.mouse.move(thumb.x + thumb.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(thumb.x + track.width / 4, y, { steps: 5 });
+    expect(await paused(), name).toEqual([true, true, true, true]);
+    await cancel();
+    await expect
+      .poll(paused, { message: name })
+      .toEqual([false, false, false, false]);
+    await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+    await page.mouse.up();
+  }
+});
+
+/**
+ * A new sequence arriving while the slider is held rewinds the transport to a stop, and
+ * letting go then does not start the new videos behind a button that reads Play.
+ */
+test("keeps a sequence that arrives mid-drag paused", async ({ page }) => {
+  // Two sequences generated and encoded, which takes a CI runner most of the default.
+  test.slow();
+  await openPage(page);
+  const videos = await generateSequence(page, 7);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+  const sequenceId = page
+    .getByRole("group", { name: "Sequence on screen" })
+    .getByText(/^[0-9a-f]{16}$/);
+  const first = await sequenceId.innerText();
+  // The next sequence's seed, set before the drag, which a click into the field would end.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("8");
+  await page.getByRole("button", { name: "Play" }).click();
+
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const thumb = (await slider.boundingBox())!;
+  const y = thumb.y + thumb.height / 2;
+  await page.mouse.move(thumb.x + thumb.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(thumb.x + track.width / 4, y, { steps: 5 });
+  // A click that moves neither the pointer nor the focus, as a generation finishing while
+  // the slider is held would.
+  await page
+    .getByRole("button", { name: "Generate sequence" })
+    .evaluate((el) => (el as HTMLButtonElement).click());
+  await expect(sequenceId).not.toHaveText(first, { timeout: 60_000 });
+  await page.mouse.up();
+
+  await waitForDecoded(videos);
+  await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+  const times = () =>
+    videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).currentTime),
+    );
+  const before = await times();
+  await page.waitForTimeout(400);
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    ),
+  ).toEqual([true, true, true, true]);
+  expect(await times()).toEqual(before);
 });
