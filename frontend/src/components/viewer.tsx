@@ -466,7 +466,8 @@ export function Viewer({
     const now: Decoded = { src, frames: [], abort: new AbortController() };
     decoded.current.set(key, now);
     canvas.dataset.decoded = "0";
-    void decodeFrames(
+    // A frame that cannot be decoded leaves the rest to seeking, as before.
+    decodeFrames(
       src,
       sequence.frames,
       Math.ceil(canvas.clientWidth),
@@ -475,7 +476,7 @@ export function Viewer({
       () => {
         canvas.dataset.decoded = String(now.frames.length);
       },
-    );
+    ).catch(() => {});
   };
 
   // Every pane shows the frame nearest the thumb at once: drawn from memory where it is
@@ -487,7 +488,13 @@ export function Viewer({
     const drawn = new Set<number>();
     videos.current.forEach((video, key) => {
       const canvas = canvases.current.get(key);
-      const bitmap = decoded.current.get(key)?.frames[frame];
+      // Only frames of the video the pane has now: a switched stream keeps the last one's
+      // until its own video loads.
+      const frames = decoded.current.get(key);
+      const bitmap =
+        frames?.src === video.getAttribute("src")
+          ? frames.frames[frame]
+          : undefined;
       if (canvas && bitmap) {
         if (canvas.width !== bitmap.width) canvas.width = bitmap.width;
         if (canvas.height !== bitmap.height) canvas.height = bitmap.height;
@@ -767,6 +774,12 @@ export function Viewer({
                     setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
                     setDuration(e.currentTarget.duration);
                     decodeFor(pane.key, src);
+                    // A seek a new source cut short never ends; its canvas would stay.
+                    setCovering((was) => {
+                      const next = new Set(was);
+                      next.delete(pane.key);
+                      return next;
+                    });
                     if (restoredSequence.current !== sequence.id) {
                       // First load of a new sequence: the transport is at the start and
                       // nothing should resume on its own.
@@ -839,7 +852,7 @@ export function Viewer({
                   <DepthLegend colormap={colormap} />
                 </div>
               )}
-              {/* Each row's control on top, level with the other panes' however far a
+              {/* The button on top, level with the other panes' controls however far a
                   narrow pane wraps the legend beside it. */}
               {info.overlay !== null && (
                 <div className="flex items-start gap-3">
@@ -949,7 +962,9 @@ export function Viewer({
               const by = FRAME_KEYS[e.key];
               if (by === undefined) return;
               e.preventDefault();
-              scrubTo(nearest(frameIndex + (e.shiftKey ? by * 10 : by)));
+              // Shift with an arrow is ten frames, as Page Up and Page Down are.
+              const step = e.shiftKey && Math.abs(by) === 1 ? by * 10 : by;
+              scrubTo(nearest(frameIndex + step));
               endScrub();
             }}
           />

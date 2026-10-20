@@ -59,10 +59,9 @@ without rebuilding.
   The legend beside the picker follows the map on screen. The transport
   plays every pane at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and
   the next sequence.
-  Dragging the position slider moves its thumb smoothly, and every pane shows the frame
-  nearest to it at once: each pane's frames are decoded into memory once its video loads,
-  at the size the pane is shown, and drawn over the video while the slider is dragged. The
-  arrow keys step one frame, Page Up and Page Down ten.
+  Dragging the position slider moves its thumb smoothly. Every pane shows the frame nearest
+  to the thumb at once, drawn from frames decoded when its video loaded. The arrow keys step
+  one frame. Page Up, Page Down and Shift with an arrow step ten.
   The panes fit the window together, at the largest size that allows, in rows of even length.
   Where that size would be under 200 px, as on a phone or in a low window, they are at least
   280 px wide instead, and the page scrolls with the transport held at the bottom.

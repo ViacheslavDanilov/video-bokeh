@@ -3,8 +3,9 @@
  * seeks to one.
  *
  * A seek has to decode from the last keyframe, and the API's videos have one, at the start:
- * six panes seeking together took 22 to 69 ms a step, which a drag shows as lag. Drawing
- * a decoded frame takes well under a millisecond.
+ * six panes seeking together took 43 ms a step at the median at 512 px and 67 ms at
+ * 1024 px, up to 127 ms, which a drag shows as lag. Drawn from memory, every pane showed
+ * the new frame by the next animation frame at the median, 8 ms after the pointer moved.
  *
  * The frames are kept at the size the pane is shown, in CSS pixels, not the video's,
  * because memory grows with the pixels: 80 frames of 1024 px are 320 MiB a pane. Six panes
@@ -21,7 +22,8 @@ export function frameTime(index: number, frames: number, duration: number) {
 /**
  * Decode `frames` frames of `src`, each scaled to `width` pixels square at most, into
  * `into`, in order, as each is ready, so the first ones can be drawn before the last are
- * decoded. Stops at `signal`, closing what it decoded. A video that fails stops it too.
+ * decoded. Stops at `signal`, after which nothing more is added to `into`: closing what
+ * is there is the caller's. A video that fails stops it too.
  */
 export async function decodeFrames(
   src: string,
@@ -55,7 +57,8 @@ export async function decodeFrames(
     const loaded = event("loadeddata");
     video.src = src;
     if (!(await loaded)) return;
-    const scale = Math.min(1, width / video.videoWidth);
+    // A pane not laid out yet has no width; its frames are then the video's own size.
+    const scale = width > 0 ? Math.min(1, width / video.videoWidth) : 1;
     const size = {
       resizeWidth: Math.max(1, Math.round(video.videoWidth * scale)),
       resizeHeight: Math.max(1, Math.round(video.videoHeight * scale)),
@@ -74,7 +77,6 @@ export async function decodeFrames(
       onFrame();
     }
   } finally {
-    if (signal.aborted) into.splice(0).forEach((bitmap) => bitmap.close());
     // Lets the browser drop the decoder and the file.
     video.removeAttribute("src");
     video.load();
