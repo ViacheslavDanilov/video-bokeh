@@ -1007,8 +1007,10 @@ function nearestFrame(position: number, frames: number) {
   return Math.min(Math.max(Math.round(position), 0), Math.max(frames - 1, 0));
 }
 
-/** Where the leading video is, as a slider position and the frame it shows. Null for a lead
- *  loading a new stream, which reads 0 until it is put back where the transport is. */
+/**
+ * Where the leading video is, as a slider position and the frame it shows. Null for a lead
+ * loading a new stream, which reads 0 until it is put back where the transport is.
+ */
 function leadPosition(
   videos: Map<number, HTMLVideoElement>,
   frames: number,
@@ -1064,12 +1066,13 @@ function drawPosition(
  *
  * While playing, the thumb follows the leading video every animation frame rather than its
  * timeupdate events, about four a second, so it glides instead of jumping several frames at
- * a time. It does so without rendering: a render of the slider took about 3 ms of the dev
- * build's main thread, which six playing videos already load, and one every animation frame
- * showed as the thumb stopping and jumping. The loop moves the thumb from where the slider
- * was rendered and writes the slider's value and the counter itself, and after every render
- * the same writes put the position back, so a render never shows an older one. Nothing runs
- * while paused or while the page is hidden, nor during a drag, which places the thumb itself.
+ * a time. It does so without rendering: each render of the slider took about 3 ms of the dev
+ * build's main thread, unthrottled, which six playing videos already load, and one every
+ * animation frame showed as the thumb stopping and jumping. The loop moves the thumb from
+ * where the slider was rendered and writes the slider's value and the counter itself, and
+ * after every render the same writes put the position back, so a render never shows an
+ * older one. Nothing runs while paused or while the page is hidden, nor during a drag, which
+ * places the thumb itself.
  */
 function Position({
   frames,
@@ -1201,8 +1204,12 @@ function Position({
           else {
             const by = FRAME_KEYS[e.key];
             if (by === undefined) return;
-            // From the frame on screen, which while playing only the loop knows.
-            const from = shown.current?.frame ?? frameIndex;
+            // From the frame on screen, which while playing the lead has: a second key
+            // before the next animation frame counts from the first one's seek.
+            const from =
+              (playing && scrub === null
+                ? leadPosition(videos.current, frames)?.frame
+                : undefined) ?? frameIndex;
             // Shift with an arrow is ten frames, as Page Up and Page Down are.
             to = from + (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
           }

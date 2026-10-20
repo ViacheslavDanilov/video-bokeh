@@ -1555,9 +1555,9 @@ test("moves the position thumb smoothly while the panes play", async ({
  * Six panes playing on a slow machine, which CPU throttling stands in for: the thumb moves
  * by the time each animation frame took, not in jerks. Measured on its rendered position,
  * every animation frame, against where 24 frames a second would put it. Following the video
- * renders nothing either, which the script time shows: a render of every pane on each
- * timeupdate took 470 ms of it a second here, one of the slider on each animation frame
- * 140 ms, and following without rendering 8 ms.
+ * renders nothing either, which the script time shows, at this throttling: a render of
+ * every pane on each timeupdate took 470 ms of it a second, one of the slider on each
+ * animation frame 140 ms, and following without rendering 8 ms.
  */
 test("moves the position thumb evenly under a loaded main thread", async ({
   page,
@@ -1600,7 +1600,7 @@ test("moves the position thumb evenly under a loaded main thread", async ({
     });
     return {
       samples,
-      pxPerFrame: travel / 79,
+      pxPerFrame: travel / Number(thumb.getAttribute("aria-valuemax")),
       seconds: (performance.now() - started) / 1000,
     };
   });
