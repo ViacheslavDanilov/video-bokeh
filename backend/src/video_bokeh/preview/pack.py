@@ -144,13 +144,13 @@ def _flow_frames(paths: list[Path], backward: bool = False) -> Iterator[np.ndarr
 
 
 #: The overlay grays the frames, at this much of their brightness: near full, so the
-#: picture stays readable, and a little under it, so the orange stands out on white.
+#: picture stays readable, and a little under it, so the cyan stands out on white.
 _OVERLAY_BRIGHTNESS = 0.9
-#: How opaque the orange is over each occluded pixel.
-_OVERLAY_OPACITY = 0.65
-#: Orange from the Okabe-Ito palette, #E69F00, which reads apart from gray for every
-#: common form of color blindness.
-_ORANGE = np.array([230.0, 159.0, 0.0])
+#: How opaque the cyan is over each occluded pixel: enough that the gray under it does
+#: not wash it out.
+_OVERLAY_OPACITY = 0.85
+#: A saturated cyan, #00E5FF, which no gray comes near.
+_CYAN = np.array([0.0, 229.0, 255.0])
 #: Rec. 709 luma weights, for the gray.
 _LUMA = np.array([0.2126, 0.7152, 0.0722])
 
@@ -164,7 +164,7 @@ def _occlusion_frames(
 
     On its own each mask is white on black, as stored. Over ``background``, the
     all-in-focus frames, each frame is grayed and its occluded pixels drawn in a
-    semi-transparent orange.
+    semi-transparent cyan.
     """
     if background is None:
         mask = None
@@ -179,8 +179,8 @@ def _occlusion_frames(
         gray = np.repeat((luma * _OVERLAY_BRIGHTNESS)[..., None], 3, -1)
         if index < len(paths):
             mask = read_mask_png(paths[index])[..., None]
-            orange = gray * (1 - _OVERLAY_OPACITY) + _ORANGE * _OVERLAY_OPACITY
-            gray = np.where(mask, orange, gray)
+            cyan = gray * (1 - _OVERLAY_OPACITY) + _CYAN * _OVERLAY_OPACITY
+            gray = np.where(mask, cyan, gray)
         yield gray.round().astype(np.uint8)
 
 

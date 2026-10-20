@@ -773,7 +773,7 @@ _WARM = (220, 160, 90)
 _WARM_LUMA = 0.2126 * 220 + 0.7152 * 160 + 0.0722 * 90
 
 
-def test_the_overlay_draws_occluded_pixels_orange_on_the_gray_frame(
+def test_the_overlay_draws_occluded_pixels_cyan_on_the_gray_frame(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
@@ -784,11 +784,12 @@ def test_the_overlay_draws_occluded_pixels_orange_on_the_gray_frame(
     half = frames[0].shape[1] // 2
     occluded = frames[0][8:-8, 8 : half - 8].reshape(-1, 3).mean(axis=0)
     visible = frames[0][8:-8, half + 8 : -8].reshape(-1, 3).mean(axis=0)
-    # Okabe-Ito orange, #E69F00, over the gray: red first, then green, little blue.
+    # Cyan, #00E5FF, at 85 % over the gray: nearly no red, blue first, then green.
+    expected = 0.15 * 0.9 * _WARM_LUMA + 0.85 * np.array([0, 229, 255])
+    assert np.abs(occluded - expected).max() < 12
     red, green, blue = occluded
-    assert red > 180
-    assert 0.55 < green / red < 0.85
-    assert blue < 90
+    assert red < 40
+    assert blue > green > 200
     # Gray, at about the frame's own brightness rather than darkened.
     assert visible.max() - visible.min() < 10
     assert visible.mean() > 0.85 * _WARM_LUMA
@@ -808,18 +809,24 @@ def test_the_overlay_is_cached_beside_the_mask(
     written = sorted(
         p.name for p in (tmp_path / "sequences" / body["id"]).glob("occlusion*.mp4")
     )
-    assert written == ["occlusion.mp4", "occlusion.overlay-orange.mp4"]
+    assert written == ["occlusion.mp4", "occlusion.overlay-cyan.mp4"]
 
 
-def test_an_overlay_cached_in_red_is_not_served(
+@pytest.mark.parametrize(
+    "earlier",
+    ["occlusion.overlay.mp4", "occlusion.overlay-orange.mp4"],
+)
+def test_an_overlay_cached_in_an_earlier_color_is_not_served(
     client: TestClient,
     tmp_path: Path,
+    earlier: str,
 ) -> None:
-    """An earlier version drew the overlay in red and cached it as
-    ``occlusion.overlay.mp4``, which no change to the frames would ever re-encode.
+    """Earlier versions drew the overlay in red, cached as ``occlusion.overlay.mp4``,
+    then in orange, cached as ``occlusion.overlay-orange.mp4``. No change to the frames
+    would ever re-encode either.
     """
     body = client.post("/sequences", json=SEQUENCE_BODY).json()
-    (tmp_path / "sequences" / body["id"] / "occlusion.overlay.mp4").write_bytes(b"red")
+    (tmp_path / "sequences" / body["id"] / earlier).write_bytes(b"old")
     response = client.get(body["streams"]["occlusion"]["overlay"])
     assert response.status_code == 200
     assert _frame_count(response.content, tmp_path) == SEQUENCE_BODY["frames"]

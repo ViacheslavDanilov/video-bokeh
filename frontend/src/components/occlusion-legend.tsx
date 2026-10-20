@@ -1,21 +1,22 @@
 /**
  * What the occlusion pane marks: the pixels whose surface the next frame does not show. As
- * stored they are white on black; over the frames, orange on the picture in gray.
+ * stored they are white on black; over the frames, cyan on the picture in gray.
  */
 
-// Okabe-Ito orange, #E69F00, as `preview/pack.py` draws the overlay.
-const ORANGE = "rgb(230 159 0)";
+// Cyan, #00E5FF, as `preview/pack.py` draws the overlay.
+const CYAN = "rgb(0 229 255)";
 
 export function OcclusionLegend({ overlay }: { overlay: boolean }) {
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-h-7 min-w-0 items-center gap-1.5">
       <span
         aria-hidden
+        data-swatch
         className="border-border size-2.5 shrink-0 rounded-[2px] border"
-        style={{ background: overlay ? ORANGE : "rgb(255 255 255)" }}
+        style={{ background: overlay ? CYAN : "rgb(255 255 255)" }}
       />
       <span className="text-muted-foreground text-xs">
-        {overlay ? "Orange" : "White"}: hidden in the next frame
+        {overlay ? "Cyan" : "White"}: hidden in the next frame
       </span>
     </span>
   );

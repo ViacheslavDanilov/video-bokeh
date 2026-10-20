@@ -1,3 +1,10 @@
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 /**
  * The optical-flow legend: which color is which direction.
  *
@@ -8,6 +15,10 @@
  *
  * The backward flow uses the same wheel, but its vectors point to where a pixel came from,
  * so a pixel moving right is drawn in the color of left, cyan.
+ *
+ * Under the pane it is one short line, which six narrow panes side by side can still fit
+ * level with the other panes' controls. The full reading, which depends on the direction,
+ * is a tooltip on the legend, which a keyboard reaches as a button.
  */
 
 // Each anchor's place on the wheel, 0 to 54, as the backend counts its 55 colors.
@@ -33,18 +44,29 @@ const WHEEL = [
 
 export function FlowLegend({ backward }: { backward: boolean }) {
   return (
-    <div className="text-muted-foreground flex min-w-0 items-center gap-3 text-xs">
-      <div
-        className="border-border size-8 shrink-0 rounded-full border"
-        style={{ background: WHEEL }}
-        aria-hidden
-      />
-      <p>
-        {backward
-          ? "Color is where a pixel came from in the previous frame, so one moving right is cyan, the opposite of red."
-          : "Color is where a pixel moves in the next frame, right is red."}{" "}
-        Vivid is fast, paler is slower, white is still.
-      </p>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="text-muted-foreground focus-visible:ring-ring/50 flex h-7 min-w-0 cursor-help items-center gap-2 rounded-md text-left text-xs outline-none focus-visible:ring-3"
+          >
+            {/* The height of the controls beside it, so the row stays theirs. */}
+            <span
+              className="border-border size-7 shrink-0 rounded-full border"
+              style={{ background: WHEEL }}
+              aria-hidden
+            />
+            <span className="truncate">Color = direction; paler = slower</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-64">
+          {backward
+            ? "Color is where a pixel came from in the previous frame, so one moving right is cyan, the opposite of red."
+            : "Color is where a pixel moves in the next frame, right is red."}{" "}
+          Vivid is fast, paler is slower, white is still.
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

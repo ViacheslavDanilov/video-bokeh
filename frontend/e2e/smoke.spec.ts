@@ -1076,9 +1076,22 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
   const direction = pane.getByRole("combobox", { name: "Direction" });
   await expect(direction).toHaveText("Forward");
   await expect(video).toHaveAttribute("src", /\/flow\.mp4$/);
-  await expect(
-    pane.getByText(/where a pixel moves in the next frame/),
-  ).toBeVisible();
+  // One short line under the pane; the full reading is a tooltip, by keyboard too.
+  const legend = pane.getByRole("button", {
+    name: "Color = direction; paler = slower",
+  });
+  await expect(legend).toBeVisible();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toHaveCount(0);
+  await direction.focus();
+  await page.keyboard.press("Tab");
+  await expect(legend).toBeFocused();
+  await expect(tooltip).toContainText("where a pixel moves in the next frame");
+  await expect(legend).toHaveAccessibleDescription(
+    /where a pixel moves in the next frame/,
+  );
+  await page.keyboard.press("Escape");
+  await expect(tooltip).toHaveCount(0);
 
   await direction.click();
   await expect(page.getByRole("option")).toHaveText(["Forward", "Backward"]);
@@ -1086,12 +1099,17 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
   await expect(direction).toHaveText("Backward");
   await expect(video).toHaveAttribute("src", /\/flow_back\.mp4$/);
   await waitForDecoded(videos);
-  await expect(
-    pane.getByText(/where a pixel came from in the previous frame/),
-  ).toBeVisible();
-  await expect(
-    pane.getByText(/where a pixel moves in the next frame/),
-  ).toHaveCount(0);
+  await legend.hover();
+  await expect(tooltip).toContainText(
+    "where a pixel came from in the previous frame",
+  );
+  await expect(tooltip).not.toContainText(
+    "where a pixel moves in the next frame",
+  );
+  // Away from it, as a hand moves: the tooltip stays while the pointer heads for it.
+  const away = (await video.boundingBox())!;
+  await page.mouse.move(away.x + 8, away.y + 8, { steps: 10 });
+  await expect(tooltip).toHaveCount(0);
   // Only the flow pane has a direction.
   await expect(page.getByRole("combobox", { name: "Direction" })).toHaveCount(
     1,
@@ -1108,7 +1126,7 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
 
 /**
  * The occlusion pane shows the mask as stored, white on black, and a toggle in the pane
- * draws it orange over the frames in gray instead, and back.
+ * draws it cyan over the frames in gray instead, and back.
  */
 test("switches the occlusion pane to the overlay and back", async ({
   page,
@@ -1125,9 +1143,12 @@ test("switches the occlusion pane to the overlay and back", async ({
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
   await waitForDecoded(video);
-  await expect(
-    pane.getByText("Orange: hidden in the next frame"),
-  ).toBeVisible();
+  await expect(pane.getByText("Cyan: hidden in the next frame")).toBeVisible();
+  // The swatch is the cyan the backend draws, #00E5FF.
+  await expect(pane.locator("[data-swatch]")).toHaveCSS(
+    "background-color",
+    "rgb(0, 229, 255)",
+  );
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
@@ -1162,4 +1183,209 @@ test("chooses the disparity colormap and its legend", async ({ page }) => {
   await expect(pane.getByRole("img", { name: /^Gray scale/ })).toBeVisible();
   // Only the disparity pane takes a colormap.
   await expect(page.getByRole("combobox", { name: "Colormap" })).toHaveCount(1);
+});
+
+/** Open all six streams: bokeh faked into the sequence, and occlusion from "Add pane". */
+async function openSixPanes(page: Page, seed: number) {
+  const videos = await generateSequence(page, seed);
+  await fakeBokeh(page);
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(videos).toHaveCount(5, { timeout: 60_000 });
+  await addPaneFor(page, "Occlusion");
+  await expect(videos).toHaveCount(6);
+  await waitForDecoded(videos);
+  return videos;
+}
+
+/**
+ * Under every pane the controls start on one line, directly beneath the frame, however
+ * narrow six panes side by side make them: the flow's caption stays one line rather than
+ * push its dropdown down.
+ */
+test("lines up the controls under six narrow panes", async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 1760, height: 640 });
+  await openPage(page);
+  await openSixPanes(page, 81);
+  await page.getByRole("button", { name: "Overlay" }).click();
+
+  const figures = page.locator("figure");
+  // Six panes side by side, each too narrow for a long caption.
+  const tops = await figures.evaluateAll((els) =>
+    els.map((el) => Math.round(el.getBoundingClientRect().top)),
+  );
+  expect(new Set(tops).size).toBe(1);
+  expect((await figures.first().boundingBox())!.width).toBeLessThan(260);
+
+  const frameBottom = await figures
+    .first()
+    .locator("video")
+    .evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
+  for (const control of [
+    page.getByRole("combobox", { name: "Colormap" }),
+    page.getByRole("button", { name: "Overlay" }),
+    page.getByRole("combobox", { name: "Direction" }),
+    // The wheel, with the caption beside it.
+    page.getByRole("button", { name: "Color = direction; paler = slower" }),
+  ]) {
+    // Directly beneath the frame: the figure's 8 px gap, no more.
+    await expect
+      .poll(async () => Math.round((await control.boundingBox())!.y))
+      .toBe(Math.round(frameBottom + 8));
+  }
+  // The caption is one line, not a paragraph wrapped down the pane.
+  const caption = page.getByText("Color = direction; paler = slower");
+  expect((await caption.boundingBox())!.height).toBeLessThan(20);
+});
+
+/**
+ * Dragging the position slider moves its thumb smoothly, between frames, and every pane
+ * shows the frame nearest to it at once: one decoded in memory, not a seek. Let go, the
+ * videos are on that frame.
+ */
+test("scrubs every pane to the nearest frame while dragging", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1760, height: 640 });
+  await openPage(page);
+  const videos = await openSixPanes(page, 91);
+  const canvases = page.locator("figure canvas");
+  await expect(canvases).toHaveCount(6);
+  // Every pane's frames decoded into memory.
+  await expect
+    .poll(
+      () =>
+        canvases.evaluateAll((els) =>
+          els.map((el) => el.getAttribute("data-decoded")),
+        ),
+      { timeout: 60_000 },
+    )
+    .toEqual(Array(6).fill("80"));
+
+  /** The first pane as it looks on screen, canvas or video, as RGBA values. */
+  const frameBox = videos.first().locator("xpath=..");
+  const pixels = async () => {
+    const png = (await frameBox.screenshot()).toString("base64");
+    return page.evaluate(async (png) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${png}`;
+      await image.decode();
+      const probe = document.createElement("canvas");
+      probe.width = image.width;
+      probe.height = image.height;
+      const context = probe.getContext("2d")!;
+      context.drawImage(image, 0, 0);
+      return Array.from(
+        context.getImageData(0, 0, probe.width, probe.height).data,
+      );
+    }, png);
+  };
+  const meanDifference = (a: number[], b: number[]) =>
+    a.reduce((sum, value, i) => sum + Math.abs(value - b[i]), 0) / a.length;
+  const start = await pixels();
+
+  const slider = page.getByRole("slider", { name: "Position" });
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const thumb = (await slider.boundingBox())!;
+  const y = thumb.y + thumb.height / 2;
+  await page.mouse.move(thumb.x + thumb.width / 2, y);
+  await page.mouse.down();
+  const values: number[] = [];
+  for (let i = 1; i <= 30; i++) {
+    await page.mouse.move(track.x + (track.width * 0.4 * i) / 30, y);
+    values.push(Number(await slider.getAttribute("aria-valuenow")));
+  }
+  // Continuous: the thumb sits between frames, not only on them.
+  expect(values.some((v) => !Number.isInteger(v))).toBe(true);
+  expect(values).toEqual([...values].sort((a, b) => a - b));
+
+  // Mid-drag, every pane shows the counter's frame, drawn from memory.
+  const counter = page.getByText(/^\d+ \/ 80$/);
+  const shown = Number((await counter.innerText()).split(" / ")[0]) - 1;
+  expect(shown).toBe(Math.round(values.at(-1)!));
+  expect(
+    await canvases.evaluateAll((els) =>
+      els.map((el) => [
+        getComputedStyle(el).visibility,
+        el.getAttribute("data-frame"),
+      ]),
+    ),
+  ).toEqual(Array(6).fill(["visible", String(shown)]));
+  const dragged = await pixels();
+
+  await page.mouse.up();
+  // Let go, the thumb rests on the frame shown and the videos have caught up with it.
+  await expect(slider).toHaveAttribute("aria-valuenow", String(shown));
+  await expect
+    .poll(() =>
+      canvases.evaluateAll((els) =>
+        els.map((el) => getComputedStyle(el).visibility),
+      ),
+    )
+    .toEqual(Array(6).fill("hidden"));
+  // The frame drawn from memory is the one the video shows there, and not the first.
+  const settled = await pixels();
+  const there = meanDifference(dragged, settled);
+  expect(there).toBeLessThan(4);
+  expect(meanDifference(start, settled)).toBeGreaterThan(there);
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => {
+        const video = el as HTMLVideoElement;
+        return Math.floor((video.currentTime / video.duration) * 80);
+      }),
+    ),
+  ).toEqual(Array(6).fill(shown));
+
+  // The arrow keys still step one whole frame. The frames either side of the one shown
+  // look less like it than the video's own: the frame drawn is that frame, not a neighbor.
+  const settledAt = async (frame: number) => {
+    await expect(counter).toHaveText(`${frame + 1} / 80`);
+    await expect(slider).toHaveAttribute("aria-valuenow", String(frame));
+    await expect
+      .poll(() =>
+        canvases.evaluateAll((els) =>
+          els.map((el) => getComputedStyle(el).visibility),
+        ),
+      )
+      .toEqual(Array(6).fill("hidden"));
+    return pixels();
+  };
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  const next = await settledAt(shown + 1);
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  const previous = await settledAt(shown - 1);
+  expect(meanDifference(dragged, next)).toBeGreaterThan(there);
+  expect(meanDifference(dragged, previous)).toBeGreaterThan(there);
+  // End and Home go to either end and leave no scrub open.
+  await page.keyboard.press("End");
+  await settledAt(79);
+  await page.keyboard.press("Home");
+  await settledAt(0);
+
+  // A drag while playing holds the panes still under it, and they play on after.
+  await page.getByRole("button", { name: "Play" }).click();
+  const at = (await slider.boundingBox())!;
+  await page.mouse.move(at.x + at.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width / 2, y, { steps: 10 });
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    ),
+  ).toEqual(Array(6).fill(true));
+  await page.mouse.up();
+  await expect
+    .poll(() =>
+      videos.evaluateAll((els) =>
+        els.map((el) => (el as HTMLVideoElement).paused),
+      ),
+    )
+    .toEqual(Array(6).fill(false));
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
 });

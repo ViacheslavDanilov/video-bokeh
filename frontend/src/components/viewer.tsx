@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Copy, GripVertical, X } from "lucide-react";
 import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
+import { decodeFrames, frameTime } from "@/lib/frames";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -56,6 +57,29 @@ const SYNC_TOLERANCE_SECONDS = 1 / 24;
 // The steps a video player offers. Slower is the useful direction here: an 80-frame clip is
 // over in a few seconds, and the depth ordering changes inside it.
 const SPEEDS = [0.25, 0.5, 1, 2];
+
+// The position slider's step, in frames: fine enough that a drag moves the thumb with the
+// pointer, between frames, while the panes show the frame nearest to it.
+const SCRUB_STEP = 0.01;
+
+// The keys that move the position by whole frames, and how many. The slider's own would
+// move it by its step, a hundredth of a frame.
+const FRAME_KEYS: Record<string, number> = {
+  ArrowLeft: -1,
+  ArrowDown: -1,
+  ArrowRight: 1,
+  ArrowUp: 1,
+  PageDown: -10,
+  PageUp: 10,
+};
+
+/** A pane's frames decoded into memory, and the video they came from. */
+type Decoded = { src: string; frames: ImageBitmap[]; abort: AbortController };
+
+function dispose(decoded: Decoded) {
+  decoded.abort.abort();
+  decoded.frames.splice(0).forEach((frame) => frame.close());
+}
 
 type Pane = {
   key: number;
@@ -187,6 +211,15 @@ export function Viewer({
   const [speed, setSpeed] = useState(1);
 
   const videos = useRef(new Map<number, HTMLVideoElement>());
+  // Scrubbing draws each pane's frames from memory onto a canvas over its video, since a
+  // seek per step lags behind the pointer. `scrub` is the slider's position, between
+  // frames, while it is dragged; `covering`, the panes whose canvas is on top, which stay
+  // so after the drag until their video has caught up with the frame.
+  const decoded = useRef(new Map<number, Decoded>());
+  const canvases = useRef(new Map<number, HTMLCanvasElement>());
+  const [scrub, setScrub] = useState<number | null>(null);
+  const scrubRef = useRef<number | null>(null);
+  const [covering, setCovering] = useState<ReadonlySet<number>>(new Set());
   // The pane being dragged: the ref for the drag handlers, the state to dim it for the whole
   // drag, and where it would land, shown as a line while the pointer is over the grid.
   const dragged = useRef<number | null>(null);
@@ -245,6 +278,8 @@ export function Viewer({
     setPlaying(false);
     setTime(0);
     setDuration(0);
+    // The last sequence's frames, which a canvas waiting on a video now gone would keep.
+    setCovering(new Set());
   }
 
   // A stream the server did not list for the last sequence gets a pane of its own while
@@ -272,6 +307,25 @@ export function Viewer({
       ]);
     }
   }
+
+  // A closed pane's frames are let go, and all of them when the viewer goes.
+  const paneKeys = panes.map((p) => p.key).join(" ");
+  useEffect(() => {
+    const open = new Set(paneKeys.split(" ").map(Number));
+    const all = decoded.current;
+    all.forEach((frames, key) => {
+      if (open.has(key)) return;
+      dispose(frames);
+      all.delete(key);
+    });
+  }, [paneKeys]);
+  useEffect(() => {
+    const all = decoded.current;
+    return () => {
+      all.forEach(dispose);
+      all.clear();
+    };
+  }, []);
 
   // A pane naming a stream this sequence does not have falls back to the first one. Derived
   // rather than stored, so no state has to be repaired when the streams listed change.
@@ -381,17 +435,107 @@ export function Viewer({
   // The transport counts frames, not seconds. A slider stepping by duration/frames
   // lands on fractions the browser then rounds back, so arrow keys stalled after two
   // presses -- and a screen reader read out seconds when the interesting number is the
-  // frame. Integers fix both.
+  // frame. The keys move it by whole frames, and its text names the frame shown.
+  // The frame on screen is the one whose time span holds the current time, so the counter
+  // rounds down, and a seek goes to the middle of a frame, which no rounding moves out.
   const lastFrame = Math.max(sequence.frames - 1, 0);
-  const frameIndex = duration
-    ? Math.min(Math.round((time / duration) * sequence.frames), lastFrame)
-    : 0;
+  const nearest = (position: number) =>
+    Math.min(Math.max(Math.round(position), 0), lastFrame);
+  const frameIndex =
+    scrub !== null
+      ? nearest(scrub)
+      : duration
+        ? Math.min(Math.floor((time / duration) * sequence.frames), lastFrame)
+        : 0;
   const seekToFrame = (frame: number) => {
-    const to = duration ? (frame / sequence.frames) * duration : 0;
+    const to = duration ? frameTime(frame, sequence.frames, duration) : 0;
     timeRef.current = to;
     setTime(to);
     videos.current.forEach((v) => {
       v.currentTime = to;
+    });
+  };
+
+  // A pane's frames, decoded once its video is there, at the size its canvas is shown.
+  // Decoded again only for another video: a new sequence, stream, colormap or direction.
+  const decodeFor = (key: number, src: string) => {
+    const was = decoded.current.get(key);
+    const canvas = canvases.current.get(key);
+    if (was?.src === src || !canvas) return;
+    if (was) dispose(was);
+    const now: Decoded = { src, frames: [], abort: new AbortController() };
+    decoded.current.set(key, now);
+    canvas.dataset.decoded = "0";
+    // A frame that cannot be decoded leaves the rest to seeking, as before.
+    decodeFrames(
+      src,
+      sequence.frames,
+      Math.ceil(canvas.clientWidth),
+      now.frames,
+      now.abort.signal,
+      () => {
+        canvas.dataset.decoded = String(now.frames.length);
+      },
+    ).catch(() => {});
+  };
+
+  // Every pane shows the frame nearest the thumb at once: drawn from memory where it is
+  // decoded, and where it is not yet, sought as before.
+  const scrubTo = (position: number) => {
+    // Playing panes hold still under the drag, so no sync seek lands after the last one,
+    // and play on from the frame let go at.
+    if (scrubRef.current === null && playingRef.current)
+      videos.current.forEach((v) => v.pause());
+    scrubRef.current = position;
+    setScrub(position);
+    const frame = nearest(position);
+    const drawn = new Set<number>();
+    videos.current.forEach((video, key) => {
+      const canvas = canvases.current.get(key);
+      // Only frames of the video the pane has now: a switched stream keeps the last one's
+      // until its own video loads.
+      const frames = decoded.current.get(key);
+      const bitmap =
+        frames?.src === video.getAttribute("src")
+          ? frames.frames[frame]
+          : undefined;
+      if (canvas && bitmap) {
+        if (canvas.width !== bitmap.width) canvas.width = bitmap.width;
+        if (canvas.height !== bitmap.height) canvas.height = bitmap.height;
+        canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+        canvas.dataset.frame = String(frame);
+        drawn.add(key);
+      } else if (duration) {
+        video.currentTime = frameTime(frame, sequence.frames, duration);
+      }
+    });
+    setCovering(drawn);
+  };
+
+  // Let go, the thumb rests on the frame shown and the videos go there. Each canvas comes
+  // off once its video has the frame, so no pane flashes back to where it was.
+  const endScrub = () => {
+    const position = scrubRef.current;
+    if (position === null) return;
+    scrubRef.current = null;
+    setScrub(null);
+    seekToFrame(nearest(position));
+    videos.current.forEach((video, key) => {
+      if (playingRef.current) void video.play();
+      // A video with nothing loaded yet does not seek, and covers nothing.
+      if (video.readyState === HTMLMediaElement.HAVE_NOTHING) return;
+      video.addEventListener(
+        "seeked",
+        () => {
+          if (scrubRef.current !== null) return;
+          setCovering((was) => {
+            const next = new Set(was);
+            next.delete(key);
+            return next;
+          });
+        },
+        { once: true },
+      );
     });
   };
 
@@ -636,6 +780,13 @@ export function Viewer({
                   onLoadedMetadata={(e) => {
                     setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
                     setDuration(e.currentTarget.duration);
+                    decodeFor(pane.key, src);
+                    // A seek a new source cut short never ends; its canvas would stay.
+                    setCovering((was) => {
+                      const next = new Set(was);
+                      next.delete(pane.key);
+                      return next;
+                    });
                     if (restoredSequence.current !== sequence.id) {
                       // First load of a new sequence: the transport is at the start and
                       // nothing should resume on its own.
@@ -668,6 +819,18 @@ export function Viewer({
                     });
                   }}
                 />
+                {/* The frame a scrub is on, drawn from memory over the video. */}
+                <canvas
+                  ref={(el) => {
+                    if (el) canvases.current.set(pane.key, el);
+                    else canvases.current.delete(pane.key);
+                  }}
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 h-full w-full"
+                  style={{
+                    visibility: covering.has(pane.key) ? "visible" : "hidden",
+                  }}
+                />
               </div>
 
               {/* Under the pane rather than in its header, which a narrow pane cannot
@@ -696,8 +859,10 @@ export function Viewer({
                   <DepthLegend colormap={colormap} />
                 </div>
               )}
+              {/* The button on top, level with the other panes' controls however far a
+                  narrow pane wraps the legend beside it. */}
               {info.overlay !== null && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -794,9 +959,30 @@ export function Viewer({
             className="flex-1"
             min={0}
             max={lastFrame}
-            step={1}
-            value={[frameIndex]}
-            onValueChange={([f]) => seekToFrame(f)}
+            step={SCRUB_STEP}
+            value={[scrub ?? frameIndex]}
+            onValueChange={([position]) => scrubTo(position)}
+            onValueCommit={endScrub}
+            // A drag that ends where it began commits nothing, and must still end.
+            onPointerUp={endScrub}
+            onKeyDown={(e) => {
+              // Home and End too: the slider's own commits before it changes, which would
+              // leave the scrub it starts open.
+              let to: number;
+              if (e.key === "Home") to = 0;
+              else if (e.key === "End") to = lastFrame;
+              else {
+                const by = FRAME_KEYS[e.key];
+                if (by === undefined) return;
+                // Shift with an arrow is ten frames, as Page Up and Page Down are.
+                to =
+                  frameIndex +
+                  (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
+              }
+              e.preventDefault();
+              scrubTo(nearest(to));
+              endScrub();
+            }}
           />
           <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
             {frameIndex + 1} / {sequence.frames}
