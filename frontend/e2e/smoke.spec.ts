@@ -1510,6 +1510,83 @@ test("moves the position thumb smoothly while the panes play", async ({
 });
 
 /**
+ * Six panes playing on a slow machine, which CPU throttling stands in for: the thumb moves
+ * by the time each animation frame took, not in jerks. Measured on its rendered position,
+ * every animation frame, against where 24 frames a second would put it. Following the video
+ * renders nothing either, which the script time shows: a render of every pane on each
+ * timeupdate took 470 ms of it a second here, one of the slider on each animation frame
+ * 140 ms, and following without rendering 8 ms.
+ */
+test("moves the position thumb evenly under a loaded main thread", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1760, height: 640 });
+  await openPage(page);
+  await openSixPanes(page, 101);
+  const slider = page.getByRole("slider", { name: "Position" });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  await cdp.send("Performance.enable");
+  const scriptSeconds = async () =>
+    (await cdp.send("Performance.getMetrics")).metrics.find(
+      (m) => m.name === "ScriptDuration",
+    )!.value;
+
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await page.getByRole("button", { name: "Play" }).click();
+  await page.waitForTimeout(400);
+  const scriptBefore = await scriptSeconds();
+  const seen = await slider.evaluate(async (thumb) => {
+    const track = thumb
+      .closest('[data-slot="slider"]')!
+      .querySelector('[data-slot="slider-track"]')!;
+    // The thumb's center travels the track less its own width.
+    const travel =
+      track.getBoundingClientRect().width - thumb.getBoundingClientRect().width;
+    const samples: { when: number; x: number }[] = [];
+    const started = performance.now();
+    await new Promise<void>((done) => {
+      const read = (when: number) => {
+        const box = thumb.getBoundingClientRect();
+        samples.push({ when, x: box.left + box.width / 2 });
+        if (when < started + 2000) requestAnimationFrame(read);
+        else done();
+      };
+      requestAnimationFrame(read);
+    });
+    return {
+      samples,
+      pxPerFrame: travel / 79,
+      seconds: (performance.now() - started) / 1000,
+    };
+  });
+  const scriptPerSecond =
+    ((await scriptSeconds()) - scriptBefore) / seen.seconds;
+  await page.getByRole("button", { name: "Pause" }).click();
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+
+  // How far each step strays from the 24 frames a second the time between them asks for,
+  // in frames. The loop back to the start is left out.
+  const strays = seen.samples
+    .slice(1)
+    .map((s, i) => [s, seen.samples[i]] as const)
+    .filter(([s, was]) => s.x >= was.x)
+    .map(
+      ([s, was]) =>
+        (s.x - was.x) / seen.pxPerFrame - (24 * (s.when - was.when)) / 1000,
+    );
+  expect(strays.length).toBeGreaterThan(20);
+  const spread = Math.sqrt(
+    strays.reduce((sum, d) => sum + d * d, 0) / strays.length,
+  );
+  // About 0.05 of a frame following the video, against 1.0 to 1.3 rendering every pane.
+  expect(spread).toBeLessThan(0.25);
+  expect(scriptPerSecond).toBeLessThan(0.05);
+});
+
+/**
  * A drag the browser cancels, or one cut short by the page losing focus, ends like one let
  * go: the panes play on rather than sit paused until the slider is touched again.
  */

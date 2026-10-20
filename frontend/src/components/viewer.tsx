@@ -213,9 +213,6 @@ export function Viewer({
   const [panes, setPanes] = useState<Pane[]>([]);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
-  // Counts the transport's seeks, so that the position slider drops the time it follows
-  // while playing for the one sought, even when that is the time it had before.
-  const [seeks, setSeeks] = useState(0);
   const [duration, setDuration] = useState(0);
   // A viewer setting rather than part of the sequence, so a new sequence keeps it.
   const [speed, setSpeed] = useState(1);
@@ -462,7 +459,6 @@ export function Viewer({
     const to = duration ? frameTime(frame, sequence.frames, duration) : 0;
     timeRef.current = to;
     setTime(to);
-    setSeeks((n) => n + 1);
     videos.current.forEach((v) => {
       v.currentTime = to;
     });
@@ -820,7 +816,10 @@ export function Viewer({
                     if (lead !== e.currentTarget) return;
                     const at = e.currentTarget.currentTime;
                     timeRef.current = at;
-                    setTime(at);
+                    // Playing, the slider reads the time itself every animation frame.
+                    // State set here rendered every pane four times a second, which a
+                    // loaded main thread showed as the thumb stopping, then jumping.
+                    if (!playingRef.current) setTime(at);
                     videos.current.forEach((v) => {
                       if (
                         v !== e.currentTarget &&
@@ -971,7 +970,6 @@ export function Viewer({
           frames={sequence.frames}
           duration={duration}
           time={time}
-          seeks={seeks}
           playing={playing}
           scrub={scrub}
           videos={videos}
@@ -1005,6 +1003,51 @@ function nearestFrame(position: number, frames: number) {
   return Math.min(Math.max(Math.round(position), 0), Math.max(frames - 1, 0));
 }
 
+/** Where the leading video is, as a slider position and the frame it shows. Null for a lead
+ *  loading a new stream, which reads 0 until it is put back where the transport is. */
+function leadPosition(
+  videos: Map<number, HTMLVideoElement>,
+  frames: number,
+): { position: number; frame: number } | null {
+  const lead = videos.values().next().value;
+  if (!lead || lead.readyState < HTMLMediaElement.HAVE_METADATA) return null;
+  const at = (lead.currentTime / lead.duration) * frames;
+  const lastFrame = Math.max(frames - 1, 0);
+  // Between frames, where the time is: half a frame back, so that the frame nearest the
+  // thumb is the one shown, as while dragging.
+  return {
+    position: Math.min(Math.max(at - 0.5, 0), lastFrame),
+    frame: Math.min(Math.floor(at), lastFrame),
+  };
+}
+
+/**
+ * Show the thumb at `position` on a slider React rendered at `rendered`, and name `frame`:
+ * the thumb is moved by the difference and the range stretched to meet it, without a render.
+ */
+function drawPosition(
+  slider: HTMLElement,
+  counter: HTMLElement,
+  rendered: number,
+  position: number,
+  frame: number,
+  frames: number,
+) {
+  const thumb = slider.querySelector<HTMLElement>('[role="slider"]');
+  const range = slider.querySelector<HTMLElement>('[data-slot="slider-range"]');
+  if (!thumb || !range) return;
+  const lastFrame = Math.max(frames - 1, 0);
+  // The thumb's center travels the slider less its own width, in proportion to the value,
+  // as Radix places it.
+  const travel = slider.clientWidth - thumb.offsetWidth;
+  const by = lastFrame ? ((position - rendered) / lastFrame) * travel : 0;
+  thumb.style.translate = by ? `${by}px` : "";
+  range.style.marginRight = by ? `${-by}px` : "";
+  thumb.setAttribute("aria-valuenow", String(position));
+  thumb.setAttribute("aria-valuetext", `Frame ${frame + 1} of ${frames}`);
+  counter.textContent = `${frame + 1} / ${frames}`;
+}
+
 /**
  * The position slider and the frame counter beside it.
  *
@@ -1015,17 +1058,19 @@ function nearestFrame(position: number, frames: number) {
  * time span holds the current time, so the counter rounds down, and a seek goes to the
  * middle of a frame, which no rounding moves out.
  *
- * While playing, the time comes from the leading video every animation frame rather than
- * from its timeupdate events, about four a second, so the thumb glides instead of jumping
- * several frames at a time. That time is this component's own, so only the slider and the
- * counter render on each frame, not every pane. Nothing runs while paused or while the page
- * is hidden, nor during a drag, which places the thumb itself.
+ * While playing, the thumb follows the leading video every animation frame rather than its
+ * timeupdate events, about four a second, so it glides instead of jumping several frames at
+ * a time. It does so without rendering: a render of the slider took about 3 ms of the dev
+ * build's main thread, which six playing videos already load, and one every animation frame
+ * showed as the thumb stopping and jumping. The loop moves the thumb from where the slider
+ * was rendered and writes the slider's value and the counter itself, and after every render
+ * the same writes put the position back, so a render never shows an older one. Nothing runs
+ * while paused or while the page is hidden, nor during a drag, which places the thumb itself.
  */
 function Position({
   frames,
   duration,
   time,
-  seeks,
   playing,
   scrub,
   videos,
@@ -1037,8 +1082,6 @@ function Position({
   duration: number;
   /** The transport's time while paused, from the videos' own events and from seeks. */
   time: number;
-  /** How many seeks the transport has made; each one replaces the time followed. */
-  seeks: number;
   playing: boolean;
   /** Where a drag holds the thumb, or null. */
   scrub: number | null;
@@ -1048,27 +1091,70 @@ function Position({
   onScrub: (position: number) => void;
   onEndScrub: () => void;
 }) {
-  const [live, setLive] = useState<number | null>(null);
-  // A seek while playing, such as a drag let go or a key, moves the thumb to the frame
-  // sought at once. The time followed stopped during the drag, and would show where it
-  // began until the next animation frame.
-  const [seenSeeks, setSeenSeeks] = useState(seeks);
-  if (seeks !== seenSeeks) {
-    setSeenSeeks(seeks);
-    setLive(null);
-  }
-  useEffect(() => {
+  const slider = useRef<HTMLSpanElement>(null);
+  const counter = useRef<HTMLSpanElement>(null);
+  // The value the slider was last rendered at, which the loop moves the thumb from.
+  const rendered = useRef(0);
+  // What the loop last showed while playing, kept while a lead loading a new stream has no
+  // time to give.
+  const shown = useRef<{ position: number; frame: number } | null>(null);
+
+  const lastFrame = Math.max(frames - 1, 0);
+  const frameIndex =
+    scrub !== null
+      ? nearestFrame(scrub, frames)
+      : duration
+        ? Math.min(Math.floor((time / duration) * frames), lastFrame)
+        : 0;
+  // Paused, the thumb rests on the frame shown. Playing, it is rendered where playing began
+  // or last sought, and the loop takes it from there.
+  const thumbAt =
+    scrub ??
+    (playing && duration
+      ? Math.min(Math.max((time / duration) * frames - 0.5, 0), lastFrame)
+      : frameIndex);
+
+  useLayoutEffect(() => {
+    rendered.current = thumbAt;
+    if (!slider.current || !counter.current) return;
+    const following = playing && scrub === null;
+    if (!following) shown.current = null;
+    const at = (following &&
+      (leadPosition(videos.current, frames) ?? shown.current)) || {
+      position: thumbAt,
+      frame: frameIndex,
+    };
+    drawPosition(
+      slider.current,
+      counter.current,
+      thumbAt,
+      at.position,
+      at.frame,
+      frames,
+    );
+  });
+
+  // A layout effect, so that stopping cancels the loop in the commit that stops it, before
+  // another animation frame can draw a playing position over the one rendered.
+  useLayoutEffect(() => {
     if (!playing) return;
     let frame = 0;
     const follow = () => {
-      const lead = videos.current.values().next().value;
-      // A lead loading a new stream reads 0 until it is put back where the transport is.
-      if (
-        lead &&
-        lead.readyState >= HTMLMediaElement.HAVE_METADATA &&
+      const at =
         scrubbing.current === null
-      )
-        setLive(lead.currentTime);
+          ? leadPosition(videos.current, frames)
+          : null;
+      if (at && slider.current && counter.current) {
+        shown.current = at;
+        drawPosition(
+          slider.current,
+          counter.current,
+          rendered.current,
+          at.position,
+          at.frame,
+          frames,
+        );
+      }
       frame = requestAnimationFrame(follow);
     };
     const resume = () => {
@@ -1080,30 +1166,13 @@ function Position({
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", resume);
-      // So that playing again starts from the transport's time, not from where this left.
-      setLive(null);
     };
-  }, [playing, videos, scrubbing]);
-
-  const lastFrame = Math.max(frames - 1, 0);
-  const at = playing && live !== null ? live : time;
-  const frameIndex =
-    scrub !== null
-      ? nearestFrame(scrub, frames)
-      : duration
-        ? Math.min(Math.floor((at / duration) * frames), lastFrame)
-        : 0;
-  // Playing, the thumb sits between frames, where the time is: half a frame back, so that
-  // the frame nearest it is the one shown, as while dragging. Paused, it rests on that frame.
-  const thumbAt =
-    scrub ??
-    (playing && duration
-      ? Math.min(Math.max((at / duration) * frames - 0.5, 0), lastFrame)
-      : frameIndex);
+  }, [playing, videos, scrubbing, frames]);
 
   return (
     <div className="flex min-w-60 flex-1 items-center gap-4">
       <Slider
+        ref={slider}
         aria-label="Position"
         aria-valuetext={`Frame ${frameIndex + 1} of ${frames}`}
         className="flex-1"
@@ -1128,17 +1197,21 @@ function Position({
           else {
             const by = FRAME_KEYS[e.key];
             if (by === undefined) return;
+            // From the frame on screen, which while playing only the loop knows.
+            const from = shown.current?.frame ?? frameIndex;
             // Shift with an arrow is ten frames, as Page Up and Page Down are.
-            to = frameIndex + (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
+            to = from + (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
           }
           e.preventDefault();
           onScrub(nearestFrame(to, frames));
           onEndScrub();
         }}
       />
-      <span className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums">
-        {frameIndex + 1} / {frames}
-      </span>
+      {/* Its text is written with the thumb's, by drawPosition, so playing renders neither. */}
+      <span
+        ref={counter}
+        className="text-muted-foreground w-20 text-right font-mono text-xs tabular-nums"
+      />
     </div>
   );
 }
