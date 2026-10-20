@@ -1076,9 +1076,22 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
   const direction = pane.getByRole("combobox", { name: "Direction" });
   await expect(direction).toHaveText("Forward");
   await expect(video).toHaveAttribute("src", /\/flow\.mp4$/);
-  await expect(
-    pane.getByText(/where a pixel moves in the next frame/),
-  ).toBeVisible();
+  // One short line under the pane; the full reading is a tooltip, by keyboard too.
+  const legend = pane.getByRole("button", {
+    name: "Color = direction; paler = slower",
+  });
+  await expect(legend).toBeVisible();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toHaveCount(0);
+  await direction.focus();
+  await page.keyboard.press("Tab");
+  await expect(legend).toBeFocused();
+  await expect(tooltip).toContainText("where a pixel moves in the next frame");
+  await expect(legend).toHaveAccessibleDescription(
+    /where a pixel moves in the next frame/,
+  );
+  await page.keyboard.press("Escape");
+  await expect(tooltip).toHaveCount(0);
 
   await direction.click();
   await expect(page.getByRole("option")).toHaveText(["Forward", "Backward"]);
@@ -1086,12 +1099,17 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
   await expect(direction).toHaveText("Backward");
   await expect(video).toHaveAttribute("src", /\/flow_back\.mp4$/);
   await waitForDecoded(videos);
-  await expect(
-    pane.getByText(/where a pixel came from in the previous frame/),
-  ).toBeVisible();
-  await expect(
-    pane.getByText(/where a pixel moves in the next frame/),
-  ).toHaveCount(0);
+  await legend.hover();
+  await expect(tooltip).toContainText(
+    "where a pixel came from in the previous frame",
+  );
+  await expect(tooltip).not.toContainText(
+    "where a pixel moves in the next frame",
+  );
+  // Away from it, as a hand moves: the tooltip stays while the pointer heads for it.
+  const away = (await video.boundingBox())!;
+  await page.mouse.move(away.x + 8, away.y + 8, { steps: 10 });
+  await expect(tooltip).toHaveCount(0);
   // Only the flow pane has a direction.
   await expect(page.getByRole("combobox", { name: "Direction" })).toHaveCount(
     1,
@@ -1165,4 +1183,55 @@ test("chooses the disparity colormap and its legend", async ({ page }) => {
   await expect(pane.getByRole("img", { name: /^Gray scale/ })).toBeVisible();
   // Only the disparity pane takes a colormap.
   await expect(page.getByRole("combobox", { name: "Colormap" })).toHaveCount(1);
+});
+
+/** Open all six streams: bokeh faked into the sequence, and occlusion from "Add pane". */
+async function openSixPanes(page: Page, seed: number) {
+  const videos = await generateSequence(page, seed);
+  await fakeBokeh(page);
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(videos).toHaveCount(5, { timeout: 60_000 });
+  await addPaneFor(page, "Occlusion");
+  await expect(videos).toHaveCount(6);
+  await waitForDecoded(videos);
+  return videos;
+}
+
+/**
+ * Under every pane the controls start on one line, directly beneath the frame, however
+ * narrow six panes side by side make them: the flow's caption stays one line rather than
+ * push its dropdown down.
+ */
+test("lines up the controls under six narrow panes", async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 1760, height: 640 });
+  await openPage(page);
+  await openSixPanes(page, 81);
+  await page.getByRole("button", { name: "Overlay" }).click();
+
+  const figures = page.locator("figure");
+  // Six panes side by side, each too narrow for a long caption.
+  const tops = await figures.evaluateAll((els) =>
+    els.map((el) => Math.round(el.getBoundingClientRect().top)),
+  );
+  expect(new Set(tops).size).toBe(1);
+  expect((await figures.first().boundingBox())!.width).toBeLessThan(260);
+
+  const frameBottom = await figures
+    .first()
+    .locator("video")
+    .evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
+  for (const control of [
+    page.getByRole("combobox", { name: "Colormap" }),
+    page.getByRole("button", { name: "Overlay" }),
+    page.getByRole("combobox", { name: "Direction" }),
+  ]) {
+    // Directly beneath the frame: the figure's 8 px gap, no more.
+    await expect
+      .poll(async () => Math.round((await control.boundingBox())!.y))
+      .toBe(Math.round(frameBottom + 8));
+  }
+  // The caption is one line, not a paragraph wrapped down the pane.
+  const caption = page.getByText("Color = direction; paler = slower");
+  expect((await caption.boundingBox())!.height).toBeLessThan(20);
 });

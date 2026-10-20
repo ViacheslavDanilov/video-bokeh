@@ -76,8 +76,9 @@ without rebuilding.
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.
 The Direction dropdown under its pane switches it to the backward flow, colored the same
 way, where each pixel came from in the previous frame, so a pixel moving right shows the
-opposite color. The caption beside the wheel says which direction is on screen, and the
-choice stays on the pane for the next sequence.
+opposite color. The caption beside the wheel is one short line, and hovering or focusing it
+shows how to read the direction on screen. The choice stays on the pane for the next
+sequence.
 
 **So does the occlusion mask**, white where a pixel's surface is hidden in the next frame,
 on black, as it is stored. The Overlay button under its pane draws it instead as cyan on the

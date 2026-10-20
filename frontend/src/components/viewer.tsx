@@ -696,8 +696,10 @@ export function Viewer({
                   <DepthLegend colormap={colormap} />
                 </div>
               )}
+              {/* Each row's control on top, level with the other panes' however far a
+                  narrow pane wraps the legend beside it. */}
               {info.overlay !== null && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <Button
                     type="button"
                     variant="outline"

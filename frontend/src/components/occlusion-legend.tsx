@@ -8,7 +8,7 @@ const CYAN = "rgb(0 229 255)";
 
 export function OcclusionLegend({ overlay }: { overlay: boolean }) {
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-h-7 min-w-0 items-center gap-1.5">
       <span
         aria-hidden
         data-swatch
