@@ -68,8 +68,8 @@ _FPS = 24
 _QUALITY = 10
 DEFAULT_COLORMAP = "spectral_r"
 
-#: Listed for the demo's stream picker, without a pane of their own, so the panes a
-#: sequence opens with stay the ones they were before these streams were served.
+#: Listed for the demo's stream picker, without a pane of its own, so the panes a
+#: sequence opens with stay the ones they were before the occlusion mask was served.
 _PICKER_ONLY = (OCCLUSION,)
 
 #: The overlay's cached file is named after its look. An earlier version cached a red

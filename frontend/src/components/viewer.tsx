@@ -715,7 +715,9 @@ export function Viewer({
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}
-              {stream === "flow" && (
+              {/* The direction comes from the stream info, as the colormap does; the
+                  legend is the flow's own. */}
+              {(info.backward !== null || stream === "flow") && (
                 <div className="flex items-center gap-3">
                   {info.backward !== null && (
                     <Select
@@ -737,7 +739,7 @@ export function Viewer({
                       </SelectContent>
                     </Select>
                   )}
-                  <FlowLegend backward={backward} />
+                  {stream === "flow" && <FlowLegend backward={backward} />}
                 </div>
               )}
             </figure>
