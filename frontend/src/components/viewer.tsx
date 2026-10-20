@@ -65,6 +65,8 @@ type Pane = {
   colormap?: string;
   /** Whether this pane draws its stream over the frames, for a stream that can be. */
   overlay?: boolean;
+  /** Whether this pane shows its stream the other way, for a stream that has it. */
+  backward?: boolean;
 };
 
 // Presentation only: an unknown name still reads sensibly, so a stream the server adds
@@ -75,7 +77,6 @@ const LABELS: Record<string, string> = {
   alpha: "Alpha",
   bokeh: "Bokeh",
   flow: "Optical flow",
-  flow_back: "Backward flow",
   occlusion: "Occlusion",
 };
 
@@ -518,7 +519,8 @@ export function Viewer({
           // make adding one whose name sorts last change this silently.
           const colormap = pane.colormap ?? info.default ?? undefined;
           const overlay = !!pane.overlay && info.overlay !== null;
-          const src = streamUrl(info, { colormap, overlay });
+          const backward = !!pane.backward && info.backward !== null;
+          const src = streamUrl(info, { colormap, overlay, backward });
           const readyKey = `${pane.key} ${src}`;
           const updatePane = (change: Partial<Pane>) =>
             setPanes((c) =>
@@ -574,6 +576,7 @@ export function Viewer({
                       stream: v,
                       colormap: undefined,
                       overlay: undefined,
+                      backward: undefined,
                     })
                   }
                 >
@@ -700,7 +703,7 @@ export function Viewer({
                     variant="outline"
                     size="sm"
                     aria-pressed={overlay}
-                    title="Draw the mask over the darkened frames"
+                    title="Draw the mask over the frames in gray"
                     className="aria-pressed:bg-muted aria-pressed:text-foreground shrink-0"
                     onClick={() => updatePane({ overlay: !overlay })}
                   >
@@ -712,7 +715,33 @@ export function Viewer({
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}
-              {(stream === "flow" || stream === "flow_back") && <FlowLegend />}
+              {/* The direction comes from the stream info, as the colormap does; the
+                  legend is the flow's own. */}
+              {(info.backward !== null || stream === "flow") && (
+                <div className="flex items-center gap-3">
+                  {info.backward !== null && (
+                    <Select
+                      value={backward ? "backward" : "forward"}
+                      onValueChange={(v) =>
+                        updatePane({ backward: v === "backward" })
+                      }
+                    >
+                      <SelectTrigger
+                        aria-label="Direction"
+                        size="sm"
+                        className="shrink-0"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="forward">Forward</SelectItem>
+                        <SelectItem value="backward">Backward</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {stream === "flow" && <FlowLegend backward={backward} />}
+                </div>
+              )}
             </figure>
           );
         })}

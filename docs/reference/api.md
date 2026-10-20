@@ -147,42 +147,40 @@ curl -X POST http://localhost:8000/sequences \
       "colormaps": [],
       "default": null,
       "opens_pane": true,
-      "overlay": null
+      "overlay": null,
+      "backward": null
     },
     "alpha": {
       "url": "/sequences/499a2ad706800460/alpha.mp4",
       "colormaps": [],
       "default": null,
       "opens_pane": true,
-      "overlay": null
+      "overlay": null,
+      "backward": null
     },
     "disparity": {
       "url": "/sequences/499a2ad706800460/disparity.mp4",
       "colormaps": ["grey", "spectral_r"],
       "default": "spectral_r",
       "opens_pane": true,
-      "overlay": null
+      "overlay": null,
+      "backward": null
     },
     "flow": {
       "url": "/sequences/499a2ad706800460/flow.mp4",
       "colormaps": [],
       "default": null,
       "opens_pane": true,
-      "overlay": null
-    },
-    "flow_back": {
-      "url": "/sequences/499a2ad706800460/flow_back.mp4",
-      "colormaps": [],
-      "default": null,
-      "opens_pane": false,
-      "overlay": null
+      "overlay": null,
+      "backward": "/sequences/499a2ad706800460/flow_back.mp4"
     },
     "occlusion": {
       "url": "/sequences/499a2ad706800460/occlusion.mp4",
       "colormaps": [],
       "default": null,
       "opens_pane": false,
-      "overlay": "/sequences/499a2ad706800460/occlusion.mp4?overlay=true"
+      "overlay": "/sequences/499a2ad706800460/occlusion.mp4?overlay=true",
+      "backward": null
     }
   }
 }
@@ -191,15 +189,20 @@ curl -X POST http://localhost:8000/sequences \
 **Each entry of `streams` is stream info: how the stream can be displayed, not only where it
 is.** `colormaps` is empty when the stream has one rendering, as every stream but
 `disparity` has. A client that renders
-what `streams` lists needs no change when a stream is added. `bokeh`, `flow`, `flow_back` and
-`occlusion` appear here once the sequence has them, in that order, with no colormaps, after
-the three every sequence has.
+what `streams` lists needs no change when a stream is added. `bokeh`, `flow` and `occlusion`
+appear here once the sequence has them, in that order, with no colormaps, after the three
+every sequence has. The backward flow is not listed apart: it is the flow's other direction,
+under `backward`.
 
 - **`opens_pane` says whether the demo opens a pane for the stream on its own.** It is false
-  for `flow_back` and `occlusion`, which wait in the demo's stream picker, so a sequence opens
-  with the panes it did before they were served.
+  for `occlusion`, which waits in the demo's stream picker, so a sequence opens with the panes
+  it did before the mask was served.
 - **`overlay` is the stream drawn over the frames it describes**, for `occlusion`, and null
   for every other stream. See `?overlay=` below.
+- **`backward` is the same motion the other way**, for `flow`: the backward flow's video,
+  where each pixel came from in the previous frame. Null for every other stream, and for a
+  sequence without `flow_back/`. The demo picks between the two directions under the flow's
+  pane.
 
 **Every sequence of two frames or more comes with its motion streams:** the optical flow, the
 backward flow and the occlusion mask. Generation writes `flow/`, `flow_back/` and
@@ -333,15 +336,19 @@ The last frame has no flow, since there is no next frame to move to, so the vide
 still. That keeps the video as long as the other streams and in step with them.
 
 **`flow_back` is colored the same way**, at its own sequence's scale. Its first frame has no
-previous one to come from, so that is the frame the video shows still.
+previous one to come from, so that is the frame the video shows still. Its vectors point to
+where each pixel came from, so a pixel moving right is drawn in the color of left. The
+sequence response names this URL as the flow's `backward` rather than as a stream.
 
 **`occlusion` is the mask as stored**: white where the pixel's surface is hidden in the next
 frame, black elsewhere. The last frame has no next one, so its video frame is black.
-**`?overlay=true` draws it over the all-in-focus frames instead**, darkened, with the occluded
-pixels tinted red, and the last frame darkened with nothing tinted. It is cached as its own
-file, `occlusion.overlay.mp4`. The value is a yes or no, as `true`, `1` or `yes` and their
-opposites, and anything else answers 422. Every other stream drops the parameter, whatever
-its value, as it drops `?colormap=`.
+**`?overlay=true` draws it over the all-in-focus frames instead.** The frames turn gray at 90%
+of their brightness. The occluded pixels are drawn over them in a semi-transparent orange,
+Okabe-Ito's `#E69F00`. The last frame is gray with nothing drawn on it. The overlay is cached
+as its own file, `occlusion.overlay-orange.mp4`. An earlier version drew it in red and cached
+it as `occlusion.overlay.mp4`, which is left on disk and never served. The value is a yes or
+no, as `true`, `1` or `yes` and their opposites, and anything else answers 422. Every other
+stream drops the parameter, whatever its value, as it drops `?colormap=`.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
@@ -374,18 +381,18 @@ hash.
 
 ```
 $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
-├── sequence.json           the request, the library id and the object count
-├── all_in_focus/           RGB uint8 PNG
-├── alpha/                  multi-page uint8 TIFF, one page per object
-├── disparity/              uint16 PNG
-├── bokeh/                  RGB uint8 PNG and focus.json, with torch or once Stage C wrote it
-├── flow/                   KITTI 16-bit PNG, every frame but the last
-├── flow_back/              KITTI 16-bit PNG, every frame but the first
-├── occlusion/              8-bit PNG, every frame but the last
-├── all_in_focus.mp4        written on first request
-├── disparity.mp4           written on first request, Spectral
-├── disparity.grey.mp4      written if `grey` is ever asked for
-└── occlusion.overlay.mp4   written if the overlay is ever asked for
+├── sequence.json                 the request, the library id and the object count
+├── all_in_focus/                 RGB uint8 PNG
+├── alpha/                        multi-page uint8 TIFF, one page per object
+├── disparity/                    uint16 PNG
+├── bokeh/                        RGB uint8 PNG and focus.json, with torch or after Stage C
+├── flow/                         KITTI 16-bit PNG, every frame but the last
+├── flow_back/                    KITTI 16-bit PNG, every frame but the first
+├── occlusion/                    8-bit PNG, every frame but the last
+├── all_in_focus.mp4              written on first request
+├── disparity.mp4                 written on first request, Spectral
+├── disparity.grey.mp4            written if `grey` is ever asked for
+└── occlusion.overlay-orange.mp4  written if the overlay is ever asked for
 ```
 
 The three stream directories are the layout in [dataset-layout](dataset-layout.md), without the

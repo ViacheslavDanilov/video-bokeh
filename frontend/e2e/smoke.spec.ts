@@ -955,22 +955,19 @@ test("moves a pane with the arrow keys while the panes play", async ({
 test("offers no pane once every stream is on screen", async ({ page }) => {
   await openPage(page);
   const videos = await generateSequence(page);
-  // Backward flow and occlusion open no pane of their own; "Add pane" offers them.
+  // Occlusion opens no pane of its own; "Add pane" offers it. The backward flow is no
+  // stream of its own but a direction of the optical flow, so nothing else is left.
   const add = page.getByRole("button", { name: "Add pane" });
   await add.click();
-  await add.click();
-  await expect(videos).toHaveCount(6);
-  expect((await streamsInOrder(page)).slice(-2)).toEqual([
-    "Backward flow",
-    "Occlusion",
-  ]);
+  await expect(videos).toHaveCount(5);
+  expect((await streamsInOrder(page)).at(-1)).toBe("Occlusion");
   await expect(
     page.getByRole("button", { name: "All streams shown" }),
   ).toBeDisabled();
 
   await page.getByRole("button", { name: "Close Alpha pane" }).click();
   await add.click();
-  await expect(videos).toHaveCount(6);
+  await expect(videos).toHaveCount(5);
   expect((await streamsInOrder(page)).at(-1)).toBe("Alpha");
   await expect(
     page.getByRole("button", { name: "All streams shown" }),
@@ -997,17 +994,13 @@ test("counts the stream a pane falls back to as shown", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Add pane" })).toBeEnabled();
 
   // No bokeh here, so the bokeh pane falls back to all in focus. What is left to add is
-  // the two streams that open no pane of their own, and all in focus is not among them.
+  // the stream that opens no pane of its own, and all in focus is not it.
   await seed.fill("52");
   await generate.click();
   await expect(page.getByText("seed 52")).toBeVisible({ timeout: 60_000 });
   const add = page.getByRole("button", { name: "Add pane" });
   await add.click();
-  await add.click();
-  expect((await streamsInOrder(page)).slice(-2)).toEqual([
-    "Backward flow",
-    "Occlusion",
-  ]);
+  expect((await streamsInOrder(page)).at(-1)).toBe("Occlusion");
   await expect(
     page.getByRole("button", { name: "All streams shown" }),
   ).toBeDisabled();
@@ -1032,13 +1025,10 @@ async function addPaneFor(page: Page, label: string) {
 }
 
 /**
- * Backward flow and the occlusion mask come with every sequence, wait in the stream picker
- * rather than open a pane, and decode as video once a pane shows them. Backward flow has the
- * forward flow's legend.
+ * The occlusion mask comes with every sequence, waits in the stream picker rather than open
+ * a pane, and decodes as video once a pane shows it.
  */
-test("shows backward flow and occlusion from the stream picker", async ({
-  page,
-}) => {
+test("shows occlusion from the stream picker", async ({ page }) => {
   await openPage(page);
   const videos = await generateSequence(page);
   await expect(page.getByRole("combobox", { name: "Stream" })).toHaveText([
@@ -1048,21 +1038,77 @@ test("shows backward flow and occlusion from the stream picker", async ({
     "Optical flow",
   ]);
 
-  const back = await addPaneFor(page, "Backward flow");
-  await expect(back.locator("video")).toHaveAttribute("src", /flow_back\.mp4/);
-  await expect(back.getByText(/Color is the direction/)).toBeVisible();
-
   const occlusion = await addPaneFor(page, "Occlusion");
   await expect(occlusion.locator("video")).toHaveAttribute(
     "src",
     /occlusion\.mp4$/,
   );
-  await expect(videos).toHaveCount(6);
+  await expect(videos).toHaveCount(5);
+});
+
+/**
+ * One optical flow stream, its direction picked under the pane as the disparity's colormap
+ * is: forward first, backward from the same dropdown, each with its own caption. The
+ * backward flow is no stream of its own in the picker.
+ */
+test("picks the optical flow direction under its pane", async ({ page }) => {
+  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
+  test.slow();
+  await openPage(page);
+  const videos = await generateSequence(page);
+  const pane = page.locator("figure").filter({
+    has: page
+      .getByRole("combobox", { name: "Stream" })
+      .getByText("Optical flow"),
+  });
+  const video = pane.locator("video");
+
+  await pane.getByRole("combobox", { name: "Stream" }).click();
+  await expect(page.getByRole("option")).toHaveText([
+    "All in focus",
+    "Alpha",
+    "Disparity",
+    "Optical flow",
+    "Occlusion",
+  ]);
+  await page.keyboard.press("Escape");
+
+  const direction = pane.getByRole("combobox", { name: "Direction" });
+  await expect(direction).toHaveText("Forward");
+  await expect(video).toHaveAttribute("src", /\/flow\.mp4$/);
+  await expect(
+    pane.getByText(/where a pixel moves in the next frame/),
+  ).toBeVisible();
+
+  await direction.click();
+  await expect(page.getByRole("option")).toHaveText(["Forward", "Backward"]);
+  await page.getByRole("option", { name: "Backward" }).click();
+  await expect(direction).toHaveText("Backward");
+  await expect(video).toHaveAttribute("src", /\/flow_back\.mp4$/);
+  await waitForDecoded(videos);
+  await expect(
+    pane.getByText(/where a pixel came from in the previous frame/),
+  ).toBeVisible();
+  await expect(
+    pane.getByText(/where a pixel moves in the next frame/),
+  ).toHaveCount(0);
+  // Only the flow pane has a direction.
+  await expect(page.getByRole("combobox", { name: "Direction" })).toHaveCount(
+    1,
+  );
+
+  // A new sequence keeps the direction, as it keeps a colormap.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("7");
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(page.getByText("seed 7")).toBeVisible({ timeout: 60_000 });
+  await expect(direction).toHaveText("Backward");
+  await expect(video).toHaveAttribute("src", /\/flow_back\.mp4$/);
+  await waitForDecoded(videos);
 });
 
 /**
  * The occlusion pane shows the mask as stored, white on black, and a toggle in the pane
- * draws it red over the darkened frames instead, and back.
+ * draws it orange over the frames in gray instead, and back.
  */
 test("switches the occlusion pane to the overlay and back", async ({
   page,
@@ -1079,7 +1125,9 @@ test("switches the occlusion pane to the overlay and back", async ({
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
   await waitForDecoded(video);
-  await expect(pane.getByText("Red: hidden in the next frame")).toBeVisible();
+  await expect(
+    pane.getByText("Orange: hidden in the next frame"),
+  ).toBeVisible();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");

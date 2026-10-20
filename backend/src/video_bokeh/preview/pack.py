@@ -143,11 +143,16 @@ def _flow_frames(paths: list[Path], backward: bool = False) -> Iterator[np.ndarr
         yield still
 
 
-#: The overlay darkens the frames this much, so the mask's red stands out on any of them.
-_OVERLAY_DIM = 0.4
-#: And mixes this much red into each occluded pixel.
-_OVERLAY_TINT = 0.6
-_RED = np.array([255.0, 0.0, 0.0])
+#: The overlay grays the frames, at this much of their brightness: near full, so the
+#: picture stays readable, and a little under it, so the orange stands out on white.
+_OVERLAY_BRIGHTNESS = 0.9
+#: How opaque the orange is over each occluded pixel.
+_OVERLAY_OPACITY = 0.65
+#: Orange from the Okabe-Ito palette, #E69F00, which reads apart from gray for every
+#: common form of color blindness.
+_ORANGE = np.array([230.0, 159.0, 0.0])
+#: Rec. 709 luma weights, for the gray.
+_LUMA = np.array([0.2126, 0.7152, 0.0722])
 
 
 def _occlusion_frames(
@@ -158,7 +163,8 @@ def _occlusion_frames(
     nothing known to be hidden.
 
     On its own each mask is white on black, as stored. Over ``background``, the
-    all-in-focus frames, each frame is darkened and its occluded pixels tinted red.
+    all-in-focus frames, each frame is grayed and its occluded pixels drawn in a
+    semi-transparent orange.
     """
     if background is None:
         mask = None
@@ -169,12 +175,13 @@ def _occlusion_frames(
             yield np.zeros((*mask.shape, 3), dtype=np.uint8)
         return
     for index, frame in enumerate(background):
-        dimmed = load_frame(frame, "all_in_focus", "") * _OVERLAY_DIM
+        luma = load_frame(frame, "all_in_focus", "") @ _LUMA
+        gray = np.repeat((luma * _OVERLAY_BRIGHTNESS)[..., None], 3, -1)
         if index < len(paths):
             mask = read_mask_png(paths[index])[..., None]
-            tinted = dimmed * (1 - _OVERLAY_TINT) + _RED * _OVERLAY_TINT
-            dimmed = np.where(mask, tinted, dimmed)
-        yield dimmed.round().astype(np.uint8)
+            orange = gray * (1 - _OVERLAY_OPACITY) + _ORANGE * _OVERLAY_OPACITY
+            gray = np.where(mask, orange, gray)
+        yield gray.round().astype(np.uint8)
 
 
 def encode_stream(

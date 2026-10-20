@@ -39,6 +39,7 @@ from video_bokeh.api._library import (
     summarize_all,
 )
 from video_bokeh.api._sequences import (
+    FLOW,
     FLOW_BACK,
     OCCLUSION,
     OPTIONAL_STREAMS,
@@ -67,9 +68,14 @@ _FPS = 24
 _QUALITY = 10
 DEFAULT_COLORMAP = "spectral_r"
 
-#: Listed for the demo's stream picker, without a pane of their own, so the panes a
-#: sequence opens with stay the ones they were before these streams were served.
-_PICKER_ONLY = (FLOW_BACK, OCCLUSION)
+#: Listed for the demo's stream picker, without a pane of its own, so the panes a
+#: sequence opens with stay the ones they were before the occlusion mask was served.
+_PICKER_ONLY = (OCCLUSION,)
+
+#: The overlay's cached file is named after its look. An earlier version cached a red
+#: overlay as `occlusion.overlay.mp4`, and nothing about the frames would make that file
+#: stale, so a new look needs a new name.
+_OVERLAY_SUFFIX = ".overlay-orange"
 
 #: Reads `?overlay=` the way FastAPI reads a boolean parameter: true, 1, yes, on and
 #: their opposites.
@@ -205,6 +211,10 @@ class StreamInfo(BaseModel):
     opens_pane: bool
     #: The stream drawn over the frames it describes, for the occlusion mask, or null.
     overlay: str | None
+    #: The same motion the other way, for the optical flow: where each pixel came from in
+    #: the previous frame rather than where it goes in the next. Null for every other
+    #: stream, and the backward flow is not listed as a stream of its own.
+    backward: str | None
 
 
 class SequenceResponse(BaseModel):
@@ -341,6 +351,7 @@ def _sequence_response(
     library_id: str,
     params: SequenceParams,
 ) -> SequenceResponse:
+    streams = video_streams(result.path)
     return SequenceResponse(
         id=result.id,
         library=library_id,
@@ -361,8 +372,15 @@ def _sequence_response(
                     if stream == OCCLUSION
                     else None
                 ),
+                backward=(
+                    f"/sequences/{result.id}/{FLOW_BACK}.mp4"
+                    if stream == FLOW and FLOW_BACK in streams
+                    else None
+                ),
             )
-            for stream in video_streams(result.path)
+            # The backward flow is the flow's other direction, offered as `backward`.
+            for stream in streams
+            if stream != FLOW_BACK
         },
     )
 
@@ -451,7 +469,7 @@ def read_sequence_video(
 
     suffix = "" if colormap == DEFAULT_COLORMAP else f".{colormap}"
     if over_frames:
-        suffix = ".overlay"
+        suffix = _OVERLAY_SUFFIX
     video = sequence_dir / f"{stream}{suffix}.mp4"
     # Re-encoded when the frames are newer than the video: Stage C run again replaces
     # bokeh/ whole, and the encode of the first render would otherwise be served for good.

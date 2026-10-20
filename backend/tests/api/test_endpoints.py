@@ -140,7 +140,6 @@ def test_generates_a_sequence_and_lists_its_streams(client: TestClient) -> None:
         "alpha",
         "disparity",
         "flow",
-        "flow_back",
         "occlusion",
     }
     assert (
@@ -458,7 +457,6 @@ def test_bokeh_joins_the_streams_once_rendered(
         "disparity",
         "bokeh",
         "flow",
-        "flow_back",
         "occlusion",
     ]
     assert again["streams"]["bokeh"] == {
@@ -467,6 +465,7 @@ def test_bokeh_joins_the_streams_once_rendered(
         "default": None,
         "opens_pane": True,
         "overlay": None,
+        "backward": None,
     }
 
 
@@ -548,7 +547,6 @@ def test_generating_renders_the_bokeh_with_the_sequence(
         "disparity",
         "bokeh",
         "flow",
-        "flow_back",
         "occlusion",
     ]
     record = json.loads(
@@ -644,6 +642,15 @@ def test_a_single_frame_has_no_flow_even_when_asked_again(client: TestClient) ->
 MOTION = ("flow_back", "occlusion")
 
 
+def _listed(streams: dict, stream: str) -> bool:
+    """Whether a motion stream is offered: the backward flow as the flow's other
+    direction, the occlusion mask as a stream of its own.
+    """
+    if stream == "flow_back":
+        return "flow" in streams and streams["flow"]["backward"] is not None
+    return stream in streams
+
+
 def _frames_of(video: bytes, tmp_path: Path) -> list[np.ndarray]:
     path = tmp_path / "frames.mp4"
     path.write_bytes(video)
@@ -654,11 +661,31 @@ def _frames_of(video: bytes, tmp_path: Path) -> list[np.ndarray]:
 def test_a_sequence_comes_with_its_backward_flow_and_occlusion(
     client: TestClient,
 ) -> None:
+    body = client.post("/sequences", json=SEQUENCE_BODY).json()
+    streams = body["streams"]
+    assert list(streams)[-2:] == ["flow", "occlusion"]
+    assert streams["occlusion"]["colormaps"] == []
+    assert streams["occlusion"]["default"] is None
+    assert streams["flow"]["backward"] == f"/sequences/{body['id']}/flow_back.mp4"
+
+
+def test_the_backward_flow_is_a_direction_of_the_flow_not_a_stream(
+    client: TestClient,
+) -> None:
+    """The demo offers one optical flow stream and picks its direction under the pane,
+    as it picks the disparity's colormap, so the backward flow is not listed apart.
+    """
     streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
-    assert list(streams)[-3:] == ["flow", "flow_back", "occlusion"]
-    for stream in MOTION:
-        assert streams[stream]["colormaps"] == []
-        assert streams[stream]["default"] is None
+    assert "flow_back" not in streams
+    others = [info for name, info in streams.items() if name != "flow"]
+    assert all(info["backward"] is None for info in others)
+
+
+def test_the_backward_flow_keeps_its_own_url(client: TestClient) -> None:
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    response = client.get(f"/sequences/{sid}/flow_back.mp4")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp4"
 
 
 def test_only_the_streams_the_viewer_opened_before_open_a_pane(
@@ -669,7 +696,7 @@ def test_only_the_streams_the_viewer_opened_before_open_a_pane(
     """
     streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
     closed = {name for name, info in streams.items() if not info["opens_pane"]}
-    assert closed == set(MOTION)
+    assert closed == {"occlusion"}
 
 
 def test_the_occlusion_stream_names_its_overlay(client: TestClient) -> None:
@@ -693,11 +720,11 @@ def test_the_motion_videos_are_as_long_as_the_frames(
     video still plays three, in step with the panes beside it.
     """
     streams = client.post("/sequences", json=SEQUENCE_BODY).json()["streams"]
-    url = (
-        streams["occlusion"]["overlay"]
-        if rendering == "overlay"
-        else streams[rendering]["url"]
-    )
+    url = {
+        "flow_back": streams["flow"]["backward"],
+        "occlusion": streams["occlusion"]["url"],
+        "overlay": streams["occlusion"]["overlay"],
+    }[rendering]
     response = client.get(url)
     assert response.status_code == 200
     assert response.headers["content-type"] == "video/mp4"
@@ -707,14 +734,19 @@ def test_the_motion_videos_are_as_long_as_the_frames(
 def test_backward_flow_starts_still(client: TestClient, tmp_path: Path) -> None:
     """The first frame has no previous one, so it stands still: white on the wheel."""
     body = client.post("/sequences", json=SEQUENCE_BODY).json()
-    video = client.get(body["streams"]["flow_back"]["url"]).content
+    video = client.get(body["streams"]["flow"]["backward"]).content
     assert _frames_of(video, tmp_path)[0].min() > 240
 
 
-def _paint_occlusion(sequence_dir: Path) -> None:
-    """Gray frames, and masks whose left half is occluded, so the colors are known."""
+def _paint_occlusion(
+    sequence_dir: Path,
+    color: tuple[int, int, int] = (200, 200, 200),
+) -> None:
+    """Frames of one color, and masks whose left half is occluded, so the colors are
+    known.
+    """
     for frame in (sequence_dir / "all_in_focus").iterdir():
-        Image.new("RGB", Image.open(frame).size, (200, 200, 200)).save(frame)
+        Image.new("RGB", Image.open(frame).size, color).save(frame)
     for mask in (sequence_dir / "occlusion").iterdir():
         pixels = np.zeros_like(np.asarray(Image.open(mask)))
         pixels[:, : pixels.shape[1] // 2] = 255
@@ -736,28 +768,34 @@ def test_occlusion_is_served_white_on_black_as_stored(
     assert frames[-1].max() < 25
 
 
-def test_the_overlay_tints_occluded_pixels_red_on_the_darkened_frame(
+#: A warm frame, so that a gray one can be told from it, and its Rec. 709 luma.
+_WARM = (220, 160, 90)
+_WARM_LUMA = 0.2126 * 220 + 0.7152 * 160 + 0.0722 * 90
+
+
+def test_the_overlay_draws_occluded_pixels_orange_on_the_gray_frame(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
     body = client.post("/sequences", json=SEQUENCE_BODY).json()
-    _paint_occlusion(tmp_path / "sequences" / body["id"])
+    _paint_occlusion(tmp_path / "sequences" / body["id"], _WARM)
     video = client.get(body["streams"]["occlusion"]["overlay"]).content
     frames = _frames_of(video, tmp_path)
     half = frames[0].shape[1] // 2
     occluded = frames[0][8:-8, 8 : half - 8].reshape(-1, 3).mean(axis=0)
     visible = frames[0][8:-8, half + 8 : -8].reshape(-1, 3).mean(axis=0)
+    # Okabe-Ito orange, #E69F00, over the gray: red first, then green, little blue.
     red, green, blue = occluded
-    assert red > 150
-    assert red > 2 * green
-    assert red > 2 * blue
-    # Darker than the 200 gray it was, and still gray.
-    assert visible.max() < 120
+    assert red > 180
+    assert 0.55 < green / red < 0.85
+    assert blue < 90
+    # Gray, at about the frame's own brightness rather than darkened.
     assert visible.max() - visible.min() < 10
-    # The last frame has no mask: the frame darkened, nothing tinted.
+    assert visible.mean() > 0.85 * _WARM_LUMA
+    # The last frame has no mask: the frame grayed, nothing drawn on it.
     last = frames[-1][8:-8, 8:-8].reshape(-1, 3).mean(axis=0)
-    assert last.max() < 120
     assert last.max() - last.min() < 10
+    assert last.mean() > 0.85 * _WARM_LUMA
 
 
 def test_the_overlay_is_cached_beside_the_mask(
@@ -770,7 +808,21 @@ def test_the_overlay_is_cached_beside_the_mask(
     written = sorted(
         p.name for p in (tmp_path / "sequences" / body["id"]).glob("occlusion*.mp4")
     )
-    assert written == ["occlusion.mp4", "occlusion.overlay.mp4"]
+    assert written == ["occlusion.mp4", "occlusion.overlay-orange.mp4"]
+
+
+def test_an_overlay_cached_in_red_is_not_served(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """An earlier version drew the overlay in red and cached it as
+    ``occlusion.overlay.mp4``, which no change to the frames would ever re-encode.
+    """
+    body = client.post("/sequences", json=SEQUENCE_BODY).json()
+    (tmp_path / "sequences" / body["id"] / "occlusion.overlay.mp4").write_bytes(b"red")
+    response = client.get(body["streams"]["occlusion"]["overlay"])
+    assert response.status_code == 200
+    assert _frame_count(response.content, tmp_path) == SEQUENCE_BODY["frames"]
 
 
 def test_the_overlay_is_ignored_for_every_other_stream(
@@ -832,7 +884,7 @@ def test_a_cached_sequence_without_them_gets_them_when_asked_again(
     again = client.post("/sequences", json=SEQUENCE_BODY).json()
     assert again["cached"] is True
     for stream in missing:
-        assert stream in again["streams"]
+        assert _listed(again["streams"], stream)
         stream_dir = tmp_path / "sequences" / sid / stream
         assert sorted(p.name for p in stream_dir.iterdir()) == written[stream]
 
@@ -841,7 +893,7 @@ def test_a_single_frame_has_no_motion_streams(client: TestClient) -> None:
     body = {**SEQUENCE_BODY, "frames": 1}
     for _ in range(2):
         streams = client.post("/sequences", json=body).json()["streams"]
-        assert not set(MOTION) & set(streams)
+        assert not any(_listed(streams, stream) for stream in MOTION)
 
 
 # --- progress -------------------------------------------------------------- #
@@ -948,7 +1000,8 @@ def test_a_cached_sequence_without_backward_flow_or_occlusion_streams_adding_the
         "steps": [{"step": "sampling", "total": 1}, {"step": "flow", "total": 3}],
     }
     assert {"step": "flow", "done": 3, "total": 3} in lines
-    assert set(MOTION) <= set(lines[-1]["sequence"]["streams"])
+    streams = lines[-1]["sequence"]["streams"]
+    assert all(_listed(streams, stream) for stream in MOTION)
 
 
 @pytest.mark.parametrize(
