@@ -435,7 +435,7 @@ export function Viewer({
   // The transport counts frames, not seconds. A slider stepping by duration/frames
   // lands on fractions the browser then rounds back, so arrow keys stalled after two
   // presses -- and a screen reader read out seconds when the interesting number is the
-  // frame. Integers fix both.
+  // frame. The keys move it by whole frames, and its text names the frame shown.
   // The frame on screen is the one whose time span holds the current time, so the counter
   // rounds down, and a seek goes to the middle of a frame, which no rounding moves out.
   const lastFrame = Math.max(sequence.frames - 1, 0);
@@ -482,6 +482,10 @@ export function Viewer({
   // Every pane shows the frame nearest the thumb at once: drawn from memory where it is
   // decoded, and where it is not yet, sought as before.
   const scrubTo = (position: number) => {
+    // Playing panes hold still under the drag, so no sync seek lands after the last one,
+    // and play on from the frame let go at.
+    if (scrubRef.current === null && playingRef.current)
+      videos.current.forEach((v) => v.pause());
     scrubRef.current = position;
     setScrub(position);
     const frame = nearest(position);
@@ -517,6 +521,9 @@ export function Viewer({
     setScrub(null);
     seekToFrame(nearest(position));
     videos.current.forEach((video, key) => {
+      if (playingRef.current) void video.play();
+      // A video with nothing loaded yet does not seek, and covers nothing.
+      if (video.readyState === HTMLMediaElement.HAVE_NOTHING) return;
       video.addEventListener(
         "seeked",
         () => {
@@ -959,12 +966,21 @@ export function Viewer({
             // A drag that ends where it began commits nothing, and must still end.
             onPointerUp={endScrub}
             onKeyDown={(e) => {
-              const by = FRAME_KEYS[e.key];
-              if (by === undefined) return;
+              // Home and End too: the slider's own commits before it changes, which would
+              // leave the scrub it starts open.
+              let to: number;
+              if (e.key === "Home") to = 0;
+              else if (e.key === "End") to = lastFrame;
+              else {
+                const by = FRAME_KEYS[e.key];
+                if (by === undefined) return;
+                // Shift with an arrow is ten frames, as Page Up and Page Down are.
+                to =
+                  frameIndex +
+                  (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
+              }
               e.preventDefault();
-              // Shift with an arrow is ten frames, as Page Up and Page Down are.
-              const step = e.shiftKey && Math.abs(by) === 1 ? by * 10 : by;
-              scrubTo(nearest(frameIndex + step));
+              scrubTo(nearest(to));
               endScrub();
             }}
           />

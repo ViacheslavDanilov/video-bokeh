@@ -1362,4 +1362,30 @@ test("scrubs every pane to the nearest frame while dragging", async ({
   const previous = await settledAt(shown - 1);
   expect(meanDifference(dragged, next)).toBeGreaterThan(there);
   expect(meanDifference(dragged, previous)).toBeGreaterThan(there);
+  // End and Home go to either end and leave no scrub open.
+  await page.keyboard.press("End");
+  await settledAt(79);
+  await page.keyboard.press("Home");
+  await settledAt(0);
+
+  // A drag while playing holds the panes still under it, and they play on after.
+  await page.getByRole("button", { name: "Play" }).click();
+  const at = (await slider.boundingBox())!;
+  await page.mouse.move(at.x + at.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width / 2, y, { steps: 10 });
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    ),
+  ).toEqual(Array(6).fill(true));
+  await page.mouse.up();
+  await expect
+    .poll(() =>
+      videos.evaluateAll((els) =>
+        els.map((el) => (el as HTMLVideoElement).paused),
+      ),
+    )
+    .toEqual(Array(6).fill(false));
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
 });
