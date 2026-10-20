@@ -8,7 +8,7 @@ import {
   type RefObject,
   useState,
 } from "react";
-import { Check, Copy, GripVertical, X } from "lucide-react";
+import { Check, Copy, GripVertical, Pause, Play, X } from "lucide-react";
 import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
 import { decodeFrames, frameTime } from "@/lib/frames";
@@ -943,13 +943,17 @@ export function Viewer({
           Held at the bottom of the window, so it stays in reach when the panes take two
           rows and the page scrolls. */}
       <div className="bg-background sticky bottom-0 z-10 flex flex-wrap items-center gap-4 py-3">
+        {/* The symbols every player uses, named for screen readers and on hover. The width
+            stays what the words needed, so nothing beside it moves. */}
         <Button
           type="button"
           variant="outline"
           className="w-24"
+          aria-label={playing ? "Pause" : "Play"}
+          title={playing ? "Pause" : "Play"}
           onClick={togglePlay}
         >
-          {playing ? "Pause" : "Play"}
+          {playing ? <Pause /> : <Play />}
         </Button>
         <Select
           value={String(speed)}

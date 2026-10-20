@@ -152,6 +152,48 @@ test("sets every pane to the chosen speed", async ({ page }) => {
 });
 
 /**
+ * The transport's button shows a triangle to play and two bars to pause, with no words, and
+ * says which it is to a screen reader. The button stays where it was and keeps its size.
+ */
+test("shows the play and pause symbols on the transport button", async ({
+  page,
+}) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  const pause = page.getByRole("button", { name: "Pause", exact: true });
+
+  await expect(play).toHaveText("");
+  await expect(play.locator("svg.lucide-play")).toBeVisible();
+  const box = await play.boundingBox();
+
+  await play.click();
+  await expect(pause).toBeFocused();
+  await expect(pause).toHaveText("");
+  await expect(pause.locator("svg.lucide-pause")).toBeVisible();
+  await expect(play).toHaveCount(0);
+  expect(await pause.boundingBox()).toEqual(box);
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    ),
+  ).toEqual([false, false, false, false]);
+
+  // The keyboard works it as before: Enter on the focused button.
+  await page.keyboard.press("Enter");
+  await expect(play).toBeFocused();
+  await expect(play.locator("svg.lucide-play")).toBeVisible();
+  await expect
+    .poll(() =>
+      videos.evaluateAll((els) =>
+        els.map((el) => (el as HTMLVideoElement).paused),
+      ),
+    )
+    .toEqual([true, true, true, true]);
+});
+
+/**
  * The picker chooses the library a sequence comes from, and the sequence keeps naming its
  * own estimator after the picker moves on, so what is playing is never mislabeled.
  */
