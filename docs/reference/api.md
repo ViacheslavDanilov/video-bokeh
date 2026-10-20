@@ -343,12 +343,13 @@ sequence response names this URL as the flow's `backward` rather than as a strea
 **`occlusion` is the mask as stored**: white where the pixel's surface is hidden in the next
 frame, black elsewhere. The last frame has no next one, so its video frame is black.
 **`?overlay=true` draws it over the all-in-focus frames instead.** The frames turn gray at 90%
-of their brightness. The occluded pixels are drawn over them in a semi-transparent orange,
-Okabe-Ito's `#E69F00`. The last frame is gray with nothing drawn on it. The overlay is cached
-as its own file, `occlusion.overlay-orange.mp4`. An earlier version drew it in red and cached
-it as `occlusion.overlay.mp4`, which is left on disk and never served. The value is a yes or
-no, as `true`, `1` or `yes` and their opposites, and anything else answers 422. Every other
-stream drops the parameter, whatever its value, as it drops `?colormap=`.
+of their brightness. The occluded pixels are drawn over them in cyan, `#00E5FF`, at 85%
+opacity. The last frame is gray with nothing drawn on it. The overlay is cached as its own
+file, `occlusion.overlay-cyan.mp4`. Earlier versions drew it in red, cached as
+`occlusion.overlay.mp4`, and in orange, cached as `occlusion.overlay-orange.mp4`. Both are
+left on disk and never served. The value is a yes or no, as `true`, `1` or `yes` and their
+opposites, and anything else answers 422. Every other stream drops the parameter, whatever
+its value, as it drops `?colormap=`.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
@@ -392,7 +393,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── all_in_focus.mp4              written on first request
 ├── disparity.mp4                 written on first request, Spectral
 ├── disparity.grey.mp4            written if `grey` is ever asked for
-└── occlusion.overlay-orange.mp4  written if the overlay is ever asked for
+└── occlusion.overlay-cyan.mp4    written if the overlay is ever asked for
 ```
 
 The three stream directories are the layout in [dataset-layout](dataset-layout.md), without the

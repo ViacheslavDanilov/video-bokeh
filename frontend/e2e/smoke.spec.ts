@@ -1108,7 +1108,7 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
 
 /**
  * The occlusion pane shows the mask as stored, white on black, and a toggle in the pane
- * draws it orange over the frames in gray instead, and back.
+ * draws it cyan over the frames in gray instead, and back.
  */
 test("switches the occlusion pane to the overlay and back", async ({
   page,
@@ -1125,9 +1125,12 @@ test("switches the occlusion pane to the overlay and back", async ({
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
   await waitForDecoded(video);
-  await expect(
-    pane.getByText("Orange: hidden in the next frame"),
-  ).toBeVisible();
+  await expect(pane.getByText("Cyan: hidden in the next frame")).toBeVisible();
+  // The swatch is the cyan the backend draws, #00E5FF.
+  await expect(pane.locator("[data-swatch]")).toHaveCSS(
+    "background-color",
+    "rgb(0, 229, 255)",
+  );
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");

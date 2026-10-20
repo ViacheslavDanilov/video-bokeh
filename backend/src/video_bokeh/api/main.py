@@ -72,10 +72,11 @@ DEFAULT_COLORMAP = "spectral_r"
 #: sequence opens with stay the ones they were before the occlusion mask was served.
 _PICKER_ONLY = (OCCLUSION,)
 
-#: The overlay's cached file is named after its look. An earlier version cached a red
-#: overlay as `occlusion.overlay.mp4`, and nothing about the frames would make that file
-#: stale, so a new look needs a new name.
-_OVERLAY_SUFFIX = ".overlay-orange"
+#: The overlay's cached file is named after its look. Earlier versions cached a red
+#: overlay as `occlusion.overlay.mp4` and an orange one as `occlusion.overlay-orange.mp4`,
+#: and nothing about the frames would make either file stale, so a new look needs a new
+#: name.
+_OVERLAY_SUFFIX = ".overlay-cyan"
 
 #: Reads `?overlay=` the way FastAPI reads a boolean parameter: true, 1, yes, on and
 #: their opposites.

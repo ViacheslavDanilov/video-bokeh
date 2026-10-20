@@ -80,8 +80,8 @@ opposite color. The caption beside the wheel says which direction is on screen, 
 choice stays on the pane for the next sequence.
 
 **So does the occlusion mask**, white where a pixel's surface is hidden in the next frame,
-on black, as it is stored. The Overlay button under its pane draws it instead as orange on the
-all-in-focus frames, shown in gray so the orange stands out.
+on black, as it is stored. The Overlay button under its pane draws it instead as cyan on the
+all-in-focus frames, shown in gray so the cyan stands out.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.
