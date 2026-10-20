@@ -282,6 +282,36 @@ export function Viewer({
     setCovering(new Set());
   }
 
+  // While playing, the time comes from the leading video every animation frame rather
+  // than from its timeupdate events, about four a second, so the thumb glides instead of
+  // jumping several frames at a time. Nothing runs while paused or while the page is
+  // hidden, nor during a drag, which places the thumb itself.
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    const follow = () => {
+      const lead = videos.current.values().next().value;
+      // A lead loading a new stream reads 0 until it is put back where the transport is.
+      if (
+        lead &&
+        lead.readyState >= HTMLMediaElement.HAVE_METADATA &&
+        scrubRef.current === null
+      )
+        setTime(lead.currentTime);
+      frame = requestAnimationFrame(follow);
+    };
+    const resume = () => {
+      cancelAnimationFrame(frame);
+      if (!document.hidden) frame = requestAnimationFrame(follow);
+    };
+    resume();
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, [playing]);
+
   // A stream the server did not list for the last sequence gets a pane of its own while
   // there is room: bokeh appears this way, when a sequence that had none is asked for again
   // with it. Only a stream new since the last sequence, so a closed pane stays
@@ -447,6 +477,16 @@ export function Viewer({
       : duration
         ? Math.min(Math.floor((time / duration) * sequence.frames), lastFrame)
         : 0;
+  // Playing, the thumb sits between frames, where the time is: half a frame back, so that
+  // the frame nearest it is the one shown, as while dragging. Paused, it rests on that frame.
+  const thumbAt =
+    scrub ??
+    (playing && duration
+      ? Math.min(
+          Math.max((time / duration) * sequence.frames - 0.5, 0),
+          lastFrame,
+        )
+      : frameIndex);
   const seekToFrame = (frame: number) => {
     const to = duration ? frameTime(frame, sequence.frames, duration) : 0;
     timeRef.current = to;
@@ -960,7 +1000,7 @@ export function Viewer({
             min={0}
             max={lastFrame}
             step={SCRUB_STEP}
-            value={[scrub ?? frameIndex]}
+            value={[thumbAt]}
             onValueChange={([position]) => scrubTo(position)}
             onValueCommit={endScrub}
             // A drag that ends where it began commits nothing, and must still end.

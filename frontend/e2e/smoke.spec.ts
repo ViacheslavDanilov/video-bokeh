@@ -1389,3 +1389,64 @@ test("scrubs every pane to the nearest frame while dragging", async ({
     .toEqual(Array(6).fill(false));
   await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
 });
+
+/**
+ * While the panes play, the position thumb glides: it follows the leading video every
+ * animation frame, between frames, at every speed, and does not jump from one timeupdate
+ * event to the next, about four a second. The counter names the frame shown, the one
+ * nearest the thumb. Paused, the thumb rests on that frame.
+ */
+test("moves the position thumb smoothly while the panes play", async ({
+  page,
+}) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+
+  /** The thumb's position and the frame named, every 25 ms for a second. */
+  const sample = () =>
+    slider.evaluate(async (el) => {
+      const seen: { at: number; frame: number }[] = [];
+      const until = performance.now() + 1000;
+      while (performance.now() < until) {
+        seen.push({
+          at: Number(el.getAttribute("aria-valuenow")),
+          frame: Number(el.getAttribute("aria-valuetext")!.split(" ")[1]) - 1,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      return seen;
+    });
+
+  for (const speed of [0.25, 1, 2]) {
+    await slider.focus();
+    await page.keyboard.press("Home");
+    await expect(slider).toHaveAttribute("aria-valuenow", "0");
+    await page.getByRole("combobox", { name: "Playback speed" }).click();
+    await page.getByRole("option", { name: `${speed}×` }).click();
+    await page.getByRole("button", { name: "Play" }).click();
+    const seen = await sample();
+    await page.getByRole("button", { name: "Pause" }).click();
+
+    const positions = seen.map((s) => s.at);
+    const steps = positions.slice(1).map((p, i) => p - positions[i]);
+    // A new position every sample or two, not one per timeupdate event.
+    expect(new Set(positions).size, `${speed}×`).toBeGreaterThan(20);
+    // Forward only, and never by more than a tenth of a second of video at once.
+    expect(Math.min(...steps), `${speed}×`).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...steps), `${speed}×`).toBeLessThanOrEqual(speed * 2.4);
+    // The counter names the whole frame nearest the thumb.
+    expect(
+      seen.map((s) => s.frame),
+      `${speed}×`,
+    ).toEqual(positions.map((p) => Math.round(p)));
+
+    // Paused, the thumb rests on the whole frame shown.
+    const resting = Number(await slider.getAttribute("aria-valuenow"));
+    expect(Number.isInteger(resting), `${speed}×`).toBe(true);
+    await expect(page.getByText(/^\d+ \/ 80$/)).toHaveText(
+      `${resting + 1} / 80`,
+    );
+  }
+});
