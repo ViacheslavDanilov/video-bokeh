@@ -41,7 +41,7 @@ export function FlowLegend({ backward }: { backward: boolean }) {
       />
       <p>
         {backward
-          ? "Color is where a pixel came from in the previous frame, so one moving right is cyan."
+          ? "Color is where a pixel came from in the previous frame, so one moving right is cyan, the opposite of red."
           : "Color is where a pixel moves in the next frame, right is red."}{" "}
         Vivid is fast, paler is slower, white is still.
       </p>
