@@ -1848,3 +1848,82 @@ test("keeps the frame when a pane loads another video", async ({ page }) => {
     await expect(slider, name).toHaveAttribute("aria-valuenow", "30");
   }
 });
+
+/** Every video the page asks for arrives `ms` late, so a test can act while one loads. */
+async function delayVideos(page: Page, ms: number) {
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() === "media")
+      await new Promise((resolve) => setTimeout(resolve, ms));
+    await route.continue().catch(() => {});
+  });
+}
+
+/**
+ * A pane added while paused and moved first before its video arrives does not lead the
+ * others back to the start once it loads: it starts where they are.
+ */
+test("keeps the frame when a pane moved first loads", async ({ page }) => {
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+  await slider.focus();
+  await page.keyboard.press("Home");
+  for (let i = 0; i < 3; i++) await page.keyboard.press("PageUp");
+  await expect(page.getByText(/^\d+ \/ 80$/)).toHaveText("31 / 80");
+
+  await delayVideos(page, 2000);
+  await page.getByRole("button", { name: "Add pane" }).click();
+  await expect(videos).toHaveCount(5);
+  await page
+    .locator("figure")
+    .last()
+    .getByRole("button", { name: /^Move / })
+    .focus();
+  for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowLeft");
+  await waitForDecoded(videos);
+  await page.waitForTimeout(300);
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => {
+        const v = el as HTMLVideoElement;
+        return Math.floor((v.currentTime / v.duration) * 80);
+      }),
+    ),
+  ).toEqual([30, 30, 30, 30, 30]);
+  await expect(page.getByText(/^\d+ \/ 80$/)).toHaveText("31 / 80");
+});
+
+/**
+ * A pane switched to another stream before a new sequence's first video arrives still
+ * leads the transport once that loads: the counter moves as it plays.
+ */
+test("follows a pane switched before its first video loads", async ({
+  page,
+}) => {
+  // Two sequences generated and encoded.
+  test.slow();
+  await openPage(page);
+  const videos = await generateSequence(page);
+  await waitForDecoded(videos);
+  while ((await videos.count()) > 1)
+    await page
+      .getByRole("button", { name: /^Close .* pane$/ })
+      .first()
+      .click();
+
+  await delayVideos(page, 2000);
+  const was = (await videos.first().getAttribute("src"))!;
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("5");
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(videos.first()).not.toHaveAttribute("src", was, {
+    timeout: 60_000,
+  });
+  await page.getByRole("combobox", { name: "Stream" }).click();
+  await page.getByRole("option", { name: "Alpha", exact: true }).click();
+  await waitForDecoded(videos);
+  await page.getByRole("button", { name: "Play" }).click();
+  const counter = page.getByText(/^\d+ \/ 80$/);
+  await expect(counter).toHaveText("1 / 80");
+  await expect(counter).not.toHaveText("1 / 80");
+});

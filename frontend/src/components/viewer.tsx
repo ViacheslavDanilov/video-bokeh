@@ -80,9 +80,9 @@ const FRAME_KEYS: Record<string, number> = {
   PageUp: 10,
 };
 
-// Videos given a new source, from when it empties them until they are put back where the
-// transport is. Their time reads 0 meanwhile, which the transport must not follow: the
-// first pane's once rewound every pane to the start.
+// Videos loading a source, from when the load starts until they are put where the transport
+// is. Their time reads 0 meanwhile, which the transport must not follow: the first pane's
+// once rewound every pane to the start.
 const reloading = new WeakSet<HTMLVideoElement>();
 
 /**
@@ -803,10 +803,14 @@ export function Viewer({
                   muted
                   playsInline
                   preload="metadata"
-                  onEmptied={(e) => reloading.add(e.currentTarget)}
+                  onLoadStart={(e) => reloading.add(e.currentTarget)}
                   onLoadedMetadata={(e) => {
+                    const video = e.currentTarget;
+                    // Found before this video counts as loaded, so it is never its own.
+                    const lead = leadVideo(videos.current);
+                    reloading.delete(video);
                     setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
-                    setDuration(e.currentTarget.duration);
+                    setDuration(video.duration);
                     decodeFor(pane.key, src);
                     // A seek a new source cut short never ends; its canvas would stay.
                     setCovering((was) => {
@@ -822,17 +826,14 @@ export function Viewer({
                       playingRef.current = false;
                       return;
                     }
-                    // A stream change swapped src on an element React
-                    // kept, which resets it. Put it back where the transport is, which
-                    // while playing the panes that kept their video have moved on from,
-                    // and resume with the others, or this pane silently stops driving
-                    // the ones that follow it.
-                    const video = e.currentTarget;
-                    const lead = leadVideo(videos.current);
+                    // A stream change swapped src on an element React kept, which
+                    // resets it, and a pane added later starts at 0. Put it where the
+                    // transport is, which while playing the panes with their video have
+                    // moved on from, and resume with the others, or this pane silently
+                    // stops driving the ones that follow it.
                     video.currentTime = lead
                       ? lead.currentTime
                       : timeRef.current;
-                    reloading.delete(video);
                     if (playingRef.current) void video.play();
                   }}
                   onTimeUpdate={(e) => {
@@ -1126,8 +1127,8 @@ function Position({
   const counter = useRef<HTMLSpanElement>(null);
   // The value the slider was last rendered at, which the loop moves the thumb from.
   const rendered = useRef(0);
-  // What the loop last showed while playing, kept while a lead loading a new stream has no
-  // time to give.
+  // What the loop last showed while playing, kept while every pane is loading and none has
+  // a time to give.
   const shown = useRef<{ position: number; frame: number } | null>(null);
 
   const lastFrame = Math.max(frames - 1, 0);
