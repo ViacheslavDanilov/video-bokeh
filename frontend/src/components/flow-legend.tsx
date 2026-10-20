@@ -49,13 +49,12 @@ export function FlowLegend({ backward }: { backward: boolean }) {
         <TooltipTrigger asChild>
           <button
             type="button"
-            className="text-muted-foreground focus-visible:ring-ring/50 flex min-h-6 min-w-0 cursor-help items-start gap-1.5 rounded-md text-left text-xs outline-none focus-visible:ring-3"
+            className="text-muted-foreground focus-visible:ring-ring/50 flex min-h-7 min-w-0 cursor-help items-start gap-1 rounded-md text-left text-xs outline-none focus-visible:ring-3"
           >
-            {/* Level with the tops of the controls beside it however many lines the
-                caption takes, and a little smaller than they are, so that at six panes
-                the caption fits on two lines rather than three. */}
+            {/* The height of the controls beside it, and level with their tops however
+                many lines the caption takes. */}
             <span
-              className="border-border size-6 shrink-0 rounded-full border"
+              className="border-border size-7 shrink-0 rounded-full border"
               style={{ background: WHEEL }}
               aria-hidden
             />
