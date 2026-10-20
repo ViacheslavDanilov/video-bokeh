@@ -223,7 +223,11 @@ comparison/envs/render/bin/python comparison/review.py sheets backend/data/test_
 
 - `<sequence>/<method>/<frame>.png` holds each method's frames, with the same file names in
   every method's folder, so that a viewer such as VPV can flip between them. The methods are
-  `all_in_focus`, `ours`, `drbokeh`, `mpib`, `bokehme` and `any_to_bokeh`.
+  `all_in_focus`, `ours`, `drbokeh`, `mpib`, `bokehme` and `any_to_bokeh`. `mpib` is the
+  comparison's reference, MPIB's ray tracer composited in gamma values (`bokeh_mpib_rt_cg/`),
+  both in the sheets, labeled "MPIB", and in the placing of the boxes. A sequence that has only
+  the linear composite, `bokeh_mpib_rt/`, as a data root made before that reference did, shows
+  that instead.
 - `<sequence>/boxes.json` lists candidate sheets: three frames where Dr.Bokeh, MPIB and
   BokehMe part most from ours at the edge of the object in focus, each with two pairs of
   boxes. A box is 96 to 240 pixels a side, so the enlargements show the edge at different

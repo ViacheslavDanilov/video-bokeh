@@ -11,7 +11,9 @@
     <out>/<sequence>/sheets/<id>.png    one sheet per candidate, drawn by ``sheets``
 
 The methods are ``all_in_focus``, ``ours``, ``drbokeh``, ``mpib``, ``bokehme`` and
-``any_to_bokeh``. Each sheet is laid out as Dr.Bokeh's Fig. 1: the frames side by side, two
+``any_to_bokeh``. ``mpib`` is MPIB's ray tracer composited in gamma values, the stream
+``bokeh_mpib_rt_cg``, or ``bokeh_mpib_rt``, the linear one, in a sequence that has no gamma one.
+Each sheet is laid out as Dr.Bokeh's Fig. 1: the frames side by side, two
 boxes on each, and beneath each frame the boxed regions enlarged.
 
 The boxes go on the edge of the object in focus, the one ``bokeh/focus.json`` names, where
@@ -61,14 +63,18 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 #: Each method's folder in a review, its stream in a sequence, and its label on a sheet.
+#: MPIB is its ray tracer composited in gamma values, the comparison's reference.
 METHODS = (
     ("all_in_focus", "all_in_focus", "All-in-focus"),
     ("drbokeh", "bokeh_drbokeh", "Dr.Bokeh"),
-    ("mpib", "bokeh_mpib_rt", "MPIB"),
+    ("mpib", "bokeh_mpib_rt_cg", "MPIB"),
     ("bokehme", "bokeh_bokehme", "BokehMe"),
     ("any_to_bokeh", "bokeh_any_to_bokeh", "Any-to-Bokeh"),
     ("ours", "bokeh", "Ours"),
 )
+#: The stream MPIB's folder reads in a sequence that has no gamma-composited one, as the
+#: data roots rendered before ``run_mpib_rt.py --composite gamma`` do.
+MPIB_LINEAR = "bokeh_mpib_rt"
 #: The methods whose difference from ours places the boxes.
 PLACING = ("drbokeh", "mpib", "bokehme")
 SIDES = (96, 128, 176, 240)  # pixels a side of a box, in the frame's own pixels
@@ -263,6 +269,14 @@ def candidates(
     return sheets
 
 
+def streams_of(seq: Path) -> dict[str, str]:
+    """Each method's stream in ``seq``, MPIB's the linear one when it has no gamma one."""
+    streams = {name: stream for name, stream, _ in METHODS}
+    if not (seq / streams["mpib"]).is_dir():
+        streams["mpib"] = MPIB_LINEAR
+    return streams
+
+
 def _place(src: Path, dest: Path, link: bool) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists() or dest.is_symlink():
@@ -287,15 +301,20 @@ def collect(
         _place(path, out / "scores" / name, link=False)
     from video_bokeh.core._streams import read_alpha_tiff, read_paint_order
 
-    streams = {name: stream for name, stream, _ in METHODS}
     for seq in list_sequences(data_root, None):
+        streams = streams_of(seq)
         frames = [Path(n).stem for n in frame_names(seq)]
         record = seq / "bokeh" / "focus.json"
         focus = (
             json.loads(record.read_text()).get("object") if record.is_file() else None
         )
 
-        def image(method: str, frame: str, seq: Path = seq) -> np.ndarray:
+        def image(
+            method: str,
+            frame: str,
+            seq: Path = seq,
+            streams: dict[str, str] = streams,
+        ) -> np.ndarray:
             return _read(seq / streams[method] / f"{frame}.png")
 
         painted = seq / "layers" / "paint_order.json"
@@ -319,7 +338,7 @@ def collect(
         target = out / seq.name
         target.mkdir(parents=True, exist_ok=True)
         for frame in kept:
-            for name, stream, _ in METHODS:
+            for name, stream in streams.items():
                 _place(
                     seq / stream / f"{frame}.png", target / name / f"{frame}.png", link
                 )

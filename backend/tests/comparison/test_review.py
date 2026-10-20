@@ -271,3 +271,59 @@ def test_every_frame_can_be_linked(tmp_path: Path) -> None:
     ours = sorted((out / "any-01" / "ours").iterdir())
     assert [p.stem for p in ours] == FRAMES
     assert all(p.is_symlink() for p in ours)
+
+
+def _mpib_root(root: Path, mpib: dict[str, tuple[int, str]]) -> Path:
+    """One sequence whose MPIB streams are ``mpib``: each a gray level it is filled with,
+    and the frame where it parts from ours across the edge, which no other renderer does."""
+    seq = root / "sequences" / "any-01"
+    alpha = np.zeros((SIZE, SIZE), np.float32)
+    alpha[:, EDGE_AT:] = 1.0
+    base = np.full((SIZE, SIZE, 3), 100, np.uint8)
+    (seq / "alpha").mkdir(parents=True)
+    for frame in FRAMES:
+        write_alpha_tiff(seq / "alpha" / f"{frame}.tif", [alpha])
+        for stream in (
+            "all_in_focus",
+            "bokeh",
+            "bokeh_drbokeh",
+            "bokeh_bokehme",
+            "bokeh_any_to_bokeh",
+        ):
+            _write(seq / stream / f"{frame}.png", base)
+        for stream, (level, parts_at) in mpib.items():
+            image = base.copy()
+            if frame == parts_at:
+                image[:, EDGE_AT - 40 : EDGE_AT + 40] = level
+            _write(seq / stream / f"{frame}.png", image)
+    with (root / "manifest.csv").open("w", newline="") as f:
+        csv.writer(f).writerows([["seq_id", "seed"], ["any-01", "0"]])
+    return root
+
+
+def _collect(data: Path, out: Path) -> dict:
+    main(["collect", "--data-root", str(data), "--out", str(out), "--candidates", "1"])
+    return json.loads((out / "any-01" / "boxes.json").read_text())
+
+
+def test_mpib_is_the_gamma_composite_when_the_sequence_has_it(tmp_path: Path) -> None:
+    data = _mpib_root(
+        tmp_path / "data",
+        {"bokeh_mpib_rt": (250, "03"), "bokeh_mpib_rt_cg": (200, "07")},
+    )
+    out = tmp_path / "review"
+    sheets = _collect(data, out)
+    assert {s["frame"] for s in sheets.values()} == {"07"}  # where the _cg one parts
+    shown = np.asarray(Image.open(out / "any-01" / "mpib" / "07.png"))
+    assert shown[:, EDGE_AT].max() == 200  # the _cg frame, not the linear one's 250
+
+
+def test_mpib_is_the_linear_one_in_a_data_root_without_the_gamma_one(
+    tmp_path: Path,
+) -> None:
+    data = _mpib_root(tmp_path / "data", {"bokeh_mpib_rt": (250, "03")})
+    out = tmp_path / "review"
+    sheets = _collect(data, out)
+    assert {s["frame"] for s in sheets.values()} == {"03"}
+    shown = np.asarray(Image.open(out / "any-01" / "mpib" / "03.png"))
+    assert shown[:, EDGE_AT].max() == 250
