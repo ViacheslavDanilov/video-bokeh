@@ -59,7 +59,8 @@ without rebuilding.
   The legend beside the picker follows the map on screen. The transport
   plays every pane at 0.25×, 0.5×, 1× or 2×, and the speed stays across a stream switch and
   the next sequence.
-  Dragging the position slider moves its thumb smoothly. Every pane shows the frame nearest
+  The position slider's thumb glides along as the panes play, and dragging it moves it
+  smoothly too. Every pane shows the frame nearest
   to the thumb at once, drawn from frames decoded when its video loaded. The arrow keys step
   one frame. Page Up, Page Down and Shift with an arrow step ten.
   The panes fit the window together, at the largest size that allows, in rows of even length.
@@ -79,8 +80,8 @@ without rebuilding.
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.
 The Direction dropdown under its pane switches it to the backward flow, colored the same
 way, where each pixel came from in the previous frame, so a pixel moving right shows the
-opposite color. The caption beside the wheel is one short line, and hovering or focusing it
-shows how to read the direction on screen. The choice stays on the pane for the next
+opposite color. The caption beside the wheel is one short line, two in a narrow pane, and
+hovering or focusing it shows how to read the direction on screen. The choice stays on the pane for the next
 sequence.
 
 **So does the occlusion mask**, white where a pixel's surface is hidden in the next frame,
