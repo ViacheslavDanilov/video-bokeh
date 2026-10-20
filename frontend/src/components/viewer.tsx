@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Check, Copy, GripVertical, X } from "lucide-react";
 import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
@@ -280,7 +286,16 @@ export function Viewer({
     setDuration(0);
     // The last sequence's frames, which a canvas waiting on a video now gone would keep.
     setCovering(new Set());
+    // A drag under way when it arrives ends with it; one that goes on starts afresh.
+    setScrub(null);
   }
+  // The refs follow in the commit, before any event can read them: a drag let go before
+  // the new videos load would otherwise play them behind a button that reads Play.
+  const sequenceId = sequence?.id ?? null;
+  useLayoutEffect(() => {
+    playingRef.current = false;
+    scrubRef.current = null;
+  }, [sequenceId]);
 
   // While playing, the time comes from the leading video every animation frame rather
   // than from its timeupdate events, about four a second, so the thumb glides instead of

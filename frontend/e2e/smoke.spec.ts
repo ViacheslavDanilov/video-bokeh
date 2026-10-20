@@ -1488,3 +1488,52 @@ test("plays on after a drag that is cancelled", async ({ page }) => {
     await page.mouse.up();
   }
 });
+
+/**
+ * A new sequence arriving while the slider is held rewinds the transport to a stop, and
+ * letting go then does not start the new videos behind a button that reads Play.
+ */
+test("keeps a sequence that arrives mid-drag paused", async ({ page }) => {
+  await openPage(page);
+  const videos = await generateSequence(page, 7);
+  await waitForDecoded(videos);
+  const slider = page.getByRole("slider", { name: "Position" });
+  const sequenceId = page
+    .getByRole("group", { name: "Sequence on screen" })
+    .getByText(/^[0-9a-f]{16}$/);
+  const first = await sequenceId.innerText();
+  // The next sequence's seed, set before the drag, which a click into the field would end.
+  await page.getByRole("spinbutton", { name: "Seed" }).fill("8");
+  await page.getByRole("button", { name: "Play" }).click();
+
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const thumb = (await slider.boundingBox())!;
+  const y = thumb.y + thumb.height / 2;
+  await page.mouse.move(thumb.x + thumb.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(thumb.x + track.width / 4, y, { steps: 5 });
+  // A click that moves neither the pointer nor the focus, as a generation finishing while
+  // the slider is held would.
+  await page
+    .getByRole("button", { name: "Generate sequence" })
+    .evaluate((el) => (el as HTMLButtonElement).click());
+  await expect(sequenceId).not.toHaveText(first, { timeout: 60_000 });
+  await page.mouse.up();
+
+  await waitForDecoded(videos);
+  await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+  const times = () =>
+    videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).currentTime),
+    );
+  const before = await times();
+  await page.waitForTimeout(400);
+  expect(
+    await videos.evaluateAll((els) =>
+      els.map((el) => (el as HTMLVideoElement).paused),
+    ),
+  ).toEqual([true, true, true, true]);
+  expect(await times()).toEqual(before);
+});
