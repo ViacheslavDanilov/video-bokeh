@@ -1473,6 +1473,40 @@ test("moves the position thumb smoothly while the panes play", async ({
       `${resting + 1} / 80`,
     );
   }
+
+  // A drag let go while playing goes on from where it was let go, from the first frame
+  // drawn after, and does not flash back to where the drag began.
+  await slider.focus();
+  await page.keyboard.press("Home");
+  await page.getByRole("button", { name: "Play" }).click();
+  await page.waitForTimeout(500);
+  const track = (await page
+    .locator('[data-slot="slider"]', { has: slider })
+    .boundingBox())!;
+  const thumb = (await slider.boundingBox())!;
+  const y = thumb.y + thumb.height / 2;
+  await page.mouse.move(thumb.x + thumb.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width * 0.8, y, { steps: 5 });
+  const target = Number(await slider.getAttribute("aria-valuenow"));
+  // The thumb's position on every animation frame from here until 300 ms on.
+  await slider.evaluate((el) => {
+    const seen: number[] = [];
+    (window as unknown as { seen: number[] }).seen = seen;
+    const until = performance.now() + 300;
+    const read = () => {
+      seen.push(Number(el.getAttribute("aria-valuenow")));
+      if (performance.now() < until) requestAnimationFrame(read);
+    };
+    requestAnimationFrame(read);
+  });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const after = await page.evaluate(
+    () => (window as unknown as { seen: number[] }).seen,
+  );
+  expect(Math.min(...after)).toBeGreaterThanOrEqual(Math.round(target) - 0.5);
+  await page.getByRole("button", { name: "Pause" }).click();
 });
 
 /**

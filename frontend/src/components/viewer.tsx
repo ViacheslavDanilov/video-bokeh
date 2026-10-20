@@ -213,6 +213,9 @@ export function Viewer({
   const [panes, setPanes] = useState<Pane[]>([]);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
+  // Counts the transport's seeks, so that the position slider drops the time it follows
+  // while playing for the one sought, even when that is the time it had before.
+  const [seeks, setSeeks] = useState(0);
   const [duration, setDuration] = useState(0);
   // A viewer setting rather than part of the sequence, so a new sequence keeps it.
   const [speed, setSpeed] = useState(1);
@@ -459,6 +462,7 @@ export function Viewer({
     const to = duration ? frameTime(frame, sequence.frames, duration) : 0;
     timeRef.current = to;
     setTime(to);
+    setSeeks((n) => n + 1);
     videos.current.forEach((v) => {
       v.currentTime = to;
     });
@@ -967,6 +971,7 @@ export function Viewer({
           frames={sequence.frames}
           duration={duration}
           time={time}
+          seeks={seeks}
           playing={playing}
           scrub={scrub}
           videos={videos}
@@ -1020,6 +1025,7 @@ function Position({
   frames,
   duration,
   time,
+  seeks,
   playing,
   scrub,
   videos,
@@ -1031,6 +1037,8 @@ function Position({
   duration: number;
   /** The transport's time while paused, from the videos' own events and from seeks. */
   time: number;
+  /** How many seeks the transport has made; each one replaces the time followed. */
+  seeks: number;
   playing: boolean;
   /** Where a drag holds the thumb, or null. */
   scrub: number | null;
@@ -1041,6 +1049,14 @@ function Position({
   onEndScrub: () => void;
 }) {
   const [live, setLive] = useState<number | null>(null);
+  // A seek while playing, such as a drag let go or a key, moves the thumb to the frame
+  // sought at once. The time followed stopped during the drag, and would show where it
+  // began until the next animation frame.
+  const [seenSeeks, setSeenSeeks] = useState(seeks);
+  if (seeks !== seenSeeks) {
+    setSeenSeeks(seeks);
+    setLive(null);
+  }
   useEffect(() => {
     if (!playing) return;
     let frame = 0;
