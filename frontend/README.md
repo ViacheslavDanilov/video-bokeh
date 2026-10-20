@@ -65,17 +65,19 @@ without rebuilding.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
   "Add pane" adds a stream not on screen yet; once every stream is, it is disabled and reads
-  "All streams shown". A repeat comes from switching an open pane's stream. Backward flow
-  and the occlusion mask open no pane of their own, so a sequence opens with the panes it
-  always did; "Add pane" or a pane's stream picker shows them.
+  "All streams shown". A repeat comes from switching an open pane's stream. The occlusion
+  mask opens no pane of its own, so a sequence opens with the panes it always did; "Add
+  pane" or a pane's stream picker shows it.
 - **Arrange** — drag a pane by the grip in its header to a place between panes, where a
   line shows where it will go, or focus the grip and press the left or right arrow;
   playback goes on in step.
 
 **Optical flow comes with each sequence**, colored as optical-flow papers color it: the hue
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.
-Backward flow, where each pixel was in the previous frame, is colored the same way, under
-the same legend.
+The Direction dropdown under its pane switches it to the backward flow, colored the same
+way, where each pixel came from in the previous frame, so a pixel moving right shows the
+opposite color. The caption beside the wheel says which direction is on screen, and the
+choice stays on the pane for the next sequence.
 
 **So does the occlusion mask**, white where a pixel's surface is hidden in the next frame,
 on black, as it is stored. The Overlay button under its pane draws it instead as orange on the
