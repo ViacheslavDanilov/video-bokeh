@@ -39,7 +39,7 @@ if [ "${#missing[@]}" -gt 0 ]; then
 fi
 
 # Our renderer on one frame runs on the GPU unless told otherwise.
-export VIDEO_BOKEH_LAYERED_DEVICE="${VIDEO_BOKEH_LAYERED_DEVICE:-cuda:0}"
+export VIDEO_BOKEH_LAYERED_DEVICE="${VIDEO_BOKEH_LAYERED_DEVICE:-cuda}"
 
 # The methods' own source has invalid escape sequences in regular expressions, which Python
 # warns of on every start; those warnings are all this hides.

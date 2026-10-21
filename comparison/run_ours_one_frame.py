@@ -5,10 +5,12 @@ Runs inside ``comparison/envs/render`` (see ``comparison/README.md``). Our rende
 layer on its own and composites the blurred layers, so an object in front thins out at its edges
 and shows the background behind it whole. This adapter takes that away and keeps everything
 else: the frame is the only layer, the background, and its disparity is the composite disparity
-map. The renderer, its disk kernel, radius binning, gamma and strength are the ones that
-rendered ``bokeh/``, and so is the focus, read from ``bokeh/focus.json``. What is behind an
-object is gone from the frame, as it is from the input of a single-image method such as
-BokehMe. The difference to ``bokeh/`` is therefore the layers and nothing else.
+map. The renderer runs with its defaults, its disk kernel, radius binning and gamma, and the
+strength and the focus are the ones that rendered ``bokeh/``, read from ``bokeh/focus.json``.
+What separates the result from ``bokeh/`` is what flattening the layers loses: the background
+an object hides, as for a single-image method such as BokehMe, the alpha mattes, and each
+layer's own disparity at a soft edge, where the composite disparity is blended by alpha. The
+8-bit color and the 16-bit disparity the frame is written at add a little more.
 
 For every sequence under ``--data-root`` that holds layers and ``bokeh/focus.json`` it writes
 
@@ -26,7 +28,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from common import (
-    GAMMA,
     composite_frame,
     focus_record,
     frame_names,
@@ -36,6 +37,7 @@ from common import (
 )
 
 from video_bokeh.layered import bokeh_device, render_bokeh
+from video_bokeh.layered._renderer import GAMMA, RADIUS_STEP
 
 STREAM = "bokeh_ours_one_frame"
 
@@ -61,7 +63,6 @@ def render_frame(
         paint_order=torch.zeros(1, 0, dtype=torch.long, device=device),
         focus_disparity=torch.tensor([focus], device=device),
         strength=strength,
-        gamma=GAMMA,
     )
     return out[0].permute(1, 2, 0).cpu().numpy()
 
@@ -73,7 +74,11 @@ def render_sequence(seq: Path, device: torch.device) -> None:
         rgb, disparity = composite_frame(seq, name)
         save_rgb(seq / STREAM, name, render_frame(rgb, disparity, zf, strength, device))
     write_settings(
-        seq / STREAM, "Ours, on the all-in-focus frame alone", seq, gamma=GAMMA
+        seq / STREAM,
+        "Ours, on the all-in-focus frame alone",
+        seq,
+        gamma=GAMMA,
+        radius_step=RADIUS_STEP,
     )
 
 

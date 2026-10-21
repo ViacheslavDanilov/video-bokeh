@@ -123,12 +123,15 @@ its 16 bits and its scale, because the focus our renderer recorded is on that sc
 
 The ablation that separates the layers from the renderer: our own renderer, with the
 all-in-focus frame as its only layer and the composite disparity as that layer's disparity.
-The disk kernel, radius binning, gamma, strength and focus are the ones that rendered `bokeh/`,
-so the difference to `bokeh/` is the layers and nothing else. What an object hides is gone from
-the frame, as it is for BokehMe. Nothing to set up beyond the render environment.
+The renderer's disk kernel, radius binning and gamma are its defaults, and the strength and
+focus are the ones that rendered `bokeh/`. What separates the result from `bokeh/` is what
+flattening the layers loses: the background an object hides, the alpha mattes, and each layer's
+own disparity at a soft edge, where the composite disparity is blended by alpha. The 8-bit color
+and the 16-bit disparity the frame is written at add a little more. Nothing to set up beyond
+the render environment.
 
 ```bash
-VIDEO_BOKEH_LAYERED_DEVICE=cuda:0 comparison/envs/render/bin/python \
+VIDEO_BOKEH_LAYERED_DEVICE=cuda comparison/envs/render/bin/python \
   comparison/run_ours_one_frame.py --data-root backend/data/cmp
 comparison/envs/render/bin/python comparison/score.py --data-root backend/data/cmp --method ours_one_frame
 ```
