@@ -1180,13 +1180,21 @@ test("switches the occlusion pane to the overlay and back", async ({
   // One short line under the pane, as the flow's; the full reading is a tooltip, by
   // keyboard too.
   const legend = pane.getByRole("button", {
-    name: "White marks what is hidden next.",
+    name: "White marks what the next frame hides.",
   });
   await expect(legend).toBeVisible();
   const tooltip = page.getByRole("tooltip");
   await expect(tooltip).toHaveCount(0);
   // On screen first: a focus that scrolls the page closes the tooltip it has just opened.
   await legend.scrollIntoViewIfNeeded();
+  // The scroll event it dispatches comes a frame later, so wait it out, or it closes the
+  // tooltip the Tab below opens.
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => done())),
+      ),
+  );
   await toggle.focus();
   await page.keyboard.press("Tab");
   await expect(legend).toBeFocused();
@@ -1204,7 +1212,7 @@ test("switches the occlusion pane to the overlay and back", async ({
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
   await waitForDecoded(video);
   await expect(
-    pane.getByRole("button", { name: "Cyan marks what is hidden next." }),
+    pane.getByRole("button", { name: "Cyan marks what the next frame hides." }),
   ).toBeVisible();
   // The swatch is the cyan the backend draws, #00E5FF.
   await expect(pane.locator("[data-swatch]")).toHaveCSS(
@@ -1286,8 +1294,8 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
   // The overlay is off when a sequence opens, so its caption starts with the longer
   // "White"; switching it on gives "Cyan".
   for (const occlusionCaption of [
-    "White marks what is hidden next.",
-    "Cyan marks what is hidden next.",
+    "White marks what the next frame hides.",
+    "Cyan marks what the next frame hides.",
   ]) {
     if (occlusionCaption.startsWith("Cyan"))
       await page.getByRole("button", { name: "Overlay" }).click();

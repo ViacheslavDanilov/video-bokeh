@@ -38,14 +38,14 @@ export function OcclusionLegend({ overlay }: { overlay: boolean }) {
               />
             </span>
             <span className="line-clamp-2 self-center tracking-tight">
-              {overlay ? "Cyan" : "White"} marks what is hidden next.
+              {overlay ? "Cyan" : "White"} marks what the next frame hides.
             </span>
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64">
           These pixels show a surface the next frame does not: something covers
           it, or it leaves the frame. With the overlay on they are cyan over the
-          picture in gray, with it off the mask alone is white on black.
+          picture in gray; with it off, the mask alone is white on black.
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
