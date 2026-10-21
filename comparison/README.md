@@ -119,6 +119,22 @@ reads the disparity at 8 bits and rescales it to `[0, 1]` per image. Here the di
 its 16 bits and its scale, because the focus our renderer recorded is on that scale, and
 `gamma` is 2.2, as for our renderer.
 
+## Our renderer on one frame
+
+The ablation that separates the layers from the renderer: our own renderer, with the
+all-in-focus frame as its only layer and the composite disparity as that layer's disparity.
+The disk kernel, radius binning, gamma, strength and focus are the ones that rendered `bokeh/`,
+so the difference to `bokeh/` is the layers and nothing else. What an object hides is gone from
+the frame, as it is for BokehMe. Nothing to set up beyond the render environment.
+
+```bash
+VIDEO_BOKEH_LAYERED_DEVICE=cuda:0 comparison/envs/render/bin/python \
+  comparison/run_ours_one_frame.py --data-root backend/data/cmp
+comparison/envs/render/bin/python comparison/score.py --data-root backend/data/cmp --method ours_one_frame
+```
+
+It writes `bokeh_ours_one_frame/`. `run_all.sh` runs and scores it with the others.
+
 ## Any-to-Bokeh
 
 [Any-to-Bokeh](https://github.com/vivoCameraResearch/any-to-bokeh) (ICLR 2026; code and
@@ -176,7 +192,7 @@ cd backend && uv run --extra render --extra library python ../comparison/balance
   --output data/balanced_test_set
 cd .. && comparison/run_all.sh backend/data/balanced_test_set
 for sub in plain hard hair fire smoke fine; do
-  for m in drbokeh mpib_rt bokehme bokehme_classical any_to_bokeh; do
+  for m in drbokeh mpib_rt bokehme bokehme_classical ours_one_frame any_to_bokeh; do
     comparison/envs/render/bin/python comparison/score.py \
       --data-root backend/data/balanced_test_set/$sub --method $m
   done

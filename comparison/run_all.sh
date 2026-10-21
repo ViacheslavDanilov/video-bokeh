@@ -38,11 +38,14 @@ if [ "${#missing[@]}" -gt 0 ]; then
     exit 1
 fi
 
+# Our renderer on one frame runs on the GPU unless told otherwise.
+export VIDEO_BOKEH_LAYERED_DEVICE="${VIDEO_BOKEH_LAYERED_DEVICE:-cuda:0}"
+
 # The methods' own source has invalid escape sequences in regular expressions, which Python
 # warns of on every start; those warnings are all this hides.
 # Dr.Bokeh and MPIB run twice: as published, compositing in linear light, and compositing in
 # gamma values, as Stage B and our renderer do.
-for run in drbokeh mpib_rt drbokeh:gamma mpib_rt:gamma bokehme any_to_bokeh; do
+for run in drbokeh mpib_rt drbokeh:gamma mpib_rt:gamma bokehme ours_one_frame any_to_bokeh; do
     adapter="${run%%:*}"
     composite=()
     [ "$adapter" != "$run" ] && composite=(--composite "${run#*:}")
@@ -50,7 +53,7 @@ for run in drbokeh mpib_rt drbokeh:gamma mpib_rt:gamma bokehme any_to_bokeh; do
     "$PY" -W ignore::SyntaxWarning "$HERE/run_$adapter.py" --data-root "$DATA" \
         ${composite[@]+"${composite[@]}"} ${seqs_arg[@]+"${seqs_arg[@]}"}
 done
-for method in drbokeh drbokeh_cg mpib_rt mpib_rt_cg bokehme bokehme_classical any_to_bokeh; do
+for method in drbokeh drbokeh_cg mpib_rt mpib_rt_cg bokehme bokehme_classical ours_one_frame any_to_bokeh; do
     echo "== score $method"
     "$PY" "$HERE/score.py" --data-root "$DATA" --method "$method" ${seqs_arg[@]+"${seqs_arg[@]}"}
 done
@@ -65,7 +68,7 @@ mkdir -p "$VS/sequences"
 for seq in "$DATA"/sequences/*/; do
     ln -s "$(cd "$seq" && pwd -P)" "$VS/sequences/$(basename "$seq")"
 done
-for method in drbokeh drbokeh_cg mpib_rt bokehme bokehme_classical any_to_bokeh; do
+for method in drbokeh drbokeh_cg mpib_rt bokehme bokehme_classical ours_one_frame any_to_bokeh; do
     echo "== score $method against MPIB"
     "$PY" "$HERE/score.py" --data-root "$VS" --method "$method" --reference bokeh_mpib_rt_cg \
         ${seqs_arg[@]+"${seqs_arg[@]}"}
