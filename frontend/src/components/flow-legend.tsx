@@ -59,15 +59,15 @@ export function FlowLegend({ backward }: { backward: boolean }) {
               aria-hidden
             />
             <span className="line-clamp-2 self-center tracking-tight">
-              Color = direction; paler = slower
+              Color is direction, pale is slow.
             </span>
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64">
           {backward
-            ? "Color is where a pixel came from in the previous frame, so one moving right is cyan, the opposite of red."
-            : "Color is where a pixel moves in the next frame, right is red."}{" "}
-          Vivid is fast, paler is slower, white is still.
+            ? "Each pixel's color shows where it came from in the previous frame, so one moving right is cyan, the opposite of red."
+            : "Each pixel's color shows where it moves in the next frame, and right is red."}{" "}
+          Vivid means fast, pale means slow, white means still.
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
