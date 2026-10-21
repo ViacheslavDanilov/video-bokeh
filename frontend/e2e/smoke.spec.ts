@@ -1120,7 +1120,7 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
   await expect(video).toHaveAttribute("src", /\/flow\.mp4$/);
   // One short line under the pane; the full reading is a tooltip, by keyboard too.
   const legend = pane.getByRole("button", {
-    name: "Color = direction; paler = slower",
+    name: "Color is direction, pale is slow.",
   });
   await expect(legend).toBeVisible();
   const tooltip = page.getByRole("tooltip");
@@ -1128,9 +1128,9 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
   await direction.focus();
   await page.keyboard.press("Tab");
   await expect(legend).toBeFocused();
-  await expect(tooltip).toContainText("where a pixel moves in the next frame");
+  await expect(tooltip).toContainText("where it moves in the next frame");
   await expect(legend).toHaveAccessibleDescription(
-    /where a pixel moves in the next frame/,
+    /where it moves in the next frame/,
   );
   await page.keyboard.press("Escape");
   await expect(tooltip).toHaveCount(0);
@@ -1143,11 +1143,9 @@ test("picks the optical flow direction under its pane", async ({ page }) => {
   await waitForDecoded(videos);
   await legend.hover();
   await expect(tooltip).toContainText(
-    "where a pixel came from in the previous frame",
+    "where it came from in the previous frame",
   );
-  await expect(tooltip).not.toContainText(
-    "where a pixel moves in the next frame",
-  );
+  await expect(tooltip).not.toContainText("where it moves in the next frame");
   // Away from it, as a hand moves: the tooltip stays while the pointer heads for it.
   const away = (await video.boundingBox())!;
   await page.mouse.move(away.x + 8, away.y + 8, { steps: 10 });
@@ -1179,13 +1177,35 @@ test("switches the occlusion pane to the overlay and back", async ({
   const video = pane.locator("video");
   const toggle = pane.getByRole("button", { name: "Overlay" });
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
-  await expect(pane.getByText("White: hidden in the next frame")).toBeVisible();
+  // One short line under the pane, as the flow's; the full reading is a tooltip, by
+  // keyboard too.
+  const legend = pane.getByRole("button", {
+    name: "White marks what the next frame hides.",
+  });
+  await expect(legend).toBeVisible();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toHaveCount(0);
+  // On screen first: a focus that scrolls the page closes the tooltip it has just opened.
+  await legend.scrollIntoViewIfNeeded();
+  await toggle.focus();
+  await page.keyboard.press("Tab");
+  await expect(legend).toBeFocused();
+  await expect(tooltip).toContainText(
+    "Pixels whose surface the next frame does not show",
+  );
+  await expect(legend).toHaveAccessibleDescription(
+    /Pixels whose surface the next frame does not show/,
+  );
+  await page.keyboard.press("Escape");
+  await expect(tooltip).toHaveCount(0);
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
   await waitForDecoded(video);
-  await expect(pane.getByText("Cyan: hidden in the next frame")).toBeVisible();
+  await expect(
+    pane.getByRole("button", { name: "Cyan marks what the next frame hides." }),
+  ).toBeVisible();
   // The swatch is the cyan the backend draws, #00E5FF.
   await expect(pane.locator("[data-swatch]")).toHaveCSS(
     "background-color",
@@ -1263,38 +1283,44 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
     .first()
     .locator("video")
     .evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
+  // The wheel and the swatch, each with its caption beside it.
+  const flowCaption = "Color is direction, pale is slow.";
+  const occlusionCaption = "Cyan marks what the next frame hides.";
   for (const control of [
     page.getByRole("combobox", { name: "Colormap" }),
     page.getByRole("button", { name: "Overlay" }),
     page.getByRole("combobox", { name: "Direction" }),
-    // The wheel, with the caption beside it.
-    page.getByRole("button", { name: "Color = direction; paler = slower" }),
+    page.getByRole("button", { name: flowCaption }),
+    page.getByRole("button", { name: occlusionCaption }),
   ]) {
     // Directly beneath the frame: the figure's 8 px gap, no more.
     await expect
       .poll(async () => Math.round((await control.boundingBox())!.y))
       .toBe(Math.round(frameBottom + 8));
   }
-  // The wheel is level with the dropdowns too, not pushed down by the caption beside it.
-  const wheel = page
-    .getByRole("button", { name: "Color = direction; paler = slower" })
-    .locator("span")
-    .first();
-  expect(Math.round((await wheel.boundingBox())!.y)).toBe(
-    Math.round(frameBottom + 8),
-  );
-  // The caption shows all of itself, on two lines at most, not a paragraph wrapped down the
-  // pane and not cut off with an ellipsis.
-  const caption = page.getByText("Color = direction; paler = slower");
-  const shown = await caption.evaluate((el) => ({
-    whole:
-      el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
-    lines:
-      el.getBoundingClientRect().height /
-      parseFloat(getComputedStyle(el).lineHeight),
-  }));
-  expect(shown.whole).toBe(true);
-  expect(shown.lines).toBeLessThanOrEqual(2);
+  for (const text of [flowCaption, occlusionCaption]) {
+    // The wheel and the swatch are the height of the dropdowns and level with them too,
+    // not pushed down by the caption beside them.
+    const swatch = page
+      .getByRole("button", { name: text })
+      .locator("span")
+      .first();
+    const box = (await swatch.boundingBox())!;
+    expect(Math.round(box.y)).toBe(Math.round(frameBottom + 8));
+    expect(box.height).toBe(28);
+    // The caption shows all of itself, on two lines at most, not a paragraph wrapped down
+    // the pane and not cut off with an ellipsis.
+    const caption = page.getByText(text, { exact: true });
+    const shown = await caption.evaluate((el) => ({
+      whole:
+        el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
+      lines:
+        el.getBoundingClientRect().height /
+        parseFloat(getComputedStyle(el).lineHeight),
+    }));
+    expect(shown.whole).toBe(true);
+    expect(shown.lines).toBeLessThanOrEqual(2);
+  }
 });
 
 /**
