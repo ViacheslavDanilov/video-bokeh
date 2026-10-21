@@ -1458,18 +1458,18 @@ test("centers the info, six panes and transport as one column", async ({
 });
 
 /**
- * Six small panes in a 1100 px window are narrower than the info row and the transport
- * need for one line each, so the column is wider than they are and the panes sit in the
- * middle of it. The transport stays on a single line, which the height it keeps free
- * assumes.
+ * A small pane in a 1100 px window is narrower than the transport needs for one line, so
+ * the column is wider than it is and the pane sits in the middle of it. The transport
+ * stays on a single line, which the height it keeps free assumes. One pane, so that the
+ * grid is far from the width where it would take the whole work area.
  */
-test("keeps the transport on one line under six small panes", async ({
-  page,
-}) => {
-  test.slow();
+test("keeps the transport on one line under a small pane", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
   await openPage(page);
-  await openSixPanes(page, 84);
+  await generateSequence(page, 84);
+  for (const name of ["Alpha", "Disparity", "Optical flow"])
+    await page.getByRole("button", { name: `Close ${name} pane` }).click();
+  await expect(page.locator("figure")).toHaveCount(1);
   await expect
     .poll(async () => {
       const { info, grid, overflow } = await columnEdges(page);
@@ -1478,8 +1478,8 @@ test("keeps the transport on one line under six small panes", async ({
         .locator("xpath=..")
         .boundingBox())!;
       return {
-        // Smaller than the column, as this test is about.
-        small: grid.right - grid.left < info.right - info.left,
+        // Well inside the column, as this test is about.
+        small: grid.right - grid.left < info.right - info.left - 100,
         centered:
           Math.abs(grid.left - info.left - (info.right - grid.right)) <= 1,
         oneLine: box.height <= 60,
@@ -1487,6 +1487,61 @@ test("keeps the transport on one line under six small panes", async ({
       };
     })
     .toEqual({ small: true, centered: true, oneLine: true, overflow: 0 });
+});
+
+/**
+ * The info row is wider on one line than the column's minimum when the seed has many
+ * digits. If the column were narrower than the row it would wrap, the grid would drop by
+ * a line, six panes only just fitting at 200 px would no longer fit, and the page would
+ * flip between fitting them and scrolling for good. The column holds the row on one line
+ * instead, and the layout stays put.
+ */
+test("keeps the layout still when the info row is wider than the minimum", async ({
+  page,
+}) => {
+  test.slow();
+  // Only the number shown is long: the page reads it from the generation's last line, and
+  // the files are the sequence's own.
+  await page.route("**/sequences", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const response = await route.fetch();
+    const body = (await response.text())
+      .split("\n")
+      .map((line) => {
+        if (!line.includes('"sequence"')) return line;
+        const event = JSON.parse(line);
+        event.sequence.seed = 123456789012345;
+        return JSON.stringify(event);
+      })
+      .join("\n");
+    await route.fulfill({ response, body });
+  });
+  await openPage(page);
+  await openSixPanes(page, 85);
+  await expect(page.getByText("123456789012345")).toBeVisible();
+  // Narrowed afterwards: a page that flips between fitting and scrolling cannot be clicked.
+  const first = page.locator("figure").first();
+  const before = (await first.boundingBox())!.width;
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect
+    .poll(async () => (await first.boundingBox())!.width)
+    .not.toBe(before);
+  // Past the first layout, which is not what is being tested.
+  await page.waitForTimeout(500);
+
+  const info = page.getByRole("group", { name: "Sequence on screen" });
+  const grid = page.locator("figure").first().locator("xpath=..");
+  const sampled = await grid.evaluate(async (el) => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 24; i++) {
+      seen.add(getComputedStyle(el).gridTemplateColumns);
+      await new Promise((done) => setTimeout(done, 50));
+    }
+    return [...seen];
+  });
+  expect(sampled).toHaveLength(1);
+  // One line is under 30 px high, two over 40.
+  expect((await info.boundingBox())!.height).toBeLessThan(30);
 });
 
 /**

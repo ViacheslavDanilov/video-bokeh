@@ -56,8 +56,9 @@ const MIN_FIT_PX = 200;
 const MIN_PANE_PX = 280;
 // The column of sequence info, panes and transport is never narrower than this where the
 // work area allows. TRANSPORT_PX assumes the transport on a single line, which needs about
-// 606 px: its play button, speed, slider, counter and gaps. Narrower panes sit in the
-// middle of the column.
+// 606 px: its play button, speed, slider, counter and gaps. The info row has no fixed
+// width, so the column also takes its width on one line (`Space.info`). Narrower panes sit
+// in the middle of the column.
 const MIN_COLUMN_PX = 640;
 
 // Independent <video> elements drift apart as they play -- measured at about 1.75
@@ -137,8 +138,11 @@ function label(name: string): string {
   return LABELS[name] ?? name.replaceAll("_", " ");
 }
 
-/** The room the panes have: the work area's width, and the window's height below the grid's top. */
-type Space = { width: number; height: number };
+/**
+ * The room the panes have: the work area's width, the window's height below the grid's top,
+ * and the width the sequence info takes on one line, which does not depend on the column.
+ */
+type Space = { width: number; height: number; info: number };
 
 /**
  * The grid's columns, and the width of the column around it: the info row, the grid and
@@ -178,7 +182,11 @@ function gridLayout(
     const tracks = best.columns * size + (best.columns - 1) * PANE_GAP_PX;
     return {
       columns: `repeat(${best.columns}, ${size}px)`,
-      width: Math.min(space.width, Math.max(tracks, MIN_COLUMN_PX)),
+      // A column narrower than the info row would wrap it, which lowers the grid by a line
+      // and can tip these very panes from fitting to scrolling, and back. Where the row
+      // does not fit the work area either, the column is the work area, as when scrolling,
+      // so that the row wraps the same either way.
+      width: Math.min(space.width, Math.max(tracks, MIN_COLUMN_PX, space.info)),
     };
   }
   const maxColumns = Math.floor(
@@ -287,7 +295,11 @@ export function Viewer({
   // The room the pane grid has, which the parameters folding away, the window, or an alert
   // appearing above the grid changes. Its width is the work area's, measured outside the
   // column, which shrinks to the panes and would otherwise shrink what it measures.
-  const [space, setSpace] = useState<Space>({ width: 0, height: 0 });
+  const [space, setSpace] = useState<Space>({
+    width: 0,
+    height: 0,
+    info: 0,
+  });
   // Which pane has its current video from the API, or failed to get it. The API encodes a
   // video the first time it is asked for, up to two seconds, and a pane says so meanwhile
   // rather than sit blank. Its metadata is the sign, not its first frame: with
@@ -297,6 +309,8 @@ export function Viewer({
   );
   const [copied, setCopied] = useState(false);
   const grid = useRef<HTMLDivElement>(null);
+  const info = useRef<HTMLDivElement>(null);
+  const measureSpace = useRef(() => {});
   const observeSpace = useCallback((el: HTMLDivElement) => {
     // The work area around the column, not the column.
     const area = el.parentElement!;
@@ -305,12 +319,30 @@ export function Viewer({
         (grid.current ?? el).getBoundingClientRect().top + window.scrollY;
       const width = area.clientWidth;
       const height = window.innerHeight - top - TRANSPORT_PX;
+      // What the info row's items and the gaps between them add up to: its width on one
+      // line, whether it is wrapped now or not.
+      const row = info.current;
+      const items = row ? Array.from(row.children) : [];
+      const gap = row ? parseFloat(getComputedStyle(row).columnGap) || 0 : 0;
+      const line = Math.ceil(
+        items.reduce((sum, c) => sum + c.getBoundingClientRect().width, 0) +
+          Math.max(0, items.length - 1) * gap,
+      );
       setSpace((was) =>
-        was.width === width && was.height === height ? was : { width, height },
+        was.width === width && was.height === height && was.info === line
+          ? was
+          : { width, height, info: line },
       );
     };
+    measureSpace.current = measure;
     const observer = new ResizeObserver(measure);
     observer.observe(area);
+    // Its items change width with the text in them and with the font arriving.
+    if (info.current) {
+      observer.observe(info.current);
+      for (const item of info.current.children) observer.observe(item);
+    }
+    document.fonts?.ready.then(measure);
     // Anything above the grid that grows or shrinks moves its top without resizing it, and
     // changes the page's height.
     observer.observe(document.body);
@@ -320,6 +352,9 @@ export function Viewer({
       window.removeEventListener("resize", measure);
     };
   }, []);
+
+  // A new sequence puts other text in the info row, whose items are observed as they were.
+  useLayoutEffect(() => measureSpace.current(), [sequence, library]);
 
   // A new sequence rewinds the transport. Adjusting state during render rather than in an
   // effect is React's own recommendation for state that has to follow a prop: an effect
@@ -628,6 +663,7 @@ export function Viewer({
           </div>
         )}
         <div
+          ref={info}
           role="group"
           aria-label="Sequence on screen"
           className={cn(
