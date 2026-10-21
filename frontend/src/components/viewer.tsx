@@ -898,7 +898,7 @@ export function Viewer({
               {/* The button on top, level with the other panes' controls however far a
                   narrow pane wraps the legend beside it. */}
               {info.overlay !== null && (
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-1.5">
                   <Button
                     type="button"
                     variant="outline"

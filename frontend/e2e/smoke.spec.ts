@@ -1180,7 +1180,7 @@ test("switches the occlusion pane to the overlay and back", async ({
   // One short line under the pane, as the flow's; the full reading is a tooltip, by
   // keyboard too.
   const legend = pane.getByRole("button", {
-    name: "White marks what the next frame hides.",
+    name: "White marks what is hidden next.",
   });
   await expect(legend).toBeVisible();
   const tooltip = page.getByRole("tooltip");
@@ -1191,10 +1191,10 @@ test("switches the occlusion pane to the overlay and back", async ({
   await page.keyboard.press("Tab");
   await expect(legend).toBeFocused();
   await expect(tooltip).toContainText(
-    "Pixels whose surface the next frame does not show",
+    "These pixels show a surface the next frame does not",
   );
   await expect(legend).toHaveAccessibleDescription(
-    /Pixels whose surface the next frame does not show/,
+    /These pixels show a surface the next frame does not/,
   );
   await page.keyboard.press("Escape");
   await expect(tooltip).toHaveCount(0);
@@ -1204,7 +1204,7 @@ test("switches the occlusion pane to the overlay and back", async ({
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
   await waitForDecoded(video);
   await expect(
-    pane.getByRole("button", { name: "Cyan marks what the next frame hides." }),
+    pane.getByRole("button", { name: "Cyan marks what is hidden next." }),
   ).toBeVisible();
   // The swatch is the cyan the backend draws, #00E5FF.
   await expect(pane.locator("[data-swatch]")).toHaveCSS(
@@ -1261,16 +1261,15 @@ async function openSixPanes(page: Page, seed: number) {
 
 /**
  * Under every pane the controls start on one line, directly beneath the frame, however
- * narrow six panes side by side make them: the flow's caption wraps beside its wheel, onto
- * two lines at most, whole, rather than push its dropdown down or lose its end.
+ * narrow six panes side by side make them: a caption wraps beside its wheel or swatch,
+ * onto two lines at most, whole, rather than push its dropdown or button down or lose its
+ * end. The occlusion's is checked with the overlay off and on.
  */
 test("lines up the controls under six narrow panes", async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 1760, height: 640 });
   await openPage(page);
   await openSixPanes(page, 81);
-  await page.getByRole("button", { name: "Overlay" }).click();
-
   const figures = page.locator("figure");
   // Six panes side by side, each too narrow for a long caption.
   const tops = await figures.evaluateAll((els) =>
@@ -1283,43 +1282,63 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
     .first()
     .locator("video")
     .evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
-  // The wheel and the swatch, each with its caption beside it.
   const flowCaption = "Color is direction, pale is slow.";
-  const occlusionCaption = "Cyan marks what the next frame hides.";
-  for (const control of [
-    page.getByRole("combobox", { name: "Colormap" }),
-    page.getByRole("button", { name: "Overlay" }),
-    page.getByRole("combobox", { name: "Direction" }),
-    page.getByRole("button", { name: flowCaption }),
-    page.getByRole("button", { name: occlusionCaption }),
+  // The overlay is off when a sequence opens, so its caption starts with the longer
+  // "White"; switching it on gives "Cyan".
+  for (const occlusionCaption of [
+    "White marks what is hidden next.",
+    "Cyan marks what is hidden next.",
   ]) {
-    // Directly beneath the frame: the figure's 8 px gap, no more.
-    await expect
-      .poll(async () => Math.round((await control.boundingBox())!.y))
-      .toBe(Math.round(frameBottom + 8));
-  }
-  for (const text of [flowCaption, occlusionCaption]) {
-    // The wheel and the swatch are the height of the dropdowns and level with them too,
-    // not pushed down by the caption beside them.
-    const swatch = page
-      .getByRole("button", { name: text })
-      .locator("span")
-      .first();
-    const box = (await swatch.boundingBox())!;
-    expect(Math.round(box.y)).toBe(Math.round(frameBottom + 8));
-    expect(box.height).toBe(28);
-    // The caption shows all of itself, on two lines at most, not a paragraph wrapped down
-    // the pane and not cut off with an ellipsis.
-    const caption = page.getByText(text, { exact: true });
-    const shown = await caption.evaluate((el) => ({
-      whole:
-        el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
-      lines:
-        el.getBoundingClientRect().height /
-        parseFloat(getComputedStyle(el).lineHeight),
-    }));
-    expect(shown.whole).toBe(true);
-    expect(shown.lines).toBeLessThanOrEqual(2);
+    if (occlusionCaption.startsWith("Cyan"))
+      await page.getByRole("button", { name: "Overlay" }).click();
+    for (const control of [
+      page.getByRole("combobox", { name: "Colormap" }),
+      page.getByRole("button", { name: "Overlay" }),
+      page.getByRole("combobox", { name: "Direction" }),
+      page.getByRole("button", { name: flowCaption }),
+      page.getByRole("button", { name: occlusionCaption }),
+    ]) {
+      // Directly beneath the frame: the figure's 8 px gap, no more.
+      await expect
+        .poll(async () => Math.round((await control.boundingBox())!.y))
+        .toBe(Math.round(frameBottom + 8));
+    }
+    // The margin is the width a caption could lose and still fit. The flow's row has none
+    // to spare, because the dropdown beside it keeps its width.
+    for (const [text, margin] of [
+      [flowCaption, 0],
+      [occlusionCaption, 10],
+    ] as const) {
+      // The wheel's, and the swatch's, 28 px box is the height of the dropdowns and level
+      // with them too, not pushed down by the caption beside it.
+      const swatchBox = page
+        .getByRole("button", { name: text })
+        .locator("span")
+        .first();
+      const box = (await swatchBox.boundingBox())!;
+      expect(Math.round(box.y)).toBe(Math.round(frameBottom + 8));
+      expect(box.height).toBe(28);
+      // The caption shows all of itself, on two lines at most, not a paragraph wrapped
+      // down the pane and not cut off with an ellipsis, and would still with the margin's
+      // width less, which is room for another machine's text rendering.
+      const caption = page.getByText(text, { exact: true });
+      const shown = await caption.evaluate((el, margin) => {
+        const whole = () =>
+          el.scrollWidth <= el.clientWidth &&
+          el.scrollHeight <= el.clientHeight;
+        const lines =
+          el.getBoundingClientRect().height /
+          parseFloat(getComputedStyle(el).lineHeight);
+        const wholeNow = whole();
+        el.style.maxWidth = `${el.clientWidth - margin}px`;
+        const slack = whole();
+        el.style.maxWidth = "";
+        return { whole: wholeNow, lines, slack };
+      }, margin);
+      expect(shown.whole).toBe(true);
+      expect(shown.lines).toBeLessThanOrEqual(2);
+      expect(shown.slack).toBe(true);
+    }
   }
 });
 

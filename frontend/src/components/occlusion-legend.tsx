@@ -24,11 +24,12 @@ export function OcclusionLegend({ overlay }: { overlay: boolean }) {
         <TooltipTrigger asChild>
           <button
             type="button"
-            className="text-muted-foreground focus-visible:ring-ring/50 flex min-h-7 min-w-0 cursor-help items-start gap-1.5 rounded-md text-left text-xs outline-none focus-visible:ring-3"
+            className="text-muted-foreground focus-visible:ring-ring/50 flex min-h-7 min-w-0 cursor-help items-start gap-1 rounded-md text-left text-xs outline-none focus-visible:ring-3"
           >
             {/* The height of the controls beside it, with the swatch centered in it, and
-                level with their tops however many lines the caption takes. */}
-            <span className="flex size-7 shrink-0 items-center justify-center">
+                level with their tops however many lines the caption takes. Only as wide
+                as the swatch needs, so the caption keeps the room for two lines. */}
+            <span className="flex h-7 w-4 shrink-0 items-center justify-center">
               <span
                 aria-hidden
                 data-swatch
@@ -37,14 +38,14 @@ export function OcclusionLegend({ overlay }: { overlay: boolean }) {
               />
             </span>
             <span className="line-clamp-2 self-center tracking-tight">
-              {overlay ? "Cyan" : "White"} marks what the next frame hides.
+              {overlay ? "Cyan" : "White"} marks what is hidden next.
             </span>
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64">
-          Pixels whose surface the next frame does not show, because something
-          moves over them. With the overlay on they are cyan over the picture.
-          With it off, the mask alone is white on black.
+          These pixels show a surface the next frame does not: something covers
+          it, or it leaves the frame. With the overlay on they are cyan over the
+          picture in gray, with it off the mask alone is white on black.
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
