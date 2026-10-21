@@ -66,6 +66,8 @@ without rebuilding.
   The panes fit the window together, at the largest size that allows, in rows of even length.
   Where that size would be under 200 px, as on a phone or in a low window, they are at least
   280 px wide instead, and the page scrolls with the transport held at the bottom.
+  Where the panes need less than the work area's width, the line above them, the panes and
+  the transport share one column, centered.
   The button beside the title folds the parameters away to give the panes their width, and
   the page remembers it.
   "Add pane" adds a stream not on screen yet; once every stream is, it is disabled and reads

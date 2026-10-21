@@ -1443,13 +1443,39 @@ test("centers the info, six panes and transport as one column", async ({
   ).toBeHidden();
   await expectCentered("1920 x 1080, parameters folded");
   await page.setViewportSize({ width: 3440, height: 1000 });
-  const wide = await columnEdges(page);
-  expect(
-    Math.abs(
-      wide.grid.left - wide.area.left - (wide.area.right - wide.grid.right),
-    ),
-  ).toBeLessThanOrEqual(1);
-  expect(wide.overflow).toBe(0);
+  await expectCentered("3440 x 1000");
+});
+
+/**
+ * Six small panes in a 1100 px window are narrower than the info row and the transport
+ * need for one line each, so the column is wider than they are and the panes sit in the
+ * middle of it. The transport stays on a single line, which the height it keeps free
+ * assumes.
+ */
+test("keeps the transport on one line under six small panes", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await openPage(page);
+  await openSixPanes(page, 84);
+  await expect
+    .poll(async () => {
+      const { info, grid, overflow } = await columnEdges(page);
+      const box = (await page
+        .getByRole("button", { name: "Play" })
+        .locator("xpath=..")
+        .boundingBox())!;
+      return {
+        // Smaller than the column, as this test is about.
+        small: grid.right - grid.left < info.right - info.left,
+        centered:
+          Math.abs(grid.left - info.left - (info.right - grid.right)) <= 1,
+        oneLine: box.height <= 60,
+        overflow,
+      };
+    })
+    .toEqual({ small: true, centered: true, oneLine: true, overflow: 0 });
 });
 
 /**

@@ -55,9 +55,10 @@ const MIN_FIT_PX = 200;
 // When the panes scroll, narrower than this is too small to judge a frame on.
 const MIN_PANE_PX = 280;
 // The column of sequence info, panes and transport is never narrower than this where the
-// work area allows, so the info and the transport keep a line each when the panes are few
-// and small. The panes then sit in the middle of it.
-const MIN_COLUMN_PX = 720;
+// work area allows. TRANSPORT_PX assumes the transport on a single line, which needs about
+// 606 px: its play button, speed, slider, counter and gaps. Narrower panes sit in the
+// middle of the column.
+const MIN_COLUMN_PX = 640;
 
 // Independent <video> elements drift apart as they play -- measured at about 1.75
 // frames after a second and a half. A comparison is worthless if the panes are not on
