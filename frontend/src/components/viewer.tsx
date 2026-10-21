@@ -54,6 +54,10 @@ const TRANSPORT_PX = 88;
 const MIN_FIT_PX = 200;
 // When the panes scroll, narrower than this is too small to judge a frame on.
 const MIN_PANE_PX = 280;
+// The column of sequence info, panes and transport is never narrower than this where the
+// work area allows, so the info and the transport keep a line each when the panes are few
+// and small. The panes then sit in the middle of it.
+const MIN_COLUMN_PX = 720;
 
 // Independent <video> elements drift apart as they play -- measured at about 1.75
 // frames after a second and a half. A comparison is worthless if the panes are not on
@@ -132,11 +136,15 @@ function label(name: string): string {
   return LABELS[name] ?? name.replaceAll("_", " ");
 }
 
-/** The room the panes have: the grid's width, and the window's height below its top. */
+/** The room the panes have: the work area's width, and the window's height below the grid's top. */
 type Space = { width: number; height: number };
 
 /**
- * The grid's columns. Every pane on the screen at once, at the largest square that allows,
+ * The grid's columns, and the width of the column around it: the info row, the grid and
+ * the transport share that width, centered in the work area. Null where the panes take the
+ * work area's whole width anyway, as in a window too narrow for them to fit.
+ *
+ * The columns: Every pane on the screen at once, at the largest square that allows,
  * since a comparison needs them all in view. Where that square would be too small, panes at
  * least MIN_PANE_PX wide, in rows the page scrolls through.
  *
@@ -144,10 +152,16 @@ type Space = { width: number; height: number };
  * and one. The search gets that for free, since fewer columns over the same rows are never
  * smaller and it keeps the first of equals.
  */
-function gridColumns(panes: number, space: Space): string {
+function gridLayout(
+  panes: number,
+  space: Space,
+): { columns: string; width: number | null } {
   if (panes === 0 || space.width === 0) {
     // Not measured yet: one row, as before the grid could measure.
-    return `repeat(${Math.max(panes, 1)}, minmax(0, 1fr))`;
+    return {
+      columns: `repeat(${Math.max(panes, 1)}, minmax(0, 1fr))`,
+      width: null,
+    };
   }
   let best = { columns: panes, size: 0 };
   for (let columns = 1; columns <= panes; columns++) {
@@ -159,13 +173,21 @@ function gridColumns(panes: number, space: Space): string {
     if (size > best.size) best = { columns, size };
   }
   if (best.size >= MIN_FIT_PX) {
-    return `repeat(${best.columns}, ${Math.floor(best.size)}px)`;
+    const size = Math.floor(best.size);
+    const tracks = best.columns * size + (best.columns - 1) * PANE_GAP_PX;
+    return {
+      columns: `repeat(${best.columns}, ${size}px)`,
+      width: Math.min(space.width, Math.max(tracks, MIN_COLUMN_PX)),
+    };
   }
   const maxColumns = Math.floor(
     (space.width + PANE_GAP_PX) / (MIN_PANE_PX + PANE_GAP_PX),
   );
   const rows = Math.ceil(panes / Math.max(1, Math.min(panes, maxColumns)));
-  return `repeat(${Math.ceil(panes / rows)}, minmax(0, 1fr))`;
+  return {
+    columns: `repeat(${Math.ceil(panes / rows)}, minmax(0, 1fr))`,
+    width: null,
+  };
 }
 
 /** A slot and its line stay on the nearest row, even in a gap or past a row's end. */
@@ -262,7 +284,8 @@ export function Viewer({
   // the render that chose the speed.
   const speedRef = useRef(1);
   // The room the pane grid has, which the parameters folding away, the window, or an alert
-  // appearing above the grid changes.
+  // appearing above the grid changes. Its width is the work area's, measured outside the
+  // column, which shrinks to the panes and would otherwise shrink what it measures.
   const [space, setSpace] = useState<Space>({ width: 0, height: 0 });
   // Which pane has its current video from the API, or failed to get it. The API encodes a
   // video the first time it is asked for, up to two seconds, and a pane says so meanwhile
@@ -272,17 +295,21 @@ export function Viewer({
     new Map(),
   );
   const [copied, setCopied] = useState(false);
-  const observeGrid = useCallback((el: HTMLDivElement) => {
+  const grid = useRef<HTMLDivElement>(null);
+  const observeSpace = useCallback((el: HTMLDivElement) => {
+    // The work area around the column, not the column.
+    const area = el.parentElement!;
     const measure = () => {
-      const top = el.getBoundingClientRect().top + window.scrollY;
-      const width = el.clientWidth;
+      const top =
+        (grid.current ?? el).getBoundingClientRect().top + window.scrollY;
+      const width = area.clientWidth;
       const height = window.innerHeight - top - TRANSPORT_PX;
       setSpace((was) =>
         was.width === width && was.height === height ? was : { width, height },
       );
     };
     const observer = new ResizeObserver(measure);
-    observer.observe(el);
+    observer.observe(area);
     // Anything above the grid that grows or shrinks moves its top without resizing it, and
     // changes the page's height.
     observer.observe(document.body);
@@ -577,8 +604,14 @@ export function Viewer({
     );
   };
 
+  const layout = gridLayout(panes.length, space);
+
   return (
-    <div className="flex flex-1 flex-col gap-5">
+    <div
+      ref={observeSpace}
+      className="mx-auto flex w-full max-w-full flex-1 flex-col gap-5"
+      style={layout.width === null ? undefined : { width: layout.width }}
+    >
       {/* What is on screen, and while the next one generates, how that is going, over it.
           The caption keeps its place, hidden, so the progress takes exactly its height and
           the panes below do not move. The library is the sequence's own, which the picker
@@ -637,11 +670,11 @@ export function Viewer({
       </div>
 
       <div
-        ref={observeGrid}
-        className="relative grid items-start"
+        ref={grid}
+        className="relative grid items-start justify-center"
         style={{
           gap: PANE_GAP_PX,
-          gridTemplateColumns: gridColumns(panes.length, space),
+          gridTemplateColumns: layout.columns,
         }}
         onDragOver={(e) => {
           if (!e.dataTransfer.types.includes(PANE_DRAG)) return;

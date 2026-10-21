@@ -1351,6 +1351,142 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
 });
 
 /**
+ * Where the work area and the three parts of the column in it sit: the sequence info, the
+ * pane grid and the transport.
+ */
+async function columnEdges(page: Page) {
+  const edges = (locator: Locator) =>
+    locator.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      return { left: box.left, right: box.right };
+    });
+  return {
+    area: await edges(page.locator("main > section")),
+    info: await edges(page.getByRole("group", { name: "Sequence on screen" })),
+    // The panes' own extent, which the grid element's box need not match.
+    grid: await page.locator("figure").evaluateAll((els) => {
+      const boxes = els.map((el) => el.getBoundingClientRect());
+      return {
+        left: Math.min(...boxes.map((box) => box.left)),
+        right: Math.max(...boxes.map((box) => box.right)),
+      };
+    }),
+    transport: await edges(
+      page.getByRole("button", { name: "Play" }).locator("xpath=.."),
+    ),
+    overflow: await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    ),
+  };
+}
+
+/**
+ * Six panes in two rows are held to the window's height, so on a wide screen they need
+ * less than the work area's width. The sequence info, the grid and the transport are then
+ * one column of the same width, centered, rather than panes against the left edge under
+ * rows that stretch across.
+ */
+test("centers the info, six panes and transport as one column", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 2560, height: 1300 });
+  await openPage(page);
+  await openSixPanes(page, 82);
+
+  const expectCentered = async (place: string) => {
+    await expect
+      .poll(
+        async () => {
+          const { area, info, grid, transport, overflow } =
+            await columnEdges(page);
+          const margins = {
+            left: grid.left - area.left,
+            right: area.right - grid.right,
+          };
+          return {
+            // Half the free space on each side, to a pixel.
+            even: Math.abs(margins.left - margins.right) <= 1,
+            // Not the whole width: the case this guards is the one with room to spare.
+            narrower: grid.right - grid.left < area.right - area.left - 100,
+            // One column: the same edges, to a pixel.
+            info: [info.left - grid.left, info.right - grid.right].map((d) =>
+              Math.abs(d) <= 1 ? 0 : d,
+            ),
+            transport: [
+              transport.left - grid.left,
+              transport.right - grid.right,
+            ].map((d) => (Math.abs(d) <= 1 ? 0 : d)),
+            overflow,
+          };
+        },
+        { message: place },
+      )
+      .toEqual({
+        even: true,
+        narrower: true,
+        info: [0, 0],
+        transport: [0, 0],
+        overflow: 0,
+      });
+  };
+
+  await expectCentered("2560 x 1300");
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await expectCentered("1920 x 1080");
+  // The parameters fold away, the work area grows, and the column stays in its middle.
+  await page.getByRole("button", { name: "Parameters" }).click();
+  await expect(
+    page.getByRole("button", { name: "Generate sequence" }),
+  ).toBeHidden();
+  await expectCentered("1920 x 1080, parameters folded");
+  await page.setViewportSize({ width: 3440, height: 1000 });
+  const wide = await columnEdges(page);
+  expect(
+    Math.abs(
+      wide.grid.left - wide.area.left - (wide.area.right - wide.grid.right),
+    ),
+  ).toBeLessThanOrEqual(1);
+  expect(wide.overflow).toBe(0);
+});
+
+/**
+ * Where the panes already take the whole width, as six do in a window too low to fit them
+ * at 200 px, there is nothing to center: the column is the work area, as it was.
+ */
+test("keeps six panes that fill the width across the work area", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1100, height: 600 });
+  await openPage(page);
+  await openSixPanes(page, 83);
+  for (const [width, height] of [
+    [1100, 600],
+    [390, 800],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect
+      .poll(async () => {
+        const { area, info, grid, transport, overflow } =
+          await columnEdges(page);
+        return [
+          grid.left - area.left,
+          area.right - grid.right,
+          info.left - area.left,
+          info.right - area.right,
+          transport.left - area.left,
+          transport.right - area.right,
+          overflow,
+        ].map((d) => Math.round(d));
+      })
+      .toEqual([0, 0, 0, 0, 0, 0, 0]);
+  }
+});
+
+/**
  * Dragging the position slider moves its thumb smoothly, between frames, and every pane
  * shows the frame nearest to it at once: one decoded in memory, not a seek. Let go, the
  * videos are on that frame.
