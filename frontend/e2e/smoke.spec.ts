@@ -1433,8 +1433,17 @@ test("centers the info, six panes and transport as one column", async ({
       });
   };
 
+  // Equal margins hold for a stale width too, so the panes must have taken their new size
+  // before the margins mean anything.
+  const paneWidth = async () =>
+    (await page.locator("figure").first().boundingBox())!.width;
+  const resize = async (width: number, height: number) => {
+    const before = await paneWidth();
+    await page.setViewportSize({ width, height });
+    await expect.poll(paneWidth).not.toBe(before);
+  };
   await expectCentered("2560 x 1300");
-  await page.setViewportSize({ width: 1920, height: 1080 });
+  await resize(1920, 1080);
   await expectCentered("1920 x 1080");
   // The parameters fold away, the work area grows, and the column stays in its middle.
   await page.getByRole("button", { name: "Parameters" }).click();
@@ -1442,8 +1451,10 @@ test("centers the info, six panes and transport as one column", async ({
     page.getByRole("button", { name: "Generate sequence" }),
   ).toBeHidden();
   await expectCentered("1920 x 1080, parameters folded");
-  await page.setViewportSize({ width: 3440, height: 1000 });
-  await expectCentered("3440 x 1000");
+  // Low enough that one row of six is held to the height and leaves room to spare; at 1000
+  // px high they would fill the width.
+  await resize(3440, 800);
+  await expectCentered("3440 x 800");
 });
 
 /**
