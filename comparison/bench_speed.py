@@ -116,12 +116,20 @@ class Method:
 
 
 def resample(a: np.ndarray, size: int) -> np.ndarray:
-    """``a`` with its last two axes, a square, taken to ``size`` by nearest neighbor."""
+    """``a`` with its last two axes, a square, taken to ``size`` by nearest neighbor.
+
+    The result keeps the order of ``a``'s strides, so that a frame stored channel by
+    channel or pixel by pixel is stored the same way at every size.
+    """
     n = a.shape[-1]
+    if a.shape[-2] != n:
+        raise ValueError(f"frames must be square, got {a.shape[-2]} x {n}")
     if n == size:
         return a
     index = np.arange(size) * n // size
-    return a[..., index, :][..., index]
+    out = np.empty_like(a, shape=a.shape[:-2] + (size, size))
+    out[...] = a[..., index, :][..., index]
+    return out
 
 
 def read_frames(seq: Path, size: int | None) -> Iterator[Frame]:
@@ -156,8 +164,8 @@ def _chw_to_rgb(out: torch.Tensor) -> np.ndarray:
 
 
 def ours(one_frame: bool) -> Method:
-    """Our renderer on the layers, or on the all-in-focus frame alone, as one layer, as
-    ``run_ours_one_frame.py`` gives it."""
+    """Our renderer on the layers, as Stage C gives them, or on the all-in-focus frame
+    alone, as one layer, as ``run_ours_one_frame.py`` gives it."""
     from video_bokeh.layered import render_bokeh
 
     def prepare(f: Frame) -> dict:
@@ -173,14 +181,17 @@ def ours(one_frame: bool) -> Method:
             }
         else:
             frame = f.layers
+
+            # Stacked as Stage C's render_sequence stacks a chunk of frames.
+            def stacked(a: np.ndarray) -> torch.Tensor:
+                return torch.from_numpy(np.stack([a], dtype=np.float32))
+
             layers = {
-                "background": torch.from_numpy(frame.background[None]),
-                "background_disparity": torch.from_numpy(
-                    frame.background_disparity[None]
-                ),
-                "object_rgbs": torch.from_numpy(frame.object_rgbs[None]),
-                "object_alphas": torch.from_numpy(frame.object_alphas[None]),
-                "object_disparities": torch.from_numpy(frame.object_disparities[None]),
+                "background": stacked(frame.background),
+                "background_disparity": stacked(frame.background_disparity),
+                "object_rgbs": stacked(frame.object_rgbs),
+                "object_alphas": stacked(frame.object_alphas),
+                "object_disparities": stacked(frame.object_disparities),
                 "paint_order": torch.tensor([frame.paint_order], dtype=torch.long),
             }
         return {
