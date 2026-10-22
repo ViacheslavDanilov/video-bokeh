@@ -117,14 +117,14 @@ export function Controls({
 
       <div className="space-y-3">
         <div className="flex items-baseline justify-between">
-          <Label htmlFor="bokeh-strength">Blur strength</Label>
+          <Label htmlFor="bokeh-strength">Bokeh strength</Label>
           <span className="text-muted-foreground font-mono text-xs">
             {params.bokeh_strength}
           </span>
         </div>
         <Slider
           id="bokeh-strength"
-          aria-label="Blur strength"
+          aria-label="Bokeh strength"
           // The range the API takes.
           min={0}
           max={64}

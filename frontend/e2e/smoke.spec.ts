@@ -404,15 +404,15 @@ test("shows the steps of a generation, then what is on screen", async ({
 });
 
 /**
- * The blur strength is k, the bokeh's blur radius in pixels at 1024 px: 16 until moved, from
- * 0 to 64. It goes with Generate like the other parameters, stays where it was put, and the
- * line above the panes names the one the sequence came with. Another k is another sequence.
+ * The bokeh strength is k, the blur radius in pixels at 1024 px: 16 until moved, from 0 to
+ * 64. It goes with Generate like the other parameters, stays where it was put, and the line
+ * above the panes names the one the sequence came with. Another k is another sequence.
  */
-test("sends the blur strength and names the sequence by it", async ({
+test("sends the bokeh strength and names the sequence by it", async ({
   page,
 }) => {
   await openPage(page);
-  const strength = page.getByRole("slider", { name: "Blur strength" });
+  const strength = page.getByRole("slider", { name: "Bokeh strength" });
   await expect(strength).toHaveAttribute("aria-valuenow", "16");
   await expect(strength).toHaveAttribute("aria-valuemin", "0");
   await expect(strength).toHaveAttribute("aria-valuemax", "64");
@@ -426,7 +426,7 @@ test("sends the blur strength and names the sequence by it", async ({
   const sequenceId = () => shown.getByText(/^[0-9a-f]{16}$/).innerText();
 
   await generateSequence(page, 31);
-  await expect(shown).toContainText("blur 16");
+  await expect(shown).toContainText("bokeh 16");
   const first = await sequenceId();
 
   // The ends of the range, then one step at a time.
@@ -442,7 +442,7 @@ test("sends the blur strength and names the sequence by it", async ({
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Generate sequence" }).click();
-  await expect(shown).toContainText("blur 24", { timeout: 60_000 });
+  await expect(shown).toContainText("bokeh 24", { timeout: 60_000 });
   expect(await sequenceId()).not.toBe(first);
   await expect(page.getByText("cached", { exact: true })).toHaveCount(0);
   await expect(strength).toHaveAttribute("aria-valuenow", "24");
