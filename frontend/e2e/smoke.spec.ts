@@ -403,6 +403,58 @@ test("shows the steps of a generation, then what is on screen", async ({
   await expect(page.getByText("cached", { exact: true })).toBeVisible();
 });
 
+/**
+ * The bokeh strength is k, the blur radius in pixels at 1024 px: 16 until moved, from 0 to
+ * 64. It goes with Generate like the other parameters, stays where it was put, and the line
+ * above the panes names the one the sequence came with. Another k is another sequence.
+ */
+test("sends the bokeh strength and names the sequence by it", async ({
+  page,
+}) => {
+  // Two sequences generated, which on a CI runner takes longer than the default budget.
+  test.slow();
+  await openPage(page);
+  const strength = page.getByRole("slider", { name: "Bokeh strength" });
+  await expect(strength).toHaveAttribute("aria-valuenow", "16");
+  await expect(strength).toHaveAttribute("aria-valuemin", "0");
+  await expect(strength).toHaveAttribute("aria-valuemax", "64");
+  // The helper text under it, read with the control rather than only seen near it.
+  await expect(strength).toHaveAccessibleDescription(
+    /^k, the blur radius in pixels at 1024 px/,
+  );
+
+  const sent: unknown[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/sequences"))
+      sent.push(request.postDataJSON().bokeh_strength);
+  });
+  const shown = page.getByRole("group", { name: "Sequence on screen" });
+  const sequenceId = () => shown.getByText(/^[0-9a-f]{16}$/).innerText();
+
+  await generateSequence(page, 31);
+  await expect(shown).toContainText("bokeh 16");
+  const first = await sequenceId();
+
+  // The ends of the range, then one step at a time.
+  await strength.focus();
+  await page.keyboard.press("End");
+  await expect(strength).toHaveAttribute("aria-valuenow", "64");
+  await page.keyboard.press("Home");
+  await expect(strength).toHaveAttribute("aria-valuenow", "0");
+  for (let k = 0; k < 24; k++) await page.keyboard.press("ArrowRight");
+  await expect(strength).toHaveAttribute("aria-valuenow", "24");
+  await expect(
+    page.locator("#parameters").getByText("24", { exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(shown).toContainText("bokeh 24", { timeout: 60_000 });
+  expect(await sequenceId()).not.toBe(first);
+  await expect(page.getByText("cached", { exact: true })).toHaveCount(0);
+  await expect(strength).toHaveAttribute("aria-valuenow", "24");
+  expect(sent).toEqual([16, 24]);
+});
+
 /** What the progress bar did: every value it took, however briefly; its bounds on the page
  *  whenever the line changed, over the empty card or the panes; and how long it stayed full
  *  where it filled. */
@@ -622,6 +674,7 @@ test("stops the button, scale, and timer during the full bar hold", async ({
               seed: params.seed,
               frames: 80,
               size: 512,
+              bokeh_strength: params.bokeh_strength,
               n_objects: 2,
               object_colors: ["#ff0000", "#00ff00"],
               streams: {},

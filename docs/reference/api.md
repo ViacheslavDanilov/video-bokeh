@@ -124,6 +124,7 @@ Generates one sequence and answers with its id.
 | `size` | `512` | 64 to 2048 |
 | `n_objects_min` | `1` | 1 to 16 |
 | `n_objects_max` | `5` | 1 to 16, and not below `n_objects_min` |
+| `bokeh_strength` | `16` | 0 to 64 |
 
 ```bash
 curl -X POST http://localhost:8000/sequences \
@@ -140,6 +141,7 @@ curl -X POST http://localhost:8000/sequences \
   "seed": 42,
   "frames": 80,
   "size": 512,
+  "bokeh_strength": 16.0,
   "n_objects": 4,
   "streams": {
     "all_in_focus": {
@@ -236,9 +238,39 @@ The same parameters against two libraries built from the same assets give the sa
 the objects, their paths and their masks — and differ only in disparity. That is what
 comparing depth estimators means here.
 
-**The sequence id is a hash of the five parameters and the library id.** Stage B is
-deterministic, so the same request always names the same sequence. The cache is the directory
-`$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
+**The sequence id is a hash of the five numbers, the library id and the bokeh strength.**
+Stage B is deterministic, so the same request always names the same sequence. The cache is the
+directory `$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database. The strength
+joins the hash only when it is not 16. Every sequence cached before a request could name it
+was rendered at 16, so each keeps the id it had.
+
+**`bokeh_strength` is k, the blur radius in pixels at a 1024-pixel width, one unit of
+disparity from the focus.** It is the strength `scenes.generate --bokeh-strength` takes. It
+names the sequence as the seed does, so another k is another sequence, with its own copy of
+every stream, cached apart. It does so whether or not the API renders bokeh, so the id never
+depends on how the server is configured. A sequence cached without bokeh gets it at its own k
+when it is asked for again. `-0` reads as `0`.
+
+**The response's `bokeh_strength` is the one the sequence's bokeh was rendered at.** It comes
+from `bokeh/focus.json`, which the renderer writes with the frames, so a renderer of one's own
+that renders the stream again at another strength shows through. A sequence with no record
+yet, because the API rendered no bokeh, names the strength the request asked for.
+
+Stage C's `render.run --strength` cannot render an API sequence's bokeh again. Its layered
+renderer reads the `layers/` stream, which the API does not write, so it refuses the sequence
+and leaves its bokeh as it was.
+
+The cap of 64 is four times the default, because a wider blur takes longer to render and the
+call blocks while it renders. Measured on an Apple M3 Pro on 2026-10-22, with the bokeh on the
+CPU:
+
+| Shape | Seeds | At 16 | At 64 |
+|---|---|---|---|
+| 80 frames at 512 px, two to three objects, over HTTP | 0 to 2 | 15.8 to 18.6 s | 18.7 to 22.9 s |
+| 80 frames at 1024 px, four objects, one process each | 0 | 93.2 s, 4.91 GiB peak | 129.4 s, 5.49 GiB peak |
+
+Each pair ran back to back. The 1024 px row ran the generation the endpoint runs, in a fresh
+process for each strength, so the peak is that generation's own.
 
 `cached` says whether this request generated the sequence or found it. A cache hit answers at
 once, 0.02 s over HTTP in the table below, unless it adds what a cached sequence lacks. For 80
@@ -414,6 +446,18 @@ for their CRF 17 MP4s. Bokeh, flow and layers add to that. Deleting the director
 sequence is reproducible from its library, its seed and the settings its request named, which
 `sequence.json` records. That is the same reason [dataset-layout](dataset-layout.md) treats
 frames as disposable and the library as the thing to keep.
+
+**Each bokeh strength asked for stores a whole sequence.** k names the sequence, so a second k
+writes every stream again, not only `bokeh/`. Measured on 2026-10-22 from the `da2-large` dev
+library, a fresh sequence with its bokeh and all three motion streams, before any MP4:
+
+| Shape | Seeds | Bytes on disk |
+|---|---|---|
+| 80 frames at 512 px, one object | 0 | 90,760,849 |
+| 80 frames at 512 px, two to three objects | 0 to 2 | 56,922,641 to 69,262,665 |
+| 80 frames at 1024 px, four objects, at 16 and at 64 | 0 | 216,990,329 and 203,348,052 |
+
+In every one of them the all-in-focus frames are the largest stream, and the bokeh the second.
 
 **The libraries are re-read on every request.** Per library, two directory listings, one small
 JSON and one image header, so that `/libraries` and `/sequences` always reflect what is mounted

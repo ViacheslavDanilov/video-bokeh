@@ -66,6 +66,13 @@ uv run python -m video_bokeh.scenes.generate \
 touching Stage A. `--size` need not match the library's: Stage B maps each asset onto the
 frame, so a smaller library is only upscaled.
 
+**The bokeh's strength is k**, the blur radius in pixels at a 1024-pixel width, one unit of
+disparity from the focus, 16 by default. `--bokeh` renders each sequence's bokeh in the same
+run, which needs torch from the `render` or `loader` extra, and `--bokeh-strength` sets k, one
+value for the whole run. In Python, `video_bokeh.scenes.generate.generate_dataset` and the training
+stream's `SequenceStream` take it as `bokeh_strength`. The API takes `bokeh_strength` in each
+request, and the demo has a slider for it.
+
 Full recipes — building a library, downloading the source pools — are in
 [`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md). Every flag is in
 [`docs/reference/cli.md`](../docs/reference/cli.md). The on-disk contract each stage writes is

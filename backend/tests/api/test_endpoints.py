@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 from collections.abc import Callable, Iterator
@@ -176,6 +177,53 @@ def test_a_different_seed_is_a_different_sequence(client: TestClient) -> None:
     first = client.post("/sequences", json=SEQUENCE_BODY).json()
     second = client.post("/sequences", json={**SEQUENCE_BODY, "seed": 7}).json()
     assert second["id"] != first["id"]
+
+
+def test_the_bokeh_strength_is_sixteen_unless_asked(client: TestClient) -> None:
+    assert client.post("/sequences", json=SEQUENCE_BODY).json()["bokeh_strength"] == 16
+
+
+def test_a_different_bokeh_strength_is_a_different_sequence(client: TestClient) -> None:
+    first = client.post("/sequences", json=SEQUENCE_BODY).json()
+    asked = {**SEQUENCE_BODY, "bokeh_strength": 24}
+    second = client.post("/sequences", json=asked).json()
+    assert second["id"] != first["id"]
+    assert second["cached"] is False
+    assert second["bokeh_strength"] == 24
+
+    again = client.post("/sequences", json=asked).json()
+    assert again["id"] == second["id"]
+    assert again["cached"] is True
+
+
+def test_the_default_bokeh_strength_asked_for_is_the_same_sequence(
+    client: TestClient,
+) -> None:
+    first = client.post("/sequences", json=SEQUENCE_BODY).json()
+    second = client.post("/sequences", json={**SEQUENCE_BODY, "bokeh_strength": 16})
+    assert second.json()["id"] == first["id"]
+
+
+def test_a_negative_zero_strength_is_zero(client: TestClient) -> None:
+    """-0.0 passes the range and renders as 0 does, so it must not name another sequence."""
+    zero = client.post("/sequences", json={**SEQUENCE_BODY, "bokeh_strength": 0})
+    negative = client.post("/sequences", json={**SEQUENCE_BODY, "bokeh_strength": -0.0})
+    assert negative.json()["id"] == zero.json()["id"]
+    assert negative.json()["cached"] is True
+    assert math.copysign(1.0, negative.json()["bokeh_strength"]) == 1.0
+
+
+@pytest.mark.parametrize("strength,status", [(-1, 422), (0, 200), (64, 200), (65, 422)])
+def test_the_bokeh_strength_is_zero_to_sixty_four(
+    client: TestClient,
+    strength: float,
+    status: int,
+) -> None:
+    response = client.post(
+        "/sequences",
+        json={**SEQUENCE_BODY, "bokeh_strength": strength},
+    )
+    assert response.status_code == status
 
 
 def test_rejects_an_inverted_object_range(client: TestClient) -> None:
@@ -469,6 +517,25 @@ def test_bokeh_joins_the_streams_once_rendered(
     }
 
 
+def test_the_strength_named_is_the_one_the_bokeh_was_rendered_at(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """A renderer of one's own can render a sequence's bokeh again at another strength.
+    Its record says so, and the response follows the record rather than the request.
+    """
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    sequence_dir = tmp_path / "sequences" / sid
+    render_fake_bokeh(sequence_dir)
+    without_record = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert without_record["bokeh_strength"] == 16
+
+    (sequence_dir / "bokeh" / "focus.json").write_text(json.dumps({"strength": 24.0}))
+    with_record = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert with_record["id"] == sid
+    assert with_record["bokeh_strength"] == 24
+
+
 def test_serves_bokeh_as_video(client: TestClient, tmp_path: Path) -> None:
     sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
     render_fake_bokeh(tmp_path / "sequences" / sid)
@@ -554,6 +621,21 @@ def test_generating_renders_the_bokeh_with_the_sequence(
     )
     assert record["renderer"] == "layered"
     assert client.get(body["streams"]["bokeh"]["url"]).status_code == 200
+
+
+def test_generating_renders_the_bokeh_at_the_strength_asked_for(
+    client_of: Callable[..., TestClient],
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    client = client_of(library, render_bokeh=True)
+    asked = {**SEQUENCE_BODY, "bokeh_strength": 40}
+    body = client.post("/sequences", json=asked).json()
+    record = json.loads(
+        (tmp_path / "sequences" / body["id"] / "bokeh" / "focus.json").read_text(),
+    )
+    assert record["strength"] == 40
+    assert body["bokeh_strength"] == 40
 
 
 def test_a_cached_sequence_without_bokeh_gets_it_when_asked_again(

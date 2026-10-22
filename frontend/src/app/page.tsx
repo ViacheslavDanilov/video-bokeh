@@ -28,6 +28,8 @@ const DEFAULTS: SequenceParams = {
   size: 512,
   n_objects_min: 2,
   n_objects_max: 4,
+  // The API's default, so a sequence cached before the strength could be set is found again.
+  bokeh_strength: 16,
 };
 
 // How long the bar stays full once the sequence is in, before the sequence is shown. The

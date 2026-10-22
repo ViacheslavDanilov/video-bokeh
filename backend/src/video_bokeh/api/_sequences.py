@@ -22,6 +22,7 @@ from functools import partial
 from pathlib import Path
 
 from video_bokeh.core._focus import frame_focus
+from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
     Scene,
@@ -71,6 +72,19 @@ def video_streams(sequence_dir: Path) -> list[str]:
     return streams
 
 
+def rendered_strength(sequence_dir: Path) -> float | None:
+    """The strength the sequence's bokeh record names, or None when it has none.
+
+    The record is written with the frames, so it stays true when a renderer other than
+    this API's renders the stream again at another strength.
+    """
+    record = sequence_dir / BOKEH / "focus.json"
+    if not record.is_file():
+        return None
+    strength = json.loads(record.read_text(encoding="utf-8")).get("strength")
+    return None if strength is None else float(strength)
+
+
 class SequenceUnsatisfiableError(RuntimeError):
     """The request is valid but no collision-free scene could be sampled for it."""
 
@@ -82,6 +96,9 @@ class SequenceRequest:
     size: int
     n_objects_min: int
     n_objects_max: int
+    #: The bokeh's strength: the blur radius in pixels, at a 1024-pixel width, one unit of
+    #: disparity from the focus.
+    bokeh_strength: float = BOKEH_STRENGTH
 
 
 @dataclass(frozen=True)
@@ -93,15 +110,22 @@ class SequenceResult:
 
 
 def sequence_id(library_id: str, request: SequenceRequest) -> str:
-    """A sequence is fully determined by the library and these five numbers."""
-    parts = (
+    """A sequence is fully determined by the library, five numbers and its bokeh's strength.
+
+    The strength is hashed only when it is not the default. Every sequence cached before a
+    request could name it was rendered at the default, so each keeps the id it had.
+    """
+    parts: list[object] = [
         library_id,
         request.seed,
         request.frames,
         request.size,
         request.n_objects_min,
         request.n_objects_max,
-    )
+    ]
+    if request.bokeh_strength != BOKEH_STRENGTH:
+        # As a float, so 24 and 24.0 name one sequence.
+        parts.append(float(request.bokeh_strength))
     payload = "|".join(str(part) for part in parts).encode()
     return hashlib.sha256(payload).hexdigest()[:_ID_CHARS]
 
@@ -176,6 +200,7 @@ def _generate_into(
             scene,
             request.seed,
             focus,
+            request.bokeh_strength,
             report=partial(progress, "bokeh"),
         )
     return placed
@@ -235,6 +260,7 @@ def _complete(
             scene,
             request.seed,
             focus,
+            request.bokeh_strength,
             replace=False,
             report=partial(progress, "bokeh"),
         )

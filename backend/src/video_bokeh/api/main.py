@@ -31,7 +31,14 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from video_bokeh.api._library import (
     DuplicateLibraryError,
@@ -50,6 +57,7 @@ from video_bokeh.api._sequences import (
     SequenceResult,
     SequenceUnsatisfiableError,
     ensure_sequence,
+    rendered_strength,
     video_streams,
 )
 from video_bokeh.api._settings import (
@@ -58,6 +66,7 @@ from video_bokeh.api._settings import (
     find_libraries,
     load_settings,
 )
+from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.preview._colormap import COLORMAPS
 from video_bokeh.preview._masks import object_color_hex
 from video_bokeh.preview.pack import encode_stream, list_stream_frames
@@ -117,6 +126,11 @@ _MAX_FRAMES = 240
 #: does, instead of collecting them all into a list first, as `_generate_into` does.
 _MAX_PIXELS = 96_000_000
 
+#: The strongest bokeh a request may ask for: four times the default. The renderer's cost
+#: grows with the widest blur radius, through more radius bins and wider windows around
+#: each object, and the endpoint blocks while it renders.
+_MAX_BOKEH_STRENGTH = 64
+
 #: Rendering bokeh takes torch, which the API's own install leaves out.
 _BOKEH_AVAILABLE = importlib.util.find_spec("torch") is not None
 
@@ -161,6 +175,17 @@ class SequenceParams(BaseModel):
     size: int = Field(default=512, ge=64, le=2048)
     n_objects_min: int = Field(default=1, ge=1, le=16)
     n_objects_max: int = Field(default=5, ge=1, le=16)
+    #: The bokeh's strength, k: the blur radius in pixels, at a 1024-pixel width, one unit
+    #: of disparity from the focus. It names the sequence, as the seed does.
+    bokeh_strength: float = Field(default=BOKEH_STRENGTH, ge=0, le=_MAX_BOKEH_STRENGTH)
+
+    @field_validator("bokeh_strength")
+    @classmethod
+    def _zero_has_one_sign(cls, strength: float) -> float:
+        """-0.0 passes the range and renders as 0 does, but would hash and read back as
+        a sequence of its own. Adding 0.0 turns it into 0.0 and leaves every other value.
+        """
+        return strength + 0.0
 
     @model_validator(mode="after")
     def _range_is_ordered(self) -> Self:
@@ -227,6 +252,9 @@ class SequenceResponse(BaseModel):
     seed: int
     frames: int
     size: int
+    #: The strength the sequence's bokeh was rendered at, as its record names it; before
+    #: it has one, the strength it will be rendered at, which the request named.
+    bokeh_strength: float
     n_objects: int
     #: One hex color per object, in the order the alpha pages carry them, so a legend
     #: cannot drift from what the alpha video actually paints.
@@ -316,6 +344,7 @@ def create_sequence(
                 size=params.size,
                 n_objects_min=params.n_objects_min,
                 n_objects_max=params.n_objects_max,
+                bokeh_strength=params.bokeh_strength,
             ),
             bokeh=settings.render_bokeh and _BOKEH_AVAILABLE,
             progress=progress,
@@ -353,6 +382,7 @@ def _sequence_response(
     params: SequenceParams,
 ) -> SequenceResponse:
     streams = video_streams(result.path)
+    rendered = rendered_strength(result.path)
     return SequenceResponse(
         id=result.id,
         library=library_id,
@@ -360,6 +390,7 @@ def _sequence_response(
         seed=params.seed,
         frames=params.frames,
         size=params.size,
+        bokeh_strength=params.bokeh_strength if rendered is None else rendered,
         n_objects=result.n_objects,
         object_colors=[object_color_hex(i) for i in range(result.n_objects)],
         streams={
