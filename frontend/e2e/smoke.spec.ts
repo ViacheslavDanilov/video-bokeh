@@ -1606,7 +1606,7 @@ test("scrubs every pane to the nearest frame while dragging", async ({
     .toEqual(Array(6).fill("80"));
 
   /** The first pane as it looks on screen, canvas or video, as RGBA values. */
-  const frameBox = videos.first().locator("xpath=..");
+  const frameBox = page.locator("[data-pane-view]").first();
   const pixels = async () => {
     const png = (await frameBox.screenshot()).toString("base64");
     return page.evaluate(async (png) => {
@@ -2331,6 +2331,11 @@ test("zooms and moves every pane's view together", async ({ page }) => {
   await page.mouse.move(x, y);
   await page.mouse.wheel(0, 40);
   await expect.poll(wheels).toEqual([true, false]);
+
+  // Panes the page scrolls through, as on a phone, show one region too.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.keyboard.press("+");
+  await expectRegions(page, [0.25, 0.25, 0.75, 0.75]);
 });
 
 /**
@@ -2358,8 +2363,13 @@ test("zooms about the pointer with a pinch and a double-click", async ({
   await page.mouse.wheel(0, -60);
   await page.keyboard.up("Control");
   await expect(factor).not.toHaveText("1×");
+  const once = await factor.innerText();
+  await page.keyboard.down("Meta");
+  await page.mouse.wheel(0, -60);
+  await page.keyboard.up("Meta");
+  await expect(factor).not.toHaveText(once);
   // Kept from zooming the page.
-  await expect.poll(wheels).toEqual([true]);
+  await expect.poll(wheels).toEqual([true, true]);
   const after = await framePointAt(page, 2, x, y);
   expect(after[0]).toBeCloseTo(before[0], 2);
   expect(after[1]).toBeCloseTo(before[1], 2);
@@ -2442,7 +2452,13 @@ test("keeps the zoom keys out of fields and starts each sequence whole", async (
   await page.locator("body").click({ position: { x: 5, y: 5 } });
   await page.keyboard.press("Control+0");
   await page.keyboard.press("Control+Minus");
+  await page.keyboard.press("Alt+Equal");
   await expect(factor).toHaveText("2×");
+  // The gestures are named where the factor is.
+  await expect(page.getByRole("group", { name: "Zoom" })).toHaveAttribute(
+    "title",
+    /^Pinch/,
+  );
 
   for (let i = 0; i < 4; i++) await page.keyboard.press("=");
   await expect(factor).toHaveText("16×");
@@ -2483,6 +2499,9 @@ test("steps a frame zoomed in without the frames from memory", async ({
     )
     .toEqual(Array(4).fill("80"));
   await page.keyboard.press("+");
+  await expect(
+    page.getByRole("button", { name: /show the whole frame$/ }),
+  ).toHaveText("2×");
   // Every time a canvas is shown, from here on.
   await canvases.evaluateAll((els) => {
     const shown: string[] = [];
@@ -2510,6 +2529,18 @@ test("steps a frame zoomed in without the frames from memory", async ({
   expect(
     await page.evaluate(() => (window as unknown as { shown: string[] }).shown),
   ).toEqual([]);
+
+  // Zoomed in, the panes play, and the view stays where it is.
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect
+    .poll(() =>
+      videos.evaluateAll((els) =>
+        els.map((el) => (el as HTMLVideoElement).paused),
+      ),
+    )
+    .toEqual([false, false, false, false]);
+  await expect(page.getByText(/^\d+ \/ 80$/)).not.toHaveText("3 / 80");
+  await expectRegions(page, [0.25, 0.25, 0.75, 0.75]);
 });
 
 /**
@@ -2554,8 +2585,19 @@ test("keeps the transport on one line wherever the work area allows", async ({
   const sizeAt = async (width: number) => {
     await page.setViewportSize({ width, height: 760 });
     await expect.poll(layout).toEqual({ lines: 1, overflow: 0 });
-    await page.waitForTimeout(300);
-    return (await pane.boundingBox())!.height;
+    // Settled: the same height twice, a quarter of a second apart.
+    let height = 0;
+    await expect
+      .poll(
+        async () => {
+          const was = height;
+          height = (await pane.boundingBox())!.height;
+          return height === was;
+        },
+        { intervals: [250] },
+      )
+      .toBe(true);
+    return height;
   };
-  expect(await sizeAt(1024)).toBe(await sizeAt(1200));
+  expect(await sizeAt(1050)).toBe(await sizeAt(1200));
 });
