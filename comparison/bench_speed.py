@@ -351,6 +351,32 @@ def wait_for_card() -> None:
         time.sleep(60)
 
 
+def card_state() -> dict:
+    """The card's clock and temperature now, as ``nvidia-smi`` reads them."""
+    out = subprocess.run(
+        [
+            "nvidia-smi",
+            "--query-gpu=clocks.sm,temperature.gpu",
+            "--format=csv,noheader,nounits",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    clock, temperature = (int(v) for v in out.splitlines()[0].split(","))
+    return {"sm_mhz": clock, "temperature_c": temperature}
+
+
+def cpus() -> str | None:
+    """The CPUs this process may run on, as ``0-7,16``; None where the OS cannot say."""
+    affinity = getattr(os, "sched_getaffinity", None)
+    if affinity is None:
+        return None
+    runs = itertools.groupby(enumerate(sorted(affinity(0))), lambda p: p[1] - p[0])
+    spans = [[c for _, c in group] for _, group in runs]
+    return ",".join(f"{s[0]}-{s[-1]}" if len(s) > 1 else str(s[0]) for s in spans)
+
+
 def _sync(device: torch.device) -> None:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
@@ -412,11 +438,20 @@ def _commit() -> str:
 
 
 def run(args: argparse.Namespace) -> None:
+    if args.threads:
+        torch.set_num_threads(args.threads)
     names = args.seqs.split(",") if args.seqs else None
     seqs = list(renderable_sequences(args.data_root, names))
-    base = {"method": args.method, "device": args.device, "commit": _commit()}
+    base = {
+        "method": args.method,
+        "device": args.device,
+        "commit": _commit(),
+        "threads": torch.get_num_threads(),
+        "cpus": cpus(),
+        "omp_num_threads": os.environ.get("OMP_NUM_THREADS"),
+    }
     if args.method == "any_to_bokeh":
-        for record in run_any_to_bokeh(seqs):
+        for record in run_any_to_bokeh(seqs, args.threads):
             _append(args.output, {**base, **record})
         return
     device = torch.device(args.device)
@@ -430,11 +465,13 @@ def run(args: argparse.Namespace) -> None:
             if device.type == "cuda":
                 torch.cuda.reset_peak_memory_stats(device)
             ms, first, discarded = time_frames(method, inputs, device, args.warmup)
+        card = card_state() if device.type == "cuda" else None
         native = composite_frame(seq, frame_names(seq)[0])[0].shape[1]
         size = args.size or native
         record = {
             **base,
             "size": size,
+            "render_size": f"{size}x{size}",
             "sequence": seq.name,
             "seed": sequence_seed(seq),
             "objects": _objects(seq),
@@ -444,7 +481,7 @@ def run(args: argparse.Namespace) -> None:
             "peak_mib": round(torch.cuda.max_memory_allocated(device) / 2**20, 1)
             if device.type == "cuda"
             else None,
-            "threads": torch.get_num_threads(),
+            "card": card,
             "check": check(seq, STREAMS[args.method], frame_names(seq)[0], first)
             if size == native
             else None,
@@ -461,7 +498,7 @@ def _objects(seq: Path) -> int:
     return len(next(frames_with_focus(seq))[2].object_alphas)
 
 
-def run_any_to_bokeh(seqs: list[Path]) -> Iterator[dict]:
+def run_any_to_bokeh(seqs: list[Path], threads: int | None) -> Iterator[dict]:
     """Time Any-to-Bokeh's pipeline over ``seqs``, through ``bench_a2b.py``."""
     from run_any_to_bokeh import A2B_PYTHON, A2B_ROOT, MIN_FRAMES, write_inputs
 
@@ -475,6 +512,9 @@ def run_any_to_bokeh(seqs: list[Path]) -> Iterator[dict]:
         twice = [row for row in rows for _ in range(2)]
         csv_path.write_text("\n".join([header, *twice]) + "\n", encoding="utf-8")
         times = work / "times.jsonl"
+        env = {**os.environ, "BENCH_A2B_TIMES": str(times)}
+        if threads:
+            env["OMP_NUM_THREADS"] = str(threads)
         subprocess.run(
             [
                 str(A2B_PYTHON),
@@ -489,14 +529,15 @@ def run_any_to_bokeh(seqs: list[Path]) -> Iterator[dict]:
             ],
             cwd=work,
             check=True,
-            env={**os.environ, "BENCH_A2B_TIMES": str(times)},
+            env=env,
         )
         calls = [json.loads(line) for line in times.read_text().splitlines()]
-    others = other_gpu_processes()
+    card, others = card_state(), other_gpu_processes()
     for index, seq in enumerate(seqs):
         mine = [c for c in calls if c["row"] == 2 * index + 1]
         yield {
             "size": composite_frame(seq, frame_names(seq)[0])[0].shape[1],
+            "render_size": "1024x576",
             "sequence": seq.name,
             "seed": sequence_seed(seq),
             "objects": _objects(seq),
@@ -509,6 +550,7 @@ def run_any_to_bokeh(seqs: list[Path]) -> Iterator[dict]:
             ],
             "calls": [[round(c["seconds"], 4), c["frames"]] for c in mine],
             "peak_mib": max(c["peak_mib"] for c in mine),
+            "card": card,
             "torch": mine[0]["torch"],
             "check": None,
             "others_on_card": others,
@@ -524,6 +566,7 @@ def _stats(ms: list[float]) -> dict:
     q1, median, q3 = np.percentile(ms, [25, 50, 75])
     return {
         "frames_timed": len(ms),
+        "mean_ms": round(float(np.mean(ms)), 2),
         "median_ms": round(float(median), 2),
         "q1_ms": round(float(q1), 2),
         "q3_ms": round(float(q3), 2),
@@ -555,6 +598,7 @@ def summary(args: argparse.Namespace) -> None:
                 "method": r["method"],
                 "device": r["device"],
                 "size": r["size"],
+                "render_size": r["render_size"],
                 "sequence": r["sequence"],
                 "seed": r["seed"],
                 "objects": r["objects"],
@@ -573,6 +617,7 @@ def summary(args: argparse.Namespace) -> None:
             "method": method,
             "device": device,
             "size": size,
+            "render_size": rs[0]["render_size"],
             "sequences": len(rs),
             **_stats([t for r in rs for t in r["ms"]]),
             "peak_gpu_mib": max(r["peak_mib"] or 0 for r in rs) or "",
@@ -615,6 +660,15 @@ def environment() -> dict:
     ).stdout
     import cupy
 
+    def commit(path: Path) -> str:
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, text=True
+        ).stdout.strip()
+
+    def cpu_list(kind: str) -> str | None:
+        path = Path("/sys/devices") / kind / "cpus"
+        return path.read_text().strip() if path.is_file() else None
+
     return {
         "gpu": torch.cuda.get_device_name(0),
         "gpu_memory_mib": torch.cuda.get_device_properties(0).total_memory // 2**20,
@@ -628,7 +682,9 @@ def environment() -> dict:
             if line.startswith("model name")
         ),
         "cpu_count": os.cpu_count(),
-        "torch_threads": torch.get_num_threads(),
+        "performance_cpus": cpu_list("cpu_core"),
+        "efficiency_cpus": cpu_list("cpu_atom"),
+        "torch_default_threads": torch.get_num_threads(),
         "memory_gib": round(
             int(Path("/proc/meminfo").read_text().split()[1]) / 2**20, 1
         ),
@@ -643,6 +699,11 @@ def environment() -> dict:
             "numpy": np.__version__,
         },
         "any_to_bokeh_env": json.loads(a2b),
+        "methods_code": {
+            path.name: commit(path)
+            for path in sorted((HERE / "third_party").iterdir())
+            if path.is_dir()
+        },
     }
 
 
@@ -662,6 +723,7 @@ def main(argv: list[str] | None = None) -> int:
         help="renders discarded first (default: every frame of the sequence once)",
     )
     p.add_argument("--frames", type=int, default=None, help="frames timed per sequence")
+    p.add_argument("--threads", type=int, default=None, help="torch's CPU threads")
     p.add_argument("--output", type=Path, required=True, help="JSON lines, appended")
     p = sub.add_parser("summary", help="write the CSVs from run's JSON lines")
     p.add_argument("records", type=Path, nargs="+")
