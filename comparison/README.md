@@ -262,41 +262,65 @@ comparison/envs/render/bin/python comparison/review.py sheets backend/data/test_
 ## Speed
 
 `bench_speed.py` times each method's render per frame, on the card or on the CPU. It calls
-the adapters' own functions, so each method renders what it renders for the comparison, and
-it times only the render call. The models are loaded, every frame is read and prepared in
-memory, and its inputs are on the device before the clock starts; a synchronize on either
-side of the call makes the time the card's. Each sequence's first five frames are rendered
-once and discarded before its frames are timed.
+the adapters' own functions, so each method renders what it renders for the comparison. The
+models are loaded, every frame is read and prepared in memory, and its inputs are on the
+device before the clock starts; a synchronize on either side of the render call makes the
+time the card's. Every frame of a sequence is rendered once and discarded before the frames
+are timed, so that the timed pass meets no first-use cost, such as an FFT or cuDNN plan for
+a size not seen before. `--warmup` sets a number of frames instead.
 
 ```bash
-comparison/envs/render/bin/python comparison/bench_speed.py run --method drbokeh \
-  --device cuda --data-root backend/data/cmp --size 2048 --output speed.jsonl
+# On the card, the process kept to the eight performance cores of the lab's CPU
+taskset -c 0-7 comparison/envs/render/bin/python comparison/bench_speed.py run \
+  --method drbokeh --device cuda --threads 8 --data-root backend/data/cmp --size 2048 \
+  --output speed.jsonl
+# On the CPU, the same eight cores and threads
+OMP_NUM_THREADS=8 taskset -c 0-7 comparison/envs/render/bin/python \
+  comparison/bench_speed.py run --method ours --device cpu --threads 8 \
+  --data-root backend/data/cmp --size 2048 --output speed.jsonl
 comparison/envs/render/bin/python comparison/bench_speed.py summary speed.jsonl --out-dir .
 comparison/envs/render/bin/python comparison/bench_speed.py env > speed-environment.json
 ```
+
+What the clock holds differs by method, as each takes its inputs in a different form:
+
+| Method | Timed | Not timed |
+|---|---|---|
+| `ours`, `ours_one_frame` | `render_bokeh`: colors to linear light and back, the radii, the spread of the radius around each object, the binning, the disks, the FFTs and the composite | reading, resampling, stacking the layers, copies to and from the device |
+| `drbokeh` | `Multi_Layer_Renderer.forward`: the focus subtracted, each layer scattered, the composite | the disparity extended past each alpha, the lens size and its kernels, colors to linear light and back |
+| `mpib_rt`, `mpib_rt_cg` | `ModuleRenderRT.forward`: the aperture's sample grid, the kernel's source filled in, the CuPy kernel | the plane fit, colors to linear light and back, NaN set to 0 |
+| `bokehme` | the demo's `pipeline` whole: colors to linear light and back, the scatter, ARNet, IUNet at each scale and the blend | the defocus map |
+| `bokehme_classical` | the pipeline's first lines: colors to linear light and back, and the scatter | the defocus map |
+| `any_to_bokeh` | the pipeline call: the VAE encoder, the image encoder, the UNet's one step, the VAE decoder and the frames converted to images, which copies them off the card | the data loader, which reads the frames, resizes them to 1024 x 576 and computes the circles of confusion; copies to the card; the video written |
 
 - The methods are `ours`, `ours_one_frame`, `drbokeh`, `mpib_rt`, `mpib_rt_cg`, `bokehme`,
   `bokehme_classical` and `any_to_bokeh`. Only our renderer also runs on the CPU. MPIB's ray
   tracer and BokehMe's scatter are CuPy kernels whose CPU branch raises an error, Dr.Bokeh's
   CPU scatter is a Python loop over every pixel and every kernel tap, and Any-to-Bokeh's demo
   runs on `cuda:0` in float16.
-- `--size` resamples every stream by nearest neighbor before the render, so a sequence
-  written at 1024 pixels is timed at 512 or 2048 with the same content. Stage B cannot write
-  that content at another size from a library built at 1024: it places a background by its
-  pixels, so a 1536-pixel background covers only the middle of a 2048-pixel frame.
-- Any-to-Bokeh renders several frames per call, at 1024 x 576 whatever size it is given, so
-  it takes no `--size`. `bench_a2b.py` times each call of its pipeline
-  under its own environment, and each frame a clip returns takes the clip's time over its
-  frame count. Unlike `a2b_launch.py`, it keeps the UNet on the card while the VAE decodes,
-  as 24 frames fit. Its first sequence is rendered once more before the others, and
-  discarded.
+- `--size` resamples every stream by nearest neighbor before the render, in the memory
+  layout it has at its own size, so a sequence written at 1024 pixels is timed at 512 or 2048
+  with the same content. Stage B cannot write that content at another size from a library
+  built at 1024: it places a background by its pixels, so a 1536-pixel background covers only
+  the middle of a 2048-pixel frame.
+- Any-to-Bokeh renders at 1024 x 576 whatever size it is given, so it takes no `--size`. Its
+  demo groups a sequence's frames eight at a time, four overlapping, and renders two groups
+  per call of its pipeline, a last group alone. `bench_a2b.py` times each call under the
+  model's own environment, and each frame a call returns takes the call's time over its frame
+  count. Unlike `a2b_launch.py`, it keeps the UNet on the card while the VAE decodes, as 24
+  frames fit, and leaves TF32 at torch's default, as the demo runs it.
+- `--threads` sets torch's CPU threads. On a CPU with performance and efficiency cores, keep
+  the process to one kind with `taskset`: on the lab's, torch's default of 24 threads over
+  every core left single frames many times their sequence's median. Each record names its
+  threads, the CPUs the process could use and `OMP_NUM_THREADS`.
 - The run waits until no other process holds memory on the card. Each sequence appends a
-  JSON line with every frame's time, the peak memory on the card and, where the sequence
-  holds the method's frames from the comparison, how far the first timed frame is from them,
-  in 8-bit levels.
+  JSON line with every frame's time; the peak memory that torch allocated on the card, which
+  leaves out CuPy's own and the CUDA context; the card's clock and temperature after the
+  timed frames; and, where the sequence holds the method's frames from the comparison, how far
+  the first timed frame is from them, in 8-bit levels.
 - `summary` writes `method-speed-sequences.csv`, one row per method, device, size and
-  sequence, and `method-speed.csv`, the median and quartiles over every timed frame of each
-  method, device and size.
+  sequence, with the sequence's object count, and `method-speed.csv`, the mean, median and
+  quartiles over every timed frame of each method, device and size.
 
 ## Adding a method
 

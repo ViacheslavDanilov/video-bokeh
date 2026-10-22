@@ -7,30 +7,35 @@ and calls their functions rather than their command lines. For every sequence un
 
 1. reads the frames to be timed and prepares the method's inputs in memory, as its adapter
    does, with the focus and the strength that our renderer recorded; with ``--size``,
-   every stream is first resampled to that size by nearest neighbor;
-2. renders the first ``--warmup`` frames and discards them;
-3. renders each frame, up to ``--frames``: its inputs are copied to the device, and only
-   the render call is timed, from a synchronize before it to a synchronize after it.
+   every stream is first resampled to that size by nearest neighbor, in the memory layout
+   it has at its own size;
+2. renders every frame once and discards it, or only the first ``--warmup`` frames;
+3. renders each frame, up to ``--frames``: its inputs are copied to the device, and the
+   render call is timed, from a synchronize before it to a synchronize after it.
 
-Loading the models, reading, preparing, copying and writing are therefore outside the time.
-Each sequence appends one JSON line to ``--output``: the method, device and size, the
-sequence's seed and object count, each frame's milliseconds, the peak memory on the card,
-and, where the sequence holds the method's own frames at that size, how far the first timed
-frame is from them, in 8-bit levels.
+Loading the models, reading the frames and copying them to the device are outside the time
+for every method; what else is inside differs by method, and ``comparison/README.md`` lists
+it. Each sequence appends one JSON line to ``--output``: the method, device and size, the
+sequence's seed and object count, each frame's milliseconds, the peak memory that torch
+allocated on the card, its clock and temperature after the timed frames, the CPU threads and
+the CPUs the process ran on, and, where the sequence holds the method's own frames at that
+size, how far the first timed frame is from them, in 8-bit levels.
 
-Any-to-Bokeh runs in its own environment and renders clips of frames, not single frames:
-``bench_a2b.py`` times each call of its pipeline, and each frame a clip returns takes the
-clip's time over its frame count. Its demo resizes every input to 1024 x 576, so it takes no
-``--size``. Its first sequence is rendered once more before the others, and discarded.
+Any-to-Bokeh runs in its own environment and renders several frames per call, at 1024 x 576
+whatever size it is given, so it takes no ``--size``: ``bench_a2b.py`` times each call of its
+pipeline, and each frame a call returns takes the call's time over its frame count. Every
+sequence is rendered once and discarded right before its timed pass.
 
 Before it starts, ``run`` waits until no other process holds memory on the card, and it
 records any that it sees after each sequence. ``summary`` reads the JSON lines and writes
 two CSVs: one row per method, device, size and sequence, and one per method, device and
-size over every timed frame. ``env`` prints the machine and the software versions.
+size over every timed frame. ``env`` prints the machine, the software versions and the
+commits of the methods' code.
 
 Usage:
-    comparison/envs/render/bin/python comparison/bench_speed.py run --method ours \\
-        --device cuda --data-root data/speed --size 2048 --output speed.jsonl
+    taskset -c 0-7 comparison/envs/render/bin/python comparison/bench_speed.py run \\
+        --method ours --device cuda --threads 8 --data-root data/speed --size 2048 \\
+        --output speed.jsonl
     comparison/envs/render/bin/python comparison/bench_speed.py summary speed.jsonl \\
         --out-dir .
     comparison/envs/render/bin/python comparison/bench_speed.py env > environment.json
