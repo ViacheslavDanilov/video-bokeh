@@ -70,7 +70,7 @@ uv run python -m video_bokeh.acquire.magick \
   --count    30 --seed 11
 uv run python -m video_bokeh.acquire.classify --data-root data/magick_dev --keep-existing \
   --num-workers 0
-#    BG-20k dev pool, one file at a time (Kaggle) — needs ~/.kaggle/kaggle.json
+#    BG-20k dev pool, one file at a time (Kaggle) — no account needed
 uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11
 #    BG-20k full archive
 uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
