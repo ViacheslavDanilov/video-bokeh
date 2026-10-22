@@ -2334,9 +2334,10 @@ test("zooms and moves every pane's view together", async ({ page }) => {
 });
 
 /**
- * A pinch, which arrives as the wheel with Ctrl, zooms about the pointer: the frame point
- * under it stays there, in the pane it is over and the same point in every other pane. A
- * double-click zooms in about the point, and back out.
+ * A pinch, which arrives as the wheel with Ctrl, or in Safari as gesture events, zooms
+ * about the pointer, and so does the wheel with Cmd: the frame point under it stays there,
+ * in the pane it is over and the same point in every other pane. A double-click zooms in
+ * about the point, and back out.
  */
 test("zooms about the pointer with a pinch and a double-click", async ({
   page,
@@ -2364,6 +2365,35 @@ test("zooms about the pointer with a pinch and a double-click", async ({
   expect(after[1]).toBeCloseTo(before[1], 2);
   const regions = await shownRegions(page);
   expect(new Set(regions.map((r) => r.join())).size).toBe(1);
+
+  // Safari's pinch: each event scales the zoom the pinch began at.
+  await page.keyboard.press("0");
+  await expectRegions(page, [0, 0, 1, 1]);
+  const prevented = await page
+    .locator("[data-pane-view]")
+    .nth(2)
+    .evaluate(
+      (pane, [x, y]) =>
+        [
+          ["gesturestart", 1],
+          ["gesturechange", 1.5],
+          ["gesturechange", 3],
+          ["gestureend", 3],
+        ].map(([type, scale]) => {
+          const event = Object.assign(
+            new Event(type as string, { bubbles: true, cancelable: true }),
+            { scale, clientX: x, clientY: y },
+          );
+          pane.dispatchEvent(event);
+          return event.defaultPrevented;
+        }),
+      [x, y],
+    );
+  expect(prevented).toEqual([true, true, true, true]);
+  await expect(factor).toHaveText("3×");
+  const pinched = await framePointAt(page, 2, x, y);
+  expect(pinched[0]).toBeCloseTo(before[0], 2);
+  expect(pinched[1]).toBeCloseTo(before[1], 2);
 
   await page.keyboard.press("0");
   await expectRegions(page, [0, 0, 1, 1]);

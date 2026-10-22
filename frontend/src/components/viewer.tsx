@@ -128,6 +128,13 @@ const UNSMOOTHED_FROM_PX = 2;
  */
 type View = { zoom: number; x: number; y: number };
 
+/** Safari's own event for a trackpad's pinch, which no standard types. */
+type GestureEvent = UIEvent & {
+  scale: number;
+  clientX: number;
+  clientY: number;
+};
+
 const WHOLE_FRAME: View = { zoom: 1, x: 0.5, y: 0.5 };
 
 /** `view` held inside the frame, so that zoomed in, a pane is always filled. */
@@ -423,6 +430,8 @@ export function Viewer({
   const panning = useRef<{ pointer: number; x: number; y: number } | null>(
     null,
   );
+  // The zoom a Safari pinch began at, while there is one.
+  const pinch = useRef<number | null>(null);
   // The pane being dragged: the ref for the drag handlers, the state to dim it for the whole
   // drag, and where it would land, shown as a line while the pointer is over the grid.
   const dragged = useRef<number | null>(null);
@@ -555,6 +564,8 @@ export function Viewer({
     const px = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? WHEEL_LINE_PX : 1;
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
+      // A pinch Safari also reports as the wheel is its gesture's to zoom, once.
+      if (pinch.current !== null) return;
       const at = pointOn(pane, e.clientX, e.clientY);
       const by = 2 ** (-e.deltaY * px * WHEEL_ZOOM_PER_PX);
       changeView(zoomAbout(view.current, view.current.zoom * by, at.x, at.y));
@@ -569,15 +580,36 @@ export function Viewer({
       );
     }
   });
+  // Safari reports a trackpad's pinch as gesture events of its own rather than as the
+  // wheel, and zooms the page with them unless kept from it. Each scales the zoom the pinch
+  // began at.
+  const onPaneGesture = useEffectEvent((e: Event) => {
+    const pane = (e.target as Element).closest<HTMLElement>("[data-pane-view]");
+    if (!pane) return;
+    e.preventDefault();
+    const { scale, clientX, clientY } = e as GestureEvent;
+    if (e.type === "gesturestart") pinch.current = view.current.zoom;
+    else if (e.type === "gestureend") pinch.current = null;
+    else if (pinch.current !== null) {
+      const at = pointOn(pane, clientX, clientY);
+      changeView(zoomAbout(view.current, pinch.current * scale, at.x, at.y));
+    }
+  });
   const hasSequence = sequence !== null;
   useEffect(() => {
     const el = grid.current;
     if (!el) return;
-    const listener = (e: WheelEvent) => onPaneWheel(e);
+    const wheel = (e: WheelEvent) => onPaneWheel(e);
+    const gesture = (e: Event) => onPaneGesture(e);
+    const gestures = ["gesturestart", "gesturechange", "gestureend"];
     // Not passive, as a listener React adds would be: a zoom or a pan must keep the page
     // from zooming or scrolling with it.
-    el.addEventListener("wheel", listener, { passive: false });
-    return () => el.removeEventListener("wheel", listener);
+    el.addEventListener("wheel", wheel, { passive: false });
+    for (const name of gestures) el.addEventListener(name, gesture);
+    return () => {
+      el.removeEventListener("wheel", wheel);
+      for (const name of gestures) el.removeEventListener(name, gesture);
+    };
   }, [hasSequence]);
 
   // The zoom keys, wherever the focus is but in a field or a list: there they are typed,
