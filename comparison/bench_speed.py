@@ -360,10 +360,10 @@ def time_frames(
     method: Method,
     inputs: list[dict],
     device: torch.device,
-    warmup: int,
-) -> tuple[list[float], np.ndarray]:
-    """Each frame's render time in milliseconds after ``warmup`` discarded renders, and
-    the first timed frame's colors."""
+    warmup: int | None,
+) -> tuple[list[float], np.ndarray, int]:
+    """Each frame's render time in milliseconds, the first timed frame's colors and the
+    renders discarded first: every frame once, or the first ``warmup``."""
 
     def call(x: dict) -> tuple[float, torch.Tensor]:
         x = {k: v.to(device) if torch.is_tensor(v) else v for k, v in x.items()}
@@ -373,7 +373,8 @@ def time_frames(
         _sync(device)
         return 1000.0 * (time.perf_counter() - start), out
 
-    for x in inputs[:warmup]:
+    discarded = inputs if warmup is None else inputs[:warmup]
+    for x in discarded:
         call(x)
     ms, first = [], None
     for x in inputs:
@@ -384,7 +385,7 @@ def time_frames(
                 raise RuntimeError(f"rendered on {out.device}, not on {device}")
             first = method.to_rgb(out)
     assert first is not None
-    return ms, first
+    return ms, first, len(discarded)
 
 
 def check(seq: Path, stream: str, name: str, rgb: np.ndarray) -> dict | None:
@@ -428,7 +429,7 @@ def run(args: argparse.Namespace) -> None:
             inputs = [method.prepare(f) for f in frames]
             if device.type == "cuda":
                 torch.cuda.reset_peak_memory_stats(device)
-            ms, first = time_frames(method, inputs, device, args.warmup)
+            ms, first, discarded = time_frames(method, inputs, device, args.warmup)
         native = composite_frame(seq, frame_names(seq)[0])[0].shape[1]
         size = args.size or native
         record = {
@@ -438,7 +439,7 @@ def run(args: argparse.Namespace) -> None:
             "seed": sequence_seed(seq),
             "objects": _objects(seq),
             "frames": len(frame_names(seq)),
-            "warmup": min(args.warmup, len(inputs)),
+            "warmup": discarded,
             "ms": [round(t, 4) for t in ms],
             "peak_mib": round(torch.cuda.max_memory_allocated(device) / 2**20, 1)
             if device.type == "cuda"
@@ -470,10 +471,9 @@ def run_any_to_bokeh(seqs: list[Path]) -> Iterator[dict]:
         work = Path(tmp)
         csv_path = write_inputs(seqs, work)
         header, *rows = csv_path.read_text(encoding="utf-8").splitlines()
-        # The first sequence twice: its first pass is the warm-up.
-        csv_path.write_text(
-            "\n".join([header, rows[0], *rows]) + "\n", encoding="utf-8"
-        )
+        # Every sequence twice in a row: its first pass is its warm-up.
+        twice = [row for row in rows for _ in range(2)]
+        csv_path.write_text("\n".join([header, *twice]) + "\n", encoding="utf-8")
         times = work / "times.jsonl"
         subprocess.run(
             [
@@ -493,15 +493,15 @@ def run_any_to_bokeh(seqs: list[Path]) -> Iterator[dict]:
         )
         calls = [json.loads(line) for line in times.read_text().splitlines()]
     others = other_gpu_processes()
-    for row, seq in enumerate(seqs, start=1):
-        mine = [c for c in calls if c["row"] == row]
+    for index, seq in enumerate(seqs):
+        mine = [c for c in calls if c["row"] == 2 * index + 1]
         yield {
             "size": composite_frame(seq, frame_names(seq)[0])[0].shape[1],
             "sequence": seq.name,
             "seed": sequence_seed(seq),
             "objects": _objects(seq),
             "frames": len(frame_names(seq)),
-            "warmup": len(frame_names(seqs[0])),
+            "warmup": len(frame_names(seq)),
             "ms": [
                 round(1000.0 * c["seconds"] / c["frames"], 4)
                 for c in mine
@@ -655,7 +655,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--data-root", type=Path, required=True)
     p.add_argument("--seqs", default=None, help="comma-separated sequence ids")
     p.add_argument("--size", type=int, default=None, help="render at this size")
-    p.add_argument("--warmup", type=int, default=5, help="renders discarded first")
+    p.add_argument(
+        "--warmup",
+        type=int,
+        default=None,
+        help="renders discarded first (default: every frame of the sequence once)",
+    )
     p.add_argument("--frames", type=int, default=None, help="frames timed per sequence")
     p.add_argument("--output", type=Path, required=True, help="JSON lines, appended")
     p = sub.add_parser("summary", help="write the CSVs from run's JSON lines")
@@ -667,10 +672,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         if args.device == "cpu" and args.method in GPU_ONLY:
             parser.error(f"{args.method} has no CPU run: {GPU_ONLY[args.method]}")
-        if args.method == "any_to_bokeh" and (args.size or args.frames):
+        if args.method == "any_to_bokeh" and (
+            args.size or args.frames or args.warmup is not None
+        ):
             parser.error(
-                "any_to_bokeh takes no --size or --frames: its demo renders whole "
-                "sequences, at 1024 x 576"
+                "any_to_bokeh takes no --size, --frames or --warmup: its demo renders "
+                "whole sequences, at 1024 x 576"
             )
         run(args)
     elif args.command == "summary":
