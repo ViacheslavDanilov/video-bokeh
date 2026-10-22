@@ -1,7 +1,7 @@
 # Shortcuts for the common commands. `make` lists them.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup libraries images api web smoke test check
+.PHONY: help setup pools libraries images api web smoke test check
 
 # Libraries are not in git, so a second worktree uses the main checkout's.
 MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolute --git-common-dir))
@@ -21,6 +21,22 @@ help: ## List the targets
 setup: ## Install the backend, the frontend and the test browser
 	uv sync --all-extras --dev
 	cd frontend && pnpm install --frozen-lockfile && pnpm exec playwright install chromium
+
+# BG-20k goes first: Kaggle is the source that may refuse, and it would refuse at the first
+# request, before MAGICK starts its 11,868 downloads. BG-20k is skipped once its images/
+# holds images, after a finished run or a download by hand, because a rerun would fetch its
+# whole archive again. MAGICK skips the images it has, so a rerun resumes it.
+pools: ## Download the full MAGICK and BG-20k pools into backend/data
+	@cd backend && if ls data/bg-20k/images 2> /dev/null | grep -q .; then \
+	  echo "bg-20k: data/bg-20k/images holds images, skipped"; \
+	elif ! uv run --extra acquire python -m video_bokeh.acquire.bg20k --output data/bg-20k; then \
+	  echo "error: BG-20k did not download. If Kaggle refused it, put your Kaggle API key in" >&2; \
+	  echo "~/.kaggle/kaggle.json and run make pools again. Or download BG-20k by hand into" >&2; \
+	  echo "backend/data/bg-20k/images/train and images/testval; make pools then skips it." >&2; \
+	  exit 1; \
+	fi
+	cd backend && uv run --extra acquire python -m video_bokeh.acquire.magick \
+	  --metadata data/magick/metadata.csv --output data/magick --count 11868
 
 # Builds under a hidden name and renames when done, so a half-built library is never
 # served. An existing library is skipped, so cached sequences stay valid.
