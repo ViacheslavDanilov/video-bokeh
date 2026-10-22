@@ -124,6 +124,7 @@ Generates one sequence and answers with its id.
 | `size` | `512` | 64 to 2048 |
 | `n_objects_min` | `1` | 1 to 16 |
 | `n_objects_max` | `5` | 1 to 16, and not below `n_objects_min` |
+| `bokeh_strength` | `16` | 0 to 64 |
 
 ```bash
 curl -X POST http://localhost:8000/sequences \
@@ -140,6 +141,7 @@ curl -X POST http://localhost:8000/sequences \
   "seed": 42,
   "frames": 80,
   "size": 512,
+  "bokeh_strength": 16.0,
   "n_objects": 4,
   "streams": {
     "all_in_focus": {
@@ -236,9 +238,23 @@ The same parameters against two libraries built from the same assets give the sa
 the objects, their paths and their masks — and differ only in disparity. That is what
 comparing depth estimators means here.
 
-**The sequence id is a hash of the five parameters and the library id.** Stage B is
-deterministic, so the same request always names the same sequence. The cache is the directory
-`$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database.
+**The sequence id is a hash of the five numbers, the library id and the bokeh strength.**
+Stage B is deterministic, so the same request always names the same sequence. The cache is the
+directory `$VIDEO_BOKEH_DATA_ROOT/sequences/<id>/`, and there is no database. The strength
+joins the hash only when it is not 16. Every sequence cached before a request could name it
+was rendered at 16, so each keeps the id it had.
+
+**`bokeh_strength` is k, the blur radius in pixels at a 1024-pixel width, one unit of
+disparity from the focus.** It is the strength `scenes.generate --bokeh-strength` takes, and
+the response names it back. It names the sequence as the seed does, so another k is another
+sequence, with its own copy of every stream, cached apart. It does so whether or not the API
+renders bokeh, so the id never depends on how the server is configured. A sequence cached
+without bokeh gets it at its own k when it is asked for again.
+
+The cap of 64 is four times the default, because a wider blur takes longer to render and the
+call blocks while it renders. Measured on an Apple M3 Pro on 2026-10-22, 80 frames at 512 px
+with two to three objects, seeds 0 to 2, each pair back to back: a fresh sequence with its
+bokeh took 15.8 to 18.6 s at 16 and 18.7 to 22.9 s at 64.
 
 `cached` says whether this request generated the sequence or found it. A cache hit answers at
 once, 0.02 s over HTTP in the table below, unless it adds what a cached sequence lacks. For 80
