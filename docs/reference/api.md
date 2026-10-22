@@ -256,6 +256,10 @@ from `bokeh/focus.json`, which the renderer writes with the frames, so a rendere
 that renders the stream again at another strength shows through. A sequence with no record
 yet, because the API rendered no bokeh, names the strength the request asked for.
 
+Stage C's `render.run --strength` cannot render an API sequence's bokeh again. Its layered
+renderer reads the `layers/` stream, which the API does not write, so it refuses the sequence
+and leaves its bokeh as it was.
+
 The cap of 64 is four times the default, because a wider blur takes longer to render and the
 call blocks while it renders. Measured on an Apple M3 Pro on 2026-10-22, with the bokeh on the
 CPU:
@@ -438,7 +442,10 @@ Deliberate, and worth knowing before the library or the audience grows.
 **Nothing evicts `sequences/`.** It grows until someone deletes it. Storage depends on the
 scene and optional streams. The one-object, 80-frame, 512 px sequence measured on 2026-10-12
 used 27,593,374 bytes for `all_in_focus`, `alpha` and `disparity` frames, plus 749,666 bytes
-for their CRF 17 MP4s. Bokeh, flow and layers add to that.
+for their CRF 17 MP4s. Bokeh, flow and layers add to that. Deleting the directory is safe: every
+sequence is reproducible from its library, its seed and the settings its request named, which
+`sequence.json` records. That is the same reason [dataset-layout](dataset-layout.md) treats
+frames as disposable and the library as the thing to keep.
 
 **Each bokeh strength asked for stores a whole sequence.** k names the sequence, so a second k
 writes every stream again, not only `bokeh/`. Measured on 2026-10-22 from the `da2-large` dev
@@ -451,10 +458,6 @@ library, a fresh sequence with its bokeh and all three motion streams, before an
 | 80 frames at 1024 px, four objects, at 16 and at 64 | 0 | 216,990,329 and 203,348,052 |
 
 In every one of them the all-in-focus frames are the largest stream, and the bokeh the second.
-Deleting the directory is safe: every
-sequence is reproducible from its library, its seed and the settings its request named, which
-`sequence.json` records. That is the same reason [dataset-layout](dataset-layout.md) treats
-frames as disposable and the library as the thing to keep.
 
 **The libraries are re-read on every request.** Per library, two directory listings, one small
 JSON and one image header, so that `/libraries` and `/sequences` always reflect what is mounted
