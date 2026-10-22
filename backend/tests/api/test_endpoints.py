@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 from collections.abc import Callable, Iterator
@@ -201,6 +202,15 @@ def test_the_default_bokeh_strength_asked_for_is_the_same_sequence(
     first = client.post("/sequences", json=SEQUENCE_BODY).json()
     second = client.post("/sequences", json={**SEQUENCE_BODY, "bokeh_strength": 16})
     assert second.json()["id"] == first["id"]
+
+
+def test_a_negative_zero_strength_is_zero(client: TestClient) -> None:
+    """-0.0 passes the range and renders as 0 does, so it must not name another sequence."""
+    zero = client.post("/sequences", json={**SEQUENCE_BODY, "bokeh_strength": 0})
+    negative = client.post("/sequences", json={**SEQUENCE_BODY, "bokeh_strength": -0.0})
+    assert negative.json()["id"] == zero.json()["id"]
+    assert negative.json()["cached"] is True
+    assert math.copysign(1.0, negative.json()["bokeh_strength"]) == 1.0
 
 
 @pytest.mark.parametrize("strength,status", [(-1, 422), (0, 200), (64, 200), (65, 422)])

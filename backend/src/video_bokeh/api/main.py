@@ -31,7 +31,14 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from video_bokeh.api._library import (
     DuplicateLibraryError,
@@ -170,6 +177,14 @@ class SequenceParams(BaseModel):
     #: The bokeh's strength, k: the blur radius in pixels, at a 1024-pixel width, one unit
     #: of disparity from the focus. It names the sequence, as the seed does.
     bokeh_strength: float = Field(default=BOKEH_STRENGTH, ge=0, le=_MAX_BOKEH_STRENGTH)
+
+    @field_validator("bokeh_strength")
+    @classmethod
+    def _zero_has_one_sign(cls, strength: float) -> float:
+        """-0.0 passes the range and renders as 0 does, but would hash and read back as
+        a sequence of its own. Adding 0.0 turns it into 0.0 and leaves every other value.
+        """
+        return strength + 0.0
 
     @model_validator(mode="after")
     def _range_is_ordered(self) -> Self:
