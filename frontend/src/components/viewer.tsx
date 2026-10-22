@@ -887,9 +887,11 @@ export function Viewer({
   };
 
   // A key steps by whole frames, through the frames in memory. Zoomed in, those, at the
-  // pane's size, would show soft until the videos have sought, so the videos seek alone.
+  // pane's size, would show soft until the videos have sought, so the videos seek alone;
+  // a key during a drag ends the drag there, as at the whole frame.
   const stepTo = (frame: number) => {
-    if (view.current.zoom > 1) return seekToFrame(frame);
+    if (view.current.zoom > 1 && scrubRef.current === null)
+      return seekToFrame(frame);
     scrubTo(frame);
     endScrub();
   };
