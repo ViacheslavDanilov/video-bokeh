@@ -245,16 +245,28 @@ joins the hash only when it is not 16. Every sequence cached before a request co
 was rendered at 16, so each keeps the id it had.
 
 **`bokeh_strength` is k, the blur radius in pixels at a 1024-pixel width, one unit of
-disparity from the focus.** It is the strength `scenes.generate --bokeh-strength` takes, and
-the response names it back. It names the sequence as the seed does, so another k is another
-sequence, with its own copy of every stream, cached apart. It does so whether or not the API
-renders bokeh, so the id never depends on how the server is configured. A sequence cached
-without bokeh gets it at its own k when it is asked for again.
+disparity from the focus.** It is the strength `scenes.generate --bokeh-strength` takes. It
+names the sequence as the seed does, so another k is another sequence, with its own copy of
+every stream, cached apart. It does so whether or not the API renders bokeh, so the id never
+depends on how the server is configured. A sequence cached without bokeh gets it at its own k
+when it is asked for again. `-0` reads as `0`.
+
+**The response's `bokeh_strength` is the one the sequence's bokeh was rendered at.** It comes
+from `bokeh/focus.json`, which the renderer writes with the frames, so a renderer of one's own
+that renders the stream again at another strength shows through. A sequence with no record
+yet, because the API rendered no bokeh, names the strength the request asked for.
 
 The cap of 64 is four times the default, because a wider blur takes longer to render and the
-call blocks while it renders. Measured on an Apple M3 Pro on 2026-10-22, 80 frames at 512 px
-with two to three objects, seeds 0 to 2, each pair back to back: a fresh sequence with its
-bokeh took 15.8 to 18.6 s at 16 and 18.7 to 22.9 s at 64.
+call blocks while it renders. Measured on an Apple M3 Pro on 2026-10-22, with the bokeh on the
+CPU:
+
+| Shape | Seeds | At 16 | At 64 |
+|---|---|---|---|
+| 80 frames at 512 px, two to three objects, over HTTP | 0 to 2 | 15.8 to 18.6 s | 18.7 to 22.9 s |
+| 80 frames at 1024 px, four objects, one process each | 0 | 93.2 s, 4.91 GiB peak | 129.4 s, 5.49 GiB peak |
+
+Each pair ran back to back. The 1024 px row ran the generation the endpoint runs, in a fresh
+process for each strength, so the peak is that generation's own.
 
 `cached` says whether this request generated the sequence or found it. A cache hit answers at
 once, 0.02 s over HTTP in the table below, unless it adds what a cached sequence lacks. For 80
@@ -426,7 +438,20 @@ Deliberate, and worth knowing before the library or the audience grows.
 **Nothing evicts `sequences/`.** It grows until someone deletes it. Storage depends on the
 scene and optional streams. The one-object, 80-frame, 512 px sequence measured on 2026-10-12
 used 27,593,374 bytes for `all_in_focus`, `alpha` and `disparity` frames, plus 749,666 bytes
-for their CRF 17 MP4s. Bokeh, flow and layers add to that. Deleting the directory is safe: every
+for their CRF 17 MP4s. Bokeh, flow and layers add to that.
+
+**Each bokeh strength asked for stores a whole sequence.** k names the sequence, so a second k
+writes every stream again, not only `bokeh/`. Measured on 2026-10-22 from the `da2-large` dev
+library, a fresh sequence with its bokeh and all three motion streams, before any MP4:
+
+| Shape | Seeds | Bytes on disk |
+|---|---|---|
+| 80 frames at 512 px, one object | 0 | 90,760,849 |
+| 80 frames at 512 px, two to three objects | 0 to 2 | 56,922,641 to 69,262,665 |
+| 80 frames at 1024 px, four objects, at 16 and at 64 | 0 | 216,990,329 and 203,348,052 |
+
+In every one of them the all-in-focus frames are the largest stream, and the bokeh the second.
+Deleting the directory is safe: every
 sequence is reproducible from its library, its seed and the settings its request named, which
 `sequence.json` records. That is the same reason [dataset-layout](dataset-layout.md) treats
 frames as disposable and the library as the thing to keep.
