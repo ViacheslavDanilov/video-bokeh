@@ -102,7 +102,9 @@ jobs:
   browser-smoke:
     runs-on: ubuntu-latest
     name: "Frontend: Browser Smoke"
-    timeout-minutes: 15
+    # The job took 6.8 minutes with 40 tests on 2026-10-21, and 12.9 with 45 on a slower
+    # runner on 2026-10-22, when a first run was cut off at 15 with every test passing.
+    timeout-minutes: 25
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
