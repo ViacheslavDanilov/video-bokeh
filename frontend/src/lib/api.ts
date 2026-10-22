@@ -42,6 +42,9 @@ export type Sequence = {
   seed: number;
   frames: number;
   size: number;
+  /** k, the blur radius the bokeh stream is rendered at: in pixels at a 1024 px width, one
+   *  unit of disparity from the focus. Named whether or not the sequence has bokeh yet. */
+  bokeh_strength: number;
   n_objects: number;
   /** One hex color per object, in alpha page order. The mask legend reads these
    *  rather than keeping a copy of the palette, so it cannot drift from the video. */
@@ -65,6 +68,9 @@ export type SequenceParams = {
   size: number;
   n_objects_min: number;
   n_objects_max: number;
+  /** k, the bokeh's blur radius in pixels at a 1024 px width, one unit of disparity from
+   *  the focus. It names the sequence, as the seed does. */
+  bokeh_strength: number;
 };
 
 /** An error the interface can show verbatim. The API puts its reason in `detail`. */

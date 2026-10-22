@@ -37,9 +37,17 @@ without rebuilding.
   estimator. The same seed through two estimators gives the same objects on the same paths;
   only the disparity differs. The list is read again whenever the page regains focus, so a
   library built while it is open shows without a reload.
-- **Parameters** — seed, frames, size, and the range of objects a sequence may contain. The seed
-  picks a count in that range, so the same five numbers from the same library always name the
-  same sequence.
+- **Parameters** — seed, bokeh strength, frames, size, and the range of objects a sequence may
+  contain. The seed picks a count in that range, so the same numbers from the same library
+  always name the same sequence.
+- **Bokeh strength** — k, the blur radius in pixels at a 1024 px width, one unit of
+  disparity from the focus: 0 to 64, 16 by default, in steps of 1. It changes the Bokeh
+  stream alone, but it names the sequence as the seed does, so another k generates another
+  sequence and the same k again comes from the cache. Outside the page, k is
+  `bokeh_strength` in the API's request ([api.md](../docs/reference/api.md#post-sequences)),
+  `--bokeh-strength` for `scenes.generate`
+  ([cli.md](../docs/reference/cli.md#video_bokehscenesgenerate--stage-b)), and
+  `bokeh_strength` for the training stream ([loader.md](../docs/reference/loader.md#bokeh)).
 - **Generate** — one call, with one bar for the whole of it. The API names its steps first:
   choosing the trajectories, rendering the frames, writing them, and rendering the bokeh. The
   bar fills by their counts, beside the step under way, and stays full where it filled for
@@ -49,10 +57,10 @@ without rebuilding.
   milliseconds, because the sequence id is a hash and the directory on disk is the cache. Each
   pane says it is preparing its video until the API starts sending it, since the API encodes a
   stream the first time it is asked for, and says so if the video fails to load.
-- **What is on screen** — a line above the panes names the sequence's library, seed, object
-  count, frame count and size, says when it came from the cache, and gives its id with a copy
-  button. The header names the library picked; its `id` is a hash of the asset list, the depth
-  estimator and the asset size, which every cached sequence is keyed on.
+- **What is on screen** — a line above the panes names the sequence's library, seed, bokeh
+  strength, object count, frame count and size, says when it came from the cache, and gives
+  its id with a copy button. The header names the library picked; its `id` is a hash of the
+  asset list, the depth estimator and the asset size, which every cached sequence is keyed on.
 - **Compare** — up to six panes, each showing any stream, all driven by one transport so
   the frames line up. The disparity pane picks its colormap under the video, among those the
   API lists: Spectral, near red to far violet, by default, or gray, near white to far black.
@@ -77,6 +85,16 @@ without rebuilding.
 - **Arrange** — drag a pane by the grip in its header to a place between panes, where a
   line shows where it will go, or focus the grip and press the left or right arrow;
   playback goes on in step.
+- **Zoom** — every pane shows the same region of the frame, up to 16 times the whole
+  frame. Pinch on a trackpad, or scroll with Ctrl or Cmd held, over a pane to zoom about
+  the pointer; double-click a pane to zoom in 4× about the point, and again to see the whole
+  frame. Zoomed in, drag a pane or scroll over it to move around the frame. The `+` and `-`
+  keys zoom by 2×, `0` shows the whole frame, and so do the buttons beside the position
+  slider, whose factor is relative to the whole frame. Zoomed in far enough that a pixel
+  of the video spans two CSS pixels, four on a Retina screen, the video is drawn without
+  smoothing. Playback, frame steps and the slider work as before; dragging the slider
+  shows softer frames while zoomed in, and the video's own once let go. A new sequence
+  starts at the whole frame.
 
 **Optical flow comes with each sequence**, colored as optical-flow papers color it: the hue
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.

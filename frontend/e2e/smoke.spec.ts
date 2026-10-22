@@ -403,6 +403,58 @@ test("shows the steps of a generation, then what is on screen", async ({
   await expect(page.getByText("cached", { exact: true })).toBeVisible();
 });
 
+/**
+ * The bokeh strength is k, the blur radius in pixels at 1024 px: 16 until moved, from 0 to
+ * 64. It goes with Generate like the other parameters, stays where it was put, and the line
+ * above the panes names the one the sequence came with. Another k is another sequence.
+ */
+test("sends the bokeh strength and names the sequence by it", async ({
+  page,
+}) => {
+  // Two sequences generated, which on a CI runner takes longer than the default budget.
+  test.slow();
+  await openPage(page);
+  const strength = page.getByRole("slider", { name: "Bokeh strength" });
+  await expect(strength).toHaveAttribute("aria-valuenow", "16");
+  await expect(strength).toHaveAttribute("aria-valuemin", "0");
+  await expect(strength).toHaveAttribute("aria-valuemax", "64");
+  // The helper text under it, read with the control rather than only seen near it.
+  await expect(strength).toHaveAccessibleDescription(
+    /^k, the blur radius in pixels at 1024 px/,
+  );
+
+  const sent: unknown[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/sequences"))
+      sent.push(request.postDataJSON().bokeh_strength);
+  });
+  const shown = page.getByRole("group", { name: "Sequence on screen" });
+  const sequenceId = () => shown.getByText(/^[0-9a-f]{16}$/).innerText();
+
+  await generateSequence(page, 31);
+  await expect(shown).toContainText("bokeh 16");
+  const first = await sequenceId();
+
+  // The ends of the range, then one step at a time.
+  await strength.focus();
+  await page.keyboard.press("End");
+  await expect(strength).toHaveAttribute("aria-valuenow", "64");
+  await page.keyboard.press("Home");
+  await expect(strength).toHaveAttribute("aria-valuenow", "0");
+  for (let k = 0; k < 24; k++) await page.keyboard.press("ArrowRight");
+  await expect(strength).toHaveAttribute("aria-valuenow", "24");
+  await expect(
+    page.locator("#parameters").getByText("24", { exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(shown).toContainText("bokeh 24", { timeout: 60_000 });
+  expect(await sequenceId()).not.toBe(first);
+  await expect(page.getByText("cached", { exact: true })).toHaveCount(0);
+  await expect(strength).toHaveAttribute("aria-valuenow", "24");
+  expect(sent).toEqual([16, 24]);
+});
+
 /** What the progress bar did: every value it took, however briefly; its bounds on the page
  *  whenever the line changed, over the empty card or the panes; and how long it stayed full
  *  where it filled. */
@@ -622,6 +674,7 @@ test("stops the button, scale, and timer during the full bar hold", async ({
               seed: params.seed,
               frames: 80,
               size: 512,
+              bokeh_strength: params.bokeh_strength,
               n_objects: 2,
               object_colors: ["#ff0000", "#00ff00"],
               streams: {},
@@ -1289,7 +1342,9 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
   const frameBottom = await figures
     .first()
     .locator("video")
-    .evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
+    .evaluate(
+      (el) => el.closest("[data-pane-view]")!.getBoundingClientRect().bottom,
+    );
   const flowCaption = "Color is direction, pale is slow.";
   // The overlay is off when a sequence opens, so its caption starts with the longer
   // "White"; switching it on gives "Cyan".
@@ -1604,7 +1659,7 @@ test("scrubs every pane to the nearest frame while dragging", async ({
     .toEqual(Array(6).fill("80"));
 
   /** The first pane as it looks on screen, canvas or video, as RGBA values. */
-  const frameBox = videos.first().locator("xpath=..");
+  const frameBox = page.locator("[data-pane-view]").first();
   const pixels = async () => {
     const png = (await frameBox.screenshot()).toString("base64");
     return page.evaluate(async (png) => {
@@ -2207,4 +2262,407 @@ test("follows a pane switched before its first video loads", async ({
   const counter = page.getByText(/^\d+ \/ 80$/);
   await expect(counter).toHaveText("1 / 80");
   await expect(counter).not.toHaveText("1 / 80");
+});
+
+/**
+ * The region of the frame each pane shows: the frame's fractions at the pane's left, top,
+ * right and bottom edges, inside its border, to three places.
+ */
+function shownRegions(page: Page) {
+  return page.locator("[data-pane-view]").evaluateAll((panes) =>
+    panes.map((pane) => {
+      const box = pane.getBoundingClientRect();
+      const frame = pane.querySelector("video")!.getBoundingClientRect();
+      const left = box.left + pane.clientLeft;
+      const top = box.top + pane.clientTop;
+      return [
+        (left - frame.left) / frame.width,
+        (top - frame.top) / frame.height,
+        (left + pane.clientWidth - frame.left) / frame.width,
+        (top + pane.clientHeight - frame.top) / frame.height,
+      ].map((v) => Math.round(v * 1000) / 1000 + 0);
+    }),
+  );
+}
+
+/** Every pane shows `region` of the frame. */
+async function expectRegions(page: Page, region: number[]) {
+  const panes = await page.locator("[data-pane-view]").count();
+  await expect
+    .poll(() => shownRegions(page))
+    .toEqual(Array(panes).fill(region));
+}
+
+/** The frame point under the screen point (`x`, `y`) in the pane at `index`. */
+function framePointAt(page: Page, index: number, x: number, y: number) {
+  return page
+    .locator("[data-pane-view] video")
+    .nth(index)
+    .evaluate(
+      (el, [x, y]) => {
+        const frame = el.getBoundingClientRect();
+        return [(x - frame.left) / frame.width, (y - frame.top) / frame.height];
+      },
+      [x, y],
+    );
+}
+
+/** Record whether each wheel event that reaches the window was kept from scrolling. */
+async function watchWheel(page: Page) {
+  await page.evaluate(() => {
+    const seen: boolean[] = [];
+    (window as unknown as { wheels: boolean[] }).wheels = seen;
+    window.addEventListener("wheel", (e) => seen.push(e.defaultPrevented));
+  });
+  return () =>
+    page.evaluate(() => (window as unknown as { wheels: boolean[] }).wheels);
+}
+
+/**
+ * Zoom is one view for every pane: the keys and the buttons zoom about the middle, a drag
+ * or the wheel moves the view anywhere in the frame but never past its edges, and a pane
+ * that switches its stream or is added shows the same region.
+ */
+test("zooms and moves every pane's view together", async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 1500, height: 800 });
+  await openPage(page);
+  await waitForDecoded(await generateSequence(page, 111));
+  const factor = page.getByRole("button", { name: /show the whole frame$/ });
+  await expect(factor).toHaveText("1×");
+  await expect(page.getByRole("button", { name: "Zoom out" })).toBeDisabled();
+  await expectRegions(page, [0, 0, 1, 1]);
+
+  await page.keyboard.press("+");
+  await expect(factor).toHaveText("2×");
+  await expectRegions(page, [0.25, 0.25, 0.75, 0.75]);
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await expect(factor).toHaveText("4×");
+  await expectRegions(page, [0.375, 0.375, 0.625, 0.625]);
+
+  // A drag in one pane by a fifth of its width moves the frame under the pointer with it,
+  // in every pane: a fifth of the quarter of the frame on screen.
+  const pane = page.locator("[data-pane-view]").nth(1);
+  const box = (await pane.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + (box.width - 2) / 5, y, { steps: 5 });
+  await page.mouse.up();
+  await expectRegions(page, [0.325, 0.375, 0.575, 0.625]);
+
+  // The wheel moves it too, and the page does not scroll.
+  const wheels = await watchWheel(page);
+  await page.mouse.wheel(0, 40);
+  await expect.poll(wheels).toEqual([true]);
+  const [, top] = (await shownRegions(page))[0];
+  expect(top).toBeGreaterThan(0.375);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+  // Dragged far past the frame's corner, the view stops at it.
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + box.width * 3, y + box.height * 3, { steps: 5 });
+  await page.mouse.up();
+  await expectRegions(page, [0, 0, 0.25, 0.25]);
+
+  // Another stream in a pane, and a pane added, show the same region.
+  await page.getByRole("combobox", { name: "Stream" }).first().click();
+  await page.getByRole("option", { name: "Disparity", exact: true }).click();
+  await addPaneFor(page, "Occlusion");
+  await expectRegions(page, [0, 0, 0.25, 0.25]);
+
+  // Zoomed out about the middle of the view, which the edges then hold.
+  await page.getByRole("button", { name: "Zoom out" }).click();
+  await expect(factor).toHaveText("2×");
+  await expectRegions(page, [0, 0, 0.5, 0.5]);
+  await page.keyboard.press("0");
+  await expect(factor).toHaveText("1×");
+  await expectRegions(page, [0, 0, 1, 1]);
+  // At the whole frame the wheel over a pane is the page's again.
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(0, 40);
+  await expect.poll(wheels).toEqual([true, false]);
+
+  // Panes the page scrolls through, as on a phone, show one region too.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.keyboard.press("+");
+  await expectRegions(page, [0.25, 0.25, 0.75, 0.75]);
+});
+
+/**
+ * A pinch, which arrives as the wheel with Ctrl, or in Safari as gesture events, zooms
+ * about the pointer, and so does the wheel with Cmd: the frame point under it stays there,
+ * in the pane it is over and the same point in every other pane. A double-click zooms in
+ * about the point, and back out.
+ */
+test("zooms about the pointer with a pinch and a double-click", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1500, height: 800 });
+  await openPage(page);
+  await waitForDecoded(await generateSequence(page, 112));
+  const factor = page.getByRole("button", { name: /show the whole frame$/ });
+  const box = (await page.locator("[data-pane-view]").nth(2).boundingBox())!;
+  const x = box.x + box.width * 0.3;
+  const y = box.y + box.height * 0.6;
+  const before = await framePointAt(page, 2, x, y);
+
+  const wheels = await watchWheel(page);
+  await page.mouse.move(x, y);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -60);
+  await page.keyboard.up("Control");
+  await expect(factor).not.toHaveText("1×");
+  const once = await factor.innerText();
+  await page.keyboard.down("Meta");
+  await page.mouse.wheel(0, -60);
+  await page.keyboard.up("Meta");
+  await expect(factor).not.toHaveText(once);
+  // Kept from zooming the page.
+  await expect.poll(wheels).toEqual([true, true]);
+  const after = await framePointAt(page, 2, x, y);
+  expect(after[0]).toBeCloseTo(before[0], 2);
+  expect(after[1]).toBeCloseTo(before[1], 2);
+  const regions = await shownRegions(page);
+  expect(new Set(regions.map((r) => r.join())).size).toBe(1);
+
+  // Safari's pinch: each event scales the zoom the pinch began at.
+  await page.keyboard.press("0");
+  await expectRegions(page, [0, 0, 1, 1]);
+  const prevented = await page
+    .locator("[data-pane-view]")
+    .nth(2)
+    .evaluate(
+      (pane, [x, y]) =>
+        [
+          ["gesturestart", 1],
+          ["gesturechange", 1.5],
+          ["gesturechange", 3],
+          ["gestureend", 3],
+        ].map(([type, scale]) => {
+          const event = Object.assign(
+            new Event(type as string, { bubbles: true, cancelable: true }),
+            { scale, clientX: x, clientY: y },
+          );
+          pane.dispatchEvent(event);
+          return event.defaultPrevented;
+        }),
+      [x, y],
+    );
+  expect(prevented).toEqual([true, true, true, true]);
+  await expect(factor).toHaveText("3×");
+  const pinched = await framePointAt(page, 2, x, y);
+  expect(pinched[0]).toBeCloseTo(before[0], 2);
+  expect(pinched[1]).toBeCloseTo(before[1], 2);
+  // A pinch that ends off the panes leaves the wheel with Ctrl free to zoom.
+  await page.locator("[data-pane-view]").nth(2).dispatchEvent("gesturestart");
+  await page
+    .locator("figure")
+    .first()
+    .locator("xpath=..")
+    .dispatchEvent("gestureend");
+  await page.mouse.move(x, y);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -60);
+  await page.keyboard.up("Control");
+  await expect(factor).not.toHaveText("3×");
+
+  await page.keyboard.press("0");
+  await expectRegions(page, [0, 0, 1, 1]);
+  await page.mouse.dblclick(x, y);
+  await expect(factor).toHaveText("4×");
+  const zoomed = await framePointAt(page, 2, x, y);
+  expect(zoomed[0]).toBeCloseTo(before[0], 2);
+  expect(zoomed[1]).toBeCloseTo(before[1], 2);
+  await page.mouse.dblclick(x, y);
+  await expect(factor).toHaveText("1×");
+  await expectRegions(page, [0, 0, 1, 1]);
+});
+
+/**
+ * The zoom keys are not taken from a field, a list, or the browser's own zoom, and a new
+ * sequence starts at the whole frame. Zoomed in far enough, the video's pixels show as
+ * squares; the frames from memory, at the pane's size, stay smooth.
+ */
+test("keeps the zoom keys out of fields and starts each sequence whole", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1500, height: 800 });
+  await openPage(page);
+  await waitForDecoded(await generateSequence(page, 113));
+  const factor = page.getByRole("button", { name: /show the whole frame$/ });
+  const video = page.locator("[data-pane-view] video").first();
+  const canvas = page.locator("[data-pane-view] canvas").first();
+  const rendering = (locator: Locator) =>
+    locator.evaluate((el) => getComputedStyle(el).imageRendering);
+  await expect.poll(() => rendering(video)).toBe("auto");
+
+  await page.keyboard.press("+");
+  await expect(factor).toHaveText("2×");
+
+  const seed = page.getByRole("spinbutton", { name: "Seed" });
+  await seed.fill("11");
+  await seed.press("0");
+  await expect(seed).toHaveValue("110");
+  await page.getByRole("combobox", { name: "Playback speed" }).click();
+  await page.keyboard.press("0");
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("combobox", { name: "Playback speed" }),
+  ).toHaveText("1×");
+  await page.locator("body").click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press("Control+0");
+  await page.keyboard.press("Control+Minus");
+  await page.keyboard.press("Alt+Equal");
+  await expect(factor).toHaveText("2×");
+  // The gestures are named where the factor is.
+  await expect(page.getByRole("group", { name: "Zoom" })).toHaveAttribute(
+    "title",
+    /^Pinch/,
+  );
+
+  for (let i = 0; i < 4; i++) await page.keyboard.press("=");
+  await expect(factor).toHaveText("16×");
+  await expect(page.getByRole("button", { name: "Zoom in" })).toBeDisabled();
+  await expect.poll(() => rendering(video)).toBe("pixelated");
+  expect(await rendering(canvas)).toBe("auto");
+
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  await expect(
+    page.getByRole("group", { name: "Sequence on screen" }),
+  ).toContainText(/seed\s*110/, { timeout: 60_000 });
+  await expect(factor).toHaveText("1×");
+  await waitForDecoded(page.locator("video"));
+  await expectRegions(page, [0, 0, 1, 1]);
+  await expect.poll(() => rendering(video)).toBe("auto");
+});
+
+/**
+ * Zoomed in, a frame step shows the video's own frame: the frames in memory, at the
+ * pane's size, would be soft there until the videos had sought.
+ */
+test("steps a frame zoomed in without the frames from memory", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1500, height: 800 });
+  await openPage(page);
+  const videos = await generateSequence(page, 114);
+  await waitForDecoded(videos);
+  const canvases = page.locator("figure canvas");
+  await expect
+    .poll(
+      () =>
+        canvases.evaluateAll((els) =>
+          els.map((el) => el.getAttribute("data-decoded")),
+        ),
+      { timeout: 60_000 },
+    )
+    .toEqual(Array(4).fill("80"));
+  await page.keyboard.press("+");
+  await expect(
+    page.getByRole("button", { name: /show the whole frame$/ }),
+  ).toHaveText("2×");
+  // Every time a canvas is shown, from here on.
+  await canvases.evaluateAll((els) => {
+    const shown: string[] = [];
+    (window as unknown as { shown: string[] }).shown = shown;
+    for (const el of els)
+      new MutationObserver(() => {
+        if (getComputedStyle(el).visibility === "visible") shown.push("canvas");
+      }).observe(el, { attributes: true, attributeFilter: ["style"] });
+  });
+  const slider = page.getByRole("slider", { name: "Position" });
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByText(/^\d+ \/ 80$/)).toHaveText("3 / 80");
+  await expect
+    .poll(() =>
+      videos.evaluateAll((els) =>
+        els.map((el) => {
+          const video = el as HTMLVideoElement;
+          return Math.floor((video.currentTime / video.duration) * 80);
+        }),
+      ),
+    )
+    .toEqual([2, 2, 2, 2]);
+  expect(
+    await page.evaluate(() => (window as unknown as { shown: string[] }).shown),
+  ).toEqual([]);
+
+  // Zoomed in, the panes play, and the view stays where it is.
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect
+    .poll(() =>
+      videos.evaluateAll((els) =>
+        els.map((el) => (el as HTMLVideoElement).paused),
+      ),
+    )
+    .toEqual([false, false, false, false]);
+  await expect(page.getByText(/^\d+ \/ 80$/)).not.toHaveText("3 / 80");
+  await expectRegions(page, [0.25, 0.25, 0.75, 0.75]);
+});
+
+/**
+ * The zoom makes the transport wider, up to 743 px on one line. The column takes that
+ * width where the work area has it, so the transport stays on one line under panes that
+ * need less. Only a narrower work area wraps it, and the page still fits the window then.
+ * The panes leave room for a second line only when there is one.
+ */
+test("keeps the transport on one line wherever the work area allows", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1100, height: 860 });
+  await openPage(page);
+  await generateSequence(page, 115);
+  const bar = page.getByRole("button", { name: "Play" }).locator("xpath=..");
+  const layout = () =>
+    bar.evaluate((el) => ({
+      lines: el.getBoundingClientRect().height > 60 ? 2 : 1,
+      overflow: Math.max(
+        0,
+        document.documentElement.scrollHeight -
+          document.documentElement.clientHeight,
+      ),
+    }));
+
+  // Every stream on screen, so that "Add pane" reads its longest, "All streams shown".
+  await addPaneFor(page, "Occlusion");
+  await expect(
+    page.getByRole("button", { name: "All streams shown" }),
+  ).toBeVisible();
+  await expect.poll(layout).toEqual({ lines: 1, overflow: 0 });
+  await page.setViewportSize({ width: 1024, height: 860 });
+  await expect.poll(layout).toEqual({ lines: 2, overflow: 0 });
+
+  // One pane, held to the window's height, is as large in a work area too narrow for the
+  // longest line as in a wider one: "Add pane" leaves its line short enough for both.
+  for (const name of ["Alpha", "Disparity", "Optical flow", "Occlusion"])
+    await page.getByRole("button", { name: `Close ${name} pane` }).click();
+  const pane = page.locator("[data-pane-view]");
+  await expect(pane).toHaveCount(1);
+  const sizeAt = async (width: number) => {
+    await page.setViewportSize({ width, height: 760 });
+    await expect.poll(layout).toEqual({ lines: 1, overflow: 0 });
+    // Settled: the same height twice, a quarter of a second apart.
+    let height = 0;
+    await expect
+      .poll(
+        async () => {
+          const was = height;
+          height = (await pane.boundingBox())!.height;
+          return height === was;
+        },
+        { intervals: [250] },
+      )
+      .toBe(true);
+    return height;
+  };
+  expect(await sizeAt(1050)).toBe(await sizeAt(1200));
 });

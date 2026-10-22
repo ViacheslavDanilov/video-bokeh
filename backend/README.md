@@ -36,7 +36,7 @@ only the last row wants.
 
 ### Smoke test
 
-A fresh clone can run the pipeline without a download or a Kaggle account: the two source
+A fresh clone can run the pipeline without a download: the two source
 pools `data/magick_dev` (30 foregrounds) and `data/bg-20k_dev` (30 backgrounds) are tracked on
 purpose. The artifact library is not — it is generated, and `.gitignore` keeps
 `backend/data/library*/` out — so build it once with Stage A, then run Stage B as often as you
@@ -66,6 +66,13 @@ uv run python -m video_bokeh.scenes.generate \
 touching Stage A. `--size` need not match the library's: Stage B maps each asset onto the
 frame, so a smaller library is only upscaled.
 
+**The bokeh's strength is k**, the blur radius in pixels at a 1024-pixel width, one unit of
+disparity from the focus, 16 by default. `--bokeh` renders each sequence's bokeh in the same
+run, which needs torch from the `render` or `loader` extra, and `--bokeh-strength` sets k, one
+value for the whole run. In Python, `video_bokeh.scenes.generate.generate_dataset` and the training
+stream's `SequenceStream` take it as `bokeh_strength`. The API takes `bokeh_strength` in each
+request, and the demo has a slider for it.
+
 Full recipes — building a library, downloading the source pools — are in
 [`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md). Every flag is in
 [`docs/reference/cli.md`](../docs/reference/cli.md). The on-disk contract each stage writes is
@@ -74,10 +81,9 @@ from a library, with nothing written, is in
 [`docs/reference/loader.md`](../docs/reference/loader.md).
 
 **`--extra acquire` is not a light install.** It pulls in `open-clip-torch`, which pulls in
-`torch`, despite what "acquire" suggests. The runnable download commands live in `AGENTS.md`;
-two facts worth knowing before you run them: the full MAGICK mirror comes from the HuggingFace
-CLI, not this repository's script, and the BG-20k Kaggle download lands as upload shards
-`1/`…`7/` that have to be concatenated into the full `train/` and `testval/` split.
+`torch`, despite what "acquire" suggests. `make pools`, from the repository root, downloads both
+full pools. What it runs is in
+[`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md#full-pools).
 
 ### Run the API
 
