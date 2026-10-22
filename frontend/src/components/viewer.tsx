@@ -59,16 +59,19 @@ const PANE_CHROME_PX = 84;
 // Kept free under the grid for the transport: its 36 px controls, its py-3 and the gap-5
 // above it.
 const TRANSPORT_PX = 88;
+// And for its second line, where the work area is narrower than its first: 32 px controls
+// and the 16 px gap between the lines.
+const TRANSPORT_WRAP_PX = 48;
 // Fitting every pane on the screen is worth it down to this size. Smaller, as on a phone,
 // the panes are better big and scrolled through.
 const MIN_FIT_PX = 200;
 // When the panes scroll, narrower than this is too small to judge a frame on.
 const MIN_PANE_PX = 280;
 // The column of sequence info, panes and transport is never narrower than this where the
-// work area allows. TRANSPORT_PX assumes the transport on a single line, which needs about
-// 606 px: its play button, speed, slider, counter and gaps. The info row has no fixed
-// width, so the column also takes its width on one line (`Space.info`). Narrower panes sit
-// in the middle of the column.
+// work area allows. The info row and the transport have no fixed width, so the column also
+// takes the width of each on one line (`Space.info`, `Space.transport`): with the zoom, the
+// transport needs 685 to 743 px, as "Add pane" reads. Narrower panes sit in the middle of
+// the column.
 const MIN_COLUMN_PX = 640;
 
 // Independent <video> elements drift apart as they play -- measured at about 1.75
@@ -250,9 +253,29 @@ function label(name: string): string {
 
 /**
  * The room the panes have: the work area's width, the window's height below the grid's top,
- * and the width the sequence info takes on one line, which does not depend on the column.
+ * and the widths the sequence info and the transport take on one line, which do not depend
+ * on the column.
  */
-type Space = { width: number; height: number; info: number };
+type Space = { width: number; height: number; info: number; transport: number };
+
+/**
+ * What a row's items and the gaps between them add up to on one line, whether it is wrapped
+ * now or not: each item at the least width it is given, or else at its own.
+ */
+function lineWidth(row: HTMLElement) {
+  const items = Array.from(row.children);
+  const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+  return Math.ceil(
+    items.reduce(
+      (sum, item) =>
+        sum +
+        (parseFloat(getComputedStyle(item).minWidth) ||
+          item.getBoundingClientRect().width),
+      0,
+    ) +
+      Math.max(0, items.length - 1) * gap,
+  );
+}
 
 /**
  * The grid's columns, and the width of the column around it: the info row, the grid and
@@ -293,10 +316,14 @@ function gridLayout(
     return {
       columns: `repeat(${best.columns}, ${size}px)`,
       // A column narrower than the info row would wrap it, which lowers the grid by a line
-      // and can tip these very panes from fitting to scrolling, and back. Where the row
-      // does not fit the work area either, the column is the work area, as when scrolling,
-      // so that the row wraps the same either way.
-      width: Math.min(space.width, Math.max(tracks, MIN_COLUMN_PX, space.info)),
+      // and can tip these very panes from fitting to scrolling, and back. One narrower than
+      // the transport would wrap it below panes that left it one line. Where a row does
+      // not fit the work area either, the column is the work area, as when scrolling, so
+      // that the row wraps the same either way.
+      width: Math.min(
+        space.width,
+        Math.max(tracks, MIN_COLUMN_PX, space.info, space.transport),
+      ),
     };
   }
   const maxColumns = Math.floor(
@@ -420,6 +447,7 @@ export function Viewer({
     width: 0,
     height: 0,
     info: 0,
+    transport: 0,
   });
   // Which pane has its current video from the API, or failed to get it. The API encodes a
   // video the first time it is asked for, up to two seconds, and a pane says so meanwhile
@@ -431,6 +459,7 @@ export function Viewer({
   const [copied, setCopied] = useState(false);
   const grid = useRef<HTMLDivElement>(null);
   const info = useRef<HTMLDivElement>(null);
+  const transport = useRef<HTMLDivElement>(null);
   const measureSpace = useRef(() => {});
   const observeSpace = useCallback((el: HTMLDivElement) => {
     // The work area around the column, not the column.
@@ -439,29 +468,32 @@ export function Viewer({
       const top =
         (grid.current ?? el).getBoundingClientRect().top + window.scrollY;
       const width = area.clientWidth;
-      const height = window.innerHeight - top - TRANSPORT_PX;
-      // What the info row's items and the gaps between them add up to: its width on one
-      // line, whether it is wrapped now or not.
-      const row = info.current;
-      const items = row ? Array.from(row.children) : [];
-      const gap = row ? parseFloat(getComputedStyle(row).columnGap) || 0 : 0;
-      const line = Math.ceil(
-        items.reduce((sum, c) => sum + c.getBoundingClientRect().width, 0) +
-          Math.max(0, items.length - 1) * gap,
-      );
+      const line = info.current ? lineWidth(info.current) : 0;
+      const bar = transport.current ? lineWidth(transport.current) : 0;
+      // The column is as wide as the transport's line wherever the work area is, so the
+      // transport wraps only in a work area narrower than that.
+      const height =
+        window.innerHeight -
+        top -
+        TRANSPORT_PX -
+        (width < bar ? TRANSPORT_WRAP_PX : 0);
       setSpace((was) =>
-        was.width === width && was.height === height && was.info === line
+        was.width === width &&
+        was.height === height &&
+        was.info === line &&
+        was.transport === bar
           ? was
-          : { width, height, info: line },
+          : { width, height, info: line, transport: bar },
       );
     };
     measureSpace.current = measure;
     const observer = new ResizeObserver(measure);
     observer.observe(area);
-    // Its items change width with the text in them and with the font arriving.
-    if (info.current) {
-      observer.observe(info.current);
-      for (const item of info.current.children) observer.observe(item);
+    // Their items change width with the text in them and with the font arriving.
+    for (const row of [info.current, transport.current]) {
+      if (!row) continue;
+      observer.observe(row);
+      for (const item of row.children) observer.observe(item);
     }
     document.fonts?.ready.then(measure);
     // Anything above the grid that grows or shrinks moves its top without resizing it, and
@@ -1293,7 +1325,10 @@ export function Viewer({
           position slider a few pixels wide. The slider and its counter wrap together.
           Held at the bottom of the window, so it stays in reach when the panes take two
           rows and the page scrolls. */}
-      <div className="bg-background sticky bottom-0 z-10 flex flex-wrap items-center gap-4 py-3">
+      <div
+        ref={transport}
+        className="bg-background sticky bottom-0 z-10 flex flex-wrap items-center gap-4 py-3"
+      >
         {/* The symbols every player uses, named for screen readers and on hover. The width
             stays what the words needed, so nothing beside it moves. */}
         <Button

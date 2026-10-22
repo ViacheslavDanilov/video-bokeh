@@ -2479,3 +2479,51 @@ test("steps a frame zoomed in without the frames from memory", async ({
     await page.evaluate(() => (window as unknown as { shown: string[] }).shown),
   ).toEqual([]);
 });
+
+/**
+ * The zoom makes the transport wider, up to 743 px on one line. The column takes that
+ * width where the work area has it, so the transport stays on one line under panes that
+ * need less. Only a narrower work area wraps it, and the page still fits the window then.
+ * The panes leave room for a second line only when there is one.
+ */
+test("keeps the transport on one line wherever the work area allows", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1100, height: 860 });
+  await openPage(page);
+  await generateSequence(page, 115);
+  const bar = page.getByRole("button", { name: "Play" }).locator("xpath=..");
+  const layout = () =>
+    bar.evaluate((el) => ({
+      lines: el.getBoundingClientRect().height > 60 ? 2 : 1,
+      overflow: Math.max(
+        0,
+        document.documentElement.scrollHeight -
+          document.documentElement.clientHeight,
+      ),
+    }));
+
+  // Every stream on screen, so that "Add pane" reads its longest, "All streams shown".
+  await addPaneFor(page, "Occlusion");
+  await expect(
+    page.getByRole("button", { name: "All streams shown" }),
+  ).toBeVisible();
+  await expect.poll(layout).toEqual({ lines: 1, overflow: 0 });
+  await page.setViewportSize({ width: 1024, height: 860 });
+  await expect.poll(layout).toEqual({ lines: 2, overflow: 0 });
+
+  // One pane, held to the window's height, is as large in a work area too narrow for the
+  // longest line as in a wider one: "Add pane" leaves its line short enough for both.
+  for (const name of ["Alpha", "Disparity", "Optical flow", "Occlusion"])
+    await page.getByRole("button", { name: `Close ${name} pane` }).click();
+  const pane = page.locator("[data-pane-view]");
+  await expect(pane).toHaveCount(1);
+  const sizeAt = async (width: number) => {
+    await page.setViewportSize({ width, height: 760 });
+    await expect.poll(layout).toEqual({ lines: 1, overflow: 0 });
+    await page.waitForTimeout(300);
+    return (await pane.boundingBox())!.height;
+  };
+  expect(await sizeAt(1024)).toBe(await sizeAt(1200));
+});
