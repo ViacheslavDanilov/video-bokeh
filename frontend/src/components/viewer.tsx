@@ -181,7 +181,9 @@ function pointOn(pane: HTMLElement, clientX: number, clientY: number) {
 
 /** The zoom as the transport shows it. */
 function zoomLabel(zoom: number) {
-  return `${Number(zoom.toFixed(zoom < 10 ? 1 : 0))}×`;
+  const shown = Number(zoom.toFixed(zoom < 10 ? 1 : 0));
+  // Short of either end, it never reads as that end: a slight pinch is not 1×.
+  return `${zoom > 1 && zoom < MAX_ZOOM ? Math.min(Math.max(shown, 1.1), MAX_ZOOM - 1) : shown}×`;
 }
 
 /** All the transport shows of a zoom: its label, and which way it can zoom further. */
