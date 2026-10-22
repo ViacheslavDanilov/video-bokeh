@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import shutil
 from collections.abc import Callable
 from dataclasses import replace
@@ -8,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from video_bokeh.api._sequences import SequenceRequest, ensure_sequence, sequence_id
+from video_bokeh.core._streams import BOKEH_STRENGTH
 
 BASE = SequenceRequest(seed=0, frames=3, size=64, n_objects_min=1, n_objects_max=2)
 
@@ -30,9 +33,11 @@ def test_same_request_is_the_same_sequence() -> None:
         ("size", 128),
         ("n_objects_min", 2),
         ("n_objects_max", 3),
+        ("bokeh_strength", 24.0),
+        ("bokeh_strength", 0.0),
     ],
 )
-def test_every_parameter_changes_the_id(field: str, value: int) -> None:
+def test_every_parameter_changes_the_id(field: str, value: float) -> None:
     assert sequence_id("libaaa", replace(BASE, **{field: value})) != sequence_id(
         "libaaa",
         BASE,
@@ -42,6 +47,57 @@ def test_every_parameter_changes_the_id(field: str, value: int) -> None:
 def test_a_different_library_is_a_different_sequence() -> None:
     """The whole point of decision 9: the same seed against new assets is a new sequence."""
     assert sequence_id("libaaa", BASE) != sequence_id("libbbb", BASE)
+
+
+def test_the_default_bokeh_strength_keeps_the_id_a_sequence_had_before() -> None:
+    """Every sequence cached before the strength was asked for was rendered at the
+    default, so at the default the id is still the hash of the five numbers alone.
+    """
+    before = hashlib.sha256(b"libaaa|0|3|64|1|2").hexdigest()[:16]
+    assert BASE.bokeh_strength == BOKEH_STRENGTH
+    assert sequence_id("libaaa", BASE) == before
+
+
+def test_a_strength_written_as_an_integer_is_the_same_sequence() -> None:
+    assert sequence_id("libaaa", replace(BASE, bokeh_strength=24)) == sequence_id(
+        "libaaa",
+        replace(BASE, bokeh_strength=24.0),
+    )
+
+
+def _bokeh_record(sequence: Path) -> dict[str, object]:
+    return json.loads((sequence / "bokeh" / "focus.json").read_text(encoding="utf-8"))
+
+
+def test_renders_the_bokeh_at_the_strength_asked_for(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    request = replace(BASE, bokeh_strength=24.0)
+    result = ensure_sequence(
+        library, "libaaa", tmp_path / "sequences", request, bokeh=True
+    )
+    assert _bokeh_record(result.path)["strength"] == 24.0
+
+
+def test_adds_the_bokeh_at_the_strength_asked_for(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    """A cached sequence that lacks its bokeh gets it at the strength that names it."""
+    sequences = tmp_path / "sequences"
+    request = replace(BASE, bokeh_strength=4.0)
+    first = ensure_sequence(library, "libaaa", sequences, request)
+    assert not (first.path / "bokeh").exists()
+    ensure_sequence(library, "libaaa", sequences, request, bokeh=True)
+    assert _bokeh_record(first.path)["strength"] == 4.0
+
+
+def test_records_the_strength_with_the_request(library: Path, tmp_path: Path) -> None:
+    request = replace(BASE, bokeh_strength=24.0)
+    result = ensure_sequence(library, "libaaa", tmp_path / "sequences", request)
+    meta = json.loads((result.path / "sequence.json").read_text(encoding="utf-8"))
+    assert meta["bokeh_strength"] == 24.0
 
 
 def test_writes_the_three_streams(library: Path, tmp_path: Path) -> None:
