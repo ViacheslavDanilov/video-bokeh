@@ -193,19 +193,18 @@ function shownZoom(zoom: number) {
 
 /**
  * Show `view` in a pane's frame box, which holds its video and canvas and is the pane's
- * size; `size` is the video's, in pixels. The box is scaled about its top-left corner,
+ * size; `scale` is the CSS pixels a pixel of the video spans in the whole frame. The box
+ * is scaled about its top-left corner,
  * then moved so that the view's center lands in the middle of the pane. A translation in
  * percent is of the box's own size, so one transform serves panes of any size.
  */
-function showView(box: HTMLElement, view: View, size: number) {
+function showView(box: HTMLElement, view: View, scale: number) {
   box.style.transform =
     view.zoom === 1
       ? ""
       : `translate(${(0.5 - view.x * view.zoom) * 100}%, ${(0.5 - view.y * view.zoom) * 100}%) scale(${view.zoom})`;
   box.style.imageRendering =
-    view.zoom > 1 && (box.clientWidth * view.zoom) / size >= UNSMOOTHED_FROM_PX
-      ? "pixelated"
-      : "";
+    view.zoom > 1 && view.zoom * scale >= UNSMOOTHED_FROM_PX ? "pixelated" : "";
 }
 
 // Videos loading a source, from when the load starts until they are put where the transport
@@ -545,13 +544,17 @@ export function Viewer({
     timeRef.current = 0;
     view.current = WHOLE_FRAME;
     panning.current = null;
-    frameBoxes.current.forEach((box) => showView(box, WHOLE_FRAME, 1));
+    frameBoxes.current.forEach((box) => showView(box, WHOLE_FRAME, 0));
   }, [sequenceId]);
 
   function changeView(next: View) {
     if (!sequence) return;
     view.current = next;
-    frameBoxes.current.forEach((box) => showView(box, next, sequence.size));
+    // Read once, before any transform is written, which would have the next read work the
+    // styles out again. The panes are all one size.
+    const first = frameBoxes.current.values().next().value;
+    const scale = first ? first.clientWidth / sequence.size : 0;
+    frameBoxes.current.forEach((box) => showView(box, next, scale));
     setZoom((was) =>
       shownZoom(was) === shownZoom(next.zoom) ? was : next.zoom,
     );
@@ -1178,7 +1181,7 @@ export function Viewer({
                   ref={(el) => {
                     if (!el) return void frameBoxes.current.delete(pane.key);
                     frameBoxes.current.set(pane.key, el);
-                    showView(el, view.current, sequence.size);
+                    showView(el, view.current, el.clientWidth / sequence.size);
                   }}
                   className="absolute inset-0 origin-top-left"
                 >
