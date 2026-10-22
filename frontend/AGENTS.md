@@ -47,9 +47,10 @@ Run from `frontend/`.
 into the repository, not a dependency** — edit them directly, and `pnpm dlx shadcn@latest add
 <name>` brings in new ones (`dlx`, never `npx`: this repo is pnpm only).
 
-One local change so far: `slider.tsx` forwards the accessible name to the thumb, because
-that is the element carrying `role="slider"`. A label left on the root names a group and the
-control stays anonymous. Re-adding the component from the registry would lose that.
+One local change so far: `slider.tsx` forwards the accessible name and description to the
+thumb, because that is the element carrying `role="slider"`. A label left on the root names a
+group and the control stays anonymous, and a description left there describes nothing a
+screen reader lands on. Re-adding the component from the registry would lose that.
 
 Everything else under `src/components/` is this project's own.
 

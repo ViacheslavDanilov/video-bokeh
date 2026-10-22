@@ -416,6 +416,10 @@ test("sends the bokeh strength and names the sequence by it", async ({
   await expect(strength).toHaveAttribute("aria-valuenow", "16");
   await expect(strength).toHaveAttribute("aria-valuemin", "0");
   await expect(strength).toHaveAttribute("aria-valuemax", "64");
+  // The helper text under it, read with the control rather than only seen near it.
+  await expect(strength).toHaveAccessibleDescription(
+    /^k, the blur radius in pixels at 1024 px/,
+  );
 
   const sent: unknown[] = [];
   page.on("request", (request) => {

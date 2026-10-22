@@ -11,6 +11,7 @@ function Slider({
   min = 0,
   max = 100,
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedBy,
   "aria-valuetext": ariaValueText,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
@@ -52,7 +53,9 @@ function Slider({
           key={index}
           // The thumb is what carries role="slider", so the name has to reach it: an
           // aria-label left on the root names a group and the control stays anonymous.
-          // With a range, each thumb says which end it is.
+          // With a range, each thumb says which end it is. The description goes with the
+          // name, for the same reason.
+          aria-describedby={ariaDescribedBy}
           aria-valuetext={ariaValueText}
           aria-label={
             ariaLabel && _values.length > 1
