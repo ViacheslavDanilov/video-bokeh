@@ -117,6 +117,29 @@ export function Controls({
 
       <div className="space-y-3">
         <div className="flex items-baseline justify-between">
+          <Label htmlFor="bokeh-strength">Blur strength</Label>
+          <span className="text-muted-foreground font-mono text-xs">
+            {params.bokeh_strength}
+          </span>
+        </div>
+        <Slider
+          id="bokeh-strength"
+          aria-label="Blur strength"
+          // The range the API takes.
+          min={0}
+          max={64}
+          step={1}
+          value={[params.bokeh_strength]}
+          onValueChange={([v]) => set("bokeh_strength", v)}
+        />
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          k, the blur radius in pixels at 1024 px, one unit of disparity from
+          the focus. Only the Bokeh stream changes with it.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between">
           <Label htmlFor="frames">Frames</Label>
           <span className="text-muted-foreground font-mono text-xs">
             {params.frames}

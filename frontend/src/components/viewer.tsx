@@ -676,6 +676,12 @@ export function Viewer({
             seed{" "}
             <span className="text-foreground font-mono">{sequence.seed}</span>
           </span>
+          <span title="k, the blur radius in pixels at 1024 px that the Bokeh stream is rendered at.">
+            blur{" "}
+            <span className="text-foreground font-mono">
+              {sequence.bokeh_strength}
+            </span>
+          </span>
           <span>{sequence.n_objects} objects</span>
           <span>{sequence.frames} frames</span>
           <span>
