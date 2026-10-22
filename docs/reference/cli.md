@@ -374,7 +374,7 @@ includes warm-up and timed rendering; CPU and MPS runs leave that JSON field nul
 | module | flags |
 |---|---|
 | `video_bokeh.acquire.magick` | `--metadata` (csv), `--output`, `--count`, `--seed`, `--picked` |
-| `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs `~/.kaggle/kaggle.json` |
+| `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs no Kaggle account, and uses `~/.kaggle/kaggle.json` when it exists |
 | `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks, with the model that made the rest. Writes `predictions.json` beside the predictions, recording each run's rows, model, weights and date |
 
 MAGICK writes `images/<first-two-characters>/<page_id>.png` and `metadata.csv` under

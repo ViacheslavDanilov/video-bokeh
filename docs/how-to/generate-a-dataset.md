@@ -48,7 +48,7 @@ On 2026-10-01, from `backend/`, keeping the 20 of each that were there:
    today; classifying all thirty afresh with one model is how to grow the pool next time.
 3. `uv run --extra acquire python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11`
    fetches ten backgrounds one file at a time from Kaggle, with no archive download. It needs
-   `~/.kaggle/kaggle.json`.
+   no Kaggle account, as [Full pools](#full-pools) says.
 
 The pools grew by 20.8 MiB.
 
@@ -81,6 +81,11 @@ copy only after every file named by the split lists is present. Missing files or
 copies of the same filename within a split stop the run and keep the archive. Identical
 copies across shards are accepted; names in different splits remain separate.
 Use `data/magick` and `data/bg-20k` as Stage A's source roots.
+
+**Neither source needs an account.** MAGICK comes from Hugging Face over plain HTTPS. On
+2026-10-22, with no Kaggle credentials on the machine, kagglehub 1.0.0 fetched single BG-20k
+files and started the 13.1 GiB archive. kagglehub uses `~/.kaggle/kaggle.json` when it exists,
+which is the fix if Kaggle ever refuses an anonymous download.
 
 ---
 
