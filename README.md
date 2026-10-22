@@ -106,7 +106,8 @@ links the page with the details.
    [Hugging Face](https://huggingface.co/datasets/OneOverZero/MAGICK) into
    `backend/data/magick`, and the BG-20k backgrounds from
    [Kaggle](https://www.kaggle.com/datasets/nguyenquocdungk16hl/bg-20o) into
-   `backend/data/bg-20k`. A rerun skips what is already there.
+   `backend/data/bg-20k`. BG-20k comes as one 13.1 GiB archive. A rerun skips what is already
+   there.
 
    ```bash
    make pools
@@ -131,9 +132,9 @@ links the page with the details.
 
    ```bash
    cd backend
-   uv run python -m video_bokeh.library.build \
+   uv run --frozen --no-sync python -m video_bokeh.library.build \
      --fg-data-root data/magick --bg-data-root data/bg-20k \
-     --output data/library/da2-large --model da2-large
+     --output data/library/da2-large --size 1024 --model da2-large
    ```
 
    `--model` picks the depth estimator: Depth Anything V2, Depth Pro, Depth Anything 3, or a
@@ -152,7 +153,7 @@ links the page with the details.
    ```
 
    - `--count` sets how many sequences to attempt, `--frames` how long each is (80 by
-     default), and `--size` its square side in pixels (1024).
+     default), and `--size` its square side in pixels (1024 by default).
    - `--bokeh` renders each sequence's bokeh in the same run. `--bokeh-strength` (16) is the
      blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus.
    - `--layers`, `--flow`, `--flow-back` and `--occlusion` each add a stream.
