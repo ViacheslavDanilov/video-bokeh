@@ -90,8 +90,8 @@ costs roughly half again what it costs natively — the numbers are in
 
 ## Generate Your Own Dataset
 
-Five steps take you from the source images to a training loop. Each one links the page with
-the details.
+Five steps take you from the source images to written sequences or a training loop. Each one
+links the page with the details.
 
 1. **Install** the dataset extras from the repository root, with Python 3.13+ and
    [uv](https://docs.astral.sh/uv/).
@@ -160,10 +160,11 @@ the details.
      [dataset-layout](docs/reference/dataset-layout.md#stage-b--a-generated-sequence) every
      stream.
 
-5. **Load it for training.** `SequenceStream`, in `video_bokeh.loader`, generates a new
-   sequence from the library for every item a training loop asks for, and writes nothing to
-   disk. It takes the same frame count, size, streams and bokeh strength as step 4. This
-   example trains a small network on it for 20 steps:
+5. **Or train on the fly.** `SequenceStream`, in `video_bokeh.loader`, generates a new
+   sequence from the library for every item a training loop asks for and writes nothing to
+   disk, so it needs step 3's library, not step 4's sequences. It takes the same frame count,
+   size, streams and bokeh strength as step 4. This example trains a small network on it for
+   20 steps:
 
    ```bash
    uv run python -m video_bokeh.loader.example --library-root data/library/da2-large
