@@ -2404,6 +2404,18 @@ test("zooms about the pointer with a pinch and a double-click", async ({
   const pinched = await framePointAt(page, 2, x, y);
   expect(pinched[0]).toBeCloseTo(before[0], 2);
   expect(pinched[1]).toBeCloseTo(before[1], 2);
+  // A pinch that ends off the panes leaves the wheel with Ctrl free to zoom.
+  await page.locator("[data-pane-view]").nth(2).dispatchEvent("gesturestart");
+  await page
+    .locator("figure")
+    .first()
+    .locator("xpath=..")
+    .dispatchEvent("gestureend");
+  await page.mouse.move(x, y);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -60);
+  await page.keyboard.up("Control");
+  await expect(factor).not.toHaveText("3×");
 
   await page.keyboard.press("0");
   await expectRegions(page, [0, 0, 1, 1]);

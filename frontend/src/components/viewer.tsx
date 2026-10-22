@@ -195,9 +195,9 @@ function shownZoom(zoom: number) {
 /**
  * Show `view` in a pane's frame box, which holds its video and canvas and is the pane's
  * size; `scale` is the CSS pixels a pixel of the video spans in the whole frame. The box
- * is scaled about its top-left corner,
- * then moved so that the view's center lands in the middle of the pane. A translation in
- * percent is of the box's own size, so one transform serves panes of any size.
+ * is scaled about its top-left corner, then moved so that the view's center lands in the
+ * middle of the pane. A translation in percent is of the box's own size, so one transform
+ * serves panes of any size.
  */
 function showView(box: HTMLElement, view: View, scale: number) {
   box.style.transform =
@@ -545,6 +545,7 @@ export function Viewer({
     timeRef.current = 0;
     view.current = WHOLE_FRAME;
     panning.current = null;
+    pinch.current = null;
     frameBoxes.current.forEach((box) => showView(box, WHOLE_FRAME, 0));
   }, [sequenceId]);
 
@@ -590,13 +591,14 @@ export function Viewer({
   // wheel, and zooms the page with them unless kept from it. Each scales the zoom the pinch
   // began at.
   const onPaneGesture = useEffectEvent((e: Event) => {
+    // Wherever it ends, or the wheel with Ctrl held would stay the pinch's.
+    if (e.type === "gestureend") pinch.current = null;
     const pane = (e.target as Element).closest<HTMLElement>("[data-pane-view]");
     if (!pane) return;
     e.preventDefault();
     const { scale, clientX, clientY } = e as GestureEvent;
     if (e.type === "gesturestart") pinch.current = view.current.zoom;
-    else if (e.type === "gestureend") pinch.current = null;
-    else if (pinch.current !== null) {
+    else if (e.type === "gesturechange" && pinch.current !== null) {
       const at = pointOn(pane, clientX, clientY);
       changeView(zoomAbout(view.current, pinch.current * scale, at.x, at.y));
     }
