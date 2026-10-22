@@ -34,9 +34,10 @@ pools: ## Download the full MAGICK and BG-20k pools into backend/data
 	  ! ls -d data/bg-20k/datasets/*/*/versions/*/ > /dev/null 2>&1; then \
 	  echo "bg-20k: data/bg-20k/images holds images and no archive is left, skipped"; \
 	elif ! uv run --extra acquire python -m video_bokeh.acquire.bg20k --output data/bg-20k; then \
-	  echo "error: BG-20k did not download. If Kaggle refused it, put your Kaggle API key in" >&2; \
-	  echo "~/.kaggle/kaggle.json and run make pools again. Or download BG-20k by hand into" >&2; \
-	  echo "backend/data/bg-20k/images/train and images/testval; make pools then skips it." >&2; \
+	  echo "error: BG-20k did not download. If Kaggle refused it, save a Kaggle API token in" >&2; \
+	  echo "~/.kaggle/access_token (or a legacy kaggle.json in ~/.kaggle/) and run make pools" >&2; \
+	  echo "again. Or download BG-20k by hand into backend/data/bg-20k/images/train and" >&2; \
+	  echo "images/testval; make pools then skips it." >&2; \
 	  exit 1; \
 	fi
 	cd backend && uv run --extra acquire python -m video_bokeh.acquire.magick \
