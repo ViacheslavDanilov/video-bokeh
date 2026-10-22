@@ -174,12 +174,15 @@ links the page with the details.
    [train-on-the-sequence-stream](docs/how-to/train-on-the-sequence-stream.md) reads its source
    as a template for your own loop, and [loader](docs/reference/loader.md) lists the options.
 
-**The MIT license below covers this repository's code, not the data it downloads or makes.**
-Stage A's default depth model, `da2-large`, has CC BY-NC 4.0 weights, so treat a library and a
-dataset built with it as non-commercial. [cli](docs/reference/cli.md#depth-estimators) lists
-every estimator's license. MAGICK states no license on its Hugging Face page, its repository,
-its project page or its paper, as checked on 2026-10-22, so check its terms before any other
-use.
+**The data is for non-commercial research.** MAGICK's images are CC BY-NC 4.0, as its
+[project page](https://ryanndagreat.github.io/MAGICK/) states. So are the `da2-large` weights
+Stage A uses by default, as [cli](docs/reference/cli.md#depth-estimators) lists. BG-20k is
+MIT-licensed under its
+[release agreement](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf).
+Papers that use it must cite Li et al., "Bridging Composite and Real: Towards End-to-end Deep
+Image Matting", IJCV 2021, and its images' copyright stays with their owners. A dataset built
+from them inherits the non-commercial term. The MIT license below covers this repository's code
+only.
 
 ## License
 
