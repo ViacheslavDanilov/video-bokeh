@@ -83,9 +83,10 @@ without rebuilding.
   frame. Zoomed in, drag a pane or scroll over it to move around the frame. The `+` and `-`
   keys zoom by 2×, `0` shows the whole frame, and so do the buttons beside the position
   slider, whose factor is relative to the whole frame. Zoomed in far enough that a pixel
-  of the video spans two of the screen's, the video is drawn without smoothing. Playback,
-  frame steps and the slider work as before; dragging the slider shows softer frames while
-  zoomed in, and the video's own once let go. A new sequence starts at the whole frame.
+  of the video spans two CSS pixels, four on a Retina screen, the video is drawn without
+  smoothing. Playback, frame steps and the slider work as before; dragging the slider
+  shows softer frames while zoomed in, and the video's own once let go. A new sequence
+  starts at the whole frame.
 
 **Optical flow comes with each sequence**, colored as optical-flow papers color it: the hue
 is the direction, rightward red, and white is still. The wheel under its pane is the legend.

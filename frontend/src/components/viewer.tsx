@@ -60,7 +60,8 @@ const PANE_CHROME_PX = 84;
 // above it.
 const TRANSPORT_PX = 88;
 // And for its second line, where the work area is narrower than its first: 32 px controls
-// and the 16 px gap between the lines.
+// and the 16 px gap between the lines. Under about 480 px, as on a phone, it takes a third,
+// which the page scrolls to.
 const TRANSPORT_WRAP_PX = 48;
 // Fitting every pane on the screen is worth it down to this size. Smaller, as on a phone,
 // the panes are better big and scrolled through.
@@ -1411,7 +1412,7 @@ export function Viewer({
         <div
           role="group"
           aria-label="Zoom"
-          title="Pinch, or scroll with Ctrl or ⌘ held, over a pane to zoom; double-click a pane to zoom in or back. Zoomed in, drag or scroll to look around. The + and − keys zoom, 0 shows the whole frame."
+          title="Pinch, or scroll with Ctrl or ⌘ held, over a pane to zoom; double-click a pane to zoom in or back. Zoomed in, drag or scroll to look around. The + and - keys zoom, 0 shows the whole frame."
           className="flex items-center gap-1"
         >
           <Button
