@@ -374,8 +374,17 @@ includes warm-up and timed rendering; CPU and MPS runs leave that JSON field nul
 | module | flags |
 |---|---|
 | `video_bokeh.acquire.magick` | `--metadata` (csv), `--output`, `--count`, `--seed`, `--picked` |
-| `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs `~/.kaggle/kaggle.json` |
+| `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs no Kaggle account, and uses a token in `~/.kaggle/access_token`, or a legacy `~/.kaggle/kaggle.json`, when one exists |
 | `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks, with the model that made the rest. Writes `predictions.json` beside the predictions, recording each run's rows, model, weights and date |
+
+**The two sources carry licenses of their own**, as checked on 2026-10-22. MAGICK's images are
+CC BY-NC 4.0, as its [project page](https://ryanndagreat.github.io/MAGICK/) states; its Hugging
+Face card states none. BG-20k is MIT-licensed under its
+[release agreement](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf),
+which requires papers that use it to cite Li et al., "Bridging Composite and Real: Towards
+End-to-end Deep Image Matting", IJCV 2021, and leaves each image's copyright with its owner.
+A dataset built from them inherits MAGICK's non-commercial term, whichever estimator in
+[Depth estimators](#depth-estimators) Stage A runs.
 
 MAGICK writes `images/<first-two-characters>/<page_id>.png` and `metadata.csv` under
 `--output`. Existing metadata rows keep their order, and new downloads follow in sample

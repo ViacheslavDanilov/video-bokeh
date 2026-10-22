@@ -48,7 +48,7 @@ On 2026-10-01, from `backend/`, keeping the 20 of each that were there:
    today; classifying all thirty afresh with one model is how to grow the pool next time.
 3. `uv run --extra acquire python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11`
    fetches ten backgrounds one file at a time from Kaggle, with no archive download. It needs
-   `~/.kaggle/kaggle.json`.
+   no Kaggle account, as [Full pools](#full-pools) says.
 
 The pools grew by 20.8 MiB.
 
@@ -69,6 +69,14 @@ uv run --frozen --no-sync python -m video_bokeh.acquire.magick \
 uv run --frozen --no-sync python -m video_bokeh.acquire.bg20k --output data/bg-20k
 ```
 
+`make pools`, from the repository root, runs both commands, BG-20k first, so a Kaggle refusal
+shows before MAGICK starts. It skips BG-20k once `data/bg-20k/images/` holds images and no
+archive is left under `data/bg-20k/datasets/`, as after a finished run or a download by hand.
+A finished run removes its copy of the archive, so running the command again would download it
+again. A run stopped while copying keeps its unpacked archive, so a rerun finishes the copy
+without downloading again. Images downloaded by hand go in the layout each command writes,
+below.
+
 MAGICK writes `data/magick/images/<first-two-characters>/<page_id>.png`, skips existing
 images, and preserves the order of existing metadata rows. It retries HTTP 429 and 5xx
 responses up to seven attempts, waiting for `Retry-After` when provided or backing off
@@ -81,6 +89,13 @@ copy only after every file named by the split lists is present. Missing files or
 copies of the same filename within a split stop the run and keep the archive. Identical
 copies across shards are accepted; names in different splits remain separate.
 Use `data/magick` and `data/bg-20k` as Stage A's source roots.
+
+**Neither source needs an account.** MAGICK comes from Hugging Face over plain HTTPS.
+kagglehub signs in only for private datasets or ones that ask for consent. On 2026-10-22, with
+no Kaggle credentials on the machine, kagglehub 1.0.0 fetched single BG-20k files and started
+the 13.1 GiB archive. If Kaggle ever refuses an anonymous download, create an API token at
+[kaggle.com/settings](https://www.kaggle.com/settings), save it as `~/.kaggle/access_token`,
+and run the command again. kagglehub still reads a legacy `~/.kaggle/kaggle.json` too.
 
 ---
 
