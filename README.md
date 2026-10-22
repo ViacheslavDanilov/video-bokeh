@@ -88,7 +88,88 @@ read-only at `/data/library` and writes sequences to `/data/sequences`; both com
 costs roughly half again what it costs natively — the numbers are in
 [docs/reference/api.md](docs/reference/api.md).
 
-To generate training data instead of running the API, see [backend/README.md](backend/README.md).
+## Generate Your Own Dataset
+
+Five steps take you from the source images to a training loop. Each one links the page with
+the details.
+
+1. **Install** the dataset extras from the repository root, with Python 3.13+ and
+   [uv](https://docs.astral.sh/uv/).
+
+   ```bash
+   uv sync --no-dev --extra acquire --extra library --extra loader
+   ```
+
+   [backend/README.md](backend/README.md) says what each extra installs.
+
+2. **Download the source pools:** 11,868 MAGICK foregrounds from
+   [Hugging Face](https://huggingface.co/datasets/OneOverZero/MAGICK) into
+   `backend/data/magick`, and the BG-20k backgrounds from
+   [Kaggle](https://www.kaggle.com/datasets/nguyenquocdungk16hl/bg-20o) into
+   `backend/data/bg-20k`. A rerun skips what is already there.
+
+   ```bash
+   make pools
+   ```
+
+   - **No Kaggle account is needed.** On 2026-10-22 kagglehub downloaded BG-20k files with no
+     credentials. If Kaggle refuses, put your Kaggle API key in `~/.kaggle/kaggle.json` and
+     run `make pools` again.
+   - **Downloaded by hand instead?** Put BG-20k's images in `backend/data/bg-20k/images/train/`
+     and `images/testval/`, and `make pools` skips BG-20k. MAGICK's go in
+     `backend/data/magick/images/`, in Hugging Face's `<first two characters>/<page_id>.png`
+     layout.
+   - **To try the pipeline first, skip this step.** A clone carries 30 foregrounds and 30
+     backgrounds in `backend/data/magick_dev` and `backend/data/bg-20k_dev`.
+
+   [generate-a-dataset](docs/how-to/generate-a-dataset.md#full-pools) says what each download
+   writes.
+
+3. **Build a library.** Stage A estimates each image's depth once and stores the result. This
+   step and the next two run from `backend/`.
+
+   ```bash
+   cd backend
+   uv run python -m video_bokeh.library.build \
+     --fg-data-root data/magick --bg-data-root data/bg-20k \
+     --output data/library/da2-large --model da2-large
+   ```
+
+   `--model` picks the depth estimator: Depth Anything V2, Depth Pro, Depth Anything 3, or a
+   class of your own. [cli](docs/reference/cli.md#depth-estimators) lists them with their
+   weights' licenses. A class filter keeps 8,586 of the 11,868 foregrounds, and
+   [generate-a-dataset](docs/how-to/generate-a-dataset.md#1-stage-a--build-the-library) says
+   how to turn it off.
+
+4. **Generate sequences.** Stage B composites objects onto a background and writes each
+   frame's color, mattes and disparity.
+
+   ```bash
+   uv run python -m video_bokeh.scenes.generate \
+     --library-root data/library/da2-large --output data/synth \
+     --count 4 --frames 80 --size 512 --bokeh --bokeh-strength 16 --flow
+   ```
+
+   - `--count` sets how many sequences to attempt, `--frames` how long each is (80 by
+     default), and `--size` its square side in pixels (1024).
+   - `--bokeh` renders each sequence's bokeh in the same run. `--bokeh-strength` (16) is the
+     blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus.
+   - `--layers`, `--flow`, `--flow-back` and `--occlusion` each add a stream.
+     [cli](docs/reference/cli.md#video_bokehscenesgenerate--stage-b) has every flag, and
+     [dataset-layout](docs/reference/dataset-layout.md#stage-b--a-generated-sequence) every
+     stream.
+
+5. **Load it for training.** `SequenceStream`, in `video_bokeh.loader`, generates a new
+   sequence from the library for every item a training loop asks for, and writes nothing to
+   disk. It takes the same frame count, size, streams and bokeh strength as step 4. This
+   example trains a small network on it for 20 steps:
+
+   ```bash
+   uv run python -m video_bokeh.loader.example --library-root data/library/da2-large
+   ```
+
+   [train-on-the-sequence-stream](docs/how-to/train-on-the-sequence-stream.md) reads its source
+   as a template for your own loop, and [loader](docs/reference/loader.md) lists the options.
 
 ## License
 

@@ -74,10 +74,9 @@ from a library, with nothing written, is in
 [`docs/reference/loader.md`](../docs/reference/loader.md).
 
 **`--extra acquire` is not a light install.** It pulls in `open-clip-torch`, which pulls in
-`torch`, despite what "acquire" suggests. The runnable download commands live in `AGENTS.md`;
-two facts worth knowing before you run them: the full MAGICK mirror comes from the HuggingFace
-CLI, not this repository's script, and the BG-20k Kaggle download lands as upload shards
-`1/`…`7/` that have to be concatenated into the full `train/` and `testval/` split.
+`torch`, despite what "acquire" suggests. `make pools`, from the repository root, downloads both
+full pools. What it runs is in
+[`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md#full-pools).
 
 ### Run the API
 
