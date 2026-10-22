@@ -70,9 +70,11 @@ uv run --frozen --no-sync python -m video_bokeh.acquire.bg20k --output data/bg-2
 ```
 
 `make pools`, from the repository root, runs both commands, BG-20k first, so a Kaggle refusal
-shows before MAGICK starts. It skips BG-20k once `data/bg-20k/images/` holds images, after a
-finished run or a download by hand. A plain rerun would fetch the whole archive again, because
-the run removes its copy. Images downloaded by hand go in the layout each command writes,
+shows before MAGICK starts. It skips BG-20k once `data/bg-20k/images/` holds images and no
+archive is left under `data/bg-20k/datasets/`, as after a finished run or a download by hand.
+A finished run removes its copy of the archive, so running the command again would download it
+again. A run stopped while copying keeps its unpacked archive, so a rerun finishes the copy
+without downloading again. Images downloaded by hand go in the layout each command writes,
 below.
 
 MAGICK writes `data/magick/images/<first-two-characters>/<page_id>.png`, skips existing

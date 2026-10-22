@@ -24,11 +24,15 @@ setup: ## Install the backend, the frontend and the test browser
 
 # BG-20k goes first: Kaggle is the source that may refuse, and it would refuse at the first
 # request, before MAGICK starts its 11,868 downloads. BG-20k is skipped once its images/
-# holds images, after a finished run or a download by hand, because a rerun would fetch its
-# whole archive again. MAGICK skips the images it has, so a rerun resumes it.
+# holds images and no unpacked archive is left under datasets/, as after a finished run or a
+# download by hand, because a rerun would fetch the whole archive again. A run stopped while
+# copying keeps its unpacked archive, so it is not skipped, and the rerun finishes the copy.
+# MAGICK skips the images it has, so a rerun resumes it.
 pools: ## Download the full MAGICK and BG-20k pools into backend/data
-	@cd backend && if ls data/bg-20k/images 2> /dev/null | grep -q .; then \
-	  echo "bg-20k: data/bg-20k/images holds images, skipped"; \
+	@cd backend && if find data/bg-20k/images -type f \
+	    \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' \) 2> /dev/null | grep -q . && \
+	  ! ls -d data/bg-20k/datasets/*/*/versions/*/ > /dev/null 2>&1; then \
+	  echo "bg-20k: data/bg-20k/images holds images and no archive is left, skipped"; \
 	elif ! uv run --extra acquire python -m video_bokeh.acquire.bg20k --output data/bg-20k; then \
 	  echo "error: BG-20k did not download. If Kaggle refused it, put your Kaggle API key in" >&2; \
 	  echo "~/.kaggle/kaggle.json and run make pools again. Or download BG-20k by hand into" >&2; \
