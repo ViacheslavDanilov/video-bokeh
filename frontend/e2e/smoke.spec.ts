@@ -411,6 +411,8 @@ test("shows the steps of a generation, then what is on screen", async ({
 test("sends the bokeh strength and names the sequence by it", async ({
   page,
 }) => {
+  // Two sequences generated, which on a CI runner takes longer than the default budget.
+  test.slow();
   await openPage(page);
   const strength = page.getByRole("slider", { name: "Bokeh strength" });
   await expect(strength).toHaveAttribute("aria-valuenow", "16");
