@@ -1289,7 +1289,9 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
   const frameBottom = await figures
     .first()
     .locator("video")
-    .evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
+    .evaluate(
+      (el) => el.closest("[data-pane-view]")!.getBoundingClientRect().bottom,
+    );
   const flowCaption = "Color is direction, pale is slow.";
   // The overlay is off when a sequence opens, so its caption starts with the longer
   // "White"; switching it on gives "Cyan".
