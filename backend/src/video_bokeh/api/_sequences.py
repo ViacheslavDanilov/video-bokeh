@@ -72,6 +72,19 @@ def video_streams(sequence_dir: Path) -> list[str]:
     return streams
 
 
+def rendered_strength(sequence_dir: Path) -> float | None:
+    """The strength the sequence's bokeh record names, or None when it has none.
+
+    The record is written with the frames, so it stays true when a renderer other than
+    this API's renders the stream again at another strength.
+    """
+    record = sequence_dir / BOKEH / "focus.json"
+    if not record.is_file():
+        return None
+    strength = json.loads(record.read_text(encoding="utf-8")).get("strength")
+    return None if strength is None else float(strength)
+
+
 class SequenceUnsatisfiableError(RuntimeError):
     """The request is valid but no collision-free scene could be sampled for it."""
 

@@ -57,6 +57,7 @@ from video_bokeh.api._sequences import (
     SequenceResult,
     SequenceUnsatisfiableError,
     ensure_sequence,
+    rendered_strength,
     video_streams,
 )
 from video_bokeh.api._settings import (
@@ -251,7 +252,8 @@ class SequenceResponse(BaseModel):
     seed: int
     frames: int
     size: int
-    #: The strength the sequence's bokeh is rendered at, whether or not it has one yet.
+    #: The strength the sequence's bokeh was rendered at, as its record names it; before
+    #: it has one, the strength it will be rendered at, which the request named.
     bokeh_strength: float
     n_objects: int
     #: One hex color per object, in the order the alpha pages carry them, so a legend
@@ -380,6 +382,7 @@ def _sequence_response(
     params: SequenceParams,
 ) -> SequenceResponse:
     streams = video_streams(result.path)
+    rendered = rendered_strength(result.path)
     return SequenceResponse(
         id=result.id,
         library=library_id,
@@ -387,7 +390,7 @@ def _sequence_response(
         seed=params.seed,
         frames=params.frames,
         size=params.size,
-        bokeh_strength=params.bokeh_strength,
+        bokeh_strength=params.bokeh_strength if rendered is None else rendered,
         n_objects=result.n_objects,
         object_colors=[object_color_hex(i) for i in range(result.n_objects)],
         streams={

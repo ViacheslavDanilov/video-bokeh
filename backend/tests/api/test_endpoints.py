@@ -517,6 +517,25 @@ def test_bokeh_joins_the_streams_once_rendered(
     }
 
 
+def test_the_strength_named_is_the_one_the_bokeh_was_rendered_at(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """A renderer of one's own can render a sequence's bokeh again at another strength.
+    Its record says so, and the response follows the record rather than the request.
+    """
+    sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
+    sequence_dir = tmp_path / "sequences" / sid
+    render_fake_bokeh(sequence_dir)
+    without_record = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert without_record["bokeh_strength"] == 16
+
+    (sequence_dir / "bokeh" / "focus.json").write_text(json.dumps({"strength": 24.0}))
+    with_record = client.post("/sequences", json=SEQUENCE_BODY).json()
+    assert with_record["id"] == sid
+    assert with_record["bokeh_strength"] == 24
+
+
 def test_serves_bokeh_as_video(client: TestClient, tmp_path: Path) -> None:
     sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
     render_fake_bokeh(tmp_path / "sequences" / sid)
