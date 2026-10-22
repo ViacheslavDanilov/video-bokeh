@@ -259,6 +259,45 @@ comparison/envs/render/bin/python comparison/review.py sheets backend/data/test_
 - Without `--every-frame`, only the candidates' frames are copied, for a folder to take
   elsewhere; `--link` links the frames instead of copying them.
 
+## Speed
+
+`bench_speed.py` times each method's render per frame, on the card or on the CPU. It calls
+the adapters' own functions, so each method renders what it renders for the comparison, and
+it times only the render call. The models are loaded, every frame is read and prepared in
+memory, and its inputs are on the device before the clock starts; a synchronize on either
+side of the call makes the time the card's. Each sequence's first five frames are rendered
+once and discarded before its frames are timed.
+
+```bash
+comparison/envs/render/bin/python comparison/bench_speed.py run --method drbokeh \
+  --device cuda --data-root backend/data/cmp --size 2048 --output speed.jsonl
+comparison/envs/render/bin/python comparison/bench_speed.py summary speed.jsonl --out-dir .
+comparison/envs/render/bin/python comparison/bench_speed.py env > speed-environment.json
+```
+
+- The methods are `ours`, `ours_one_frame`, `drbokeh`, `mpib_rt`, `mpib_rt_cg`, `bokehme`,
+  `bokehme_classical` and `any_to_bokeh`. Only our renderer also runs on the CPU. MPIB's ray
+  tracer and BokehMe's scatter are CuPy kernels whose CPU branch raises an error, Dr.Bokeh's
+  CPU scatter is a Python loop over every pixel and every kernel tap, and Any-to-Bokeh's demo
+  runs on `cuda:0` in float16.
+- `--size` resamples every stream by nearest neighbor before the render, so a sequence
+  written at 1024 pixels is timed at 512 or 2048 with the same content. Stage B cannot write
+  that content at another size from a library built at 1024: it places a background by its
+  pixels, so a 1536-pixel background covers only the middle of a 2048-pixel frame.
+- Any-to-Bokeh renders several frames per call, at 1024 x 576 whatever size it is given, so
+  it takes no `--size`. `bench_a2b.py` times each call of its pipeline
+  under its own environment, and each frame a clip returns takes the clip's time over its
+  frame count. Unlike `a2b_launch.py`, it keeps the UNet on the card while the VAE decodes,
+  as 24 frames fit. Its first sequence is rendered once more before the others, and
+  discarded.
+- The run waits until no other process holds memory on the card. Each sequence appends a
+  JSON line with every frame's time, the peak memory on the card and, where the sequence
+  holds the method's frames from the comparison, how far the first timed frame is from them,
+  in 8-bit levels.
+- `summary` writes `method-speed-sequences.csv`, one row per method, device, size and
+  sequence, and `method-speed.csv`, the median and quartiles over every timed frame of each
+  method, device and size.
+
 ## Adding a method
 
 Add a function to `setup.sh` that clones the pinned commit and builds what the method needs,
