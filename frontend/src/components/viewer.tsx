@@ -3,12 +3,22 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   type RefObject,
   useState,
 } from "react";
-import { Check, Copy, GripVertical, Pause, Play, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  GripVertical,
+  Pause,
+  Play,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import type { GenerationStep, Sequence } from "@/lib/api";
 import { streamUrl } from "@/lib/api";
 import { decodeFrames, frameTime } from "@/lib/frames";
@@ -85,6 +95,106 @@ const FRAME_KEYS: Record<string, number> = {
   PageDown: -10,
   PageUp: 10,
 };
+
+// Zoom, the same in every pane: from the whole frame, fitted, to sixteen times that.
+const MAX_ZOOM = 16;
+// What the zoom keys and buttons multiply the zoom by, and where a double-click on the
+// whole frame takes it.
+const ZOOM_STEP = 2;
+const DOUBLE_CLICK_ZOOM = 4;
+const ZOOM_KEYS: Record<string, number> = {
+  "+": ZOOM_STEP,
+  "=": ZOOM_STEP,
+  "-": 1 / ZOOM_STEP,
+  _: 1 / ZOOM_STEP,
+};
+// A pinch, or the wheel with Ctrl or Cmd held, doubles the zoom every 100 px of wheel, so
+// that a wheel step of 100 px zooms as far as a key. Firefox can count the wheel in lines,
+// three to a step.
+const WHEEL_ZOOM_PER_PX = 1 / 100;
+const WHEEL_LINE_PX = 100 / 3;
+// Zoomed in this far, at least two CSS pixels to one of the video's, the video is drawn
+// without smoothing, each of its pixels a square. Less, smoothing looks better than blocks
+// of uneven size.
+const UNSMOOTHED_FROM_PX = 2;
+
+/**
+ * What every pane shows of the frame: how far it is zoomed in over the whole frame, fitted,
+ * and the frame point in the middle of the pane, in fractions of the frame's width and
+ * height. Fractions, so that panes of any size show the same region.
+ */
+type View = { zoom: number; x: number; y: number };
+
+const WHOLE_FRAME: View = { zoom: 1, x: 0.5, y: 0.5 };
+
+/** `view` held inside the frame, so that zoomed in, a pane is always filled. */
+function clampView({ zoom, x, y }: View): View {
+  const half = 0.5 / zoom;
+  return {
+    zoom,
+    x: Math.min(Math.max(x, half), 1 - half),
+    y: Math.min(Math.max(y, half), 1 - half),
+  };
+}
+
+/**
+ * `view` zoomed to `zoom`, with the frame point at (`px`, `py`) of the pane, in fractions,
+ * left where it is, as far as the frame's edges allow.
+ */
+function zoomAbout(view: View, zoom: number, px = 0.5, py = 0.5): View {
+  const to = Math.min(Math.max(zoom, 1), MAX_ZOOM);
+  const by = 1 / view.zoom - 1 / to;
+  return clampView({
+    zoom: to,
+    x: view.x + (px - 0.5) * by,
+    y: view.y + (py - 0.5) * by,
+  });
+}
+
+/** `view` with the frame moved by (`dx`, `dy`), in fractions of the pane. */
+function panBy(view: View, dx: number, dy: number): View {
+  return clampView({
+    ...view,
+    x: view.x - dx / view.zoom,
+    y: view.y - dy / view.zoom,
+  });
+}
+
+/** Where the pointer is on a pane, in fractions of the pane inside its border. */
+function pointOn(pane: HTMLElement, clientX: number, clientY: number) {
+  const rect = pane.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - pane.clientLeft) / pane.clientWidth,
+    y: (clientY - rect.top - pane.clientTop) / pane.clientHeight,
+  };
+}
+
+/** The zoom as the transport shows it. */
+function zoomLabel(zoom: number) {
+  return `${Number(zoom.toFixed(zoom < 10 ? 1 : 0))}×`;
+}
+
+/** All the transport shows of a zoom: its label, and which way it can zoom further. */
+function shownZoom(zoom: number) {
+  return `${zoomLabel(zoom)} ${zoom > 1} ${zoom < MAX_ZOOM}`;
+}
+
+/**
+ * Show `view` in a pane's frame box, which holds its video and canvas and is the pane's
+ * size; `size` is the video's, in pixels. The box is scaled about its top-left corner,
+ * then moved so that the view's center lands in the middle of the pane. A translation in
+ * percent is of the box's own size, so one transform serves panes of any size.
+ */
+function showView(box: HTMLElement, view: View, size: number) {
+  box.style.transform =
+    view.zoom === 1
+      ? ""
+      : `translate(${(0.5 - view.x * view.zoom) * 100}%, ${(0.5 - view.y * view.zoom) * 100}%) scale(${view.zoom})`;
+  box.style.imageRendering =
+    view.zoom > 1 && (box.clientWidth * view.zoom) / size >= UNSMOOTHED_FROM_PX
+      ? "pixelated"
+      : "";
+}
 
 // Videos loading a source, from when the load starts until they are put where the transport
 // is. Their time reads 0 meanwhile, which the transport must not follow: the first pane's
@@ -275,6 +385,17 @@ export function Viewer({
   const [scrub, setScrub] = useState<number | null>(null);
   const scrubRef = useRef<number | null>(null);
   const [covering, setCovering] = useState<ReadonlySet<number>>(new Set());
+  // What every pane shows of the frame, written into each pane's frame box directly: a
+  // pinch or a drag changes it every animation frame, and rendering six panes as often
+  // would load the main thread the playing videos need. `zoom` is the zoom as the
+  // transport last showed it, and renders only when what it shows changes.
+  const view = useRef<View>(WHOLE_FRAME);
+  const frameBoxes = useRef(new Map<number, HTMLDivElement>());
+  const [zoom, setZoom] = useState(1);
+  // The pointer dragging the view, and where it was last.
+  const panning = useRef<{ pointer: number; x: number; y: number } | null>(
+    null,
+  );
   // The pane being dragged: the ref for the drag handlers, the state to dim it for the whole
   // drag, and where it would land, shown as a line while the pointer is over the grid.
   const dragged = useRef<number | null>(null);
@@ -369,6 +490,8 @@ export function Viewer({
     setCovering(new Set());
     // A drag under way when it arrives ends with it; one that goes on starts afresh.
     setScrub(null);
+    // Another frame: a region of the last one means nothing in it.
+    setZoom(1);
   }
   // The refs follow in the commit, before any event can read them: a drag let go before
   // the new videos load would otherwise play them behind a button that reads Play.
@@ -377,7 +500,78 @@ export function Viewer({
     playingRef.current = false;
     scrubRef.current = null;
     timeRef.current = 0;
+    view.current = WHOLE_FRAME;
+    panning.current = null;
+    frameBoxes.current.forEach((box) => showView(box, WHOLE_FRAME, 1));
   }, [sequenceId]);
+
+  function changeView(next: View) {
+    if (!sequence) return;
+    view.current = next;
+    frameBoxes.current.forEach((box) => showView(box, next, sequence.size));
+    setZoom((was) =>
+      shownZoom(was) === shownZoom(next.zoom) ? was : next.zoom,
+    );
+  }
+
+  // The wheel over a pane. With Ctrl or Cmd held, as a trackpad's pinch arrives too, it
+  // zooms about the pointer; zoomed in, it moves the view. At the whole frame it scrolls the
+  // page, as before.
+  const onPaneWheel = useEffectEvent((e: WheelEvent) => {
+    const pane = (e.target as Element).closest<HTMLElement>("[data-pane-view]");
+    if (!pane) return;
+    const px = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? WHEEL_LINE_PX : 1;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const at = pointOn(pane, e.clientX, e.clientY);
+      const by = 2 ** (-e.deltaY * px * WHEEL_ZOOM_PER_PX);
+      changeView(zoomAbout(view.current, view.current.zoom * by, at.x, at.y));
+    } else if (view.current.zoom > 1) {
+      e.preventDefault();
+      changeView(
+        panBy(
+          view.current,
+          (-e.deltaX * px) / pane.clientWidth,
+          (-e.deltaY * px) / pane.clientHeight,
+        ),
+      );
+    }
+  });
+  const hasSequence = sequence !== null;
+  useEffect(() => {
+    const el = grid.current;
+    if (!el) return;
+    const listener = (e: WheelEvent) => onPaneWheel(e);
+    // Not passive, as a listener React adds would be: a zoom or a pan must keep the page
+    // from zooming or scrolling with it.
+    el.addEventListener("wheel", listener, { passive: false });
+    return () => el.removeEventListener("wheel", listener);
+  }, [hasSequence]);
+
+  // The zoom keys, wherever the focus is but in a field or a list: there they are typed,
+  // and `0` would pick the 0.25× speed by its first letter. With Ctrl, Cmd or Alt they are
+  // the browser's own page zoom.
+  const onZoomKey = useEffectEvent((e: KeyboardEvent) => {
+    if (!sequence || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey)
+      return;
+    const field = (e.target as Element).closest?.(
+      "input, textarea, select, [contenteditable='true'], [role='combobox'], [role='listbox']",
+    );
+    if (field) return;
+    const by = ZOOM_KEYS[e.key];
+    if (by === undefined && e.key !== "0") return;
+    e.preventDefault();
+    changeView(
+      by === undefined
+        ? WHOLE_FRAME
+        : zoomAbout(view.current, view.current.zoom * by),
+    );
+  });
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => onZoomKey(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   // A stream the server did not list for the last sequence gets a pane of its own while
   // there is room: bokeh appears this way, when a sequence that had none is asked for again
@@ -628,6 +822,14 @@ export function Viewer({
     });
   };
 
+  // A key steps by whole frames, through the frames in memory. Zoomed in, those, at the
+  // pane's size, would show soft until the videos have sought, so the videos seek alone.
+  const stepTo = (frame: number) => {
+    if (view.current.zoom > 1) return seekToFrame(frame);
+    scrubTo(frame);
+    endScrub();
+  };
+
   const copyId = () => {
     // Only in a secure context, which the page on localhost is; elsewhere the id is
     // there to select by hand.
@@ -853,7 +1055,48 @@ export function Viewer({
                 )}
               </figcaption>
 
-              <div className="border-border bg-card relative aspect-square overflow-hidden rounded-lg border">
+              {/* Zoomed in, a drag moves the view and a double-click goes back to the
+                  whole frame; at the whole frame, a double-click zooms in about the point.
+                  The wheel is the grid's, which can keep the page from scrolling. */}
+              <div
+                data-pane-view
+                className={cn(
+                  "border-border bg-card relative aspect-square overflow-hidden rounded-lg border select-none",
+                  zoom > 1 && "cursor-grab active:cursor-grabbing",
+                )}
+                onPointerDown={(e) => {
+                  if (e.button !== 0 || view.current.zoom === 1) return;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  panning.current = {
+                    pointer: e.pointerId,
+                    x: e.clientX,
+                    y: e.clientY,
+                  };
+                }}
+                onPointerMove={(e) => {
+                  const from = panning.current;
+                  if (from?.pointer !== e.pointerId) return;
+                  panning.current = { ...from, x: e.clientX, y: e.clientY };
+                  changeView(
+                    panBy(
+                      view.current,
+                      (e.clientX - from.x) / e.currentTarget.clientWidth,
+                      (e.clientY - from.y) / e.currentTarget.clientHeight,
+                    ),
+                  );
+                }}
+                onLostPointerCapture={() => {
+                  panning.current = null;
+                }}
+                onDoubleClick={(e) => {
+                  const at = pointOn(e.currentTarget, e.clientX, e.clientY);
+                  changeView(
+                    view.current.zoom > 1
+                      ? WHOLE_FRAME
+                      : zoomAbout(view.current, DOUBLE_CLICK_ZOOM, at.x, at.y),
+                  );
+                }}
+              >
                 {loaded.get(readyKey) !== "ready" && (
                   <p className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
                     {loaded.get(readyKey) === "failed"
@@ -861,82 +1104,95 @@ export function Viewer({
                       : "Preparing video"}
                   </p>
                 )}
-                <video
-                  key={sequence.id}
-                  ref={(el) => registerVideo(pane.key, el)}
-                  className="h-full w-full object-contain"
-                  src={src}
-                  onError={() =>
-                    setLoaded((seen) => new Map(seen).set(readyKey, "failed"))
-                  }
-                  loop
-                  muted
-                  playsInline
-                  preload="metadata"
-                  onLoadStart={(e) => reloading.add(e.currentTarget)}
-                  onLoadedMetadata={(e) => {
-                    const video = e.currentTarget;
-                    // Found before this video counts as loaded, so it is never its own.
-                    const lead = leadVideo(videos.current);
-                    reloading.delete(video);
-                    setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
-                    setDuration(video.duration);
-                    decodeFor(pane.key, src);
-                    // A seek a new source cut short never ends; its canvas would stay.
-                    setCovering((was) => {
-                      const next = new Set(was);
-                      next.delete(pane.key);
-                      return next;
-                    });
-                    if (restoredSequence.current !== sequence.id) {
-                      // First load of a new sequence: the transport is at the start and
-                      // nothing should resume on its own.
-                      restoredSequence.current = sequence.id;
-                      timeRef.current = 0;
-                      playingRef.current = false;
-                      return;
-                    }
-                    // A stream change swapped src on an element React kept, which
-                    // resets it, and a pane added later starts at 0. Put it where the
-                    // transport is, which while playing the panes with their video have
-                    // moved on from, and resume with the others, or this pane silently
-                    // stops driving the ones that follow it.
-                    video.currentTime = lead
-                      ? lead.currentTime
-                      : timeRef.current;
-                    if (playingRef.current) void video.play();
-                  }}
-                  onTimeUpdate={(e) => {
-                    // Only the lead reports, or the panes fight over the value.
-                    if (leadVideo(videos.current) !== e.currentTarget) return;
-                    const at = e.currentTarget.currentTime;
-                    timeRef.current = at;
-                    // Playing, the slider reads the time itself every animation frame.
-                    // State set here rendered every pane four times a second, which a
-                    // loaded main thread showed as the thumb stopping, then jumping.
-                    if (!playingRef.current) setTime(at);
-                    videos.current.forEach((v) => {
-                      if (
-                        v !== e.currentTarget &&
-                        Math.abs(v.currentTime - at) > SYNC_TOLERANCE_SECONDS
-                      ) {
-                        v.currentTime = at;
-                      }
-                    });
-                  }}
-                />
-                {/* The frame a scrub is on, drawn from memory over the video. */}
-                <canvas
+                {/* The frame, which the view zooms and moves: the video and the canvas
+                    over it. */}
+                <div
                   ref={(el) => {
-                    if (el) canvases.current.set(pane.key, el);
-                    else canvases.current.delete(pane.key);
+                    if (!el) return void frameBoxes.current.delete(pane.key);
+                    frameBoxes.current.set(pane.key, el);
+                    showView(el, view.current, sequence.size);
                   }}
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 h-full w-full"
-                  style={{
-                    visibility: covering.has(pane.key) ? "visible" : "hidden",
-                  }}
-                />
+                  className="absolute inset-0 origin-top-left"
+                >
+                  <video
+                    key={sequence.id}
+                    ref={(el) => registerVideo(pane.key, el)}
+                    className="h-full w-full object-contain"
+                    src={src}
+                    onError={() =>
+                      setLoaded((seen) => new Map(seen).set(readyKey, "failed"))
+                    }
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                    onLoadStart={(e) => reloading.add(e.currentTarget)}
+                    onLoadedMetadata={(e) => {
+                      const video = e.currentTarget;
+                      // Found before this video counts as loaded, so it is never its own.
+                      const lead = leadVideo(videos.current);
+                      reloading.delete(video);
+                      setLoaded((seen) => new Map(seen).set(readyKey, "ready"));
+                      setDuration(video.duration);
+                      decodeFor(pane.key, src);
+                      // A seek a new source cut short never ends; its canvas would stay.
+                      setCovering((was) => {
+                        const next = new Set(was);
+                        next.delete(pane.key);
+                        return next;
+                      });
+                      if (restoredSequence.current !== sequence.id) {
+                        // First load of a new sequence: the transport is at the start and
+                        // nothing should resume on its own.
+                        restoredSequence.current = sequence.id;
+                        timeRef.current = 0;
+                        playingRef.current = false;
+                        return;
+                      }
+                      // A stream change swapped src on an element React kept, which
+                      // resets it, and a pane added later starts at 0. Put it where the
+                      // transport is, which while playing the panes with their video have
+                      // moved on from, and resume with the others, or this pane silently
+                      // stops driving the ones that follow it.
+                      video.currentTime = lead
+                        ? lead.currentTime
+                        : timeRef.current;
+                      if (playingRef.current) void video.play();
+                    }}
+                    onTimeUpdate={(e) => {
+                      // Only the lead reports, or the panes fight over the value.
+                      if (leadVideo(videos.current) !== e.currentTarget) return;
+                      const at = e.currentTarget.currentTime;
+                      timeRef.current = at;
+                      // Playing, the slider reads the time itself every animation frame.
+                      // State set here rendered every pane four times a second, which a
+                      // loaded main thread showed as the thumb stopping, then jumping.
+                      if (!playingRef.current) setTime(at);
+                      videos.current.forEach((v) => {
+                        if (
+                          v !== e.currentTarget &&
+                          Math.abs(v.currentTime - at) > SYNC_TOLERANCE_SECONDS
+                        ) {
+                          v.currentTime = at;
+                        }
+                      });
+                    }}
+                  />
+                  {/* The frame a scrub is on, drawn from memory over the video. */}
+                  <canvas
+                    ref={(el) => {
+                      if (el) canvases.current.set(pane.key, el);
+                      else canvases.current.delete(pane.key);
+                    }}
+                    aria-hidden
+                    // Smoothed even zoomed in: its frames are the pane's size, so squares
+                    // would be the pane's pixels, not the video's.
+                    className="pointer-events-none absolute inset-0 h-full w-full [image-rendering:auto]"
+                    style={{
+                      visibility: covering.has(pane.key) ? "visible" : "hidden",
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Under the pane rather than in its header, which a narrow pane cannot
@@ -1075,7 +1331,52 @@ export function Viewer({
           scrubbing={scrubRef}
           onScrub={scrubTo}
           onEndScrub={endScrub}
+          onStep={stepTo}
         />
+        {/* The hint on the group, which a disabled button would not show on hover. */}
+        <div
+          role="group"
+          aria-label="Zoom"
+          title="Pinch, or scroll with Ctrl or ⌘ held, over a pane to zoom; double-click a pane to zoom in or back. Zoomed in, drag or scroll to look around. The + and − keys zoom, 0 shows the whole frame."
+          className="flex items-center gap-1"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Zoom out"
+            className="size-8"
+            disabled={zoom <= 1}
+            onClick={() =>
+              changeView(zoomAbout(view.current, view.current.zoom / ZOOM_STEP))
+            }
+          >
+            <ZoomOut />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            aria-label={`Zoom ${zoomLabel(zoom)}, show the whole frame`}
+            className="text-muted-foreground w-12 font-mono text-xs tabular-nums"
+            disabled={zoom <= 1}
+            onClick={() => changeView(WHOLE_FRAME)}
+          >
+            {zoomLabel(zoom)}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Zoom in"
+            className="size-8"
+            disabled={zoom >= MAX_ZOOM}
+            onClick={() =>
+              changeView(zoomAbout(view.current, view.current.zoom * ZOOM_STEP))
+            }
+          >
+            <ZoomIn />
+          </Button>
+        </div>
         {/* Here rather than beside the panes, where it took a column's width from them. */}
         {names.length > 0 && (
           <Button
@@ -1179,6 +1480,7 @@ function Position({
   scrubbing,
   onScrub,
   onEndScrub,
+  onStep,
 }: {
   frames: number;
   duration: number;
@@ -1192,6 +1494,8 @@ function Position({
   scrubbing: RefObject<number | null>;
   onScrub: (position: number) => void;
   onEndScrub: () => void;
+  /** Go to a whole frame, as the keys do. */
+  onStep: (frame: number) => void;
 }) {
   const slider = useRef<HTMLSpanElement>(null);
   const counter = useRef<HTMLSpanElement>(null);
@@ -1309,8 +1613,7 @@ function Position({
             to = from + (e.shiftKey && Math.abs(by) === 1 ? by * 10 : by);
           }
           e.preventDefault();
-          onScrub(nearestFrame(to, frames));
-          onEndScrub();
+          onStep(nearestFrame(to, frames));
         }}
       />
       {/* Its text is written with the thumb's, by drawPosition, so playing renders neither. */}
