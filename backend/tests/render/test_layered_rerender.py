@@ -91,8 +91,8 @@ def test_focuses_where_the_same_run_would(
     library: Path,
     tmp_path: Path,
 ) -> None:
-    """``render.run`` over written layers draws the object the same scene draws when its bokeh
-    is rendered in the run that wrote it, so a dataset's bokeh can be rendered again.
+    """``render.run`` over written layers draws the object the same scene draws when its
+    bokeh is rendered in the run that wrote it, so a dataset's bokeh can be rendered again.
     """
     cli.main(["--data-root", str(dataset), "--renderer", "layered"])
     same_run = tmp_path / "same_run"

@@ -1,8 +1,8 @@
 """A sequence's bokeh, frame by frame, from its layers wherever they come from.
 
 The dataset writer and the API render frames with their layers in memory; ``render.run``
-reads them back from ``layers/``. Both hand this module the same per-frame layers, and it renders
-them a few frames at a time, so a long sequence never holds its layers whole.
+reads them back from ``layers/``. Both hand this module the same per-frame layers, and it
+renders them a few frames at a time, so a long sequence never holds its layers whole.
 """
 
 from __future__ import annotations

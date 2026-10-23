@@ -84,12 +84,13 @@ class SequenceStream(IterableDataset):
       then the padding.
 
     ``focus`` adds ``focus_disparity`` (T,) and ``focus_object``, an int, -1 when no object
-    holds the focus: the dataset's rule, drawn from the sequence's seed, or
-    ``focus_disparity`` in every frame when it is given. ``bokeh`` adds ``bokeh``
-    (T, 3, H, W), the layered renderer at ``bokeh_strength``, rendered in the worker on the
-    CPU, with the focus it used. ``flow`` adds ``flow`` (T - 1, 2, H, W), each frame's
-    exact forward optical flow to the next, in pixels rather than ``[0, 1]``: the motion of
-    the front-most surface, as ``scenes.generate --flow`` writes it, unquantized.
+    holds the focus: the rule ``scenes.generate --bokeh`` and ``render.run`` share, drawn
+    from the sequence's seed, or ``focus_disparity`` in every frame when it is given.
+    ``bokeh`` adds ``bokeh`` (T, 3, H, W), the layered renderer at ``bokeh_strength``,
+    rendered in the worker on the CPU, with the focus it used. ``flow`` adds ``flow``
+    (T - 1, 2, H, W), each frame's exact forward optical flow to the next, in pixels rather
+    than ``[0, 1]``: the motion of the front-most surface, as ``scenes.generate --flow``
+    writes it, unquantized.
     ``flow_back`` adds ``flow_back`` (T - 1, 2, H, W), each frame but the first's exact
     backward flow to the previous, as ``--flow-back`` writes it. ``occlusion`` adds
     ``occlusion`` (T - 1, 1, H, W), 1 where a frame's surface is not visible in the next,
@@ -253,7 +254,7 @@ class SequenceStream(IterableDataset):
         frames: list[RenderedFrame],
         seq_seed: int,
     ) -> tuple[int | None, list[float]]:
-        """The dataset's focus rule, drawn from the scene's seed as ``render.run`` draws it."""
+        """The focus rule ``render.run`` follows, drawn from the scene's seed."""
         if self.focus_disparity is not None:
             return None, [self.focus_disparity] * len(frames)
         stats = [frame_focus(f.object_alphas, f.disparity) for f in frames]

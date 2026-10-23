@@ -376,9 +376,9 @@ def write_sequence(
     never held whole; ``n_frames`` then says how many it yields.
 
     The frame-number width comes from the frame count, so an 80-frame sequence is
-    ``01``..``80`` and a 100-frame one is ``001``..``100``. ``render.run`` sorts on the numeric
-    prefix and ``preview.pack`` on the zero-padded name, so the width only has to be
-    consistent inside a sequence.
+    ``01``..``80`` and a 100-frame one is ``001``..``100``.
+    ``render.run`` sorts on the numeric prefix and ``preview.pack`` on the zero-padded name,
+    so the width only has to be consistent inside a sequence.
     """
     aif = seq_dir / "all_in_focus"
     alp = seq_dir / "alpha"

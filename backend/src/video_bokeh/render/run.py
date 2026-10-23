@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render bokeh again for written sequences that hold their layers (optional).
+"""Render bokeh again for written sequences (optional).
 
 Reads each sequence's layers, alpha and disparity streams and writes its bokeh stream
 beside them:
