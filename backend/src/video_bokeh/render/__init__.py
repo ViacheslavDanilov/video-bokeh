@@ -1,4 +1,4 @@
-"""Stage C: bokeh renderers, and resolution of ``--renderer`` to a class."""
+"""Bokeh renderers for ``render.run``, and resolution of ``--renderer`` to a class."""
 
 from __future__ import annotations
 

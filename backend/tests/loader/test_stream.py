@@ -417,7 +417,9 @@ def test_the_bokeh_is_the_renderer_on_the_item_s_own_layers(library: Path) -> No
     assert torch.allclose(item["bokeh"], expected, atol=1e-5)
 
 
-def test_the_stream_focuses_where_stage_c_does(library: Path, tmp_path: Path) -> None:
+def test_the_stream_focuses_where_render_run_does(
+    library: Path, tmp_path: Path
+) -> None:
     # The draw is keyed on the scene's seed, so a written sequence and the stream agree.
     generate_dataset(
         library,

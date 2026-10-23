@@ -242,7 +242,7 @@ def write_bokeh_stream(
     """Render a written sequence's bokeh from its scene, in memory, into ``bokeh/``.
 
     ``focus`` is each frame's focus statistics, gathered while the frames were written;
-    the focused object is drawn from the scene's seed, as the loader and Stage C draw
+    the focused object is drawn from the scene's seed, as the loader and ``render.run`` draw
     it. The frames are rendered again with their layers, a few at a time, so the layers
     are never held whole. ``replace`` is ``write_bokeh``'s. ``report`` hears of each
     frame as it is saved, and of the start before torch loads, which the first time
@@ -376,7 +376,7 @@ def write_sequence(
     never held whole; ``n_frames`` then says how many it yields.
 
     The frame-number width comes from the frame count, so an 80-frame sequence is
-    ``01``..``80`` and a 100-frame one is ``001``..``100``. Stage C sorts on the numeric
+    ``01``..``80`` and a 100-frame one is ``001``..``100``. ``render.run`` sorts on the numeric
     prefix and ``preview.pack`` on the zero-padded name, so the width only has to be
     consistent inside a sequence.
     """

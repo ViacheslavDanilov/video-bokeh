@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 // Where playwright.config.ts points the API, so a test can write into a sequence as
-// Stage C would.
+// a renderer would.
 const SEQUENCES = path.join(os.tmpdir(), "video-bokeh-e2e", "sequences");
 const LIBRARIES = path.join(os.tmpdir(), "video-bokeh-e2e", "library");
 
@@ -54,7 +54,7 @@ function runBackend(script: string, ...args: string[]) {
   ]);
 }
 
-/** Write bokeh into the sequence on screen, as Stage C would: the API here renders none of
+/** Write bokeh into the sequence on screen, as a renderer would: the API here renders none of
  *  its own, as without torch, so the stream is faked into the sequence on disk. */
 async function fakeBokeh(page: Page) {
   const id = await page

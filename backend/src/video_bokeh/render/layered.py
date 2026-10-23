@@ -1,7 +1,7 @@
-"""The layer-wise bokeh renderer, in Stage C.
+"""The layer-wise bokeh renderer, as ``render.run`` runs it over written sequences.
 
 Reads each sequence's layers, its alpha masks and its disparity, and writes its bokeh
-losslessly at the sequence's own size. Like every Stage C renderer it never reads the
+losslessly at the sequence's own size. Like every renderer run over written sequences it never reads the
 library, so a sequence written without ``scenes.generate --layers`` is refused. It runs
 on the CPU unless ``VIDEO_BOKEH_LAYERED_DEVICE`` names ``cuda`` or ``mps``.
 """

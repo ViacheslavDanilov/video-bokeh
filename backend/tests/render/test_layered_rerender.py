@@ -1,4 +1,4 @@
-"""Stage C through the layered renderer, over sequences written with their layers."""
+"""``render.run`` through the layered renderer, over sequences written with their layers."""
 
 from __future__ import annotations
 
@@ -57,14 +57,14 @@ def test_writes_every_frame_and_records_what_made_them(dataset: Path) -> None:
         assert not list(seq.glob(".bokeh-*"))
 
 
-def test_is_what_stage_c_runs_unless_told_otherwise(dataset: Path) -> None:
+def test_is_what_render_run_uses_unless_told_otherwise(dataset: Path) -> None:
     assert cli.main(["--data-root", str(dataset)]) == 0
     for seq in _sequences(dataset):
         record = json.loads((seq / "bokeh" / "focus.json").read_text())
         assert record["renderer"] == "layered"
 
 
-def test_stage_c_without_layers_says_what_to_do_instead_of_a_traceback(
+def test_render_run_without_layers_says_what_to_do_instead_of_a_traceback(
     dataset: Path,
 ) -> None:
     seqs = _sequences(dataset)
@@ -91,7 +91,7 @@ def test_focuses_where_the_same_run_would(
     library: Path,
     tmp_path: Path,
 ) -> None:
-    """Stage C over written layers draws the object the same scene draws when its bokeh
+    """``render.run`` over written layers draws the object the same scene draws when its bokeh
     is rendered in the run that wrote it, so a dataset's bokeh can be rendered again.
     """
     cli.main(["--data-root", str(dataset), "--renderer", "layered"])
@@ -110,7 +110,7 @@ def test_focuses_where_the_same_run_would(
         record = json.loads((seq / "bokeh" / "focus.json").read_text())
         expected = json.loads((other / "bokeh" / "focus.json").read_text())
         assert record["object"] == expected["object"]
-        # The same run reads the disparity in memory, Stage C from 16-bit PNGs.
+        # The same run reads the disparity in memory, ``render.run`` from 16-bit PNGs.
         assert record["zf"] == pytest.approx(expected["zf"], abs=1e-3)
 
 

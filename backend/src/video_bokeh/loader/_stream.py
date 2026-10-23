@@ -84,7 +84,7 @@ class SequenceStream(IterableDataset):
       then the padding.
 
     ``focus`` adds ``focus_disparity`` (T,) and ``focus_object``, an int, -1 when no object
-    holds the focus: Stage C's rule, drawn from the sequence's seed, or
+    holds the focus: the dataset's rule, drawn from the sequence's seed, or
     ``focus_disparity`` in every frame when it is given. ``bokeh`` adds ``bokeh``
     (T, 3, H, W), the layered renderer at ``bokeh_strength``, rendered in the worker on the
     CPU, with the focus it used. ``flow`` adds ``flow`` (T - 1, 2, H, W), each frame's
@@ -253,7 +253,7 @@ class SequenceStream(IterableDataset):
         frames: list[RenderedFrame],
         seq_seed: int,
     ) -> tuple[int | None, list[float]]:
-        """The focus rule Stage C follows, drawn from the scene's seed as Stage C draws it."""
+        """The dataset's focus rule, drawn from the scene's seed as ``render.run`` draws it."""
         if self.focus_disparity is not None:
             return None, [self.focus_disparity] * len(frames)
         stats = [frame_focus(f.object_alphas, f.disparity) for f in frames]

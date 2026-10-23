@@ -493,7 +493,7 @@ def test_bokeh_joins_the_streams_once_rendered(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    """Asking again finds the sequence in the cache, now with the stream Stage C wrote."""
+    """Asking again finds the sequence in the cache, now with the stream a renderer wrote."""
     first = client.post("/sequences", json=SEQUENCE_BODY).json()
     render_fake_bokeh(tmp_path / "sequences" / first["id"])
 
@@ -555,7 +555,7 @@ def test_a_re_render_replaces_the_cached_bokeh_video(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    """Stage C run again, at another strength say, replaces bokeh/; the encode cached from
+    """A renderer run again, at another strength say, replaces bokeh/; the encode cached from
     the first render must not keep being served.
     """
     sid = client.post("/sequences", json=SEQUENCE_BODY).json()["id"]
@@ -578,7 +578,7 @@ def test_a_re_render_renamed_into_place_after_an_encode_is_still_caught(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    """Stage C writes bokeh under a staging name and renames it, and a rename leaves the
+    """A renderer writes bokeh under a staging name and renames it, and a rename leaves the
     directory's mtime where the last frame put it. A video encoded in between is newer
     than that mtime, so only the ctime the rename sets tells the new render apart.
     """

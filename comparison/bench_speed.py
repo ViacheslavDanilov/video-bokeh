@@ -169,7 +169,7 @@ def _chw_to_rgb(out: torch.Tensor) -> np.ndarray:
 
 
 def ours(one_frame: bool) -> Method:
-    """Our renderer on the layers, as Stage C gives them, or on the all-in-focus frame
+    """Our renderer on the layers, as ``render.run`` reads them, or on the all-in-focus frame
     alone, as one layer, as ``run_ours_one_frame.py`` gives it."""
     from video_bokeh.layered import render_bokeh
 
@@ -187,7 +187,7 @@ def ours(one_frame: bool) -> Method:
         else:
             frame = f.layers
 
-            # Stacked as Stage C's render_sequence stacks a chunk of frames.
+            # Stacked as the layered package's render_sequence stacks a chunk of frames.
             def stacked(a: np.ndarray) -> torch.Tensor:
                 return torch.from_numpy(np.stack([a], dtype=np.float32))
 
