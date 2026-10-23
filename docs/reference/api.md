@@ -256,9 +256,9 @@ from `bokeh/focus.json`, which the renderer writes with the frames, so a rendere
 that renders the stream again at another strength shows through. A sequence with no record
 yet, because the API rendered no bokeh, names the strength the request asked for.
 
-Stage C's `render.run --strength` cannot render an API sequence's bokeh again. Its layered
-renderer reads the `layers/` stream, which the API does not write, so it refuses the sequence
-and leaves its bokeh as it was.
+`render.run`'s layered renderer cannot render an API sequence's bokeh again, at any
+`--strength`. It reads the `layers/` stream, which the API does not write, so it refuses the sequence
+and leaves its bokeh as it was. Only a renderer of one's own that needs no layers could.
 
 The cap of 64 is four times the default, because a wider blur takes longer to render and the
 call blocks while it renders. Measured on an Apple M3 Pro on 2026-10-22, with the bokeh on the
@@ -322,7 +322,7 @@ curl -N -X POST http://localhost:8000/sequences \
   frames that give one of them a file. That is one fewer than the frames, or all of them
   when backward flow is added with either of the others, because backward flow starts a
   frame later. "Step", because
-  "stage" names the pipeline's Stages A, B and C.
+  "stage" names the pipeline's Stages A and B.
 - **`steps` comes first and names every step, in order, with the total it will count to.**
   The counts done over the counts named are how far the whole generation has got, which
   the demo draws as one bar. A cached sequence missing nothing sends no `steps` either.
@@ -384,8 +384,9 @@ opposites, and anything else answers 422. Every other stream drops the parameter
 its value, as it drops `?colormap=`.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
-file read. A stream whose frames changed after its video was encoded is encoded again: Stage C
-run a second time replaces `bokeh/`, and the page plays the new render once reloaded.
+file read. A stream whose frames changed after its video was encoded is encoded again: a renderer of
+one's own, run over the sequence with `render.run`, replaces `bokeh/`, and the page plays the
+new render once reloaded. The layered renderer cannot, because the API writes no `layers/`.
 
 New encodes use H.264 High, `yuv420p` and CRF 17, and `ffprobe` confirms the High
 profile. The old default meant lossless H.264 at CRF 0, which uses the High 4:4:4
@@ -418,7 +419,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── all_in_focus/                 RGB uint8 PNG
 ├── alpha/                        multi-page uint8 TIFF, one page per object
 ├── disparity/                    uint16 PNG
-├── bokeh/                        RGB uint8 PNG and focus.json, with torch or after Stage C
+├── bokeh/                        RGB uint8 PNG and focus.json, with torch, or by a renderer of one's own
 ├── flow/                         KITTI 16-bit PNG, every frame but the last
 ├── flow_back/                    KITTI 16-bit PNG, every frame but the first
 ├── occlusion/                    8-bit PNG, every frame but the last

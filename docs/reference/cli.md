@@ -236,13 +236,15 @@ uv run python -m video_bokeh.scenes.stats --data-root data/synth_dev --output st
 
 Datasets without `objects.csv` or `run.json` produce a usage error naming the missing file.
 
-## `video_bokeh.render.run` — Stage C
+## `video_bokeh.render.run` — render bokeh again
 
-Renders bokeh for written sequences and writes each one's `bokeh/` stream, as
-[dataset-layout](dataset-layout.md) describes. It needs the `render` extra. The layered renderer
-is the default, and [generate-a-dataset](../how-to/generate-a-dataset.md) has its command.
-Stage C is for rendering again, at another strength or focus, what `scenes.generate --bokeh`
-renders in the same run as the frames.
+Renders the bokeh again for written sequences, and writes each one's `bokeh/` stream, as
+[dataset-layout](dataset-layout.md) describes. The layered renderer needs their layers. It
+is optional, since Stage B renders the bokeh in its own pass with `scenes.generate --bokeh`,
+and it needs the `render` extra. The layered renderer is the default, and
+[generate-a-dataset](../how-to/generate-a-dataset.md) has its command. Use it to render again,
+at another strength or focus, what `scenes.generate --bokeh` rendered in the same run as the
+frames.
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -263,7 +265,7 @@ batch. A directory whose name starts with a dot is never a sequence: the API gen
 | `layered` | this process, on the CPU, an NVIDIA card or a Mac's GPU | sequences written with `scenes.generate --layers` |
 
 The focus follows one object by default, drawn by the area it holds alone, keyed on the
-scene's seed, so Stage C draws the object the same run would have. `bokeh/focus.json` records
+scene's seed, so `render.run` draws the object `scenes.generate --bokeh` would have. `bokeh/focus.json` records
 the object, each frame's in-focus disparity, the renderer and its strength.
 
 **`layered` is the layer-wise renderer** that [layered-bokeh](../explanation/layered-bokeh.md)
@@ -276,7 +278,7 @@ pixels took 13 s on its 24 CPU cores and 6 s on the RTX 5090. At 1024 pixels it 
 
 ### Your own renderer
 
-Pass `--renderer my_package.my_module:MyRenderer`. Stage C creates the class with no arguments
+Pass `--renderer my_package.my_module:MyRenderer`. The tool creates the class with no arguments
 and calls `render(self, sequence_dirs, strength, focus_disparity)` once, with every sequence.
 It must write `<sequence>/bokeh/<frame>.png` for each one: RGB uint8, the sequence's own size,
 named like the `all_in_focus` frames. The interface is

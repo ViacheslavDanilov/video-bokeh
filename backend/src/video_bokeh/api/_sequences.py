@@ -48,8 +48,9 @@ _META = "sequence.json"
 VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 
 #: The bokeh stream. Generation renders it with the sequence when asked, with the layered
-#: renderer; Stage C can also write it into a sequence this API generated, whole or not at
-#: all. It is served once it is there.
+#: renderer. The API writes no ``layers/``, so the layered renderer cannot render it into a
+#: sequence afterwards, and only a renderer of one's own that needs none could write it,
+#: whole or not at all. It is served once it is there.
 BOKEH = "bokeh"
 
 #: The motion streams: the optical flow, the backward flow and the occlusion mask, written
@@ -151,7 +152,7 @@ def _read_cached(dest: Path, sid: str) -> SequenceResult | None:
 
 #: Told how a generation is going: the step, how much of it is done, and out of how much.
 #: The steps are ``sampling``, ``frames``, ``writing``, ``flow`` and ``bokeh``; "step"
-#: rather than "stage", which names the pipeline's Stages A, B and C.
+#: rather than "stage", which names the pipeline's Stages A and B.
 Progress = Callable[[str, int, int], None]
 #: Told, before the first step, every step the generation will take, in order, each with
 #: the total it will count to: what lets a client draw one bar for the whole of it.

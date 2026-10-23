@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render bokeh for written sequences (Stage C).
+"""Render bokeh again for written sequences (optional).
 
 Reads each sequence's layers, alpha and disparity streams and writes its bokeh stream
 beside them:
@@ -9,7 +9,7 @@ beside them:
 Usage:
     uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev
 
-The layered renderer is the default, over sequences written with ``--layers``. Stage C is
+The layered renderer is the default, over sequences written with ``--layers``. This is
 for rendering again, at another strength or focus, what ``scenes.generate --bokeh`` renders
 in the same run as the frames.
 

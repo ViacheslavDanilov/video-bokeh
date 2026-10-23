@@ -115,7 +115,7 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
 
 ### Bokeh
 
-`bokeh` blurs each item with the layered renderer, the one Stage C runs as `--renderer layered`
+`bokeh` blurs each item with the layered renderer, the one `render.run` runs as `--renderer layered`
 and [layered-bokeh](../explanation/layered-bokeh.md) explains. It is off by default, so a loop
 that does not ask for it pays nothing.
 
@@ -126,9 +126,9 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
 
 - **`bokeh_strength`** is the renderer's strength, the blur radius in pixels at a 1024-pixel
   width one unit of disparity from the focus, 16 by default. One value for the whole stream.
-- **The focus follows Stage C's rule**: one object, drawn by the area it holds alone, keyed on
-  the scene's seed. A seed written as a dataset and rendered by Stage C focuses on the same
-  object. `focus_disparity=` pins one disparity for every frame instead.
+- **The focus follows the rule `scenes.generate --bokeh` and `render.run` share**: one object, drawn by the area it holds alone, keyed
+  on the scene's seed. A seed written as a dataset with `--bokeh`, or rendered again by
+  `render.run`, focuses on the same object. `focus_disparity=` pins one disparity for every frame instead.
 - **The worker renders it, on the CPU.** The training loop receives finished batches and the
   GPU stays with the network. CUDA never runs in a worker.
 

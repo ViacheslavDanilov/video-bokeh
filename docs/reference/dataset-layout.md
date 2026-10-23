@@ -58,7 +58,7 @@ produces.
 
 ## Stage B — a generated sequence
 
-Written by `video_bokeh.scenes.generate`. This is the layout Stage C, the preview packer and the API read.
+Written by `video_bokeh.scenes.generate`. This is the layout `render.run`, the preview packer and the API read.
 
 ```
 <output>/
@@ -73,7 +73,7 @@ Written by `video_bokeh.scenes.generate`. This is the layout Stage C, the previe
     ├── flow/<frame>.png           RGB    uint16  optional, written with --flow
     ├── flow_back/<frame>.png      RGB    uint16  optional, written with --flow-back
     ├── occlusion/<frame>.png      L      uint8   optional, written with --occlusion
-    └── bokeh/<frame>.png          RGB    uint8   optional, by --bokeh or Stage C
+    └── bokeh/<frame>.png          RGB    uint8   optional, by --bokeh or render.run
 ```
 
 - `<seq-id>` is 4 digits, 1-based: `0001`, `0002`.

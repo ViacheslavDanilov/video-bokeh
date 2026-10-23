@@ -162,7 +162,7 @@ _Avoid_: asset pool, library
 
 **Fixed set**:
 The dataset we release: the sequences Stage B writes once from the released library, over a
-recorded range of seeds and settings, with the bokeh Stage C renders for them.
+recorded range of seeds and settings, with the bokeh Stage B renders for them.
 _Avoid_: benchmark, offline dataset
 
 **Manifest**:
@@ -174,9 +174,9 @@ Building the library; the only stage that runs the depth estimator.
 _Avoid_: preprocessing
 
 **Stage B**:
-Generating sequences from the library; it never runs the depth estimator. With bokeh,
-optical flow, backward flow or the occlusion mask asked for, it renders them too, in the same
-run.
+Generating sequences from the library, written to disk or handed out as the sequence stream;
+it never runs the depth estimator. With bokeh, optical flow, backward flow or the occlusion
+mask asked for, it renders them too, in the same pass.
 _Avoid_: rendering
 
 **Sequence stream**:
@@ -184,24 +184,20 @@ Sequences Stage B generates in memory for a training loop and never writes — t
 counterpart of the dataset. `loader` is its role word in code, as `library` is Stage A's.
 _Avoid_: online dataset
 
-**Stage C**:
-Rendering bokeh over sequences already written, with a bokeh renderer; it never reads the
-library.
-_Avoid_: post-processing
-
 ## Rendering and the demo
 
 **Bokeh**:
 The disparity-dependent blur the trained model is meant to produce, and the sequence stream
-that holds it, written by Stage B in the same run or by Stage C afterwards.
+that holds it, rendered in Stage B's pass or, optionally, again over written sequences.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
-What renders a sequence's bokeh stream: the layered renderer, which blurs each layer on its
-own in Stage B's run or in Stage C, or a class of one's own behind the same interface.
+What renders a sequence's bokeh stream, as a component of Stage B: the layered renderer,
+which blurs each layer on its own and reads only the layers, or a class of one's own behind
+the same interface; none generates the layers or reads the library.
 any-to-bokeh, the first renderer, left the pipeline on 2026-10-15; comparing with it and
 other published renderers is a task of its own.
-_Avoid_: bokeh model
+_Avoid_: bokeh model, Stage C
 
 **Focus disparity**:
 The disparity that stays sharp in a bokeh render.

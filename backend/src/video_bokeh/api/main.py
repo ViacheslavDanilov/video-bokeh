@@ -10,7 +10,9 @@ written in the same request.
 It comes with its bokeh too, rendered in the same request by the layered renderer, when
 torch is installed and ``VIDEO_BOKEH_RENDER_BOKEH`` does not turn it off. Without torch,
 as in the browser smoke test's install, sequences come without bokeh, and a bokeh stream
-Stage C writes into one later is served once it is there.
+written into one later is served once it is there. The layered renderer cannot write it
+there, because the API writes no ``layers/``; only a renderer of one's own that needs none
+could.
 """
 
 from __future__ import annotations
@@ -503,9 +505,10 @@ def read_sequence_video(
     if over_frames:
         suffix = _OVERLAY_SUFFIX
     video = sequence_dir / f"{stream}{suffix}.mp4"
-    # Re-encoded when the frames are newer than the video: Stage C run again replaces
+    # Re-encoded when the frames are newer than the video: a renderer run again replaces
     # bokeh/ whole, and the encode of the first render would otherwise be served for good.
-    # The ctime too, because Stage C renames bokeh/ into place and a rename moves only that.
+    # The ctime too, because the renderer renames bokeh/ into place and a rename moves only
+    # that.
     frames_dir = sequence_dir / stream
     stale = False
     if video.is_file() and frames_dir.is_dir():

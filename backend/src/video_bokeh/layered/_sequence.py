@@ -1,8 +1,8 @@
 """A sequence's bokeh, frame by frame, from its layers wherever they come from.
 
-The dataset writer and the API render frames with their layers in memory; Stage C reads
-them back from ``layers/``. Both hand this module the same per-frame layers, and it renders
-them a few frames at a time, so a long sequence never holds its layers whole.
+The dataset writer and the API render frames with their layers in memory; ``render.run``
+reads them back from ``layers/``. Both hand this module the same per-frame layers, and it
+renders them a few frames at a time, so a long sequence never holds its layers whole.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from video_bokeh.layered._renderer import GAMMA, RADIUS_STEP, render_bokeh
 from video_bokeh.library._device import select_device
 from video_bokeh.scenes._compositor import RenderedFrame
 
-#: The renderer's name, as ``focus.json`` and Stage C's ``--renderer`` give it.
+#: The renderer's name, as ``focus.json`` and ``render.run``'s ``--renderer`` give it.
 RENDERER = "layered"
 #: Names the torch device that renders a sequence's bokeh: ``cuda``, ``mps`` or ``cpu``.
 DEVICE_VARIABLE = "VIDEO_BOKEH_LAYERED_DEVICE"

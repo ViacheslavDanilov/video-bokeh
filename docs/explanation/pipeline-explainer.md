@@ -7,7 +7,7 @@ related: [dataset-layout, generate-a-dataset, datasets, cli, loader]
 
 # How the pipeline works
 
-A plain-language walkthrough of the three stages that make the synthetic data and its bokeh:
+A plain-language walkthrough of the two stages that make the synthetic data and its bokeh:
 what each stage computes and why it is built this way.
 
 No commands here. To run it, see [generate-a-dataset](../how-to/generate-a-dataset.md). For what
@@ -22,30 +22,35 @@ training data where the distance of every pixel is known exactly. Real video doe
 with that, so we build synthetic video instead: cut-out objects composited onto backgrounds,
 each with a depth we assigned and therefore know.
 
-Three stages, split by cost. Stage A computes depth once per asset. Stage B turns those assets
-into as many videos as you want. Stage C blurs each video by its depth.
+Two stages, split by cost. Stage A computes depth once per asset. Stage B turns those assets
+into as many videos as you want, and its bokeh renderer blurs each video by its depth.
 
 ```mermaid
 flowchart LR
   pools["Source images<br/>MAGICK, BG-20K"] --> A["Stage A<br/>build the library"]
   A --> lib[("library/<br/>color, matte, disparity")]
-  lib --> B["Stage B<br/>generate sequences"]
-  B --> seq[("sequences/<br/>all_in_focus, alpha, disparity")]
-  seq --> C["Stage C<br/>render bokeh"]
-  C --> bokeh[("bokeh/<br/>in each sequence")]
+  lib --> gen
+  subgraph B["Stage B"]
+    gen["generate sequences"] -->|layers| render["bokeh renderer"]
+  end
+  gen --> seq[("sequences/<br/>all_in_focus, alpha, disparity")]
+  render -->|"bokeh/"| seq
+  seq -.->|"layers/, to render again"| render
   B -.-> stream["Sequence stream<br/>inside a training loop"]
   B -.-> api["Demo API"]
 ```
 
-- **Stages A and C take their model from a flag.** Stage A takes a depth estimator, Stage C a
-  bokeh renderer, and either can be a class of your own. [cli](../reference/cli.md) lists both.
-- **The stages meet only through the files on disk.** That is what lets a model that cannot
-  share our Python environment run in one of its own.
+- **Stage A takes its depth estimator from a flag, and `render.run` its bokeh renderer.**
+  Either can be a class of your own. Stage B's own pass, the stream and the API always use the
+  layered renderer. [cli](../reference/cli.md) lists both.
+- **Files on disk join the stages.** Stage B reads the library Stage A wrote. The renderer,
+  run again over written sequences, reads the files Stage B wrote. That is what lets a model
+  that cannot share our Python environment run in one of its own.
   [0001-on-disk-formats-join-the-stages](../adr/0001-on-disk-formats-join-the-stages.md) records
   why.
 - **Cost rises at one end.** Stage A runs a neural depth estimator and Stage B never does.
-  The bokeh comes from our layer-wise renderer, which runs on any machine, in Stage B's run
-  or in Stage C.
+  The bokeh comes from our layer-wise renderer, which runs on any machine, in Stage B's pass
+  or again over written sequences.
 
 ---
 
@@ -191,10 +196,12 @@ explains the renderer that reads them.
 
 ---
 
-## Stage C — render bokeh
+## The bokeh renderer, in Stage B
 
-A bokeh renderer reads a finished sequence and writes what a camera with a shallow focus would
-have recorded: the `bokeh` stream, one frame for every `all_in_focus` frame.
+A bokeh renderer reads a sequence's layers and writes what a camera with a shallow focus would
+have recorded: the `bokeh` stream, one frame for every `all_in_focus` frame. It is a component
+of Stage B. It only reads the layers, which Stage B writes with `--layers` or hands out from
+the sequence stream, and it never reads the library.
 
 The layer-wise renderer is the one the dataset's bokeh comes from. It blurs each layer of a
 frame on its own and stacks them again, so a blurred object in front thins out at its edges and
@@ -205,14 +212,15 @@ sharp and the others blur by how far they are from it in depth.
 
 any-to-bokeh, a diffusion model, was the first renderer. It left the pipeline on 2026-10-15,
 because it ran offline only, on an NVIDIA card, in an environment of its own, and could not
-join the same run as the frames. Comparing our renderer with it and with other published ones
+join the same pass as the frames. Comparing our renderer with it and with other published ones
 is a task of its own, outside the pipeline.
 
-**Bokeh is rendered end to end.** Stage B renders a sequence's bokeh in the same run as its
+**Bokeh is rendered end to end.** Stage B renders a sequence's bokeh in the same pass as its
 frames, in a second pass over the scene from the layers it holds in memory:
-`scenes.generate --bokeh` for a dataset, the API for the demo, the loader for training. Stage C
-renders it again over sequences already written with their layers, for a new strength or
-focus.
+`scenes.generate --bokeh` for a dataset, the API for the demo, the loader for training, in its
+workers or on the training GPU. The renderer can also run again over sequences already written
+with their layers, for a new strength or focus. That is optional, and only a sequence that
+holds its layers can take it.
 [0003-bokeh-is-rendered-in-the-same-pass](../adr/0003-bokeh-is-rendered-in-the-same-pass.md)
 records why.
 
@@ -244,7 +252,7 @@ then train on as many sequences as it likes, from the same distribution as the w
 
 - [dataset-layout](../reference/dataset-layout.md) — the on-disk contract, with formats and bit
   depths
-- [generate-a-dataset](../how-to/generate-a-dataset.md) — how to run Stages A, B and C
+- [generate-a-dataset](../how-to/generate-a-dataset.md) — how to run Stages A and B
 - [loader](../reference/loader.md) — the sequence stream, for training on the fly
 - [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) — how to judge
   the result by eye

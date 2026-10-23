@@ -22,13 +22,13 @@ https://github.com/user-attachments/assets/0b7be719-446f-421c-96d5-78f84a937b30
 ## Features
 
 - **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity.
-- **Three swappable stages** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own), sequence generation, and bokeh (our layer-wise renderer, or your own).
+- **Swappable parts** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own) in Stage A, and bokeh: our layer-wise renderer inside Stage B, or your own over written sequences.
 - **Training on the fly** – A PyTorch stream that generates a new sequence for every item.
 - **Web demo** – Generate a sequence and compare its streams side by side.
 
 ## How It Works
 
-Stage A estimates depth once per asset and stores it as a library. Stage B samples objects, a background and depth trajectories from that library and writes sequences. Bokeh is rendered in the same run, by our layered renderer, or by Stage C over sequences already written. The web demo generates sequences on request. [docs/explanation/pipeline-explainer.md](docs/explanation/pipeline-explainer.md) walks through all of it.
+Stage A estimates depth once per asset and stores it as a library. Stage B samples objects, a background and depth trajectories from that library and writes sequences. Bokeh is rendered in the same pass, by our layered renderer, or again afterwards over written sequences that hold their layers. The web demo generates sequences on request. [docs/explanation/pipeline-explainer.md](docs/explanation/pipeline-explainer.md) walks through all of it.
 
 ## Tech Stack
 

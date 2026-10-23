@@ -29,8 +29,8 @@ The tracked development pool contains 30 backgrounds.
 ## Generated sequences
 
 Stage A builds the artifact library from these pools.
-Stage B samples scenes and writes sequences. The layered renderer can produce bokeh during
-Stage B or run afterward as Stage C over saved layers.
+Stage B samples scenes and writes sequences. The layered renderer produces bokeh in Stage B's
+pass, or can render it again afterward over saved layers.
 
 - [generate-a-dataset](../how-to/generate-a-dataset.md) has the acquisition, library,
   generation, and rendering recipes.

@@ -118,6 +118,6 @@ One thread is what each worker of a training loader gets.
 
 ## Related
 
-- [pipeline-explainer](pipeline-explainer.md) — the three stages, and where bokeh fits
+- [pipeline-explainer](pipeline-explainer.md) — the two stages, and where bokeh fits
 - [dataset-layout](../reference/dataset-layout.md) — the `layers/` stream the renderer reads
 - [loader](../reference/loader.md) — the layers in a training loop

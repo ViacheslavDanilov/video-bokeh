@@ -38,7 +38,9 @@ def test_writes_the_bokeh_in_the_same_run(library: Path, tmp_path: Path) -> None
         assert not (seq / "layers").exists()  # the layers stay in memory
 
 
-def test_matches_stage_c_over_the_written_layers(library: Path, tmp_path: Path) -> None:
+def test_matches_render_run_over_the_written_layers(
+    library: Path, tmp_path: Path
+) -> None:
     out = tmp_path / "data"
     generate_dataset(
         library,
@@ -57,10 +59,10 @@ def test_matches_stage_c_over_the_written_layers(library: Path, tmp_path: Path) 
     Layered().render(seqs, 16.0, None)
     for seq in seqs:
         mine = json.loads((seq / "end_to_end" / "focus.json").read_text())
-        stage_c = json.loads((seq / "bokeh" / "focus.json").read_text())
-        assert mine["object"] == stage_c["object"]
-        # Stage C reads layers stored at 8 and 16 bits; this run held them as floats.
-        assert mine["zf"] == pytest.approx(stage_c["zf"], abs=1e-3)
+        rerendered = json.loads((seq / "bokeh" / "focus.json").read_text())
+        assert mine["object"] == rerendered["object"]
+        # render.run reads layers stored at 8 and 16 bits; this run held them as floats.
+        assert mine["zf"] == pytest.approx(rerendered["zf"], abs=1e-3)
         for frame in sorted((seq / "bokeh").glob("*.png")):
             assert (
                 np.abs(_pixels(seq / "end_to_end" / frame.name) - _pixels(frame)).max()
