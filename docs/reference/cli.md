@@ -238,8 +238,9 @@ Datasets without `objects.csv` or `run.json` produce a usage error naming the mi
 
 ## `video_bokeh.render.run` — render bokeh again
 
-Renders the bokeh again for written sequences that hold their layers, and writes each one's
-`bokeh/` stream, as [dataset-layout](dataset-layout.md) describes. It is optional, since
+Renders the bokeh again for written sequences, and writes each one's `bokeh/` stream, as
+[dataset-layout](dataset-layout.md) describes. The layered renderer needs their layers. It
+is optional, since
 Stage B renders the bokeh in its own pass with `scenes.generate --bokeh`, and it needs the
 `render` extra. The layered renderer is the default, and
 [generate-a-dataset](../how-to/generate-a-dataset.md) has its command. Use it to render again,
@@ -265,7 +266,7 @@ batch. A directory whose name starts with a dot is never a sequence: the API gen
 | `layered` | this process, on the CPU, an NVIDIA card or a Mac's GPU | sequences written with `scenes.generate --layers` |
 
 The focus follows one object by default, drawn by the area it holds alone, keyed on the
-scene's seed, so it draws the object the same run would have. `bokeh/focus.json` records
+scene's seed, so `render.run` draws the object `scenes.generate --bokeh` would have. `bokeh/focus.json` records
 the object, each frame's in-focus disparity, the renderer and its strength.
 
 **`layered` is the layer-wise renderer** that [layered-bokeh](../explanation/layered-bokeh.md)

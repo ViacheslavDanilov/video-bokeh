@@ -34,14 +34,15 @@ flowchart LR
     gen["generate sequences"] -->|layers| render["bokeh renderer"]
   end
   gen --> seq[("sequences/<br/>all_in_focus, alpha, disparity")]
-  render --> bokeh[("bokeh/<br/>in each sequence")]
-  seq -. "render again, with layers" .-> render
+  render -->|"bokeh/"| seq
+  seq -.->|"layers/, to render again"| render
   B -.-> stream["Sequence stream<br/>inside a training loop"]
   B -.-> api["Demo API"]
 ```
 
-- **Stage A takes its depth estimator from a flag, and Stage B its bokeh renderer.** Either
-  can be a class of your own. [cli](../reference/cli.md) lists both.
+- **Stage A takes its depth estimator from a flag, and `render.run` its bokeh renderer.**
+  Either can be a class of your own. Stage B's own pass, the stream and the API always use the
+  layered renderer. [cli](../reference/cli.md) lists both.
 - **Files on disk join the stages.** Stage B reads the library Stage A wrote. The renderer,
   run again over written sequences, reads the files Stage B wrote. That is what lets a model
   that cannot share our Python environment run in one of its own.

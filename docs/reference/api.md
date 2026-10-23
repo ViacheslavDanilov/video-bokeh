@@ -256,8 +256,8 @@ from `bokeh/focus.json`, which the renderer writes with the frames, so a rendere
 that renders the stream again at another strength shows through. A sequence with no record
 yet, because the API rendered no bokeh, names the strength the request asked for.
 
-`render.run` cannot render an API sequence's bokeh again, at any `--strength`. The layered
-renderer reads the `layers/` stream, which the API does not write, so it refuses the sequence
+`render.run`'s layered renderer cannot render an API sequence's bokeh again, at any
+`--strength`. It reads the `layers/` stream, which the API does not write, so it refuses the sequence
 and leaves its bokeh as it was. Only a renderer of one's own that needs no layers could.
 
 The cap of 64 is four times the default, because a wider blur takes longer to render and the
@@ -419,7 +419,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── all_in_focus/                 RGB uint8 PNG
 ├── alpha/                        multi-page uint8 TIFF, one page per object
 ├── disparity/                    uint16 PNG
-├── bokeh/                        RGB uint8 PNG and focus.json, with torch
+├── bokeh/                        RGB uint8 PNG and focus.json, with torch, or by a renderer of one's own
 ├── flow/                         KITTI 16-bit PNG, every frame but the last
 ├── flow_back/                    KITTI 16-bit PNG, every frame but the first
 ├── occlusion/                    8-bit PNG, every frame but the last

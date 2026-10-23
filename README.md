@@ -22,7 +22,7 @@ https://github.com/user-attachments/assets/0b7be719-446f-421c-96d5-78f84a937b30
 ## Features
 
 - **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity.
-- **Swappable parts** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own) in Stage A, and the bokeh renderer (our layer-wise one, or your own) in Stage B's sequence generation.
+- **Swappable parts** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own) in Stage A, and bokeh: our layer-wise renderer inside Stage B, or your own over written sequences.
 - **Training on the fly** – A PyTorch stream that generates a new sequence for every item.
 - **Web demo** – Generate a sequence and compare its streams side by side.
 
