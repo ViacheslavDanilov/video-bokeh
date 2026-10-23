@@ -240,9 +240,8 @@ Datasets without `objects.csv` or `run.json` produce a usage error naming the mi
 
 Renders the bokeh again for written sequences, and writes each one's `bokeh/` stream, as
 [dataset-layout](dataset-layout.md) describes. The layered renderer needs their layers. It
-is optional, since
-Stage B renders the bokeh in its own pass with `scenes.generate --bokeh`, and it needs the
-`render` extra. The layered renderer is the default, and
+is optional, since Stage B renders the bokeh in its own pass with `scenes.generate --bokeh`,
+and it needs the `render` extra. The layered renderer is the default, and
 [generate-a-dataset](../how-to/generate-a-dataset.md) has its command. Use it to render again,
 at another strength or focus, what `scenes.generate --bokeh` rendered in the same run as the
 frames.

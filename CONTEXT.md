@@ -193,8 +193,8 @@ _Avoid_: blur, defocus
 
 **Bokeh renderer**:
 What renders a sequence's bokeh stream, as a component of Stage B: the layered renderer,
-which blurs each layer on its own, or a class of one's own behind the same interface. The
-layered renderer reads only the layers. No renderer generates them or reads the library.
+which blurs each layer on its own and reads only the layers, or a class of one's own behind
+the same interface; none generates the layers or reads the library.
 any-to-bokeh, the first renderer, left the pipeline on 2026-10-15; comparing with it and
 other published renderers is a task of its own.
 _Avoid_: bokeh model, Stage C
