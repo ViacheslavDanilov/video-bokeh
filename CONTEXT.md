@@ -162,7 +162,7 @@ _Avoid_: asset pool, library
 
 **Fixed set**:
 The dataset we release: the sequences Stage B writes once from the released library, over a
-recorded range of seeds and settings, with the bokeh Stage C renders for them.
+recorded range of seeds and settings, with the bokeh the renderer draws for them.
 _Avoid_: benchmark, offline dataset
 
 **Manifest**:
@@ -174,31 +174,33 @@ Building the library; the only stage that runs the depth estimator.
 _Avoid_: preprocessing
 
 **Stage B**:
-Generating sequences from the library; it never runs the depth estimator. With bokeh,
-optical flow, backward flow or the occlusion mask asked for, it renders them too, in the same
-run.
+Generating sequences from the library, written to disk or handed out as the sequence stream;
+it never runs the depth estimator. With bokeh, optical flow, backward flow or the occlusion
+mask asked for, it renders them too, in the same pass. Stage B writes the layers a layered
+renderer reads, with `--layers`, or hands them out from the stream.
 _Avoid_: rendering
 
 **Sequence stream**:
 Sequences Stage B generates in memory for a training loop and never writes — the on-the-fly
-counterpart of the dataset. `loader` is its role word in code, as `library` is Stage A's.
+counterpart of the dataset. `loader` is its role word in code, as `library` is Stage A's. Its
+bokeh is rendered in the loader's workers, or on the training GPU from the layers they hand
+out.
 _Avoid_: online dataset
-
-**Stage C**:
-Rendering bokeh over sequences already written, with a bokeh renderer; it never reads the
-library.
-_Avoid_: post-processing
 
 ## Rendering and the demo
 
 **Bokeh**:
 The disparity-dependent blur the trained model is meant to produce, and the sequence stream
-that holds it, written by Stage B in the same run or by Stage C afterwards.
+that holds it, rendered in Stage B's pass or, optionally, again over written sequences that
+hold their layers.
 _Avoid_: blur, defocus
 
 **Bokeh renderer**:
-What renders a sequence's bokeh stream: the layered renderer, which blurs each layer on its
-own in Stage B's run or in Stage C, or a class of one's own behind the same interface.
+What renders a sequence's bokeh stream, as a component of Stage B: the layered renderer,
+which blurs each layer on its own in Stage B's pass, in the loader's workers or on the
+training GPU from the layers the workers hand out, or again over written sequences that hold
+their layers (`render.run`, optional), or a class of one's own behind the same interface.
+It only reads the layers; it never generates them and never reads the library.
 any-to-bokeh, the first renderer, left the pipeline on 2026-10-15; comparing with it and
 other published renderers is a task of its own.
 _Avoid_: bokeh model

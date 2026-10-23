@@ -20,7 +20,7 @@ Run from `backend/` unless noted.
 | Install Stage B only | `uv sync --no-dev` (from repo root) |
 | Install Stage A | `uv sync --no-dev --extra library` |
 | Install the training loader | `uv sync --no-dev --extra loader` |
-| Install Stage C | `uv sync --no-dev --extra render` |
+| Install the bokeh re-render (`render.run`) | `uv sync --no-dev --extra render` |
 | Run API (reload) | `uv run uvicorn video_bokeh.api.main:app --reload --port 8000` |
 | Tests | `uv run pytest` |
 | Type check | `uv run ty check src/` |
@@ -92,7 +92,7 @@ uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev/da2-large --output data/synth_dev \
   --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5 --layers
 
-# 4. Stage C — render bokeh again into each sequence's bokeh/, over sequences written
+# 4. Optional: render bokeh again into each sequence's bokeh/, over sequences written
 #    with --layers, at another strength or focus than --bokeh rendered in the same run.
 uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev \
   --strength 24

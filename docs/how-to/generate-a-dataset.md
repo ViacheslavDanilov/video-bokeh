@@ -295,8 +295,8 @@ uv run python -m video_bokeh.scenes.generate \
 
 It took 7 s on an Apple M3 Pro, on 2026-10-10.
 
-**Stage C renders bokeh over sequences already written**, the layered renderer from the layers
-`--layers` wrote:
+**The renderer can also draw the bokeh again over sequences already written**, from the layers
+Stage B wrote with `--layers`. This step is optional:
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \

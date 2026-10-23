@@ -14,7 +14,7 @@ backend/src/video_bokeh/
 │   └── depth/      # Depth estimators
 ├── loader/         # On-the-fly training data
 ├── preview/        # Video packing
-├── render/         # Stage C
+├── render/         # Bokeh renderers, and the tool that renders again
 └── scenes/         # Stage B
 ```
 
@@ -28,7 +28,7 @@ backend/src/video_bokeh/
 | run the API | `uv sync --no-dev --extra api` |
 | encode streams as MP4 to watch them | `uv sync --no-dev --extra preview` |
 | train on sequences generated on the fly | `uv sync --no-dev --extra loader` |
-| render bokeh for written sequences (Stage C) | `uv sync --no-dev --extra render` |
+| render bokeh again for written sequences | `uv sync --no-dev --extra render` |
 | develop on the repository | `uv sync --all-extras --dev` |
 
 Drop `--no-dev` and uv adds the `dev` group — pytest, ruff, ty, pre-commit — on top, which
