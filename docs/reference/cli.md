@@ -211,16 +211,23 @@ library built with it.
 - **`stage` uploads a library in parts.** It hard-links every `--every`-th shard of each kind,
   the full index and the figure into a folder of its own, with a card that says how many
   shards and items are online. The shards it takes are spread over the sorted ids, so a part
-  holds both BG-20k splits. Its output must be on the same disk as the packed folder.
+  draws from the whole sorted list; with `--every 5` it holds both BG-20k splits. Its output
+  must be on the same disk as the packed folder.
   Uploading the packed folder afterwards adds the rest and the card of the whole library.
+  Each upload sends the shards first and the card last, so a card never goes live before
+  the shards it describes.
 
 ```bash
 uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
   --output data/library-packed
 uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
   --output data/library-staged --every 5
-hf upload-large-folder vdanilov/video-bokeh-library data/library-staged --repo-type dataset
-hf upload-large-folder vdanilov/video-bokeh-library data/library-packed --repo-type dataset
+hf upload-large-folder vdanilov/video-bokeh-library data/library-staged --repo-type dataset \
+  --exclude README.md
+hf upload vdanilov/video-bokeh-library data/library-staged/README.md README.md --repo-type dataset
+hf upload-large-folder vdanilov/video-bokeh-library data/library-packed --repo-type dataset \
+  --exclude README.md
+hf upload vdanilov/video-bokeh-library data/library-packed/README.md README.md --repo-type dataset
 uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-library \
   --output data/library/da2-large
 ```

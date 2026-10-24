@@ -26,8 +26,12 @@ fetched again unless its mark is deleted:
     uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
         --output data/library-staged --every 5
     hf upload-large-folder vdanilov/video-bokeh-library data/library-staged \
+        --repo-type dataset --exclude README.md
+    hf upload vdanilov/video-bokeh-library data/library-staged/README.md README.md \
         --repo-type dataset
     hf upload-large-folder vdanilov/video-bokeh-library data/library-packed \
+        --repo-type dataset --exclude README.md
+    hf upload vdanilov/video-bokeh-library data/library-packed/README.md README.md \
         --repo-type dataset
     uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-library \
         --output data/library/da2-large
@@ -219,7 +223,7 @@ def card(
     files the repository holds so far, it opens with how much of the library they are.
     """
     shards = {kind: index[kind]["shards"] for kind in (FOREGROUNDS, BACKGROUNDS)}
-    every = [s for kind in shards for s in shards[kind]]
+    all_shards = [s for kind in shards for s in shards[kind]]
     status = ""
     if online is not None:
         held = {
@@ -228,7 +232,7 @@ def card(
         }
         status = STATUS.substitute(
             online=len(online),
-            shards=len(every),
+            shards=len(all_shards),
             online_fg=f"{held[FOREGROUNDS]:,}",
             online_bg=f"{held[BACKGROUNDS]:,}",
             foregrounds=f"{index[FOREGROUNDS]['items']:,}",
@@ -245,11 +249,11 @@ def card(
         bg_side=index[BACKGROUNDS]["side"],
         fg_shards=len(shards[FOREGROUNDS]),
         bg_shards=len(shards[BACKGROUNDS]),
-        shards=len(every),
+        shards=len(all_shards),
         fg_gb=_gb(sum(s["bytes"] for s in shards[FOREGROUNDS])),
         bg_gb=_gb(sum(s["bytes"] for s in shards[BACKGROUNDS])),
-        total_gb=_gb(sum(s["bytes"] for s in every)),
-        largest_gb=_gb(max((s["bytes"] for s in every), default=0)),
+        total_gb=_gb(sum(s["bytes"] for s in all_shards)),
+        largest_gb=_gb(max((s["bytes"] for s in all_shards), default=0)),
         fg_last=Path(shards[FOREGROUNDS][-1]["file"]).name
         if shards[FOREGROUNDS]
         else "",

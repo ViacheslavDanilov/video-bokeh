@@ -3,7 +3,6 @@ license: cc-by-nc-4.0
 pretty_name: Video Bokeh Library
 task_categories:
 - image-to-image
-- video-to-video
 - depth-estimation
 tags:
 - image
@@ -134,9 +133,10 @@ backgrounds/backgrounds-00000.tar … $bg_last
   largest as 65535. Values cannot be compared across items, and no map holds metric depth.
   Stage B stretches every map into the band of disparity it assigns, so only the shape inside
   a map matters.
-- **A foreground's disparity covers the whole square.** Inside the matte it is the estimator's.
-  Outside, it is copied from the nearest trusted pixel and blurred. Stage B reads it only
-  where the matte is above 0, and the preview draws only that part.
+- **A foreground's disparity covers the whole square.** Inside the trusted core (step 4
+  below) it is the estimator's. Everywhere else, including the matte's edge and the holes
+  the cleanup dropped, it is copied from the nearest core pixel and blurred. Stage B reads it
+  only where the matte is above 0, and the preview draws only that part.
 - **Ids name the source image.** A foreground id is MAGICK's image path without its extension,
   with `__` for the slash. A background id is BG-20k's split and file name the same way,
   `train__h_…` or `testval__h_…`.
@@ -157,7 +157,7 @@ backgrounds/backgrounds-00000.tar … $bg_last
    side, so Stage B can pan and zoom without leaving the photo.
 3. **Disparity.** Depth Anything V2 Large (`depth-anything/Depth-Anything-V2-Large-hf`) ran
    once on every image. The model cannot read transparency, so each cut-out was first pasted
-   onto a fixed texture of soft gray noise.
+   onto a fixed texture of soft noise around mid-gray.
 4. **Foreground cleanup.** The matte, from alpha 0.04 up, was eroded by 5 pixels. Pixels in it
    below the 2nd percentile of disparity were dropped, because they are holes the model left,
    often in hair. What remains is the trusted core. Every pixel outside it takes the value of
@@ -190,8 +190,7 @@ two datasets, resized and cropped, and the output of one model:
 
 BG-20k's terms are in its
 [release agreement](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf).
-Its paper says the photos were collected from Unsplash and Pexels; each photo's copyright
-stays with its owner.
+Its paper says the photos were collected from Unsplash and Pexels.
 
 ## Citation
 

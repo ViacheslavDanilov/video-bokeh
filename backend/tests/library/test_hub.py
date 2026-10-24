@@ -9,13 +9,13 @@ import tarfile
 from pathlib import Path
 
 import pytest
-import yaml
 from PIL import Image
 
 # The fixture library lives with the API tests, which use it too.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
 
 from fixture_library import build_library  # noqa: E402
+from huggingface_hub import DatasetCard  # noqa: E402
 from huggingface_hub.errors import EntryNotFoundError  # noqa: E402
 
 from video_bokeh.core._library import list_backgrounds, list_foregrounds  # noqa: E402
@@ -160,8 +160,7 @@ def test_packing_refuses_a_used_folder_and_another_estimator(
 
 
 def _front_matter(card: str) -> dict:
-    _, header, _ = card.split("---\n", 2)
-    return yaml.safe_load(header)
+    return DatasetCard(card).data.to_dict()
 
 
 def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
@@ -173,11 +172,7 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     assert meta["license"] == "cc-by-nc-4.0"
     assert meta["viewer"] is False
     assert "image" in meta["tags"]
-    assert set(meta["task_categories"]) == {
-        "image-to-image",
-        "video-to-video",
-        "depth-estimation",
-    }
+    assert set(meta["task_categories"]) == {"image-to-image", "depth-estimation"}
     assert meta["size_categories"] == ["10K<n<100K"]
     assert meta["source_datasets"] == ["OneOverZero/MAGICK", "BG-20k"]
     assert meta["pretty_name"] == "Video Bokeh Library"
