@@ -203,8 +203,8 @@ disparity in color at the item's size, which the Hub's viewer shows and nothing 
 card declares a `foregrounds` and a `backgrounds` subset, so the viewer and the `datasets`
 library read an item as one row. `fetch` downloads such a repository and unpacks it into a
 library root that Stage B and the sequence stream take as they are, as
-`foregrounds/<id>/rgb.png` and so on without the previews, one shard at a time, so the disk holds the library and one
-shard at most. Run again, `fetch` downloads only the shards it has not unpacked yet. `fetch`
+`foregrounds/<id>/rgb.png` and so on without the previews, one shard at a time, so the disk
+holds the library and one shard at most. Run again, `fetch` downloads only the shards it has not unpacked yet. `fetch`
 needs `huggingface-hub`, which the `loader` and `library` extras install, and so does
 `hf upload-large-folder`. The card names Depth Anything V2 Large, so `pack` takes only a
 library built with it.

@@ -9,7 +9,8 @@ demo shows: all in focus, disparity and the objects' mattes over bokeh, forward 
 flow and occlusion, with a dot for each sequence under them. Disparity is drawn with
 Spectral_r, near red and far violet, as Depth Anything V2's figures draw it. Unless the ids
 are given, the items are spread evenly over the sorted ids; the sequences come from fixed
-seeds. The same library and arguments always give the same preview.
+seeds. The same library and arguments always give the same preview. ``depth_preview``
+draws one item's disparity the same way, for the shards ``pack`` writes.
 """
 
 from __future__ import annotations

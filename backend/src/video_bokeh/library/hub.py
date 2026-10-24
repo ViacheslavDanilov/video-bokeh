@@ -25,9 +25,9 @@ upload status.
 
 ``fetch`` downloads the shards that ``library/index.json`` lists one at a time, unpacks
 each into a library root that Stage B and the sequence stream take as they are, as
-``foregrounds/<id>/rgb.png`` and so on, without the previews, and deletes it, so the disk holds the library and one shard at most. A shard that the index
-lists but the repository does not hold yet is skipped and reported, so a repository can be
-uploaded in parts. ``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file
+``foregrounds/<id>/rgb.png`` and so on, without the previews, and deletes it, so the disk
+holds the library and one shard at most. A shard that the index lists but the repository
+does not hold yet is skipped and reported, so a repository can be uploaded in parts. ``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file
 name, so that run again it fetches only what it lacks; a shard packed anew under an old
 name is not fetched again unless its mark is deleted:
 
@@ -84,8 +84,12 @@ READ = {
     BACKGROUNDS: ("rgb.png", "depth.png"),
 }
 #: The name each file of an item takes in a shard, after the item's id and a dot.
-MEMBER = {"rgb.png": "rgb.png", "alpha.png": "alpha.png", "depth.png": "depth.png"}
-MEMBER["meta.json"] = "json"
+MEMBER = {
+    "rgb.png": "rgb.png",
+    "alpha.png": "alpha.png",
+    "depth.png": "depth.png",
+    "meta.json": "json",
+}
 #: The file each member name stands for, which ``fetch`` writes back.
 FILE = {member: name for name, member in MEMBER.items()}
 #: The member that draws an item's disparity in color for the Hub's viewer.
@@ -160,6 +164,14 @@ def pack(
         raise SystemExit(f"the card describes a {ESTIMATOR} library, not {estimator}")
     if output.exists() and any(output.iterdir()):
         raise SystemExit(f"{output} is not empty: pack writes into an empty folder")
+    dotted = [
+        i
+        for kind in (FOREGROUNDS, BACKGROUNDS)
+        for i in _items(library_root, kind)
+        if "." in i
+    ]
+    if dotted:
+        raise SystemExit(f"{dotted[0]}: an id with a dot breaks WebDataset's keys")
     index: dict[str, dict[str, Any]] = {}
     shards_root = output / LIBRARY
     for kind in (FOREGROUNDS, BACKGROUNDS):
@@ -169,10 +181,6 @@ def pack(
         tar: tarfile.TarFile | None = None
         size = 0
         for asset_id in ids:
-            if "." in asset_id:
-                raise SystemExit(
-                    f"{asset_id}: an id with a dot breaks WebDataset's keys"
-                )
             files = [library_root / kind / asset_id / name for name in READ[kind]]
             files = [f for f in files if f.is_file()]
             if tar is None or size >= shard_bytes:

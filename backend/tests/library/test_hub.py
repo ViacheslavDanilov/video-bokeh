@@ -150,19 +150,36 @@ def test_a_shard_holds_each_item_under_webdataset_names_with_its_depth_preview(
         ]
 
 
-def test_fetching_refuses_a_shard_member_that_names_a_path(
-    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("name", "kind"),
+    [
+        ("../outside.rgb.png", tarfile.REGTYPE),
+        ("nested/fg_x.rgb.png", tarfile.REGTYPE),
+        ("fg_x.rgb.png", tarfile.SYMTYPE),
+    ],
+)
+def test_fetching_refuses_a_shard_member_that_is_not_a_plain_item_file(
+    library: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    kind: bytes,
 ) -> None:
     packed = tmp_path / "packed"
     hub.pack(library, packed, preview=False)
     shard = packed / "library" / "backgrounds" / "backgrounds-00000.tar"
     with tarfile.open(shard, "a") as tar:
-        member = tarfile.TarInfo("../outside.rgb.png")
+        member = tarfile.TarInfo(name)
+        member.type, member.linkname = kind, "/etc/passwd"
         tar.addfile(member, io.BytesIO(b""))
     _hub(monkeypatch, packed)
+    fetched = tmp_path / "fetched"
     with pytest.raises(SystemExit, match="unexpected member"):
-        hub.fetch("someone/some-library", tmp_path / "fetched")
-    assert not (tmp_path / "outside.rgb.png").exists()
+        hub.fetch("someone/some-library", fetched)
+    written = {p.relative_to(fetched).as_posix() for p in fetched.rglob("*.png")}
+    assert all(w.startswith(("foregrounds/", "backgrounds/bg_")) for w in written)
+    assert not (fetched / "outside.rgb.png").exists()
+    assert not (fetched / "backgrounds" / "fg_x").exists()
 
 
 def test_a_shard_closes_near_its_size_and_never_splits_an_item(
