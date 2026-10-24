@@ -1,11 +1,12 @@
 """The preview of a published library: what its items hold, and what Stage B makes of them.
 
 The figure, about 2,500 pixels wide, has two sections under a heading and a rule. Up to
-four foregrounds sit two to a row, each on a card as ``rgb.png`` over a checkerboard,
-``alpha.png`` and ``depth.png`` inside the matte; up to three backgrounds sit in one row,
-each on a card as ``rgb.png`` and ``depth.png``. The video plays sequences that Stage B
-generates from the library at 1024 pixels, all-in-focus, disparity and bokeh side by side,
-with a dot for each sequence under them. Disparity is drawn with Spectral_r, near red and
+four foregrounds sit two to a row, each on a blue-tinted card as ``rgb.png`` over a
+checkerboard, ``alpha.png`` and ``depth.png`` inside the matte; up to three backgrounds sit
+in one row, each on a warm-tinted card as ``rgb.png`` and ``depth.png``. The video plays
+sequences that Stage B generates from the library at 1024 pixels, in the six panes the
+demo shows: all in focus, disparity and the objects' mattes over bokeh, forward optical
+flow and occlusion, with a dot for each sequence under them. Disparity is drawn with Spectral_r, near red and
 far violet, as Depth Anything V2's figures draw it. Unless the ids are given, the items are
 spread evenly over the sorted ids; the sequences come from fixed seeds. The same library
 and arguments always give the same preview.
@@ -14,7 +15,7 @@ and arguments always give the same preview.
 from __future__ import annotations
 
 import io
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -64,7 +65,10 @@ VIDEO_DOTS = 36
 _INK = (31, 35, 40)
 _MUTED = (110, 118, 128)
 _RULE = (214, 218, 224)
-_CARD = (243, 244, 246)
+#: The cards: blue-tinted for foregrounds, warm-tinted for backgrounds, one edge for both.
+_FG_FILL = (246, 249, 255)
+_BG_FILL = (255, 250, 243)
+_CARD_EDGE = (205, 219, 245)
 _PAPER = (255, 255, 255)
 #: Where a foreground's matte is 0, so its disparity map is not drawn.
 _OUTSIDE = (232, 232, 232)
@@ -75,7 +79,15 @@ _FG_CAPTIONS = (
     ("Disparity", "depth.png"),
 )
 _BG_CAPTIONS = (("Color", "rgb.png"), ("Disparity", "depth.png"))
-_VIDEO_CAPTIONS = ("All-in-focus", "Disparity", "Bokeh")
+#: The video's panes, three to a row, named as the demo names them.
+_VIDEO_CAPTIONS = (
+    "All in focus",
+    "Disparity",
+    "Alpha",
+    "Bokeh",
+    "Optical flow",
+    "Occlusion",
+)
 
 
 def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -145,12 +157,19 @@ def _card(
     top: int,
     panels: list[Image.Image],
     captions: Sequence[tuple[str, str]],
+    fill: tuple[int, int, int],
 ) -> int:
     """Panels side by side on a rounded card, each under its caption; return its width."""
     side = panels[0].width
     width = len(panels) * side + (len(panels) - 1) * GAP + 2 * PAD
     height = CAPTION + side + 2 * PAD
-    draw.rounded_rectangle((left, top, left + width, top + height), 12, fill=_CARD)
+    draw.rounded_rectangle(
+        (left, top, left + width, top + height),
+        12,
+        fill=fill,
+        outline=_CARD_EDGE,
+        width=2,
+    )
     font = _font(20)
     for k, (panel, (what, name)) in enumerate(zip(panels, captions, strict=True)):
         x = left + PAD + k * (side + GAP)
@@ -225,6 +244,7 @@ def write_preview(
             row_top,
             _foreground(library_root, asset_id),
             _FG_CAPTIONS,
+            _FG_FILL,
         )
     top += fg_rows * (fg_card + CARD_GAP) + 16
     top = _heading(
@@ -233,7 +253,13 @@ def write_preview(
     left = MARGIN
     for asset_id in bg_ids:
         width = _card(
-            canvas, draw, left, top, _background(library_root, asset_id), _BG_CAPTIONS
+            canvas,
+            draw,
+            left,
+            top,
+            _background(library_root, asset_id),
+            _BG_CAPTIONS,
+            _BG_FILL,
         )
         left += width + CARD_GAP
     _legend(canvas, draw, top + bg_card + 22)
@@ -246,12 +272,23 @@ def write_preview(
     path.write_bytes(buffer.getvalue())
 
 
-def _sequence(library_root: Path, seed: int) -> list[list[np.ndarray]]:
-    """The all-in-focus, colored disparity and bokeh frames of Stage B's sequence ``seed``.
+def _sequence(library_root: Path, seed: int) -> Iterator[list[np.ndarray]]:
+    """The six panes of each frame of Stage B's sequence ``seed``, colored as the demo does.
 
-    A seed whose objects cannot be placed is refused, so the video plays the seeds it names.
+    Optical flow is colored at the sequence's fastest motion, so its frames share one
+    scale, and occlusion grays the frame and draws what the next frame hides in cyan. The
+    last frame has neither, so its flow is still and its occlusion plain gray. A seed whose
+    objects cannot be placed is refused, so the video plays the seeds it names.
     """
     from video_bokeh.loader import SequenceStream
+    from video_bokeh.preview._flow import flow_to_rgb
+    from video_bokeh.preview._masks import render_object_masks
+    from video_bokeh.preview.pack import (
+        _CYAN,
+        _LUMA,
+        _OVERLAY_BRIGHTNESS,
+        _OVERLAY_OPACITY,
+    )
 
     stream = SequenceStream(
         library_root,
@@ -260,7 +297,7 @@ def _sequence(library_root: Path, seed: int) -> list[list[np.ndarray]]:
         n_objects_min=2,
         n_objects_max=4,
         seed=seed,
-        streams=("rgb", "disparity", "bokeh"),
+        streams=("rgb", "disparity", "object_alphas", "bokeh", "flow", "occlusion"),
     )
     item = next(iter(stream))
     if item["seed"] != seed:
@@ -270,29 +307,40 @@ def _sequence(library_root: Path, seed: int) -> list[list[np.ndarray]]:
         rgb = item[key].permute(0, 2, 3, 1).numpy()
         return (rgb * 255).round().astype(np.uint8)
 
+    rgb, bokeh = color("rgb"), color("bokeh")
     disparity = item["disparity"][:, 0].numpy()
-    return [
-        list(frames)
-        for frames in zip(
-            color("rgb"),
-            (apply_colormap(d) for d in disparity),
-            color("bokeh"),
-            strict=True,
-        )
-    ]
+    mattes = item["object_alphas"][:, : item["n_objects"]].numpy()
+    flow = item["flow"].permute(0, 2, 3, 1).numpy()
+    top_speed = float(np.hypot(flow[..., 0], flow[..., 1]).max()) or 1.0
+    still = np.zeros_like(flow[0])
+    occluded = item["occlusion"][:, 0].numpy() > 0.5
+    for t in range(len(rgb)):
+        gray = np.repeat((rgb[t] @ _LUMA * _OVERLAY_BRIGHTNESS)[..., None], 3, -1)
+        if t < len(occluded):
+            cyan = gray * (1 - _OVERLAY_OPACITY) + _CYAN * _OVERLAY_OPACITY
+            gray = np.where(occluded[t][..., None], cyan, gray)
+        yield [
+            rgb[t],
+            apply_colormap(disparity[t]),
+            render_object_masks(list(mattes[t])),
+            bokeh[t],
+            flow_to_rgb(flow[t] if t < len(flow) else still, top_speed),
+            gray.round().astype(np.uint8),
+        ]
 
 
 def write_video(library_root: Path, path: Path, seeds: Sequence[int] = SEEDS) -> None:
     """Write the sequences ``seeds`` of the library at ``library_root`` to the MP4 ``path``.
 
-    Each frame shows all-in-focus, disparity and bokeh side by side under their captions,
-    and a dot for each sequence, the one playing filled. The sequences need torch and the
-    encoder imageio's ffmpeg, which the ``library`` extra installs.
+    Each frame shows the six panes in two rows of three under their captions, and a dot
+    for each sequence, the one playing filled. The sequences need torch and the encoder
+    imageio's ffmpeg, which the ``library`` extra installs.
     """
     import imageio.v2 as iio
 
+    row = VIDEO_CAPTION + VIDEO_PANEL
     width = 3 * VIDEO_PANEL + 4 * VIDEO_GAP
-    height = VIDEO_CAPTION + VIDEO_PANEL + VIDEO_DOTS
+    height = 2 * row + VIDEO_DOTS
     font = _font(30)
     path.parent.mkdir(parents=True, exist_ok=True)
     # `cast` because imageio's writer is typed as an abstract base class but the
@@ -309,31 +357,35 @@ def write_video(library_root: Path, path: Path, seeds: Sequence[int] = SEEDS) ->
             macro_block_size=1,
         ),
     )
+
+    def corner(k: int) -> tuple[int, int]:
+        """The top-left of pane ``k``, three to a row."""
+        return VIDEO_GAP + (k % 3) * (VIDEO_PANEL + VIDEO_GAP), (k // 3) * row
+
     with writer:
         for n, seed in enumerate(seeds):
             page = Image.new("RGB", (width, height), _PAPER)
             draw = ImageDraw.Draw(page)
             for k, caption in enumerate(_VIDEO_CAPTIONS):
-                center = VIDEO_GAP + k * (VIDEO_PANEL + VIDEO_GAP) + VIDEO_PANEL // 2
+                left, top = corner(k)
                 draw.text(
-                    (center, VIDEO_CAPTION // 2),
+                    (left + VIDEO_PANEL // 2, top + VIDEO_CAPTION // 2),
                     caption,
                     fill=_INK,
                     font=font,
                     anchor="mm",
                 )
-            middle = VIDEO_CAPTION + VIDEO_PANEL + VIDEO_DOTS // 2
+            middle = 2 * row + VIDEO_DOTS // 2
             for k in range(len(seeds)):
                 x = width // 2 + round((k - (len(seeds) - 1) / 2) * 28)
                 fill = _INK if k == n else _RULE
                 draw.ellipse((x - 7, middle - 7, x + 7, middle + 7), fill=fill)
             blank = np.asarray(page)
-            for panels in _sequence(library_root, seed):
+            for panes in _sequence(library_root, seed):
                 frame = blank.copy()
-                for k, panel in enumerate(panels):
-                    left = VIDEO_GAP + k * (VIDEO_PANEL + VIDEO_GAP)
+                for k, pane in enumerate(panes):
+                    left, top = corner(k)
                     frame[
-                        VIDEO_CAPTION : VIDEO_CAPTION + VIDEO_PANEL,
-                        left : left + VIDEO_PANEL,
-                    ] = panel
+                        top + VIDEO_CAPTION : top + row, left : left + VIDEO_PANEL
+                    ] = pane
                 writer.append_data(frame)
