@@ -191,19 +191,35 @@ The command exits 1 when any estimator it checked is not `ready`, or failed to m
 
 ## `video_bokeh.library.hub` — publish or download a library
 
-`pack` writes a library into tar shards of about 2 GB, with `index.json` and a dataset card
-`README.md`, for a Hugging Face dataset repository. The shards hold only what Stage B reads:
-each foreground's `rgb.png`, `alpha.png`, `depth.png` and `meta.json`, and each background's
-`rgb.png` and `depth.png`. A shard holds whole items. `fetch` downloads such a repository and
-unpacks it into a library root that Stage B and the sequence stream take as they are, one
-shard at a time, so the disk holds the library and one shard at most. Run again, `fetch`
-downloads only the shards it has not unpacked yet. `fetch` needs `huggingface-hub`, which the
-`loader` and `library` extras install, and so does `hf upload-large-folder`. The card names
-Depth Anything V2 Large, so `pack` takes only a library built with it.
+`pack` writes a library into tar shards of about 2 GB, with `index.json`, a dataset card
+`README.md` and the card's figure `assets/preview.jpg`, for a Hugging Face dataset repository.
+The shards hold only what Stage B reads: each foreground's `rgb.png`, `alpha.png`, `depth.png`
+and `meta.json`, and each background's `rgb.png` and `depth.png`. A shard holds whole items.
+`fetch` downloads such a repository and unpacks it into a library root that Stage B and the
+sequence stream take as they are, one shard at a time, so the disk holds the library and one
+shard at most. Run again, `fetch` downloads only the shards it has not unpacked yet. `fetch`
+needs `huggingface-hub`, which the `loader` and `library` extras install, and so does
+`hf upload-large-folder`. The card names Depth Anything V2 Large, so `pack` takes only a
+library built with it.
+
+- **The card's text is `backend/src/video_bokeh/library/hub_card.md`.** Edit it there. `pack`
+  fills in each `$name` from the index: counts, image sizes, shards and gigabytes.
+- **The figure shows the library and what Stage B makes of it.** Two foregrounds and three
+  backgrounds, spread evenly over the sorted ids, and one frame generated with seed 0, with
+  its disparity and bokeh. It is a JPEG about 1,600 pixels wide and 1 MB at most. The frame
+  needs torch; `--no-preview` leaves the figure out.
+- **`stage` uploads a library in parts.** It hard-links every `--every`-th shard of each kind,
+  the full index and the figure into a folder of its own, with a card that says how many
+  shards and items are online. The shards it takes are spread over the sorted ids, so a part
+  holds both BG-20k splits. Its output must be on the same disk as the packed folder.
+  Uploading the packed folder afterwards adds the rest and the card of the whole library.
 
 ```bash
 uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
-  --output data/library-packed --repo vdanilov/video-bokeh-library
+  --output data/library-packed
+uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
+  --output data/library-staged --every 5
+hf upload-large-folder vdanilov/video-bokeh-library data/library-staged --repo-type dataset
 hf upload-large-folder vdanilov/video-bokeh-library data/library-packed --repo-type dataset
 uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-library \
   --output data/library/da2-large
@@ -212,9 +228,14 @@ uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-libra
 | command | flag | default | meaning |
 |---|---|---|---|
 | `pack` | `--library-root` | **required** | the library to publish |
-| `pack` | `--output` | **required** | where the shards, index and card go |
+| `pack` | `--output` | **required** | where the shards, index, card and figure go |
 | `pack` | `--shard-gb` | `2` | a shard closes once it holds this many gigabytes |
-| `pack` | `--repo` | `<user>/<repo>` | the repository the card's commands name |
+| `pack` | `--repo` | `vdanilov/video-bokeh-library` | the repository the card's commands name |
+| `pack` | `--no-preview` | off | draw no figure, and show none in the card |
+| `stage` | `--packed` | **required** | a folder `pack` wrote |
+| `stage` | `--output` | **required** | the folder to upload first |
+| `stage` | `--every` | **required** | stage shards 0, n, 2n, … of each kind; `1` stages all |
+| `stage` | `--repo` | `vdanilov/video-bokeh-library` | the repository the card's commands name |
 | `fetch` | `--repo` | **required** | a Hugging Face dataset repository of shards |
 | `fetch` | `--output` | **required** | the library root to write |
 | `fetch` | `--revision` | latest | a branch, tag or commit of the repository |
