@@ -261,15 +261,17 @@ def test_the_figure_refuses_more_items_than_it_holds(
         hub.preview(library, packed, backgrounds=["bg_a", "bg_b", "bg_a", "bg_b"])
 
 
-def test_staging_a_folder_packed_before_the_video_links_its_figure(
+def test_staging_refuses_a_folder_packed_before_the_video_until_it_has_one(
     library: Path, tmp_path: Path
 ) -> None:
     packed, staged = tmp_path / "packed", tmp_path / "staged"
     hub.pack(library, packed)
     (packed / hub.VIDEO).unlink()
+    with pytest.raises(SystemExit, match="run preview on it first"):
+        hub.stage(packed, staged, every=1)
+    hub.preview(library, packed)
     assert hub.stage(packed, staged, every=1) == (2, 2)
-    assert (staged / hub.PREVIEW).samefile(packed / hub.PREVIEW)
-    assert not (staged / hub.VIDEO).exists()
+    assert (staged / hub.VIDEO).samefile(packed / hub.VIDEO)
 
 
 def test_staging_takes_every_nth_shard_and_the_card_says_how_much_is_online(

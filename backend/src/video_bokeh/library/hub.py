@@ -3,9 +3,10 @@
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
 folder per kind, with ``index.json``, the dataset card ``README.md`` and its preview, the
 figure ``assets/preview.jpg`` and the video ``assets/preview.mp4``. A shard holds whole
-items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card describes a
-library built with Depth Anything V2 Large, so ``pack`` takes no other. Its text is
-``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a number.
+items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and
+``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
+Large, so ``pack`` takes no other. Its text is ``hub_card.md`` beside this file, with
+``$name`` where ``card`` puts a number.
 
 ``preview`` draws the preview of a packed folder again, of the items and sequences it is
 given, and writes its card again, so a better example costs no packing.
@@ -230,9 +231,10 @@ def stage(
         for shard in index[kind]["shards"][::every]
     ]
     has_preview = (packed / PREVIEW).is_file()
-    # A folder packed before the video existed holds the figure alone.
-    assets = [name for name in (PREVIEW, VIDEO) if (packed / name).is_file()]
-    for name in [*staged, *assets]:
+    if has_preview and not (packed / VIDEO).is_file():
+        # Packed before the video existed: its card would embed a file it lacks.
+        raise SystemExit(f"{packed} has no {VIDEO}: run preview on it first")
+    for name in [*staged, PREVIEW, VIDEO] if has_preview else staged:
         (output / name).parent.mkdir(parents=True, exist_ok=True)
         try:
             os.link(packed / name, output / name)

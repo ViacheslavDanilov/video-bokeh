@@ -215,8 +215,9 @@ library built with it.
   is given, so a better example costs no packing. A seed whose objects cannot be placed is
   refused. Stage again afterwards into an empty folder, so the staged card shows them too.
 - **`stage` uploads a library in parts.** It hard-links every `--every`-th shard of each kind,
-  the full index, the figure and the video into a folder of its own, with a card that says how many
-  shards and items are online. The shards it takes are spread over the sorted ids, so a part
+  the full index, the figure and the video into a folder of its own, with a card that says
+  how many shards and items are online. A folder packed before the video needs `preview`
+  first. The shards it takes are spread over the sorted ids, so a part
   draws from the whole sorted list; with `--every 5` it holds both BG-20k splits. Its output
   must be on the same disk as the packed folder.
   Uploading the packed folder afterwards adds the rest and the card of the whole library.
