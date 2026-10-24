@@ -61,6 +61,13 @@ def _build_parser() -> argparse.ArgumentParser:
         "focus follows one object, drawn by area.",
     )
     parser.add_argument(
+        "--focus-object",
+        type=int,
+        default=None,
+        help="the object the focus follows, by its page in alpha/, instead of one "
+        "drawn by area. Every sequence rendered must show it alone in some frame.",
+    )
+    parser.add_argument(
         "--missing",
         action="store_true",
         help="render only the sequences without bokeh/, leaving out any the renderer "
@@ -87,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.focus_disparity is not None and not 0 <= args.focus_disparity <= 1:
         parser.error("--focus-disparity must be in [0, 1]")
+    if args.focus_object is not None:
+        if args.focus_object < 0:
+            parser.error("--focus-object must be 0 or more")
+        if args.focus_disparity is not None:
+            parser.error("--focus-object and --focus-disparity exclude each other")
     seq_root = args.data_root / "sequences"
     if args.missing and not seq_root.is_dir():
         # A page that has generated nothing yet, not a mistake.
@@ -121,7 +133,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
     print(f"Rendering {len(seq_dirs)} sequence(s) with {args.renderer}")
-    renderer.render(seq_dirs, args.strength, args.focus_disparity)
+    if args.focus_object is None:
+        renderer.render(seq_dirs, args.strength, args.focus_disparity)
+    else:
+        # Passed only when given, so that a renderer of one's own without it still runs.
+        renderer.render(seq_dirs, args.strength, None, focus_object=args.focus_object)
     print("Done.")
     return 0
 

@@ -25,10 +25,12 @@ class BokehRenderer(Protocol):
         sequence_dirs: list[Path],
         strength: float,
         focus_disparity: float | None,
+        focus_object: int | None = None,
     ) -> None:
         """Render every sequence in ``sequence_dirs``.
 
         ``strength`` scales the blur, in units each renderer documents.
         ``focus_disparity`` fixes the in-focus disparity, in ``[0, 1]``, for every frame.
-        ``None`` lets the renderer choose.
+        ``None`` lets the renderer choose. ``focus_object``, which ``render.run`` passes
+        only when it is given, names the object the focus follows instead.
         """
