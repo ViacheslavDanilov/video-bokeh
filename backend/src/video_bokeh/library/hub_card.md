@@ -193,7 +193,23 @@ two datasets, resized and cropped, and the output of one model:
 
 ## Citation
 
-If you use the library, please cite the three works it is built from:
+If you use this dataset, please cite it:
+
+```bibtex
+@misc{danilov2026videobokeh,
+  author       = {Danilov, Viacheslav and Dewil, Val{\'e}ry and Arias, Pablo},
+  title        = {{Video Bokeh}},
+  year         = {2026},
+  publisher    = {Hugging Face},
+  howpublished = {\url{https://huggingface.co/datasets/$repo}}
+}
+```
+
+The library is built from MAGICK, BG-20k and Depth Anything V2. BG-20k's license asks
+every paper that uses it to cite Li et al., so please cite the three works too.
+
+<details>
+<summary>BibTeX of MAGICK, BG-20k and Depth Anything V2</summary>
 
 ```bibtex
 @InProceedings{burgert2024magick,
@@ -233,3 +249,5 @@ If you use the library, please cite the three works it is built from:
   year = {2024}
 }
 ```
+
+</details>
