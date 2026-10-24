@@ -182,15 +182,21 @@ def test_choosing_the_drawn_object_renders_what_the_draw_does(dataset: Path) -> 
 
 
 @pytest.mark.parametrize(
-    "flags",
-    [["--focus-object", "-1"], ["--focus-object", "0", "--focus-disparity", "0.5"]],
+    ("flags", "message"),
+    [
+        (["--focus-object", "-1"], "must be 0 or more"),
+        (["--focus-object", "0", "--focus-disparity", "0.5"], "exclude each other"),
+    ],
 )
 def test_a_bad_focus_object_is_refused_before_rendering(
     dataset: Path,
+    capsys: pytest.CaptureFixture[str],
     flags: list[str],
+    message: str,
 ) -> None:
     with pytest.raises(SystemExit):
         cli.main(["--data-root", str(dataset), *flags])
+    assert message in capsys.readouterr().err
     assert not any((seq / "bokeh").exists() for seq in _sequences(dataset))
 
 
@@ -199,8 +205,10 @@ def test_an_object_a_sequence_lacks_is_refused_before_any_is_rendered(
 ) -> None:
     seqs = _sequences(dataset)
     lacking = next(s for s in seqs if len(_objects(s)) == 1)
-    with pytest.raises(ValueError, match=f"object 1.*{lacking.name}"):
-        Layered().render(seqs, 16.0, None, focus_object=1)
+    # Last, so that a renderer writing as it goes would have written the others.
+    batch = [*(s for s in seqs if s != lacking), lacking]
+    with pytest.raises(ValueError, match=f"no object 1 in {lacking.name}"):
+        Layered().render(batch, 16.0, None, focus_object=1)
     assert not any((seq / "bokeh").exists() for seq in seqs)
 
 
