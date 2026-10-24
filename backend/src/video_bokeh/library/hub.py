@@ -3,8 +3,14 @@
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
 folder per kind, with ``index.json`` and the dataset card ``README.md``. A shard holds whole
 items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and
-``depth_input.png``, stay out. ``fetch`` downloads a dataset repository of such shards and
-unpacks them into a library root that Stage B and the sequence stream take as they are:
+``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
+Large, so ``pack`` takes no other.
+
+``fetch`` downloads the shards that ``index.json`` lists one at a time, unpacks each into a
+library root that Stage B and the sequence stream take as they are, and deletes it, so the
+disk holds the library and one shard at most. It marks each shard it has unpacked in
+``.fetched/``, so that run again it fetches only what it lacks, such as shards added to the
+repository since:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
@@ -20,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import tarfile
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +43,10 @@ READ = {
     BACKGROUNDS: ("rgb.png", "depth.png"),
 }
 SHARD_BYTES = 2 * 10**9
+#: The depth estimator the card names.
+ESTIMATOR = "da2-large"
+#: Where fetch marks the shards it has unpacked, under the library root.
+FETCHED = ".fetched"
 
 CARD = """---
 license: cc-by-nc-4.0
@@ -45,6 +56,9 @@ tags:
 - bokeh
 - matting
 - video
+size_categories:
+- 10K<n<100K
+viewer: false
 ---
 
 # Video bokeh library
@@ -121,21 +135,36 @@ def _items(library_root: Path, kind: str) -> list[str]:
     )
 
 
+def _estimator(library_root: Path) -> str | None:
+    for path in sorted((library_root / FOREGROUNDS).glob("*/meta.json")):
+        estimator = json.loads(path.read_text(encoding="utf-8")).get("estimator")
+        if estimator is not None:
+            return estimator
+    return None
+
+
 def pack(
     library_root: Path,
     output: Path,
     shard_bytes: int = SHARD_BYTES,
     repo: str = "<user>/<repo>",
 ) -> dict[str, dict[str, Any]]:
-    """Write the library's shards, index and card into ``output``; return the index."""
+    """Write the library's shards, index and card into ``output``; return the index.
+
+    The index lists, per kind, the item count and each shard with the items it holds.
+    """
     for kind in (FOREGROUNDS, BACKGROUNDS):
         if not (library_root / kind).is_dir():
             raise SystemExit(f"no {kind}/ in {library_root}: not a library")
+    if (estimator := _estimator(library_root)) != ESTIMATOR:
+        raise SystemExit(f"the card describes a {ESTIMATOR} library, not {estimator}")
+    if output.exists() and any(output.iterdir()):
+        raise SystemExit(f"{output} is not empty: pack writes into an empty folder")
     index: dict[str, dict[str, Any]] = {}
     for kind in (FOREGROUNDS, BACKGROUNDS):
         (output / kind).mkdir(parents=True, exist_ok=True)
         ids = _items(library_root, kind)
-        shards: list[str] = []
+        shards: list[dict[str, Any]] = []
         tar: tarfile.TarFile | None = None
         size = 0
         for asset_id in ids:
@@ -145,47 +174,66 @@ def pack(
                 if tar is not None:
                     tar.close()
                 name = f"{kind}/{kind}-{len(shards):05d}.tar"
-                shards.append(name)
+                shards.append({"file": name, "items": 0})
                 tar = tarfile.open(output / name, "w")
                 size = 0
             for f in files:
                 tar.add(f, arcname=f"{kind}/{asset_id}/{f.name}")
                 size += f.stat().st_size
+            shards[-1]["items"] += 1
         if tar is not None:
             tar.close()
         index[kind] = {"items": len(ids), "shards": shards}
     (output / "index.json").write_text(
         json.dumps(index, indent=1) + "\n", encoding="utf-8"
     )
-    card = CARD.format(
-        foregrounds=index[FOREGROUNDS]["items"],
-        backgrounds=index[BACKGROUNDS]["items"],
-        shard_gb=round(shard_bytes / 10**9, 1),
-        repo=repo,
-    )
-    (output / "README.md").write_text(card, encoding="utf-8")
+    (output / "README.md").write_text(card(index, shard_bytes, repo), encoding="utf-8")
     return index
 
 
-def unpack(packed: Path, library_root: Path) -> Path:
-    """Unpack every shard that ``packed/index.json`` lists into ``library_root``."""
-    index = json.loads((packed / "index.json").read_text(encoding="utf-8"))
-    library_root.mkdir(parents=True, exist_ok=True)
-    for kind in (FOREGROUNDS, BACKGROUNDS):
-        for name in index[kind]["shards"]:
-            with tarfile.open(packed / name) as tar:
-                tar.extractall(library_root, filter="data")
-    return library_root
+def card(index: dict[str, dict[str, Any]], shard_bytes: int, repo: str) -> str:
+    """The dataset card for the shards that ``index`` lists."""
+    return CARD.format(
+        foregrounds=f"{index[FOREGROUNDS]['items']:,}",
+        backgrounds=f"{index[BACKGROUNDS]['items']:,}",
+        shard_gb=f"{shard_bytes / 10**9:g}",
+        repo=repo,
+    )
 
 
 def fetch(repo: str, library_root: Path, revision: str | None = None) -> Path:
-    """Download a packed library from the Hugging Face dataset ``repo`` and unpack it."""
-    from huggingface_hub import snapshot_download
+    """Download the shards of the Hugging Face dataset ``repo`` and unpack them one by one.
 
-    packed = Path(
-        snapshot_download(repo_id=repo, repo_type="dataset", revision=revision),
-    )
-    return unpack(packed, library_root)
+    A shard already marked in ``library_root/.fetched`` is skipped.
+    """
+    from huggingface_hub import hf_hub_download
+
+    def download(name: str, folder: str) -> Path:
+        return Path(
+            hf_hub_download(
+                repo_id=repo,
+                filename=name,
+                repo_type="dataset",
+                revision=revision,
+                local_dir=folder,
+            ),
+        )
+
+    fetched = library_root / FETCHED
+    fetched.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=library_root) as folder:
+        index = json.loads(download("index.json", folder).read_text(encoding="utf-8"))
+        for kind in (FOREGROUNDS, BACKGROUNDS):
+            for shard in index[kind]["shards"]:
+                done = fetched / f"{Path(shard['file']).name}.done"
+                if done.exists():
+                    continue
+                path = download(shard["file"], folder)
+                with tarfile.open(path) as tar:
+                    tar.extractall(library_root, filter="data")
+                path.unlink()
+                done.touch()
+    return library_root
 
 
 def main(argv: list[str] | None = None) -> int:
