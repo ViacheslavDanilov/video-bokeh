@@ -25,12 +25,12 @@ viewer: false
 
 The data of the [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh) project,
 for training depth-aware bokeh on video. This repository holds its library under
-`library/`: $foregrounds cut-out objects, the foregrounds, and $backgrounds background
+`library/`: $foregrounds foregrounds, which are cut-out objects, and $backgrounds background
 photos, each with a disparity map. The project's code works in two stages. Stage A built
 this library once, from MAGICK and BG-20k images and Depth Anything V2 Large. Stage B
 composes training sequences from it, moving the foregrounds over a background at
-disparities it assigns, so every frame comes with its mattes and disparity, exact by
-construction, and its bokeh.
+disparities it assigns, so the mattes, disparity and bokeh of every frame match the frame
+by construction.
 $preview$status
 ## At a glance
 
@@ -150,10 +150,11 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
 
 ## How it was built
 
-1. **Foregrounds.** We started from the 11,868 MAGICK images its authors picked by hand. A zero-shot
-   classifier, Perception Encoder (PE-Core-bigG-14-448, run through OpenCLIP), labeled each
-   with a subject and a style. We kept the subjects person, animal, plant, food and object,
-   in the styles photo and render, with a subject score of at least 0.5. That leaves 8,586. Each was resized on its shorter side and center-cropped to
+1. **Foregrounds.** We started from the 11,868 MAGICK images its authors picked by hand.
+   A zero-shot classifier, Perception Encoder (PE-Core-bigG-14-448, run through OpenCLIP),
+   labeled each with a subject and a style. We kept the subjects person, animal, plant, food
+   and object, in the styles photo and render, with a subject score of at least 0.5. That
+   leaves 8,586. Each was resized on its shorter side and center-cropped to
    $fg_side × $fg_side. Its alpha channel is the matte. No matting model ran.
 2. **Backgrounds.** All $backgrounds BG-20k images, resized and center-cropped to
    $bg_side × $bg_side. That leaves a quarter of a $fg_side-pixel frame to spare on every
@@ -205,8 +206,8 @@ If you use this dataset, please cite it:
 }
 ```
 
-The library is built from MAGICK, BG-20k and Depth Anything V2. BG-20k's license asks
-every paper that uses it to cite Li et al., so please cite the three works too.
+The library is built from MAGICK, BG-20k and Depth Anything V2. Please cite the three works
+too; BG-20k's license requires citing Li et al.
 
 <details>
 <summary>BibTeX of MAGICK, BG-20k and Depth Anything V2</summary>
