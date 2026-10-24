@@ -93,6 +93,22 @@ costs roughly half again what it costs natively — the numbers are in
 Five steps take you from the source images to written sequences or a training loop. Each one
 links the page with the details.
 
+**To skip building a library, download ours.** The library of 8,586 foregrounds and 20,000
+backgrounds that step 3 builds is on
+[Hugging Face](https://huggingface.co/datasets/ViacheslavDanilov/video-bokeh-library), about
+100 GB. These commands fetch it into the layout Stage B reads, and step 5 then trains on it:
+
+```bash
+cd backend
+uv sync --no-dev --extra loader
+uv run python -m video_bokeh.library.hub fetch --repo ViacheslavDanilov/video-bokeh-library \
+  --output data/library/da2-large
+uv run python -m video_bokeh.loader.example --library-root data/library/da2-large
+```
+
+[cli](docs/reference/cli.md#video_bokehlibraryhub--publish-or-download-a-library) says how
+the library is packed and published.
+
 1. **Install** the dataset extras from the repository root, with Python 3.13+ and
    [uv](https://docs.astral.sh/uv/).
 
