@@ -6,10 +6,10 @@ checkerboard, ``alpha.png`` and ``depth.png`` inside the matte; up to three back
 in one row, each on a warm-tinted card as ``rgb.png`` and ``depth.png``. The video plays
 sequences that Stage B generates from the library at 1024 pixels, in the six panes the
 demo shows: all in focus, disparity and the objects' mattes over bokeh, forward optical
-flow and occlusion, with a dot for each sequence under them. Disparity is drawn with Spectral_r, near red and
-far violet, as Depth Anything V2's figures draw it. Unless the ids are given, the items are
-spread evenly over the sorted ids; the sequences come from fixed seeds. The same library
-and arguments always give the same preview.
+flow and occlusion, with a dot for each sequence under them. Disparity is drawn with
+Spectral_r, near red and far violet, as Depth Anything V2's figures draw it. Unless the ids
+are given, the items are spread evenly over the sorted ids; the sequences come from fixed
+seeds. The same library and arguments always give the same preview.
 """
 
 from __future__ import annotations
