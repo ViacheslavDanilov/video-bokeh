@@ -1,17 +1,20 @@
-"""The preview figure of a published library: what its items hold, and what Stage B makes.
+"""The preview of a published library: what its items hold, and what Stage B makes of them.
 
-Three rows, about 1600 pixels wide: two foregrounds as ``rgb.png`` over a checkerboard,
-``alpha.png`` and ``depth.png`` inside the matte; three backgrounds as ``rgb.png`` and ``depth.png``; and
-one frame that Stage B generates from the library, all-in-focus, disparity and bokeh.
-Disparity is drawn with Spectral_r, near red and far violet, as Depth Anything V2's figures
-draw it. The items are spread evenly over the sorted ids, and the frame comes from a fixed
-seed, so the same library always gives the same figure.
+The figure, about 1600 pixels wide, has two rows of two foregrounds, each as ``rgb.png``
+over a checkerboard, ``alpha.png`` and ``depth.png`` inside the matte, and a row of three
+backgrounds as ``rgb.png`` and ``depth.png``. The video plays sequences that Stage B
+generates from the library, all-in-focus, disparity and bokeh side by side. Disparity is
+drawn with Spectral_r, near red and far violet, as Depth Anything V2's figures draw it.
+Unless the ids are given, the items are spread evenly over the sorted ids; the sequences
+come from fixed seeds. The same library and arguments always give the same preview.
 """
 
 from __future__ import annotations
 
 import io
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -30,12 +33,17 @@ GAP = 8
 #: Six small panels to a row: two foregrounds of three, or three backgrounds of two.
 COLUMNS = 6
 WIDTH = COLUMNS * PANEL + (COLUMNS + 1) * GAP
-#: A generated frame's panel spans two small ones and the gap between them.
-FRAME = 2 * PANEL + GAP
 CAPTION = 22
 MAX_BYTES = 10**6
-#: The sequence the generated frame comes from.
-SEED = 0
+#: The figure's items, unless they are given.
+N_FOREGROUNDS = 4
+N_BACKGROUNDS = 3
+#: The video's sequences, unless their seeds are given, and their frames.
+SEEDS = (0, 1, 2)
+#: Side of a video panel, the frames of each sequence, and the frame rate.
+VIDEO_PANEL = 384
+VIDEO_FRAMES = 48
+FPS = 12
 
 _INK = (40, 40, 40)
 _PAPER = (255, 255, 255)
@@ -89,29 +97,37 @@ def _background(library_root: Path, asset_id: str) -> list[tuple[str, Image.Imag
     ]
 
 
-def _frame(library_root: Path) -> list[tuple[str, Image.Image]]:
-    """One frame of the sequence ``SEED`` names, with its bokeh, from Stage B's stream."""
+def _sequence(library_root: Path, seed: int) -> list[list[np.ndarray]]:
+    """The all-in-focus, colored disparity and bokeh frames of Stage B's sequence ``seed``.
+
+    A seed whose objects cannot be placed gives the next one that can, as the stream does.
+    """
     from video_bokeh.loader import SequenceStream
 
     stream = SequenceStream(
         library_root,
-        n_frames=1,
-        size=FRAME,
+        n_frames=VIDEO_FRAMES,
+        size=VIDEO_PANEL,
         n_objects_min=2,
-        n_objects_max=3,
-        seed=SEED,
+        n_objects_max=4,
+        seed=seed,
         streams=("rgb", "disparity", "bokeh"),
     )
     item = next(iter(stream))
 
-    def color(key: str) -> Image.Image:
-        rgb = item[key][0].permute(1, 2, 0).numpy()
-        return Image.fromarray((rgb * 255).round().astype(np.uint8))
+    def color(key: str) -> np.ndarray:
+        rgb = item[key].permute(0, 2, 3, 1).numpy()
+        return (rgb * 255).round().astype(np.uint8)
 
+    disparity = item["disparity"][:, 0].numpy()
     return [
-        ("generated frame: all-in-focus", color("rgb")),
-        ("disparity", _disparity(item["disparity"][0, 0].numpy(), FRAME)),
-        ("bokeh", color("bokeh")),
+        list(frames)
+        for frames in zip(
+            color("rgb"),
+            (apply_colormap(d) for d in disparity),
+            color("bokeh"),
+            strict=True,
+        )
     ]
 
 
@@ -146,24 +162,23 @@ def _legend(
     draw.text((left + width + 8, top + 1), "near", fill=_INK, font=font, anchor="la")
 
 
-def write_preview(library_root: Path, path: Path) -> None:
-    """Draw the preview of the library at ``library_root`` into the JPEG ``path``.
+def write_preview(
+    library_root: Path,
+    path: Path,
+    foregrounds: Sequence[str] | None = None,
+    backgrounds: Sequence[str] | None = None,
+) -> None:
+    """Draw the figure of the library at ``library_root`` into the JPEG ``path``.
 
-    The frame needs torch, which the ``library`` and ``loader`` extras install.
+    ``foregrounds``, up to four ids, and ``backgrounds``, up to three, pick the items.
     """
+    fg_ids = list(foregrounds or _evenly(list_foregrounds(library_root), N_FOREGROUNDS))
+    bg_ids = list(backgrounds or _evenly(list_backgrounds(library_root), N_BACKGROUNDS))
     rows = [
-        [
-            p
-            for i in _evenly(list_foregrounds(library_root), 2)
-            for p in _foreground(library_root, i)
-        ],
-        [
-            p
-            for i in _evenly(list_backgrounds(library_root), 3)
-            for p in _background(library_root, i)
-        ],
-        _frame(library_root),
+        [p for i in fg_ids[k : k + 2] for p in _foreground(library_root, i)]
+        for k in range(0, len(fg_ids), 2)
     ]
+    rows.append([p for i in bg_ids for p in _background(library_root, i)])
     legend = 28
     height = (
         GAP + sum(CAPTION + max(im.height for _, im in r) + GAP for r in rows) + legend
@@ -182,3 +197,49 @@ def write_preview(library_root: Path, path: Path) -> None:
         if buffer.tell() <= MAX_BYTES:
             break
     path.write_bytes(buffer.getvalue())
+
+
+def write_video(library_root: Path, path: Path, seeds: Sequence[int] = SEEDS) -> None:
+    """Write the sequences ``seeds`` of the library at ``library_root`` to the MP4 ``path``.
+
+    Each frame shows all-in-focus, disparity and bokeh side by side, under their captions.
+    The sequences need torch and the encoder imageio's ffmpeg, which the ``library`` extra
+    installs.
+    """
+    import imageio.v2 as iio
+
+    captions = ("all-in-focus", "disparity", "bokeh")
+    width = 3 * VIDEO_PANEL + 4 * GAP
+    height = CAPTION + VIDEO_PANEL + 2 * GAP
+    header = Image.new("RGB", (width, height), _PAPER)
+    draw = ImageDraw.Draw(header)
+    font = ImageFont.load_default(size=15)
+    for k, caption in enumerate(captions):
+        draw.text(
+            (GAP + k * (VIDEO_PANEL + GAP), GAP + 3), caption, fill=_INK, font=font
+        )
+    blank = np.asarray(header)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # `cast` because imageio's writer is typed as an abstract base class but the
+    # concrete subclass exposes `append_data`.
+    writer = cast(
+        Any,
+        iio.get_writer(
+            path,
+            fps=FPS,
+            codec="libx264",
+            quality=None,
+            output_params=["-crf", "22", "-profile:v", "high"],
+            pixelformat="yuv420p",
+            macro_block_size=1,
+        ),
+    )
+    top = GAP + CAPTION
+    with writer:
+        for seed in seeds:
+            for panels in _sequence(library_root, seed):
+                frame = blank.copy()
+                for k, panel in enumerate(panels):
+                    left = GAP + k * (VIDEO_PANEL + GAP)
+                    frame[top : top + VIDEO_PANEL, left : left + VIDEO_PANEL] = panel
+                writer.append_data(frame)
