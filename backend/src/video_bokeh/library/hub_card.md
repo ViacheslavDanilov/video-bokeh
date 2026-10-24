@@ -1,6 +1,6 @@
 ---
 license: cc-by-nc-4.0
-pretty_name: Video Bokeh Library
+pretty_name: Video Bokeh
 task_categories:
 - image-to-image
 - depth-estimation
@@ -21,14 +21,16 @@ source_datasets:
 viewer: false
 ---
 
-# Video Bokeh Library
+# Video Bokeh
 
-Cut-out objects and background photos, each with a disparity map, for composing training
-video for depth-aware bokeh. The library holds $foregrounds foregrounds and
-$backgrounds backgrounds. Stage A of
-[video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh) built it once. Stage B of
-the same code places the foregrounds over a background as moving objects at disparities it
-assigns, so every generated frame comes with its mattes, its disparity and its bokeh.
+The data of the [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh) project,
+for training depth-aware bokeh on video. This repository holds its library under
+`library/`: $foregrounds foregrounds, which are cut-out objects, and $backgrounds background
+photos, each with a disparity map. The project's code works in two stages. Stage A built
+this library once, from MAGICK and BG-20k images and Depth Anything V2 Large. Stage B
+composes training sequences from it, moving the foregrounds over a background at
+disparities it assigns, so the mattes, disparity and bokeh of every frame match the frame
+by construction.
 $preview$status
 ## At a glance
 
@@ -41,14 +43,14 @@ $preview$status
 | size | $fg_gb GB | $bg_gb GB |
 
 - **$shards shards, $total_gb GB in all.** The largest shard is $largest_gb GB.
-- **Disparity, not depth.** Larger values are closer.
+- **`depth.png` holds disparity.** Larger values are closer.
 - **One estimator.** Every map comes from Depth Anything V2 Large.
 
 ## Quick start
 
 `fetch` downloads the shards one at a time and unpacks each into a library folder, so the
-disk needs $total_gb GB for the library plus room for one shard. Run again, it downloads only
-the shards it has not unpacked yet. It needs Python 3.13 and
+disk needs $total_gb GB for the library plus room for one shard. A second run downloads only
+the shards the first did not unpack. It needs Python 3.13 and
 [uv](https://docs.astral.sh/uv/).
 
 ```bash
@@ -66,8 +68,8 @@ data/library/da2-large/
 └── backgrounds/<id>/rgb.png, depth.png
 ```
 
-The sequence stream turns it into training data in memory. Each item is a new sequence,
-generated on the fly and never written to disk:
+`SequenceStream`, the project's PyTorch dataset, runs Stage B on that folder in memory.
+Each item is a new sequence, generated on the fly and never written to disk:
 
 ```python
 from pathlib import Path
@@ -86,8 +88,9 @@ print(item["rgb"].shape, item["disparity"].shape, item["bokeh"].shape)
 ```
 
 `uv run python -m video_bokeh.loader.example --library-root data/library/da2-large` trains a
-small network on it for 20 steps. The repository's README shows how to write sequences to disk
-instead, with optical flow and the layers each frame is composited from.
+small network on it for 20 steps. The project's
+[README](https://github.com/ViacheslavDanilov/video-bokeh) shows how to write sequences to
+disk instead, with optical flow and the layers each frame is composited from.
 
 To read one item without the code, open its files with Pillow and NumPy:
 
@@ -104,17 +107,18 @@ disparity = np.asarray(Image.open(f"{item}/depth.png")) / 65535.0  # (H, W) in [
 ## Repository layout
 
 ```text
-README.md
-index.json$assets
-foregrounds/foregrounds-00000.tar … $fg_last
-backgrounds/backgrounds-00000.tar … $bg_last
+README.md$assets
+library/index.json
+library/foregrounds/foregrounds-00000.tar … $fg_last
+library/backgrounds/backgrounds-00000.tar … $bg_last
 ```
 
 - **A shard is a plain tar.** The images are PNG already, so it is not compressed again.
 - **A shard holds whole items.** Its members are `foregrounds/<id>/rgb.png` and the other
-  files of the item, so unpacking every shard into one folder gives the layout above.
-- **`index.json` lists the shards of each kind**, with the number of items and the bytes each
-  holds. `fetch` reads it first.
+  files of the item, so unpacking every shard into one folder gives the layout Stage B reads,
+  shown under Quick start.
+- **`library/index.json` lists the shards of each kind**, with the number of items and the
+  bytes each holds. `fetch` reads it first.
 - **The viewer is off.** The shards group files by folder, not by WebDataset's file-name
   prefix, so the viewer would show each file as a sample of its own.
 
@@ -146,11 +150,11 @@ backgrounds/backgrounds-00000.tar … $bg_last
 
 ## How it was built
 
-1. **Foregrounds.** We started from 11,868 hand-picked MAGICK images. A zero-shot
-   classifier, Perception Encoder (PE-Core-bigG-14-448, run through OpenCLIP), labeled each
-   with a subject and a style. We kept the subjects person, animal, plant, food and object,
-   in the styles photo and render, with a subject score of at least 0.5. That keeps 8,586 of
-   them in the full library. Each was resized on its shorter side and center-cropped to
+1. **Foregrounds.** We started from the 11,868 MAGICK images its authors picked by hand.
+   A zero-shot classifier, Perception Encoder (PE-Core-bigG-14-448, run through OpenCLIP),
+   labeled each with a subject and a style. We kept the subjects person, animal, plant, food
+   and object, in the styles photo and render, with a subject score of at least 0.5. That
+   leaves 8,586. Each was resized on its shorter side and center-cropped to
    $fg_side × $fg_side. Its alpha channel is the matte. No matting model ran.
 2. **Backgrounds.** All $backgrounds BG-20k images, resized and center-cropped to
    $bg_side × $bg_side. That leaves a quarter of a $fg_side-pixel frame to spare on every
@@ -166,10 +170,10 @@ backgrounds/backgrounds-00000.tar … $bg_last
 
 ## Limitations
 
-- **The disparity is a model's estimate, not a measurement.** It is relative, and it can be
-  wrong, most visibly at thin structures such as hair.
-- **The foregrounds are generated images, not photos.** MAGICK made them with a text-to-image
-  model and cut them out by chroma keying.
+- **The disparity is a model's estimate.** It is relative, and it can be wrong, most visibly
+  at thin structures such as hair.
+- **The foregrounds are generated.** MAGICK made them with a text-to-image model and cut
+  them out by chroma keying.
 - **The subjects are uneven.** Of the 8,586 foregrounds of the full library, 3,974 are
   people, 2,327 objects, 1,406 food, 483 plants and 396 animals, by the classifier's labels.
 - **The labels are not shipped.** The classifier's subject and style of each foreground stay
@@ -190,43 +194,14 @@ two datasets, resized and cropped, and the output of one model:
 
 ## Citation
 
-If you use the library, please cite the three works it is built from:
+If you use this dataset, please cite it:
 
 ```bibtex
-@InProceedings{burgert2024magick,
-    author    = {Burgert, Ryan D. and Price, Brian L. and Kuen, Jason and Li, Yijun and Ryoo, Michael S.},
-    title     = {MAGICK: A Large-scale Captioned Dataset from Matting Generated Images using Chroma Keying},
-    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-    month     = {June},
-    year      = {2024},
-    pages     = {22595-22604}
-}
-
-@article{li2022bridging,
-  title={Bridging Composite and Real: Towards End-to-End Deep Image Matting},
-  volume={130},
-  ISSN={1573-1405},
-  url={http://dx.doi.org/10.1007/s11263-021-01541-0},
-  DOI={10.1007/s11263-021-01541-0},
-  number={2},
-  journal={International Journal of Computer Vision},
-  publisher={Springer Science and Business Media LLC},
-  author={Li, Jizhizi and Zhang, Jing and Maybank, Stephen J. and Tao, Dacheng},
-  year={2022},
-  month=Jan,
-  pages={246--266}
-}
-
-@inproceedings{yang2024depthanythingv2,
-  author = {Yang, Lihe and Kang, Bingyi and Huang, Zilong and Zhao, Zhen and Xu, Xiaogang and Feng, Jiashi and Zhao, Hengshuang},
-  booktitle = {Advances in Neural Information Processing Systems},
-  doi = {10.52202/079017-0688},
-  editor = {A. Globerson and L. Mackey and D. Belgrave and A. Fan and U. Paquet and J. Tomczak and C. Zhang},
-  pages = {21875--21911},
-  publisher = {Curran Associates, Inc.},
-  title = {{Depth Anything V2}},
-  url = {https://proceedings.neurips.cc/paper_files/paper/2024/file/26cfdcd8fe6fd75cc53e92963a656c58-Paper-Conference.pdf},
-  volume = {37},
-  year = {2024}
+@misc{danilov2026videobokeh,
+  author       = {Danilov, Viacheslav and Dewil, Valéry and Arias, Pablo},
+  title        = {{Video Bokeh}},
+  year         = {2026},
+  publisher    = {Hugging Face},
+  howpublished = {\url{https://huggingface.co/datasets/$repo}}
 }
 ```
