@@ -1,10 +1,17 @@
 """Publish a library on Hugging Face, and fetch it back into the layout Stage B reads.
 
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
-folder per kind, with ``index.json`` and the dataset card ``README.md``. A shard holds whole
-items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and
-``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
-Large, so ``pack`` takes no other.
+folder per kind, with ``index.json``, the dataset card ``README.md`` and its preview figure
+``assets/preview.jpg``. A shard holds whole items, so an item is never split. Stage A's
+inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card describes a
+library built with Depth Anything V2 Large, so ``pack`` takes no other. Its text is
+``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a number.
+
+``stage`` hard-links every ``--every``-th shard of each kind, the full index, the preview
+and a card that says how much is online into a folder of its own, for a first upload that
+is part of the library. The shards it takes are spread over the sorted ids. ``--every 1``,
+or uploading the packed folder itself, gives the whole library and a card without the
+upload status.
 
 ``fetch`` downloads the shards that ``index.json`` lists one at a time, unpacks each into a
 library root that Stage B and the sequence stream take as they are, and deletes it, so the
@@ -16,8 +23,17 @@ fetched again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
-    hf upload-large-folder <user>/<repo> data/library-packed --repo-type dataset
-    uv run python -m video_bokeh.library.hub fetch --repo <user>/<repo> \
+    uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
+        --output data/library-staged --every 5
+    hf upload-large-folder vdanilov/video-bokeh-library data/library-staged \
+        --repo-type dataset --exclude README.md
+    hf upload vdanilov/video-bokeh-library data/library-staged/README.md README.md \
+        --repo-type dataset
+    hf upload-large-folder vdanilov/video-bokeh-library data/library-packed \
+        --repo-type dataset --exclude README.md
+    hf upload vdanilov/video-bokeh-library data/library-packed/README.md README.md \
+        --repo-type dataset
+    uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-library \
         --output data/library/da2-large
 
 Shards are plain tar: the images are PNG already, so compressing them again saves little.
@@ -27,10 +43,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import tarfile
 import tempfile
+from importlib import resources
 from pathlib import Path
+from string import Template
 from typing import Any
+
+from PIL import Image
 
 from video_bokeh.core._library import (
     BACKGROUNDS,
@@ -50,84 +72,30 @@ SHARD_BYTES = 2 * 10**9
 ESTIMATOR = "da2-large"
 #: Where fetch marks the shards it has unpacked, under the library root.
 FETCHED = ".fetched"
+#: The repository the card's commands name.
+REPO = "vdanilov/video-bokeh-library"
+#: The card's figure, relative to the packed folder and to the card.
+PREVIEW = "assets/preview.jpg"
+#: The card's figure and its caption, when ``pack`` drew one.
+FIGURE = f"""
+![Two foregrounds, three backgrounds and one generated frame]({PREVIEW})
 
-CARD = """---
-license: cc-by-nc-4.0
-pretty_name: Video bokeh library
-tags:
-- depth
-- bokeh
-- matting
-- video
-size_categories:
-- 10K<n<100K
-viewer: false
----
-
-# Video bokeh library
-
-The library that video-bokeh's Stage A builds once, and from which Stage B composes
-training video for depth-aware bokeh: {foregrounds} foregrounds and {backgrounds} backgrounds,
-each with the disparity estimated by Depth Anything V2 Large.
-
-- `foregrounds/<id>/`: `rgb.png` (RGBA), `alpha.png`, `depth.png` (16-bit disparity) and
-  `meta.json`.
-- `backgrounds/<id>/`: `rgb.png` and `depth.png` (16-bit disparity).
-
-The files come in tar shards of about {shard_gb} GB under `foregrounds/` and `backgrounds/`;
-`index.json` lists them. The code at https://github.com/ViacheslavDanilov/video-bokeh fetches
-and unpacks them into the layout Stage B reads, and generates sequences from it:
-
-```bash
-cd backend
-uv sync --no-dev --extra loader
-uv run python -m video_bokeh.library.hub fetch --repo {repo} --output data/library/da2-large
-uv run python -m video_bokeh.loader.example --library-root data/library/da2-large
-```
-
-## Sources and license
-
-This library is derived from two datasets, whose images it holds resized and cropped, and
-from the output of one model:
-
-- Foregrounds from MAGICK (Burgert et al., CVPR 2024), CC BY-NC 4.0.
-- Backgrounds from BG-20k (Li et al., IJCV 2021), released under the MIT license on the
-  condition that it is cited; its photographs stay under their owners' Unsplash or Pexels
-  licenses.
-- Disparity from Depth Anything V2 Large (Yang et al., NeurIPS 2024), whose weights are
-  CC BY-NC 4.0.
-
-The library is for non-commercial research only, under CC BY-NC 4.0. Please cite MAGICK,
-BG-20k and Depth Anything V2 with it:
-
-```bibtex
-@inproceedings{{burgert2024magick,
-  author    = {{Burgert, Ryan D. and Price, Brian L. and Kuen, Jason and Li, Yijun and Ryoo, Michael S.}},
-  title     = {{MAGICK: A Large-scale Captioned Dataset from Matting Generated Images using Chroma Keying}},
-  booktitle = {{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}},
-  year      = {{2024}},
-  pages     = {{22595--22604}}
-}}
-@article{{li2022bridging,
-  author  = {{Li, Jizhizi and Zhang, Jing and Maybank, Stephen J. and Tao, Dacheng}},
-  title   = {{Bridging Composite and Real: Towards End-to-End Deep Image Matting}},
-  journal = {{International Journal of Computer Vision}},
-  volume  = {{130}},
-  number  = {{2}},
-  pages   = {{246--266}},
-  year    = {{2022}},
-  doi     = {{10.1007/s11263-021-01541-0}}
-}}
-@inproceedings{{yang2024depthanythingv2,
-  author    = {{Yang, Lihe and Kang, Bingyi and Huang, Zilong and Zhao, Zhen and Xu, Xiaogang and Feng, Jiashi and Zhao, Hengshuang}},
-  title     = {{Depth Anything V2}},
-  booktitle = {{Advances in Neural Information Processing Systems}},
-  volume    = {{37}},
-  pages     = {{21875--21911}},
-  year      = {{2024}}
-}}
-```
+*Top: two foregrounds, each as `rgb.png` over a checkerboard, `alpha.png` and `depth.png`
+inside the matte, with gray where the matte is 0. Middle: three backgrounds, `rgb.png` and
+`depth.png`. Bottom: one frame that Stage B generated from this library, all-in-focus,
+disparity and bokeh. Disparity is drawn in the Spectral colormap, near red and far violet.
+The items are spread evenly over the sorted ids.*
 """
+
+#: What the card says while the repository holds part of the library.
+STATUS = Template("""
+## Upload status
+
+**The upload is not finished.** $online of $shards shards are online, holding
+$online_fg of the $foregrounds foregrounds and $online_bg of the $backgrounds backgrounds.
+`fetch` downloads what is online and reports the shards it could not find yet. Run it
+again later, and it downloads only those.
+""")
 
 
 def _items(library_root: Path, kind: str) -> list[str]:
@@ -142,11 +110,14 @@ def pack(
     library_root: Path,
     output: Path,
     shard_bytes: int = SHARD_BYTES,
-    repo: str = "<user>/<repo>",
+    repo: str = REPO,
+    preview: bool = True,
 ) -> dict[str, dict[str, Any]]:
-    """Write the library's shards, index and card into ``output``; return the index.
+    """Write the library's shards, index, card and preview into ``output``; return the index.
 
-    The index lists, per kind, the item count and each shard with the items it holds.
+    The index lists, per kind, the item count, the side of an item's images and each shard
+    with the items and bytes it holds. The preview needs torch; ``preview=False`` leaves it
+    out, and the card then shows no figure.
     """
     for kind in (FOREGROUNDS, BACKGROUNDS):
         if not (library_root / kind).is_dir():
@@ -178,21 +149,125 @@ def pack(
             shards[-1]["items"] += 1
         if tar is not None:
             tar.close()
-        index[kind] = {"items": len(ids), "shards": shards}
+        for shard in shards:
+            shard["bytes"] = (output / shard["file"]).stat().st_size
+        side = 0
+        if ids:
+            with Image.open(library_root / kind / ids[0] / "rgb.png") as image:
+                side = image.width
+        index[kind] = {"items": len(ids), "side": side, "shards": shards}
     (output / "index.json").write_text(
         json.dumps(index, indent=1) + "\n", encoding="utf-8"
     )
-    (output / "README.md").write_text(card(index, shard_bytes, repo), encoding="utf-8")
+    if preview:
+        from video_bokeh.library._preview import write_preview
+
+        write_preview(library_root, output / PREVIEW)
+    (output / "README.md").write_text(card(index, repo, preview), encoding="utf-8")
     return index
 
 
-def card(index: dict[str, dict[str, Any]], shard_bytes: int, repo: str) -> str:
-    """The dataset card for the shards that ``index`` lists."""
-    return CARD.format(
+def stage(
+    packed: Path,
+    output: Path,
+    every: int,
+    repo: str = REPO,
+) -> tuple[int, int]:
+    """Hard-link every ``every``-th shard of each kind of ``packed`` into ``output``.
+
+    ``output`` gets the full index, the preview if ``packed`` has one, and a card that
+    counts what is online. Return the shards staged and the shards in all.
+    """
+    if every < 1:
+        raise SystemExit(f"--every takes 1 or more, not {every}")
+    if output.exists() and any(output.iterdir()):
+        raise SystemExit(f"{output} is not empty: stage writes into an empty folder")
+    index = json.loads((packed / "index.json").read_text(encoding="utf-8"))
+    staged = [
+        shard["file"]
+        for kind in (FOREGROUNDS, BACKGROUNDS)
+        for shard in index[kind]["shards"][::every]
+    ]
+    has_preview = (packed / PREVIEW).is_file()
+    for name in [*staged, PREVIEW] if has_preview else staged:
+        (output / name).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.link(packed / name, output / name)
+        except OSError as error:
+            raise SystemExit(
+                f"cannot hard-link {packed / name}: {error}. "
+                "stage needs its output on the same disk as the packed folder"
+            ) from None
+    shutil.copyfile(packed / "index.json", output / "index.json")
+    total = sum(len(index[kind]["shards"]) for kind in (FOREGROUNDS, BACKGROUNDS))
+    online = set(staged) if len(staged) < total else None
+    (output / "README.md").write_text(
+        card(index, repo, has_preview, online), encoding="utf-8"
+    )
+    return len(staged), total
+
+
+def _gb(n_bytes: int) -> str:
+    return f"{n_bytes / 10**9:,.1f}"
+
+
+def card(
+    index: dict[str, dict[str, Any]],
+    repo: str = REPO,
+    preview: bool = False,
+    online: set[str] | None = None,
+) -> str:
+    """The dataset card for the shards that ``index`` lists.
+
+    With ``preview``, the card shows the figure at ``PREVIEW``. With ``online``, the shard
+    files the repository holds so far, it opens with how much of the library they are.
+    """
+    shards = {kind: index[kind]["shards"] for kind in (FOREGROUNDS, BACKGROUNDS)}
+    all_shards = [s for kind in shards for s in shards[kind]]
+    status = ""
+    if online is not None:
+        held = {
+            kind: sum(s["items"] for s in shards[kind] if s["file"] in online)
+            for kind in shards
+        }
+        status = STATUS.substitute(
+            online=len(online),
+            shards=len(all_shards),
+            online_fg=f"{held[FOREGROUNDS]:,}",
+            online_bg=f"{held[BACKGROUNDS]:,}",
+            foregrounds=f"{index[FOREGROUNDS]['items']:,}",
+            backgrounds=f"{index[BACKGROUNDS]['items']:,}",
+        )
+    return _template().substitute(
+        repo=repo,
+        preview=FIGURE if preview else "",
+        assets=f"\n{PREVIEW}" if preview else "",
+        status=status,
         foregrounds=f"{index[FOREGROUNDS]['items']:,}",
         backgrounds=f"{index[BACKGROUNDS]['items']:,}",
-        shard_gb=f"{shard_bytes / 10**9:g}",
-        repo=repo,
+        fg_side=index[FOREGROUNDS]["side"],
+        bg_side=index[BACKGROUNDS]["side"],
+        fg_shards=len(shards[FOREGROUNDS]),
+        bg_shards=len(shards[BACKGROUNDS]),
+        shards=len(all_shards),
+        fg_gb=_gb(sum(s["bytes"] for s in shards[FOREGROUNDS])),
+        bg_gb=_gb(sum(s["bytes"] for s in shards[BACKGROUNDS])),
+        total_gb=_gb(sum(s["bytes"] for s in all_shards)),
+        largest_gb=_gb(max((s["bytes"] for s in all_shards), default=0)),
+        fg_last=Path(shards[FOREGROUNDS][-1]["file"]).name
+        if shards[FOREGROUNDS]
+        else "",
+        bg_last=Path(shards[BACKGROUNDS][-1]["file"]).name
+        if shards[BACKGROUNDS]
+        else "",
+    )
+
+
+def _template() -> Template:
+    return Template(
+        resources.files("video_bokeh.library")
+        .joinpath("hub_card.md")
+        .read_text(encoding="utf-8")
     )
 
 
@@ -242,14 +317,26 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     packing = commands.add_parser(
-        "pack", help="write a library's shards, index and card"
+        "pack", help="write a library's shards, index, card and preview"
     )
     packing.add_argument("--library-root", type=Path, required=True)
     packing.add_argument("--output", type=Path, required=True)
     packing.add_argument("--shard-gb", type=float, default=SHARD_BYTES / 10**9)
+    packing.add_argument("--repo", default=REPO, help="named in the card's commands")
     packing.add_argument(
-        "--repo", default="<user>/<repo>", help="named in the card's commands"
+        "--no-preview",
+        action="store_true",
+        help="draw no preview figure, which needs torch",
     )
+    staging = commands.add_parser(
+        "stage", help="hard-link part of a packed library into a folder to upload"
+    )
+    staging.add_argument("--packed", type=Path, required=True)
+    staging.add_argument("--output", type=Path, required=True)
+    staging.add_argument(
+        "--every", type=int, required=True, help="stage every n-th shard of each kind"
+    )
+    staging.add_argument("--repo", default=REPO, help="named in the card's commands")
     fetching = commands.add_parser(
         "fetch", help="download a packed library and unpack it"
     )
@@ -263,10 +350,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "pack":
         index = pack(
-            args.library_root, args.output, int(args.shard_gb * 10**9), args.repo
+            args.library_root,
+            args.output,
+            int(args.shard_gb * 10**9),
+            args.repo,
+            preview=not args.no_preview,
         )
         for kind, entry in index.items():
             print(f"{kind}: {entry['items']} items in {len(entry['shards'])} shards")
+    elif args.command == "stage":
+        staged, total = stage(args.packed, args.output, args.every, args.repo)
+        print(f"{staged} of {total} shards staged in {args.output}")
     else:
         missing = fetch(args.repo, args.output, args.revision)
         print(f"Library in {args.output}")
