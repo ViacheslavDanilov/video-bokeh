@@ -140,7 +140,8 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
 - **A foreground's disparity covers the whole square.** Inside the trusted core (step 4
   below) it is the estimator's. Everywhere else, including the matte's edge and the holes
   the cleanup dropped, it is copied from the nearest core pixel and blurred. Stage B reads it
-  only where the matte is above 0, and the preview draws only that part.
+  wherever the matte is above 0. The preview draws it where the matte reaches 0.04, the
+  threshold of the core, and leaves the faint halo below it gray.
 - **Ids name the source image.** A foreground id is MAGICK's image path without its extension,
   with `__` for the slash. A background id is BG-20k's split and file name the same way,
   `train__h_…` or `testval__h_…`.
@@ -174,6 +175,10 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
   at thin structures such as hair.
 - **The foregrounds are generated.** MAGICK made them with a text-to-image model and cut
   them out by chroma keying.
+- **The mattes carry a faint halo.** Around most foregrounds, MAGICK's matte holds alpha
+  under 0.04 well past the visible edge, over a median 3.8 % of the square. Stage B
+  composites it as it is, so it blends under 4 % of the foreground's color and disparity into
+  a frame.
 - **The subjects are uneven.** Of the 8,586 foregrounds of the full library, 3,974 are
   people, 2,327 objects, 1,406 food, 483 plants and 396 animals, by the classifier's labels.
 - **The labels are not shipped.** The classifier's subject and style of each foreground stay

@@ -96,8 +96,8 @@ FIGURE = Template(f"""
 ![Four foregrounds and three backgrounds]({PREVIEW})
 
 *Foregrounds and backgrounds of the library. A foreground's color is drawn over a
-checkerboard and its disparity inside the matte, gray where the matte is 0. Disparity is
-drawn in the Spectral colormap, near red and far violet.*
+checkerboard and its disparity inside the matte, gray where the matte is under 0.04.
+Disparity is drawn in the Spectral colormap, near red and far violet.*
 
 <video src="https://huggingface.co/datasets/$repo/resolve/main/{VIDEO}" controls autoplay
 loop muted playsinline width="100%"></video>

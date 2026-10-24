@@ -70,7 +70,9 @@ _FG_FILL = (246, 249, 255)
 _BG_FILL = (255, 250, 243)
 _CARD_EDGE = (205, 219, 245)
 _PAPER = (255, 255, 255)
-#: Where a foreground's matte is 0, so its disparity map is not drawn.
+#: The matte a foreground's disparity is drawn from: Stage A's default ``--alpha-threshold``,
+#: where its trusted core starts. Below it lies the faint halo of MAGICK's mattes, and gray.
+_DRAWN_ALPHA = 0.04
 _OUTSIDE = (232, 232, 232)
 #: Each panel's caption: what it shows, then the file it shows, muted.
 _FG_CAPTIONS = (
@@ -115,8 +117,9 @@ def _foreground(library_root: Path, asset_id: str) -> list[Image.Image]:
     board = _checkerboard(PANEL)
     board.paste(cutout, mask=cutout.getchannel("A"))
     alpha = Image.fromarray((fg.alpha * 255).round().astype(np.uint8))
-    # Disparity where the matte is above 0, the only part Stage B reads; gray elsewhere.
-    matted = np.where(fg.alpha[..., None] > 0, apply_colormap(fg.depth), _OUTSIDE)
+    matted = np.where(
+        fg.alpha[..., None] >= _DRAWN_ALPHA, apply_colormap(fg.depth), _OUTSIDE
+    )
     return [
         board,
         _square(alpha, PANEL).convert("RGB"),
