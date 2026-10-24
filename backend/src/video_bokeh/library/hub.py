@@ -8,9 +8,11 @@ Large, so ``pack`` takes no other.
 
 ``fetch`` downloads the shards that ``index.json`` lists one at a time, unpacks each into a
 library root that Stage B and the sequence stream take as they are, and deletes it, so the
-disk holds the library and one shard at most. It marks each shard it has unpacked in
-``.fetched/``, so that run again it fetches only what it lacks, such as shards added to the
-repository since:
+disk holds the library and one shard at most. A shard that the index lists but the
+repository does not hold yet is skipped and reported, so a repository can be uploaded in
+parts. ``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file name, so that
+run again it fetches only what it lacks; a shard packed anew under an old name is not
+fetched again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
@@ -36,6 +38,7 @@ from video_bokeh.core._library import (
     list_backgrounds,
     list_foregrounds,
 )
+from video_bokeh.scenes.generate import _library_estimator
 
 #: The files of an item that Stage B reads, by kind.
 READ = {
@@ -135,14 +138,6 @@ def _items(library_root: Path, kind: str) -> list[str]:
     )
 
 
-def _estimator(library_root: Path) -> str | None:
-    for path in sorted((library_root / FOREGROUNDS).glob("*/meta.json")):
-        estimator = json.loads(path.read_text(encoding="utf-8")).get("estimator")
-        if estimator is not None:
-            return estimator
-    return None
-
-
 def pack(
     library_root: Path,
     output: Path,
@@ -156,7 +151,7 @@ def pack(
     for kind in (FOREGROUNDS, BACKGROUNDS):
         if not (library_root / kind).is_dir():
             raise SystemExit(f"no {kind}/ in {library_root}: not a library")
-    if (estimator := _estimator(library_root)) != ESTIMATOR:
+    if (estimator := _library_estimator(library_root)) != ESTIMATOR:
         raise SystemExit(f"the card describes a {ESTIMATOR} library, not {estimator}")
     if output.exists() and any(output.iterdir()):
         raise SystemExit(f"{output} is not empty: pack writes into an empty folder")
@@ -201,12 +196,14 @@ def card(index: dict[str, dict[str, Any]], shard_bytes: int, repo: str) -> str:
     )
 
 
-def fetch(repo: str, library_root: Path, revision: str | None = None) -> Path:
+def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[str]:
     """Download the shards of the Hugging Face dataset ``repo`` and unpack them one by one.
 
-    A shard already marked in ``library_root/.fetched`` is skipped.
+    A shard already marked in ``library_root/.fetched`` is skipped. Return the shards that
+    the index lists and the repository does not hold yet.
     """
     from huggingface_hub import hf_hub_download
+    from huggingface_hub.errors import EntryNotFoundError
 
     def download(name: str, folder: str) -> Path:
         return Path(
@@ -221,6 +218,7 @@ def fetch(repo: str, library_root: Path, revision: str | None = None) -> Path:
 
     fetched = library_root / FETCHED
     fetched.mkdir(parents=True, exist_ok=True)
+    missing: list[str] = []
     with tempfile.TemporaryDirectory(dir=library_root) as folder:
         index = json.loads(download("index.json", folder).read_text(encoding="utf-8"))
         for kind in (FOREGROUNDS, BACKGROUNDS):
@@ -228,12 +226,16 @@ def fetch(repo: str, library_root: Path, revision: str | None = None) -> Path:
                 done = fetched / f"{Path(shard['file']).name}.done"
                 if done.exists():
                     continue
-                path = download(shard["file"], folder)
+                try:
+                    path = download(shard["file"], folder)
+                except EntryNotFoundError:
+                    missing.append(shard["file"])
+                    continue
                 with tarfile.open(path) as tar:
                     tar.extractall(library_root, filter="data")
                 path.unlink()
                 done.touch()
-    return library_root
+    return missing
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -266,8 +268,12 @@ def main(argv: list[str] | None = None) -> int:
         for kind, entry in index.items():
             print(f"{kind}: {entry['items']} items in {len(entry['shards'])} shards")
     else:
-        root = fetch(args.repo, args.output, args.revision)
-        print(f"Library in {root}")
+        missing = fetch(args.repo, args.output, args.revision)
+        print(f"Library in {args.output}")
+        if missing:
+            print(
+                f"{len(missing)} shards are not in the repository yet; fetch again later"
+            )
     return 0
 
 

@@ -14,6 +14,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
 
 from fixture_library import build_library  # noqa: E402
+from huggingface_hub.errors import EntryNotFoundError  # noqa: E402
 
 from video_bokeh.core._library import list_backgrounds, list_foregrounds  # noqa: E402
 from video_bokeh.library import hub  # noqa: E402
@@ -48,9 +49,12 @@ def _hub(monkeypatch: pytest.MonkeyPatch, packed: Path) -> list[str]:
     def hf_hub_download(**kwargs: str) -> str:
         assert kwargs["repo_type"] == "dataset"
         downloaded.append(kwargs["filename"])
+        source = packed / kwargs["filename"]
+        if not source.exists():
+            raise EntryNotFoundError(kwargs["filename"])
         target = Path(kwargs["local_dir"]) / kwargs["filename"]
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(packed / kwargs["filename"], target)
+        shutil.copyfile(source, target)
         return str(target)
 
     monkeypatch.setattr("huggingface_hub.hf_hub_download", hf_hub_download)
@@ -64,7 +68,8 @@ def test_fetching_a_packed_library_gives_back_what_stage_b_reads(
 ) -> None:
     hub.pack(library, tmp_path / "packed")
     _hub(monkeypatch, tmp_path / "packed")
-    fetched = hub.fetch("someone/some-library", tmp_path / "fetched")
+    fetched = tmp_path / "fetched"
+    assert hub.fetch("someone/some-library", fetched) == []
 
     expected = {
         name: data
@@ -78,34 +83,34 @@ def test_fetching_a_packed_library_gives_back_what_stage_b_reads(
     assert not list(fetched.glob("tmp*"))  # each shard is deleted once unpacked
 
 
-def test_fetching_again_downloads_only_the_shards_added_since(
+def test_a_repository_uploaded_in_parts_is_fetched_in_parts(
     library: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     packed = tmp_path / "packed"
-    index = hub.pack(library, packed, shard_bytes=1)
-    full = (packed / "index.json").read_text()
-    # A repository holding the first foreground shard and every background shard so far.
-    first = dict(index)
-    first["foregrounds"] = {
-        **index["foregrounds"],
-        "shards": index["foregrounds"]["shards"][:1],
-    }
-    (packed / "index.json").write_text(json.dumps(first))
+    hub.pack(library, packed, shard_bytes=1)
+    held = tmp_path / "not-uploaded-yet"
+    held.mkdir()
+    for name in ("foregrounds-00001.tar", "foregrounds-00002.tar"):
+        shutil.move(packed / "foregrounds" / name, held / name)
     downloaded = _hub(monkeypatch, packed)
-    hub.fetch("someone/some-library", tmp_path / "fetched")
-    assert list_foregrounds(tmp_path / "fetched") == ["fg_a"]
+    fetched = tmp_path / "fetched"
 
-    (packed / "index.json").write_text(full)
-    downloaded.clear()
-    hub.fetch("someone/some-library", tmp_path / "fetched")
-    assert downloaded == [
-        "index.json",
+    missing = hub.fetch("someone/some-library", fetched)
+    assert missing == [
         "foregrounds/foregrounds-00001.tar",
         "foregrounds/foregrounds-00002.tar",
     ]
-    assert list_foregrounds(tmp_path / "fetched") == ["fg_a", "fg_b", "fg_c"]
+    assert list_foregrounds(fetched) == ["fg_a"]
+    assert list_backgrounds(fetched) == ["bg_a", "bg_b"]
+
+    for name in ("foregrounds-00001.tar", "foregrounds-00002.tar"):
+        shutil.move(held / name, packed / "foregrounds" / name)
+    downloaded.clear()
+    assert hub.fetch("someone/some-library", fetched) == []
+    assert downloaded == ["index.json", *missing]
+    assert list_foregrounds(fetched) == ["fg_a", "fg_b", "fg_c"]
 
 
 def test_a_shard_closes_near_its_size_and_never_splits_an_item(
