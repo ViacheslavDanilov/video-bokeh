@@ -95,7 +95,7 @@ def test_a_repository_uploaded_in_parts_is_fetched_in_parts(
     held = tmp_path / "not-uploaded-yet"
     held.mkdir()
     for name in ("foregrounds-00001.tar", "foregrounds-00002.tar"):
-        shutil.move(packed / "foregrounds" / name, held / name)
+        shutil.move(packed / "library" / "foregrounds" / name, held / name)
     downloaded = _hub(monkeypatch, packed)
     fetched = tmp_path / "fetched"
 
@@ -108,10 +108,10 @@ def test_a_repository_uploaded_in_parts_is_fetched_in_parts(
     assert list_backgrounds(fetched) == ["bg_a", "bg_b"]
 
     for name in ("foregrounds-00001.tar", "foregrounds-00002.tar"):
-        shutil.move(held / name, packed / "foregrounds" / name)
+        shutil.move(held / name, packed / "library" / "foregrounds" / name)
     downloaded.clear()
     assert hub.fetch("someone/some-library", fetched) == []
-    assert downloaded == ["index.json", *missing]
+    assert downloaded == [hub.INDEX, *(f"{hub.LIBRARY}/{m}" for m in missing)]
     assert list_foregrounds(fetched) == ["fg_a", "fg_b", "fg_c"]
 
 
@@ -121,7 +121,7 @@ def test_a_shard_closes_near_its_size_and_never_splits_an_item(
 ) -> None:
     index = hub.pack(library, tmp_path / "packed", shard_bytes=1)
     assert [s["items"] for s in index["foregrounds"]["shards"]] == [1, 1, 1]
-    shards = sorted((tmp_path / "packed" / "foregrounds").glob("*.tar"))
+    shards = sorted((tmp_path / "packed" / "library" / "foregrounds").glob("*.tar"))
     assert len(shards) == 3  # every item overflows a 1-byte shard, so one item each
     for shard in shards:
         with tarfile.open(shard) as tar:
@@ -133,7 +133,7 @@ def test_the_package_carries_its_card_and_its_counts(
     library: Path, tmp_path: Path
 ) -> None:
     hub.pack(library, tmp_path / "packed")
-    index = json.loads((tmp_path / "packed" / "index.json").read_text())
+    index = json.loads((tmp_path / "packed" / hub.INDEX).read_text())
     assert index["foregrounds"]["items"] == 3
     assert index["backgrounds"]["items"] == 2
     card = (tmp_path / "packed" / "README.md").read_text()
@@ -175,7 +175,7 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     assert set(meta["task_categories"]) == {"image-to-image", "depth-estimation"}
     assert meta["size_categories"] == ["10K<n<100K"]
     assert meta["source_datasets"] == ["OneOverZero/MAGICK", "BG-20k"]
-    assert meta["pretty_name"] == "Video Bokeh Library"
+    assert meta["pretty_name"] == "Video Bokeh"
     # Every number is filled in from the index, and no placeholder is left.
     assert "$" not in card
     assert "| items | 3 | 2 |" in card
@@ -286,13 +286,13 @@ def test_staging_takes_every_nth_shard_and_the_card_says_how_much_is_online(
 
     tars = sorted(p.relative_to(staged).as_posix() for p in staged.rglob("*.tar"))
     assert tars == [
-        "backgrounds/backgrounds-00000.tar",
-        "foregrounds/foregrounds-00000.tar",
-        "foregrounds/foregrounds-00002.tar",
+        "library/backgrounds/backgrounds-00000.tar",
+        "library/foregrounds/foregrounds-00000.tar",
+        "library/foregrounds/foregrounds-00002.tar",
     ]
     for name in [*tars, hub.PREVIEW, hub.VIDEO]:
         assert (staged / name).samefile(packed / name)  # linked, not copied
-    assert (staged / "index.json").read_bytes() == (packed / "index.json").read_bytes()
+    assert (staged / hub.INDEX).read_bytes() == (packed / hub.INDEX).read_bytes()
     card = (staged / "README.md").read_text()
     assert "## Upload status" in card
     assert "3 of 5 shards are online" in card

@@ -1,8 +1,10 @@
 """Publish a library on Hugging Face, and fetch it back into the layout Stage B reads.
 
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
-folder per kind, with ``index.json``, the dataset card ``README.md`` and its preview, the
-figure ``assets/preview.jpg`` and the video ``assets/preview.mp4``. A shard holds whole
+folder per kind under ``library/``, with ``library/index.json``, the dataset card
+``README.md`` and its preview, the figure ``assets/preview.jpg`` and the video
+``assets/preview.mp4``. The repository keeps the library under ``library/`` so that the
+generated sequences can sit beside it. A shard holds whole
 items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and
 ``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
 Large, so ``pack`` takes no other. Its text is ``hub_card.md`` beside this file, with
@@ -17,7 +19,7 @@ is part of the library. The shards it takes are spread over the sorted ids. ``--
 or uploading the packed folder itself, gives the whole library and a card without the
 upload status.
 
-``fetch`` downloads the shards that ``index.json`` lists one at a time, unpacks each into a
+``fetch`` downloads the shards that ``library/index.json`` lists one at a time, unpacks each into a
 library root that Stage B and the sequence stream take as they are, and deletes it, so the
 disk holds the library and one shard at most. A shard that the index lists but the
 repository does not hold yet is skipped and reported, so a repository can be uploaded in
@@ -33,15 +35,15 @@ fetched again unless its mark is deleted:
         testval__h_ea29ed84 --seeds 1005 1033 1050
     uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
         --output data/library-staged --every 5
-    hf upload-large-folder vdanilov/video-bokeh-library data/library-staged \
+    hf upload-large-folder vdanilov/video-bokeh data/library-staged \
         --repo-type dataset --exclude README.md
-    hf upload vdanilov/video-bokeh-library data/library-staged/README.md README.md \
+    hf upload vdanilov/video-bokeh data/library-staged/README.md README.md \
         --repo-type dataset
-    hf upload-large-folder vdanilov/video-bokeh-library data/library-packed \
+    hf upload-large-folder vdanilov/video-bokeh data/library-packed \
         --repo-type dataset --exclude README.md
-    hf upload vdanilov/video-bokeh-library data/library-packed/README.md README.md \
+    hf upload vdanilov/video-bokeh data/library-packed/README.md README.md \
         --repo-type dataset
-    uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-library \
+    uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh \
         --output data/library/da2-large
 
 Shards are plain tar: the images are PNG already, so compressing them again saves little.
@@ -80,8 +82,11 @@ SHARD_BYTES = 2 * 10**9
 ESTIMATOR = "da2-large"
 #: Where fetch marks the shards it has unpacked, under the library root.
 FETCHED = ".fetched"
-#: The repository the card's commands name.
-REPO = "vdanilov/video-bokeh-library"
+#: The repository the card's commands name, and its folder that holds the library.
+REPO = "vdanilov/video-bokeh"
+LIBRARY = "library"
+#: The index of the library's shards, whose file names are relative to ``LIBRARY``.
+INDEX = f"{LIBRARY}/index.json"
 #: The card's figure and video, relative to the packed folder and to the card.
 PREVIEW = "assets/preview.jpg"
 VIDEO = "assets/preview.mp4"
@@ -141,8 +146,9 @@ def pack(
     if output.exists() and any(output.iterdir()):
         raise SystemExit(f"{output} is not empty: pack writes into an empty folder")
     index: dict[str, dict[str, Any]] = {}
+    shards_root = output / LIBRARY
     for kind in (FOREGROUNDS, BACKGROUNDS):
-        (output / kind).mkdir(parents=True, exist_ok=True)
+        (shards_root / kind).mkdir(parents=True, exist_ok=True)
         ids = _items(library_root, kind)
         shards: list[dict[str, Any]] = []
         tar: tarfile.TarFile | None = None
@@ -155,7 +161,7 @@ def pack(
                     tar.close()
                 name = f"{kind}/{kind}-{len(shards):05d}.tar"
                 shards.append({"file": name, "items": 0})
-                tar = tarfile.open(output / name, "w")
+                tar = tarfile.open(shards_root / name, "w")
                 size = 0
             for f in files:
                 tar.add(f, arcname=f"{kind}/{asset_id}/{f.name}")
@@ -164,15 +170,13 @@ def pack(
         if tar is not None:
             tar.close()
         for shard in shards:
-            shard["bytes"] = (output / shard["file"]).stat().st_size
+            shard["bytes"] = (shards_root / shard["file"]).stat().st_size
         side = 0
         if ids:
             with Image.open(library_root / kind / ids[0] / "rgb.png") as image:
                 side = image.width
         index[kind] = {"items": len(ids), "side": side, "shards": shards}
-    (output / "index.json").write_text(
-        json.dumps(index, indent=1) + "\n", encoding="utf-8"
-    )
+    (output / INDEX).write_text(json.dumps(index, indent=1) + "\n", encoding="utf-8")
     if preview:
         _draw(library_root, output)
     (output / "README.md").write_text(card(index, repo, preview), encoding="utf-8")
@@ -205,7 +209,7 @@ def preview(
     ``foregrounds`` and ``backgrounds`` are item ids, ``seeds`` the video's sequences; each
     left out takes the default ``pack`` takes.
     """
-    index = json.loads((packed / "index.json").read_text(encoding="utf-8"))
+    index = json.loads((packed / INDEX).read_text(encoding="utf-8"))
     _draw(library_root, packed, foregrounds, backgrounds, seeds)
     (packed / "README.md").write_text(card(index, repo, True), encoding="utf-8")
 
@@ -225,7 +229,7 @@ def stage(
         raise SystemExit(f"--every takes 1 or more, not {every}")
     if output.exists() and any(output.iterdir()):
         raise SystemExit(f"{output} is not empty: stage writes into an empty folder")
-    index = json.loads((packed / "index.json").read_text(encoding="utf-8"))
+    index = json.loads((packed / INDEX).read_text(encoding="utf-8"))
     staged = [
         shard["file"]
         for kind in (FOREGROUNDS, BACKGROUNDS)
@@ -235,7 +239,8 @@ def stage(
     if has_preview and not (packed / VIDEO).is_file():
         # Packed before the video existed: its card would embed a file it lacks.
         raise SystemExit(f"{packed} has no {VIDEO}: run preview on it first")
-    for name in [*staged, PREVIEW, VIDEO] if has_preview else staged:
+    shards = [f"{LIBRARY}/{name}" for name in staged]
+    for name in [*shards, PREVIEW, VIDEO] if has_preview else shards:
         (output / name).parent.mkdir(parents=True, exist_ok=True)
         try:
             os.link(packed / name, output / name)
@@ -244,7 +249,8 @@ def stage(
                 f"cannot hard-link {packed / name}: {error}. "
                 "stage needs its output on the same disk as the packed folder"
             ) from None
-    shutil.copyfile(packed / "index.json", output / "index.json")
+    (output / INDEX).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(packed / INDEX, output / INDEX)
     total = sum(len(index[kind]["shards"]) for kind in (FOREGROUNDS, BACKGROUNDS))
     online = set(staged) if len(staged) < total else None
     (output / "README.md").write_text(
@@ -342,14 +348,14 @@ def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[st
     fetched.mkdir(parents=True, exist_ok=True)
     missing: list[str] = []
     with tempfile.TemporaryDirectory(dir=library_root) as folder:
-        index = json.loads(download("index.json", folder).read_text(encoding="utf-8"))
+        index = json.loads(download(INDEX, folder).read_text(encoding="utf-8"))
         for kind in (FOREGROUNDS, BACKGROUNDS):
             for shard in index[kind]["shards"]:
                 done = fetched / f"{Path(shard['file']).name}.done"
                 if done.exists():
                     continue
                 try:
-                    path = download(shard["file"], folder)
+                    path = download(f"{LIBRARY}/{shard['file']}", folder)
                 except EntryNotFoundError:
                     missing.append(shard["file"])
                     continue

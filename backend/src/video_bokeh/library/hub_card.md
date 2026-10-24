@@ -1,6 +1,6 @@
 ---
 license: cc-by-nc-4.0
-pretty_name: Video Bokeh Library
+pretty_name: Video Bokeh
 task_categories:
 - image-to-image
 - depth-estimation
@@ -21,14 +21,15 @@ source_datasets:
 viewer: false
 ---
 
-# Video Bokeh Library
+# Video Bokeh
 
-Cut-out objects and background photos, each with a disparity map, for composing training
-video for depth-aware bokeh. The library holds $foregrounds foregrounds and
-$backgrounds backgrounds. Stage A of
-[video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh) built it once. Stage B of
-the same code places the foregrounds over a background as moving objects at disparities it
-assigns, so every generated frame comes with its mattes, its disparity and its bokeh.
+The data of [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh), for training
+depth-aware bokeh on video. This repository holds its library under `library/`: cut-out
+objects and background photos, each with a disparity map, from which training video is
+composed. The library holds $foregrounds foregrounds and $backgrounds backgrounds, and
+Stage A of the code built it once. Stage B places the foregrounds over a background as
+moving objects at disparities it assigns, so every generated frame comes with its mattes,
+its disparity and its bokeh.
 $preview$status
 ## At a glance
 
@@ -104,17 +105,17 @@ disparity = np.asarray(Image.open(f"{item}/depth.png")) / 65535.0  # (H, W) in [
 ## Repository layout
 
 ```text
-README.md
-index.json$assets
-foregrounds/foregrounds-00000.tar … $fg_last
-backgrounds/backgrounds-00000.tar … $bg_last
+README.md$assets
+library/index.json
+library/foregrounds/foregrounds-00000.tar … $fg_last
+library/backgrounds/backgrounds-00000.tar … $bg_last
 ```
 
 - **A shard is a plain tar.** The images are PNG already, so it is not compressed again.
 - **A shard holds whole items.** Its members are `foregrounds/<id>/rgb.png` and the other
   files of the item, so unpacking every shard into one folder gives the layout above.
-- **`index.json` lists the shards of each kind**, with the number of items and the bytes each
-  holds. `fetch` reads it first.
+- **`library/index.json` lists the shards of each kind**, with the number of items and the
+  bytes each holds. `fetch` reads it first.
 - **The viewer is off.** The shards group files by folder, not by WebDataset's file-name
   prefix, so the viewer would show each file as a sample of its own.
 
