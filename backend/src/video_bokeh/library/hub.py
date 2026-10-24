@@ -27,9 +27,10 @@ upload status.
 each into a library root that Stage B and the sequence stream take as they are, as
 ``foregrounds/<id>/rgb.png`` and so on, without the previews, and deletes it, so the disk
 holds the library and one shard at most. A shard that the index lists but the repository
-does not hold yet is skipped and reported, so a repository can be uploaded in parts. ``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file
-name, so that run again it fetches only what it lacks; a shard packed anew under an old
-name is not fetched again unless its mark is deleted:
+does not hold yet is skipped and reported, so a repository can be uploaded in parts.
+``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file name, so that run
+again it fetches only what it lacks; a shard packed anew under an old name is not fetched
+again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
