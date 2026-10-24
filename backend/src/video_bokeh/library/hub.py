@@ -7,6 +7,12 @@ inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card 
 library built with Depth Anything V2 Large, so ``pack`` takes no other. Its text is
 ``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a number.
 
+``stage`` hard-links every ``--every``-th shard of each kind, the full index, the preview
+and a card that says how much is online into a folder of its own, for a first upload that
+is part of the library. The shards it takes are spread over the sorted ids. ``--every 1``,
+or uploading the packed folder itself, gives the whole library and a card without the
+upload status.
+
 ``fetch`` downloads the shards that ``index.json`` lists one at a time, unpacks each into a
 library root that Stage B and the sequence stream take as they are, and deletes it, so the
 disk holds the library and one shard at most. A shard that the index lists but the
@@ -17,6 +23,10 @@ fetched again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
+    uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
+        --output data/library-staged --every 5
+    hf upload-large-folder vdanilov/video-bokeh-library data/library-staged \
+        --repo-type dataset
     hf upload-large-folder vdanilov/video-bokeh-library data/library-packed \
         --repo-type dataset
     uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-library \
@@ -29,6 +39,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import tarfile
 import tempfile
 from importlib import resources
@@ -69,6 +81,16 @@ Middle: three backgrounds, `rgb.png` and `depth.png`. Bottom: one frame that Sta
 generated from this library, all-in-focus, disparity and bokeh. Disparity is drawn in the
 Spectral colormap, near red and far violet. The items are spread evenly over the sorted ids.*
 """
+
+#: What the card says while the repository holds part of the library.
+STATUS = Template("""
+## Upload status
+
+**The upload is not finished.** $online of $shards shards are online, holding
+$online_fg of the $foregrounds foregrounds and $online_bg of the $backgrounds backgrounds.
+`fetch` downloads what is online and reports the shards it could not find yet. Run it
+again later, and it downloads only those.
+""")
 
 
 def _items(library_root: Path, kind: str) -> list[str]:
@@ -140,6 +162,46 @@ def pack(
     return index
 
 
+def stage(
+    packed: Path,
+    output: Path,
+    every: int,
+    repo: str = REPO,
+) -> tuple[int, int]:
+    """Hard-link every ``every``-th shard of each kind of ``packed`` into ``output``.
+
+    ``output`` gets the full index, the preview if ``packed`` has one, and a card that
+    counts what is online. Return the shards staged and the shards in all.
+    """
+    if every < 1:
+        raise SystemExit(f"--every takes 1 or more, not {every}")
+    if output.exists() and any(output.iterdir()):
+        raise SystemExit(f"{output} is not empty: stage writes into an empty folder")
+    index = json.loads((packed / "index.json").read_text(encoding="utf-8"))
+    staged = [
+        shard["file"]
+        for kind in (FOREGROUNDS, BACKGROUNDS)
+        for shard in index[kind]["shards"][::every]
+    ]
+    has_preview = (packed / PREVIEW).is_file()
+    for name in [*staged, PREVIEW] if has_preview else staged:
+        (output / name).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.link(packed / name, output / name)
+        except OSError as error:
+            raise SystemExit(
+                f"cannot hard-link {packed / name}: {error}. "
+                "stage needs its output on the same disk as the packed folder"
+            ) from None
+    shutil.copyfile(packed / "index.json", output / "index.json")
+    total = sum(len(index[kind]["shards"]) for kind in (FOREGROUNDS, BACKGROUNDS))
+    online = set(staged) if len(staged) < total else None
+    (output / "README.md").write_text(
+        card(index, repo, has_preview, online), encoding="utf-8"
+    )
+    return len(staged), total
+
+
 def _gb(n_bytes: int) -> str:
     return f"{n_bytes / 10**9:,.1f}"
 
@@ -148,17 +210,34 @@ def card(
     index: dict[str, dict[str, Any]],
     repo: str = REPO,
     preview: bool = False,
+    online: set[str] | None = None,
 ) -> str:
     """The dataset card for the shards that ``index`` lists.
 
-    With ``preview``, the card shows the figure at ``PREVIEW``.
+    With ``preview``, the card shows the figure at ``PREVIEW``. With ``online``, the shard
+    files the repository holds so far, it opens with how much of the library they are.
     """
     shards = {kind: index[kind]["shards"] for kind in (FOREGROUNDS, BACKGROUNDS)}
     every = [s for kind in shards for s in shards[kind]]
+    status = ""
+    if online is not None:
+        held = {
+            kind: sum(s["items"] for s in shards[kind] if s["file"] in online)
+            for kind in shards
+        }
+        status = STATUS.substitute(
+            online=len(online),
+            shards=len(every),
+            online_fg=f"{held[FOREGROUNDS]:,}",
+            online_bg=f"{held[BACKGROUNDS]:,}",
+            foregrounds=f"{index[FOREGROUNDS]['items']:,}",
+            backgrounds=f"{index[BACKGROUNDS]['items']:,}",
+        )
     return _template().substitute(
         repo=repo,
         preview=FIGURE if preview else "",
         assets=f"\n{PREVIEW}" if preview else "",
+        status=status,
         foregrounds=f"{index[FOREGROUNDS]['items']:,}",
         backgrounds=f"{index[BACKGROUNDS]['items']:,}",
         fg_side=index[FOREGROUNDS]["side"],
@@ -244,6 +323,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="draw no preview figure, which needs torch",
     )
+    staging = commands.add_parser(
+        "stage", help="hard-link part of a packed library into a folder to upload"
+    )
+    staging.add_argument("--packed", type=Path, required=True)
+    staging.add_argument("--output", type=Path, required=True)
+    staging.add_argument(
+        "--every", type=int, required=True, help="stage every n-th shard of each kind"
+    )
+    staging.add_argument("--repo", default=REPO, help="named in the card's commands")
     fetching = commands.add_parser(
         "fetch", help="download a packed library and unpack it"
     )
@@ -265,6 +353,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         for kind, entry in index.items():
             print(f"{kind}: {entry['items']} items in {len(entry['shards'])} shards")
+    elif args.command == "stage":
+        staged, total = stage(args.packed, args.output, args.every, args.repo)
+        print(f"{staged} of {total} shards staged in {args.output}")
     else:
         missing = fetch(args.repo, args.output, args.revision)
         print(f"Library in {args.output}")

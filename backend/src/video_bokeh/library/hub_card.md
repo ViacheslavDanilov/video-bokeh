@@ -30,7 +30,7 @@ $backgrounds backgrounds. Stage A of
 [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh) built it once. Stage B of
 the same code places the foregrounds over a background as moving objects at disparities it
 assigns, so every generated frame comes with its mattes, its disparity and its bokeh.
-$preview
+$preview$status
 ## At a glance
 
 | | foregrounds | backgrounds |

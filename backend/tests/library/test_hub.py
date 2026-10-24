@@ -207,3 +207,48 @@ def test_the_preview_is_a_figure_the_card_shows_within_its_bounds(
     assert height < width
     assert preview.stat().st_size <= 10**6
     assert f"]({hub.PREVIEW})" in (tmp_path / "packed" / "README.md").read_text()
+
+
+def test_staging_takes_every_nth_shard_and_the_card_says_how_much_is_online(
+    library: Path, tmp_path: Path
+) -> None:
+    packed, staged = tmp_path / "packed", tmp_path / "staged"
+    hub.pack(library, packed, shard_bytes=1)  # one item per shard: 3 and 2
+    assert hub.stage(packed, staged, every=2) == (3, 5)
+
+    tars = sorted(p.relative_to(staged).as_posix() for p in staged.rglob("*.tar"))
+    assert tars == [
+        "backgrounds/backgrounds-00000.tar",
+        "foregrounds/foregrounds-00000.tar",
+        "foregrounds/foregrounds-00002.tar",
+    ]
+    for name in [*tars, hub.PREVIEW]:
+        assert (staged / name).samefile(packed / name)  # linked, not copied
+    assert (staged / "index.json").read_bytes() == (packed / "index.json").read_bytes()
+    card = (staged / "README.md").read_text()
+    assert "## Upload status" in card
+    assert "3 of 5 shards are online" in card
+    assert "2 of the 3 foregrounds and 1 of the 2 backgrounds" in card
+    assert f"]({hub.PREVIEW})" in card
+
+
+def test_staging_every_shard_gives_the_card_of_the_whole_library(
+    library: Path, tmp_path: Path
+) -> None:
+    packed, staged = tmp_path / "packed", tmp_path / "staged"
+    hub.pack(library, packed, shard_bytes=1, preview=False)
+    assert hub.stage(packed, staged, every=1) == (5, 5)
+    assert (staged / "README.md").read_text() == (packed / "README.md").read_text()
+    assert not (staged / "assets").exists()
+
+
+def test_staging_refuses_a_used_folder_and_a_step_below_one(
+    library: Path, tmp_path: Path
+) -> None:
+    hub.pack(library, tmp_path / "packed", preview=False)
+    with pytest.raises(SystemExit, match="--every"):
+        hub.stage(tmp_path / "packed", tmp_path / "staged", every=0)
+    (tmp_path / "used").mkdir()
+    (tmp_path / "used" / "old.tar").write_bytes(b"")
+    with pytest.raises(SystemExit, match="not empty"):
+        hub.stage(tmp_path / "packed", tmp_path / "used", every=2)
