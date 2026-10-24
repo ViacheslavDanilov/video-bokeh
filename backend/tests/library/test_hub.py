@@ -111,7 +111,11 @@ def test_a_repository_uploaded_in_parts_is_fetched_in_parts(
         shutil.move(held / name, packed / "library" / "foregrounds" / name)
     downloaded.clear()
     assert hub.fetch("someone/some-library", fetched) == []
-    assert downloaded == [hub.INDEX, *(f"{hub.LIBRARY}/{m}" for m in missing)]
+    assert downloaded == [
+        "library/index.json",
+        "library/foregrounds/foregrounds-00001.tar",
+        "library/foregrounds/foregrounds-00002.tar",
+    ]
     assert list_foregrounds(fetched) == ["fg_a", "fg_b", "fg_c"]
 
 

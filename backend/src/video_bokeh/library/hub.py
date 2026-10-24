@@ -4,9 +4,8 @@
 folder per kind under ``library/``, with ``library/index.json``, the dataset card
 ``README.md`` and its preview, the figure ``assets/preview.jpg`` and the video
 ``assets/preview.mp4``. The repository keeps the library under ``library/`` so that the
-generated sequences can sit beside it. A shard holds whole
-items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and
-``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
+generated sequences can sit beside it. A shard holds whole items, so an item is never
+split. Stage A's inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
 Large, so ``pack`` takes no other. Its text is ``hub_card.md`` beside this file, with
 ``$name`` where ``card`` puts a number.
 
@@ -19,13 +18,13 @@ is part of the library. The shards it takes are spread over the sorted ids. ``--
 or uploading the packed folder itself, gives the whole library and a card without the
 upload status.
 
-``fetch`` downloads the shards that ``library/index.json`` lists one at a time, unpacks each into a
-library root that Stage B and the sequence stream take as they are, and deletes it, so the
-disk holds the library and one shard at most. A shard that the index lists but the
-repository does not hold yet is skipped and reported, so a repository can be uploaded in
-parts. ``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file name, so that
-run again it fetches only what it lacks; a shard packed anew under an old name is not
-fetched again unless its mark is deleted:
+``fetch`` downloads the shards that ``library/index.json`` lists one at a time, unpacks
+each into a library root that Stage B and the sequence stream take as they are, and
+deletes it, so the disk holds the library and one shard at most. A shard that the index
+lists but the repository does not hold yet is skipped and reported, so a repository can be
+uploaded in parts. ``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file
+name, so that run again it fetches only what it lacks; a shard packed anew under an old
+name is not fetched again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed

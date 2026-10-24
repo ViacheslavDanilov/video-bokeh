@@ -26,8 +26,8 @@ viewer: false
 The data of [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh), for training
 depth-aware bokeh on video. This repository holds its library under `library/`: cut-out
 objects and background photos, each with a disparity map, from which training video is
-composed. The library holds $foregrounds foregrounds and $backgrounds backgrounds, and
-Stage A of the code built it once. Stage B places the foregrounds over a background as
+composed. The library holds $foregrounds foregrounds and $backgrounds backgrounds, built
+once by the code's Stage A. Its Stage B places the foregrounds over a background as
 moving objects at disparities it assigns, so every generated frame comes with its mattes,
 its disparity and its bokeh.
 $preview$status
@@ -113,7 +113,8 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
 
 - **A shard is a plain tar.** The images are PNG already, so it is not compressed again.
 - **A shard holds whole items.** Its members are `foregrounds/<id>/rgb.png` and the other
-  files of the item, so unpacking every shard into one folder gives the layout above.
+  files of the item, so unpacking every shard into one folder gives the layout Stage B reads,
+  shown under Quick start.
 - **`library/index.json` lists the shards of each kind**, with the number of items and the
   bytes each holds. `fetch` reads it first.
 - **The viewer is off.** The shards group files by folder, not by WebDataset's file-name
