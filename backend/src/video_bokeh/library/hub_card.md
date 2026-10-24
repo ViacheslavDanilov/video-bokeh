@@ -135,8 +135,8 @@ backgrounds/backgrounds-00000.tar … $bg_last
   Stage B stretches every map into the band of disparity it assigns, so only the shape inside
   a map matters.
 - **A foreground's disparity covers the whole square.** Inside the matte it is the estimator's.
-  Outside, it is copied from the nearest trusted pixel and blurred, which is why the preview
-  shows streaks there. Stage B reads it only where the matte is above 0.
+  Outside, it is copied from the nearest trusted pixel and blurred. Stage B reads it only
+  where the matte is above 0, and the preview draws only that part.
 - **Ids name the source image.** A foreground id is MAGICK's image path without its extension,
   with `__` for the slash. A background id is BG-20k's split and file name the same way,
   `train__h_…` or `testval__h_…`.
@@ -146,11 +146,12 @@ backgrounds/backgrounds-00000.tar … $bg_last
 
 ## How it was built
 
-1. **Foregrounds.** We started from 11,868 hand-picked MAGICK images. A CLIP classifier
-   (OpenCLIP PE-Core-bigG-14-448) labeled each with a subject and a style. We kept the
-   subjects person, animal, plant, food and object, in the styles photo and render, with a
-   subject score of at least 0.5: $foregrounds images. Each was resized on its shorter side and
-   center-cropped to $fg_side × $fg_side. Its alpha channel is the matte. No matting model ran.
+1. **Foregrounds.** We started from 11,868 hand-picked MAGICK images. A zero-shot
+   classifier, Perception Encoder (PE-Core-bigG-14-448, run through OpenCLIP), labeled each
+   with a subject and a style. We kept the subjects person, animal, plant, food and object,
+   in the styles photo and render, with a subject score of at least 0.5. That keeps 8,586 of
+   them in the full library. Each was resized on its shorter side and center-cropped to
+   $fg_side × $fg_side. Its alpha channel is the matte. No matting model ran.
 2. **Backgrounds.** All $backgrounds BG-20k images, resized and center-cropped to
    $bg_side × $bg_side. That leaves a quarter of a $fg_side-pixel frame to spare on every
    side, so Stage B can pan and zoom without leaving the photo.
@@ -169,11 +170,11 @@ backgrounds/backgrounds-00000.tar … $bg_last
   wrong, most visibly at thin structures such as hair.
 - **The foregrounds are generated images, not photos.** MAGICK made them with a text-to-image
   model and cut them out by chroma keying.
-- **The subjects are uneven.** Of the 8,586 foregrounds, 3,974 are people, 2,327 objects,
-  1,406 food, 483 plants and 396 animals, by the CLIP labels.
-- **The labels are not shipped.** The CLIP subject and style of each foreground stay in the
-  code repository, in `backend/data/magick/predictions.csv`, keyed by `page_id`, the part of
-  a foreground id after `__`.
+- **The subjects are uneven.** Of the 8,586 foregrounds of the full library, 3,974 are
+  people, 2,327 objects, 1,406 food, 483 plants and 396 animals, by the classifier's labels.
+- **The labels are not shipped.** The classifier's subject and style of each foreground stay
+  in the code repository, in `backend/data/magick/predictions.csv`, keyed by `page_id`, the
+  part of a foreground id after `__`.
 - **Non-commercial use only.** The license below follows from the sources.
 
 ## Sources and license
@@ -189,7 +190,8 @@ two datasets, resized and cropped, and the output of one model:
 
 BG-20k's terms are in its
 [release agreement](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf).
-It says the images were collected from websites with free-use licenses.
+Its paper says the photos were collected from Unsplash and Pexels; each photo's copyright
+stays with its owner.
 
 ## Citation
 

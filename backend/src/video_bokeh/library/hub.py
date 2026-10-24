@@ -76,10 +76,11 @@ PREVIEW = "assets/preview.jpg"
 FIGURE = f"""
 ![Two foregrounds, three backgrounds and one generated frame]({PREVIEW})
 
-*Top: two foregrounds, each as `rgb.png` over a checkerboard, `alpha.png` and `depth.png`.
-Middle: three backgrounds, `rgb.png` and `depth.png`. Bottom: one frame that Stage B
-generated from this library, all-in-focus, disparity and bokeh. Disparity is drawn in the
-Spectral colormap, near red and far violet. The items are spread evenly over the sorted ids.*
+*Top: two foregrounds, each as `rgb.png` over a checkerboard, `alpha.png` and `depth.png`
+inside the matte, with gray where the matte is 0. Middle: three backgrounds, `rgb.png` and
+`depth.png`. Bottom: one frame that Stage B generated from this library, all-in-focus,
+disparity and bokeh. Disparity is drawn in the Spectral colormap, near red and far violet.
+The items are spread evenly over the sorted ids.*
 """
 
 #: What the card says while the repository holds part of the library.

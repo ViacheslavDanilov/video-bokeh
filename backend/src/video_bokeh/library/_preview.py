@@ -1,7 +1,7 @@
 """The preview figure of a published library: what its items hold, and what Stage B makes.
 
 Three rows, about 1600 pixels wide: two foregrounds as ``rgb.png`` over a checkerboard,
-``alpha.png`` and ``depth.png``; three backgrounds as ``rgb.png`` and ``depth.png``; and
+``alpha.png`` and ``depth.png`` inside the matte; three backgrounds as ``rgb.png`` and ``depth.png``; and
 one frame that Stage B generates from the library, all-in-focus, disparity and bokeh.
 Disparity is drawn with Spectral_r, near red and far violet, as Depth Anything V2's figures
 draw it. The items are spread evenly over the sorted ids, and the frame comes from a fixed
@@ -39,6 +39,8 @@ SEED = 0
 
 _INK = (40, 40, 40)
 _PAPER = (255, 255, 255)
+#: Where a foreground's matte is 0, so its disparity map is not drawn.
+_OUTSIDE = (230, 230, 230)
 
 
 def _evenly(ids: list[str], n: int) -> list[str]:
@@ -69,8 +71,14 @@ def _foreground(library_root: Path, asset_id: str) -> list[tuple[str, Image.Imag
     return [
         ("foreground rgb.png", board),
         ("alpha.png", _square(alpha, PANEL).convert("RGB")),
-        ("depth.png", _disparity(fg.depth, PANEL)),
+        ("depth.png inside the matte", _matted(fg.depth, fg.alpha)),
     ]
+
+
+def _matted(disparity: np.ndarray, alpha: np.ndarray) -> Image.Image:
+    """Disparity where the matte is above 0, the only part Stage B reads; gray elsewhere."""
+    colored = np.where(alpha[..., None] > 0, apply_colormap(disparity), _OUTSIDE)
+    return _square(Image.fromarray(colored.astype(np.uint8)), PANEL)
 
 
 def _background(library_root: Path, asset_id: str) -> list[tuple[str, Image.Image]]:
