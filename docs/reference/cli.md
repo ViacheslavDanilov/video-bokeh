@@ -209,9 +209,9 @@ library built with it.
   four foregrounds and three backgrounds on cards under two headed sections, a JPEG about
   2,500 pixels wide and 3 MB at most. The video plays three sequences of 96 frames at 1024
   pixels, all-in-focus, disparity and bokeh side by side, as H.264 at 24 frames per second.
-  Drawing it from the full library took 158 s and 42 GB of memory on the lab machine.
-  `pack` spreads the items evenly over the sorted ids and takes seeds 0, 1 and 2. The video needs torch and imageio's ffmpeg, which the `library`
-  extra installs; `--no-preview` leaves both out.
+  Rendering the sequences at that size needs about 40 GB of memory. `pack` spreads the items
+  evenly over the sorted ids and takes seeds 0, 1 and 2. The video needs torch and imageio's
+  ffmpeg, which the `library` extra installs; `--no-preview` leaves both out.
 - **`preview` draws both again in a packed folder, and its card,** of the items and seeds it
   is given, so a better example costs no packing. A seed whose objects cannot be placed is
   refused. Stage again afterwards into an empty folder, so the staged card shows them too.
