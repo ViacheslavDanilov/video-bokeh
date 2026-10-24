@@ -189,6 +189,36 @@ weights.
 The command exits 1 when any estimator it checked is not `ready`, or failed to measure. A
 `--model` that names no estimator is a usage error, before anything is checked.
 
+## `video_bokeh.library.hub` — publish or download a library
+
+`pack` writes a library into tar shards of about 2 GB, with `index.json` and a dataset card
+`README.md`, for a Hugging Face dataset repository. The shards hold only what Stage B reads:
+each foreground's `rgb.png`, `alpha.png`, `depth.png` and `meta.json`, and each background's
+`rgb.png` and `depth.png`. A shard holds whole items. `fetch` downloads such a repository and
+unpacks it into a library root that Stage B and the sequence stream take as they are, one
+shard at a time, so the disk holds the library and one shard at most. Run again, `fetch`
+downloads only the shards it has not unpacked yet. `fetch` needs `huggingface-hub`, which the
+`loader` and `library` extras install, and so does `hf upload-large-folder`. The card names
+Depth Anything V2 Large, so `pack` takes only a library built with it.
+
+```bash
+uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
+  --output data/library-packed --repo vdanilov/video-bokeh-library
+hf upload-large-folder vdanilov/video-bokeh-library data/library-packed --repo-type dataset
+uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-library \
+  --output data/library/da2-large
+```
+
+| command | flag | default | meaning |
+|---|---|---|---|
+| `pack` | `--library-root` | **required** | the library to publish |
+| `pack` | `--output` | **required** | where the shards, index and card go |
+| `pack` | `--shard-gb` | `2` | a shard closes once it holds this many gigabytes |
+| `pack` | `--repo` | `<user>/<repo>` | the repository the card's commands name |
+| `fetch` | `--repo` | **required** | a Hugging Face dataset repository of shards |
+| `fetch` | `--output` | **required** | the library root to write |
+| `fetch` | `--revision` | latest | a branch, tag or commit of the repository |
+
 ## `video_bokeh.scenes.generate` — Stage B
 
 Samples scenes from the library and writes the sequence tree in [dataset-layout](dataset-layout.md).

@@ -27,7 +27,7 @@ backend/src/video_bokeh/
 | download the source pools | `uv sync --no-dev --extra acquire` |
 | run the API | `uv sync --no-dev --extra api` |
 | encode streams as MP4 to watch them | `uv sync --no-dev --extra preview` |
-| train on sequences generated on the fly | `uv sync --no-dev --extra loader` |
+| train on sequences generated on the fly, or download a library | `uv sync --no-dev --extra loader` |
 | render bokeh again for written sequences | `uv sync --no-dev --extra render` |
 | develop on the repository | `uv sync --all-extras --dev` |
 
