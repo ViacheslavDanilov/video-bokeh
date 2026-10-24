@@ -8,6 +8,7 @@ import sys
 import tarfile
 from pathlib import Path
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -225,6 +226,22 @@ def test_the_preview_is_a_figure_and_a_video_the_card_shows(
     card = (tmp_path / "packed" / "README.md").read_text()
     assert f"]({hub.PREVIEW})" in card
     assert f"datasets/{hub.REPO}/resolve/main/{hub.VIDEO}" in card
+
+
+def test_the_preview_draws_disparity_only_where_the_matte_reaches_its_core(
+    library: Path,
+) -> None:
+    from video_bokeh.library import _preview
+
+    # A faint halo on the left, as MAGICK's mattes have, and real matte on the right.
+    alpha = np.zeros((64, 64), dtype=np.uint8)
+    alpha[:, :32] = 5  # 0.02
+    alpha[:, 32:] = 13  # 0.05
+    Image.fromarray(alpha).save(library / "foregrounds" / "fg_a" / "alpha.png")
+    disparity = np.asarray(_preview._foreground(library, "fg_a")[2])
+    side = disparity.shape[0]
+    assert tuple(disparity[side // 2, side // 4]) == _preview._OUTSIDE
+    assert tuple(disparity[side // 2, 3 * side // 4]) != _preview._OUTSIDE
 
 
 def test_the_preview_is_drawn_again_of_the_items_and_sequences_given(

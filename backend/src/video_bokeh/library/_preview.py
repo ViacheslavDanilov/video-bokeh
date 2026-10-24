@@ -71,8 +71,9 @@ _BG_FILL = (255, 250, 243)
 _CARD_EDGE = (205, 219, 245)
 _PAPER = (255, 255, 255)
 #: The matte a foreground's disparity is drawn from: Stage A's default ``--alpha-threshold``,
-#: where its trusted core starts. Below it lies the faint halo of MAGICK's mattes, and gray.
+#: where its trusted core starts. Below it, the faint halo of MAGICK's mattes is drawn gray.
 _DRAWN_ALPHA = 0.04
+#: The gray a foreground's disparity panel shows outside the drawn matte.
 _OUTSIDE = (232, 232, 232)
 #: Each panel's caption: what it shows, then the file it shows, muted.
 _FG_CAPTIONS = (

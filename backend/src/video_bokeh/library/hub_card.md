@@ -176,9 +176,9 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
 - **The foregrounds are generated.** MAGICK made them with a text-to-image model and cut
   them out by chroma keying.
 - **The mattes carry a faint halo.** Around most foregrounds, MAGICK's matte holds alpha
-  under 0.04 well past the visible edge, over a median 3.8 % of the square. Stage B
-  composites it as it is, so it blends under 4 % of the foreground's color and disparity into
-  a frame.
+  under 0.04 well past the visible edge, covering 3.8 % of the square for the median
+  foreground. Stage B composites it as it is, so each halo pixel carries under 4 % of the
+  foreground's color and disparity into a frame.
 - **The subjects are uneven.** Of the 8,586 foregrounds of the full library, 3,974 are
   people, 2,327 objects, 1,406 food, 483 plants and 396 animals, by the classifier's labels.
 - **The labels are not shipped.** The classifier's subject and style of each foreground stay
