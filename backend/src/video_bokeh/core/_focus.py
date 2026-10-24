@@ -60,8 +60,8 @@ def focus_track(
 
     ``chosen`` names the object instead of drawing it, and must show alone in some frame.
     """
+    n_objects = max((len(f.areas) for f in frames), default=0)
     if chosen is None:
-        n_objects = max((len(f.areas) for f in frames), default=0)
         totals = [
             sum(f.areas[i] for f in frames if i < len(f.areas)) / len(frames)
             for i in range(n_objects)
@@ -69,6 +69,8 @@ def focus_track(
         chosen = choose_focus_object(totals, seed)
         if chosen is None:
             return None, [f.fallback for f in frames]
+    if chosen >= n_objects:
+        raise ValueError(f"no object {chosen}")
     means = [f.means[chosen] if chosen < len(f.means) else None for f in frames]
     first = next((z for z in means if z is not None), None)
     if first is None:
