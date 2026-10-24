@@ -23,6 +23,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from video_bokeh.core._library import (
+    FOREGROUNDS,
     list_backgrounds,
     list_foregrounds,
     load_background,
@@ -112,19 +113,42 @@ def _checkerboard(side: int, cell: int = 16) -> Image.Image:
     return Image.fromarray(np.stack([board] * 3, axis=-1))
 
 
+def _matted(alpha: np.ndarray, depth: np.ndarray) -> np.ndarray:
+    """A foreground's colored disparity where its matte reaches ``_DRAWN_ALPHA``, gray
+    elsewhere, as uint8 RGB."""
+    colored = np.where(
+        alpha[..., None] >= _DRAWN_ALPHA, apply_colormap(depth), _OUTSIDE
+    )
+    return colored.astype(np.uint8)
+
+
+def depth_preview(library_root: Path, kind: str, asset_id: str) -> bytes:
+    """An item's disparity in color, at the item's size, as JPEG bytes.
+
+    A foreground's is drawn where its matte reaches ``_DRAWN_ALPHA``, as the figure draws
+    it; a background's covers the whole photo. ``pack`` puts it in the shards for the Hub's
+    viewer, and nothing reads it back.
+    """
+    if kind == FOREGROUNDS:
+        fg = load_foreground(library_root, asset_id)
+        rgb = _matted(fg.alpha, fg.depth)
+    else:
+        rgb = apply_colormap(load_background(library_root, asset_id).depth)
+    buffer = io.BytesIO()
+    Image.fromarray(rgb).save(buffer, "JPEG", quality=88)
+    return buffer.getvalue()
+
+
 def _foreground(library_root: Path, asset_id: str) -> list[Image.Image]:
     fg = load_foreground(library_root, asset_id)
     cutout = _square(fg.rgb, PANEL)
     board = _checkerboard(PANEL)
     board.paste(cutout, mask=cutout.getchannel("A"))
     alpha = Image.fromarray((fg.alpha * 255).round().astype(np.uint8))
-    matted = np.where(
-        fg.alpha[..., None] >= _DRAWN_ALPHA, apply_colormap(fg.depth), _OUTSIDE
-    )
     return [
         board,
         _square(alpha, PANEL).convert("RGB"),
-        _square(Image.fromarray(matted.astype(np.uint8)), PANEL),
+        _square(Image.fromarray(_matted(fg.alpha, fg.depth)), PANEL),
     ]
 
 

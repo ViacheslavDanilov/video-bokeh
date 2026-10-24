@@ -6,6 +6,10 @@ folder per kind under ``library/``, with ``library/index.json``, the dataset car
 ``assets/preview.mp4``. The repository keeps the library under ``library/`` so that the
 generated sequences can sit beside it. A shard holds whole items, so an item is never
 split. Stage A's inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out.
+The shards follow WebDataset's layout: an item's files share its id, as ``<id>.rgb.png``,
+``<id>.alpha.png``, ``<id>.depth.png`` and ``<id>.json``, so the Hub's viewer, the
+``datasets`` library and the ``webdataset`` library read an item as one sample. Each item
+also carries ``<id>.depth_preview.jpg``, its disparity in color, for the viewer alone.
 The card describes a library built with Depth Anything V2 Large, so ``pack`` takes no
 other. Its text is ``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a
 number.
@@ -20,8 +24,8 @@ or uploading the packed folder itself, gives the whole library and a card withou
 upload status.
 
 ``fetch`` downloads the shards that ``library/index.json`` lists one at a time, unpacks
-each into a library root that Stage B and the sequence stream take as they are, and
-deletes it, so the disk holds the library and one shard at most. A shard that the index
+each into a library root that Stage B and the sequence stream take as they are, as
+``foregrounds/<id>/rgb.png`` and so on, without the previews, and deletes it, so the disk holds the library and one shard at most. A shard that the index
 lists but the repository does not hold yet is skipped and reported, so a repository can be
 uploaded in parts. ``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file
 name, so that run again it fetches only what it lacks; a shard packed anew under an old
@@ -52,6 +56,7 @@ Shards are plain tar: the images are PNG already, so compressing them again save
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import shutil
@@ -70,6 +75,7 @@ from video_bokeh.core._library import (
     list_backgrounds,
     list_foregrounds,
 )
+from video_bokeh.library._preview import depth_preview
 from video_bokeh.scenes.generate import _library_estimator
 
 #: The files of an item that Stage B reads, by kind.
@@ -77,6 +83,13 @@ READ = {
     FOREGROUNDS: ("rgb.png", "alpha.png", "depth.png", "meta.json"),
     BACKGROUNDS: ("rgb.png", "depth.png"),
 }
+#: The name each file of an item takes in a shard, after the item's id and a dot.
+MEMBER = {"rgb.png": "rgb.png", "alpha.png": "alpha.png", "depth.png": "depth.png"}
+MEMBER["meta.json"] = "json"
+#: The file each member name stands for, which ``fetch`` writes back.
+FILE = {member: name for name, member in MEMBER.items()}
+#: The member that draws an item's disparity in color for the Hub's viewer.
+DEPTH_PREVIEW = "depth_preview.jpg"
 SHARD_BYTES = 2 * 10**9
 #: The depth estimator the card names.
 ESTIMATOR = "da2-large"
@@ -156,6 +169,10 @@ def pack(
         tar: tarfile.TarFile | None = None
         size = 0
         for asset_id in ids:
+            if "." in asset_id:
+                raise SystemExit(
+                    f"{asset_id}: an id with a dot breaks WebDataset's keys"
+                )
             files = [library_root / kind / asset_id / name for name in READ[kind]]
             files = [f for f in files if f.is_file()]
             if tar is None or size >= shard_bytes:
@@ -166,8 +183,13 @@ def pack(
                 tar = tarfile.open(shards_root / name, "w")
                 size = 0
             for f in files:
-                tar.add(f, arcname=f"{kind}/{asset_id}/{f.name}")
+                tar.add(f, arcname=f"{asset_id}.{MEMBER[f.name]}")
                 size += f.stat().st_size
+            colored = depth_preview(library_root, kind, asset_id)
+            member = tarfile.TarInfo(f"{asset_id}.{DEPTH_PREVIEW}")
+            member.size, member.mtime = len(colored), int(files[0].stat().st_mtime)
+            tar.addfile(member, io.BytesIO(colored))
+            size += len(colored)
             shards[-1]["items"] += 1
         if tar is not None:
             tar.close()
@@ -326,6 +348,26 @@ def _template() -> Template:
     )
 
 
+def _unpack(tar: tarfile.TarFile, kind_root: Path) -> None:
+    """Write a shard's items into ``kind_root`` as ``<id>/rgb.png`` and so on.
+
+    The depth previews are skipped. A member that is not a plain file named
+    ``<id>.<member>`` is refused, so a shard cannot write outside ``kind_root``.
+    """
+    for member in tar:
+        key, _, suffix = member.name.partition(".")
+        if suffix == DEPTH_PREVIEW:
+            continue
+        if not member.isfile() or not key or "/" in key or suffix not in FILE:
+            raise SystemExit(f"unexpected member {member.name!r} in a library shard")
+        target = kind_root / key / FILE[suffix]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source = tar.extractfile(member)
+        assert source is not None  # a plain file always has its bytes
+        with source, target.open("wb") as out:
+            shutil.copyfileobj(source, out)
+
+
 def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[str]:
     """Download the shards of the Hugging Face dataset ``repo`` and unpack them one by one.
 
@@ -362,7 +404,7 @@ def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[st
                     missing.append(shard["file"])
                     continue
                 with tarfile.open(path) as tar:
-                    tar.extractall(library_root, filter="data")
+                    _unpack(tar, library_root / kind)
                 path.unlink()
                 done.touch()
     return missing

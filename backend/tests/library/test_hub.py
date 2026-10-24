@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import shutil
 import sys
@@ -120,6 +121,50 @@ def test_a_repository_uploaded_in_parts_is_fetched_in_parts(
     assert list_foregrounds(fetched) == ["fg_a", "fg_b", "fg_c"]
 
 
+def test_a_shard_holds_each_item_under_webdataset_names_with_its_depth_preview(
+    library: Path, tmp_path: Path
+) -> None:
+    hub.pack(library, tmp_path / "packed", preview=False)
+    shards = tmp_path / "packed" / "library"
+    with tarfile.open(shards / "foregrounds" / "foregrounds-00000.tar") as tar:
+        names = tar.getnames()
+        preview = tar.extractfile("fg_a.depth_preview.jpg")
+        assert preview is not None
+        with Image.open(preview) as image:
+            assert (image.format, image.mode) == ("JPEG", "RGB")
+            side = image.width
+    assert names[:5] == [
+        "fg_a.rgb.png",
+        "fg_a.alpha.png",
+        "fg_a.depth.png",
+        "fg_a.json",
+        "fg_a.depth_preview.jpg",
+    ]
+    with Image.open(library / "foregrounds" / "fg_a" / "rgb.png") as image:
+        assert side == image.width  # the preview is drawn at the item's size
+    with tarfile.open(shards / "backgrounds" / "backgrounds-00000.tar") as tar:
+        assert tar.getnames()[:3] == [
+            "bg_a.rgb.png",
+            "bg_a.depth.png",
+            "bg_a.depth_preview.jpg",
+        ]
+
+
+def test_fetching_refuses_a_shard_member_that_names_a_path(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(library, packed, preview=False)
+    shard = packed / "library" / "backgrounds" / "backgrounds-00000.tar"
+    with tarfile.open(shard, "a") as tar:
+        member = tarfile.TarInfo("../outside.rgb.png")
+        tar.addfile(member, io.BytesIO(b""))
+    _hub(monkeypatch, packed)
+    with pytest.raises(SystemExit, match="unexpected member"):
+        hub.fetch("someone/some-library", tmp_path / "fetched")
+    assert not (tmp_path / "outside.rgb.png").exists()
+
+
 def test_a_shard_closes_near_its_size_and_never_splits_an_item(
     library: Path,
     tmp_path: Path,
@@ -130,7 +175,7 @@ def test_a_shard_closes_near_its_size_and_never_splits_an_item(
     assert len(shards) == 3  # every item overflows a 1-byte shard, so one item each
     for shard in shards:
         with tarfile.open(shard) as tar:
-            items = {Path(name).parts[1] for name in tar.getnames()}
+            items = {name.split(".")[0] for name in tar.getnames()}
         assert len(items) == 1
 
 
@@ -142,7 +187,7 @@ def test_the_package_carries_its_card_and_its_counts(
     assert index["foregrounds"]["items"] == 3
     assert index["backgrounds"]["items"] == 2
     card = (tmp_path / "packed" / "README.md").read_text()
-    assert "license: cc-by-nc-4.0" in card and "viewer: false" in card
+    assert "license: cc-by-nc-4.0" in card
     prose = " ".join(card.split())  # the template wraps its lines
     assert "3 foregrounds" in prose and "2 background photos" in prose
 
@@ -176,7 +221,10 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     card = (tmp_path / "packed" / "README.md").read_text()
     meta = _front_matter(card)
     assert meta["license"] == "cc-by-nc-4.0"
-    assert meta["viewer"] is False
+    assert meta["configs"] == [
+        {"config_name": "foregrounds", "data_files": "library/foregrounds/*.tar"},
+        {"config_name": "backgrounds", "data_files": "library/backgrounds/*.tar"},
+    ]
     assert "image" in meta["tags"]
     assert set(meta["task_categories"]) == {"image-to-image", "depth-estimation"}
     assert meta["size_categories"] == ["10K<n<100K"]
