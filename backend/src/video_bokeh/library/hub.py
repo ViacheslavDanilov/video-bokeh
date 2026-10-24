@@ -5,9 +5,10 @@ folder per kind under ``library/``, with ``library/index.json``, the dataset car
 ``README.md`` and its preview, the figure ``assets/preview.jpg`` and the video
 ``assets/preview.mp4``. The repository keeps the library under ``library/`` so that the
 generated sequences can sit beside it. A shard holds whole items, so an item is never
-split. Stage A's inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
-Large, so ``pack`` takes no other. Its text is ``hub_card.md`` beside this file, with
-``$name`` where ``card`` puts a number.
+split. Stage A's inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out.
+The card describes a library built with Depth Anything V2 Large, so ``pack`` takes no
+other. Its text is ``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a
+number.
 
 ``preview`` draws the preview of a packed folder again, of the items and sequences it is
 given, and writes its card again, so a better example costs no packing.
