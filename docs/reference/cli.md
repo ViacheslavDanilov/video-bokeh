@@ -192,7 +192,8 @@ The command exits 1 when any estimator it checked is not `ready`, or failed to m
 ## `video_bokeh.library.hub` — publish or download a library
 
 `pack` writes a library into tar shards of about 2 GB, with `index.json`, a dataset card
-`README.md` and the card's figure `assets/preview.jpg`, for a Hugging Face dataset repository.
+`README.md`, the card's figure `assets/preview.jpg` and its video `assets/preview.mp4`, for a
+Hugging Face dataset repository.
 The shards hold only what Stage B reads: each foreground's `rgb.png`, `alpha.png`, `depth.png`
 and `meta.json`, and each background's `rgb.png` and `depth.png`. A shard holds whole items.
 `fetch` downloads such a repository and unpacks it into a library root that Stage B and the
@@ -204,13 +205,21 @@ library built with it.
 
 - **The card's text is `backend/src/video_bokeh/library/hub_card.md`.** Edit it there. `pack`
   fills in each `$name` from the index: counts, image sizes, shards and gigabytes.
-- **The figure shows the library and what Stage B makes of it.** Two foregrounds and three
-  backgrounds, spread evenly over the sorted ids, and one frame generated with seed 0, with
-  its disparity and bokeh. It is a JPEG about 1,600 pixels wide and 1 MB at most. The frame
-  needs torch; `--no-preview` leaves the figure out.
+- **The figure shows the library, and the video what Stage B makes of it.** The figure holds
+  four foregrounds and three backgrounds on tinted cards under two headed sections, a JPEG
+  about 2,500 pixels wide and 3 MB at most. The video plays three sequences of 96 frames at
+  1024 pixels in the demo's six panes, all in focus, disparity, mattes, bokeh, optical flow
+  and occlusion, as H.264 at 24 frames per second. Rendering the sequences at that size
+  needs about 45 GB of memory. `pack` spreads the items evenly over the sorted ids and takes
+  seeds 0, 1 and 2. The video needs torch and imageio's
+  ffmpeg, which the `library` extra installs; `--no-preview` leaves both out.
+- **`preview` draws both again in a packed folder, and its card,** of the items and seeds it
+  is given, so a better example costs no packing. A seed whose objects cannot be placed is
+  refused. Stage again afterwards into an empty folder, so the staged card shows them too.
 - **`stage` uploads a library in parts.** It hard-links every `--every`-th shard of each kind,
-  the full index and the figure into a folder of its own, with a card that says how many
-  shards and items are online. The shards it takes are spread over the sorted ids, so a part
+  the full index, the figure and the video into a folder of its own, with a card that says
+  how many shards and items are online. A folder packed before the video needs `preview`
+  first. The shards it takes are spread over the sorted ids, so a part
   draws from the whole sorted list; with `--every 5` it holds both BG-20k splits. Its output
   must be on the same disk as the packed folder.
   Uploading the packed folder afterwards adds the rest and the card of the whole library.
@@ -220,6 +229,10 @@ library built with it.
 ```bash
 uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
   --output data/library-packed
+uv run python -m video_bokeh.library.hub preview --library-root data/library/da2-large \
+  --packed data/library-packed --foregrounds 6M__6MV7SSxmwd 0S__0SUuLNXyEz 3n__3nqLIHRgfa \
+  1b__1bGRKnW1f3 --backgrounds train__h_a415d5e8 train__h_a7671d5b testval__h_ea29ed84 \
+  --seeds 1005 1033 1050
 uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
   --output data/library-staged --every 5
 hf upload-large-folder vdanilov/video-bokeh-library data/library-staged --repo-type dataset \
@@ -238,7 +251,13 @@ uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-libra
 | `pack` | `--output` | **required** | where the shards, index, card and figure go |
 | `pack` | `--shard-gb` | `2` | a shard closes once it holds this many gigabytes |
 | `pack` | `--repo` | `vdanilov/video-bokeh-library` | the repository the card's commands name |
-| `pack` | `--no-preview` | off | draw no figure, and show none in the card |
+| `pack` | `--no-preview` | off | draw no figure or video, and show neither in the card |
+| `preview` | `--library-root` | **required** | the library the packed folder holds |
+| `preview` | `--packed` | **required** | a folder `pack` wrote |
+| `preview` | `--repo` | `vdanilov/video-bokeh-library` | the repository the card's commands name |
+| `preview` | `--foregrounds` | spread evenly | up to four foreground ids for the figure |
+| `preview` | `--backgrounds` | spread evenly | up to three background ids for the figure |
+| `preview` | `--seeds` | `0 1 2` | the sequences the video plays |
 | `stage` | `--packed` | **required** | a folder `pack` wrote |
 | `stage` | `--output` | **required** | the folder to upload first |
 | `stage` | `--every` | **required** | stage shards 0, n, 2n, … of each kind; `1` stages all |

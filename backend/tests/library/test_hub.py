@@ -190,7 +190,21 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
         assert f"{{{key}," in card
 
 
-def test_the_preview_is_a_figure_the_card_shows_within_its_bounds(
+@pytest.fixture(autouse=True)
+def short_video(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sequences of 4 small frames, so every test that draws the preview stays quick."""
+    monkeypatch.setattr("video_bokeh.library._preview.VIDEO_FRAMES", 4)
+    monkeypatch.setattr("video_bokeh.library._preview.VIDEO_PANEL", 128)
+
+
+def _video_frames(path: Path) -> int:
+    import imageio.v2 as iio
+
+    with iio.get_reader(path) as reader:
+        return sum(1 for _ in reader)
+
+
+def test_the_preview_is_a_figure_and_a_video_the_card_shows(
     library: Path, tmp_path: Path
 ) -> None:
     hub.pack(library, tmp_path / "packed")
@@ -198,10 +212,69 @@ def test_the_preview_is_a_figure_the_card_shows_within_its_bounds(
     with Image.open(preview) as image:
         assert image.format == "JPEG"
         width, height = image.size
-    assert 1500 <= width <= 1700
+    assert 2400 <= width <= 2600
     assert height < width
-    assert preview.stat().st_size <= 10**6
-    assert f"]({hub.PREVIEW})" in (tmp_path / "packed" / "README.md").read_text()
+    assert preview.stat().st_size <= 3 * 10**6
+    # Three sequences of 4 frames each.
+    assert _video_frames(tmp_path / "packed" / hub.VIDEO) == 12
+    card = (tmp_path / "packed" / "README.md").read_text()
+    assert f"]({hub.PREVIEW})" in card
+    assert f"datasets/{hub.REPO}/resolve/main/{hub.VIDEO}" in card
+
+
+def test_the_preview_is_drawn_again_of_the_items_and_sequences_given(
+    library: Path, tmp_path: Path
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(library, packed)
+    with Image.open(packed / hub.PREVIEW) as image:
+        two_rows = image.height  # of the fixture's three foregrounds
+    hub.main(
+        [
+            "preview",
+            "--library-root",
+            str(library),
+            "--packed",
+            str(packed),
+            "--repo",
+            "someone/library",
+            "--foregrounds",
+            "fg_b",
+            "--backgrounds",
+            "bg_a",
+            "--seeds",
+            "7",
+        ]
+    )
+    with Image.open(packed / hub.PREVIEW) as image:
+        # One foreground fills one row of the two the fixture's three take.
+        assert image.height < two_rows
+    assert _video_frames(packed / hub.VIDEO) == 4
+    card = (packed / "README.md").read_text()
+    assert "datasets/someone/library/resolve/main/" in card
+    assert "fetch --repo someone/library " in card
+
+
+def test_the_figure_refuses_more_items_than_it_holds(
+    library: Path, tmp_path: Path
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(library, packed, preview=False)
+    with pytest.raises(SystemExit, match="3 backgrounds at most"):
+        hub.preview(library, packed, backgrounds=["bg_a", "bg_b", "bg_a", "bg_b"])
+
+
+def test_staging_refuses_a_folder_packed_before_the_video_until_it_has_one(
+    library: Path, tmp_path: Path
+) -> None:
+    packed, staged = tmp_path / "packed", tmp_path / "staged"
+    hub.pack(library, packed)
+    (packed / hub.VIDEO).unlink()
+    with pytest.raises(SystemExit, match="run preview on it first"):
+        hub.stage(packed, staged, every=1)
+    hub.preview(library, packed)
+    assert hub.stage(packed, staged, every=1) == (2, 2)
+    assert (staged / hub.VIDEO).samefile(packed / hub.VIDEO)
 
 
 def test_staging_takes_every_nth_shard_and_the_card_says_how_much_is_online(
@@ -217,7 +290,7 @@ def test_staging_takes_every_nth_shard_and_the_card_says_how_much_is_online(
         "foregrounds/foregrounds-00000.tar",
         "foregrounds/foregrounds-00002.tar",
     ]
-    for name in [*tars, hub.PREVIEW]:
+    for name in [*tars, hub.PREVIEW, hub.VIDEO]:
         assert (staged / name).samefile(packed / name)  # linked, not copied
     assert (staged / "index.json").read_bytes() == (packed / "index.json").read_bytes()
     card = (staged / "README.md").read_text()

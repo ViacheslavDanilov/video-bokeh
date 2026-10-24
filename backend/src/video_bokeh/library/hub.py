@@ -1,11 +1,15 @@
 """Publish a library on Hugging Face, and fetch it back into the layout Stage B reads.
 
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
-folder per kind, with ``index.json``, the dataset card ``README.md`` and its preview figure
-``assets/preview.jpg``. A shard holds whole items, so an item is never split. Stage A's
-inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card describes a
-library built with Depth Anything V2 Large, so ``pack`` takes no other. Its text is
-``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a number.
+folder per kind, with ``index.json``, the dataset card ``README.md`` and its preview, the
+figure ``assets/preview.jpg`` and the video ``assets/preview.mp4``. A shard holds whole
+items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and
+``depth_input.png``, stay out. The card describes a library built with Depth Anything V2
+Large, so ``pack`` takes no other. Its text is ``hub_card.md`` beside this file, with
+``$name`` where ``card`` puts a number.
+
+``preview`` draws the preview of a packed folder again, of the items and sequences it is
+given, and writes its card again, so a better example costs no packing.
 
 ``stage`` hard-links every ``--every``-th shard of each kind, the full index, the preview
 and a card that says how much is online into a folder of its own, for a first upload that
@@ -23,6 +27,10 @@ fetched again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
+    uv run python -m video_bokeh.library.hub preview --library-root data/library/da2-large \
+        --packed data/library-packed --foregrounds 6M__6MV7SSxmwd 0S__0SUuLNXyEz \
+        3n__3nqLIHRgfa 1b__1bGRKnW1f3 --backgrounds train__h_a415d5e8 train__h_a7671d5b \
+        testval__h_ea29ed84 --seeds 1005 1033 1050
     uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
         --output data/library-staged --every 5
     hf upload-large-folder vdanilov/video-bokeh-library data/library-staged \
@@ -74,18 +82,25 @@ ESTIMATOR = "da2-large"
 FETCHED = ".fetched"
 #: The repository the card's commands name.
 REPO = "vdanilov/video-bokeh-library"
-#: The card's figure, relative to the packed folder and to the card.
+#: The card's figure and video, relative to the packed folder and to the card.
 PREVIEW = "assets/preview.jpg"
-#: The card's figure and its caption, when ``pack`` drew one.
-FIGURE = f"""
-![Two foregrounds, three backgrounds and one generated frame]({PREVIEW})
+VIDEO = "assets/preview.mp4"
+#: The card's figure and video with their captions, when ``pack`` drew them. The video
+#: plays from the repository, because the Hub's card takes no relative video path.
+FIGURE = Template(f"""
+![Four foregrounds and three backgrounds]({PREVIEW})
 
-*Top: two foregrounds, each as `rgb.png` over a checkerboard, `alpha.png` and `depth.png`
-inside the matte, with gray where the matte is 0. Middle: three backgrounds, `rgb.png` and
-`depth.png`. Bottom: one frame that Stage B generated from this library, all-in-focus,
-disparity and bokeh. Disparity is drawn in the Spectral colormap, near red and far violet.
-The items are spread evenly over the sorted ids.*
-"""
+*Foregrounds and backgrounds of the library. A foreground's color is drawn over a
+checkerboard and its disparity inside the matte, gray where the matte is 0. Disparity is
+drawn in the Spectral colormap, near red and far violet.*
+
+<video src="https://huggingface.co/datasets/$repo/resolve/main/{VIDEO}" controls autoplay
+loop muted playsinline width="100%"></video>
+
+*Sequences that Stage B generated from this library at 1024 × 1024. Top: the frames all
+in focus, their disparity and each object's matte. Bottom: their bokeh, the forward optical
+flow, colored by direction and speed, and in cyan what the next frame hides.*
+""")
 
 #: What the card says while the repository holds part of the library.
 STATUS = Template("""
@@ -116,8 +131,8 @@ def pack(
     """Write the library's shards, index, card and preview into ``output``; return the index.
 
     The index lists, per kind, the item count, the side of an item's images and each shard
-    with the items and bytes it holds. The preview needs torch; ``preview=False`` leaves it
-    out, and the card then shows no figure.
+    with the items and bytes it holds. The preview needs torch and imageio's ffmpeg;
+    ``preview=False`` leaves it out, and the card then shows none.
     """
     for kind in (FOREGROUNDS, BACKGROUNDS):
         if not (library_root / kind).is_dir():
@@ -160,11 +175,40 @@ def pack(
         json.dumps(index, indent=1) + "\n", encoding="utf-8"
     )
     if preview:
-        from video_bokeh.library._preview import write_preview
-
-        write_preview(library_root, output / PREVIEW)
+        _draw(library_root, output)
     (output / "README.md").write_text(card(index, repo, preview), encoding="utf-8")
     return index
+
+
+def _draw(
+    library_root: Path,
+    output: Path,
+    foregrounds: list[str] | None = None,
+    backgrounds: list[str] | None = None,
+    seeds: list[int] | None = None,
+) -> None:
+    from video_bokeh.library._preview import SEEDS, write_preview, write_video
+
+    write_preview(library_root, output / PREVIEW, foregrounds, backgrounds)
+    write_video(library_root, output / VIDEO, seeds or SEEDS)
+
+
+def preview(
+    library_root: Path,
+    packed: Path,
+    repo: str = REPO,
+    foregrounds: list[str] | None = None,
+    backgrounds: list[str] | None = None,
+    seeds: list[int] | None = None,
+) -> None:
+    """Draw the preview of ``packed`` again from ``library_root``, and write its card again.
+
+    ``foregrounds`` and ``backgrounds`` are item ids, ``seeds`` the video's sequences; each
+    left out takes the default ``pack`` takes.
+    """
+    index = json.loads((packed / "index.json").read_text(encoding="utf-8"))
+    _draw(library_root, packed, foregrounds, backgrounds, seeds)
+    (packed / "README.md").write_text(card(index, repo, True), encoding="utf-8")
 
 
 def stage(
@@ -189,7 +233,10 @@ def stage(
         for shard in index[kind]["shards"][::every]
     ]
     has_preview = (packed / PREVIEW).is_file()
-    for name in [*staged, PREVIEW] if has_preview else staged:
+    if has_preview and not (packed / VIDEO).is_file():
+        # Packed before the video existed: its card would embed a file it lacks.
+        raise SystemExit(f"{packed} has no {VIDEO}: run preview on it first")
+    for name in [*staged, PREVIEW, VIDEO] if has_preview else staged:
         (output / name).parent.mkdir(parents=True, exist_ok=True)
         try:
             os.link(packed / name, output / name)
@@ -219,8 +266,9 @@ def card(
 ) -> str:
     """The dataset card for the shards that ``index`` lists.
 
-    With ``preview``, the card shows the figure at ``PREVIEW``. With ``online``, the shard
-    files the repository holds so far, it opens with how much of the library they are.
+    With ``preview``, the card shows the figure at ``PREVIEW`` and the video at ``VIDEO``.
+    With ``online``, the shard files the repository holds so far, it opens with how much of
+    the library they are.
     """
     shards = {kind: index[kind]["shards"] for kind in (FOREGROUNDS, BACKGROUNDS)}
     all_shards = [s for kind in shards for s in shards[kind]]
@@ -240,8 +288,8 @@ def card(
         )
     return _template().substitute(
         repo=repo,
-        preview=FIGURE if preview else "",
-        assets=f"\n{PREVIEW}" if preview else "",
+        preview=FIGURE.substitute(repo=repo) if preview else "",
+        assets=f"\n{PREVIEW}\n{VIDEO}" if preview else "",
         status=status,
         foregrounds=f"{index[FOREGROUNDS]['items']:,}",
         backgrounds=f"{index[BACKGROUNDS]['items']:,}",
@@ -326,7 +374,22 @@ def main(argv: list[str] | None = None) -> int:
     packing.add_argument(
         "--no-preview",
         action="store_true",
-        help="draw no preview figure, which needs torch",
+        help="draw no preview, which needs torch and ffmpeg",
+    )
+    drawing = commands.add_parser(
+        "preview", help="draw a packed library's preview again, and its card"
+    )
+    drawing.add_argument("--library-root", type=Path, required=True)
+    drawing.add_argument("--packed", type=Path, required=True)
+    drawing.add_argument("--repo", default=REPO, help="named in the card's commands")
+    drawing.add_argument(
+        "--foregrounds", nargs="+", help="up to four foreground ids for the figure"
+    )
+    drawing.add_argument(
+        "--backgrounds", nargs="+", help="up to three background ids for the figure"
+    )
+    drawing.add_argument(
+        "--seeds", nargs="+", type=int, help="the sequences the video plays"
     )
     staging = commands.add_parser(
         "stage", help="hard-link part of a packed library into a folder to upload"
@@ -358,6 +421,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         for kind, entry in index.items():
             print(f"{kind}: {entry['items']} items in {len(entry['shards'])} shards")
+    elif args.command == "preview":
+        preview(
+            args.library_root,
+            args.packed,
+            args.repo,
+            args.foregrounds,
+            args.backgrounds,
+            args.seeds,
+        )
+        print(f"Preview and card written in {args.packed}")
     elif args.command == "stage":
         staged, total = stage(args.packed, args.output, args.every, args.repo)
         print(f"{staged} of {total} shards staged in {args.output}")
