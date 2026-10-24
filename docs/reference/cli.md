@@ -206,10 +206,11 @@ library built with it.
 - **The card's text is `backend/src/video_bokeh/library/hub_card.md`.** Edit it there. `pack`
   fills in each `$name` from the index: counts, image sizes, shards and gigabytes.
 - **The figure shows the library, and the video what Stage B makes of it.** The figure holds
-  four foregrounds and three backgrounds, a JPEG about 1,600 pixels wide and 1 MB at most. The
-  video plays three sequences of 48 frames, all-in-focus, disparity and bokeh side by side,
-  as H.264 at 12 frames per second. `pack` spreads the items evenly over the sorted ids and
-  takes seeds 0, 1 and 2. The video needs torch and imageio's ffmpeg, which the `library`
+  four foregrounds and three backgrounds on cards under two headed sections, a JPEG about
+  2,500 pixels wide and 3 MB at most. The video plays three sequences of 96 frames at 1024
+  pixels, all-in-focus, disparity and bokeh side by side, as H.264 at 24 frames per second.
+  Drawing it from the full library took 158 s and 42 GB of memory on the lab machine.
+  `pack` spreads the items evenly over the sorted ids and takes seeds 0, 1 and 2. The video needs torch and imageio's ffmpeg, which the `library`
   extra installs; `--no-preview` leaves both out.
 - **`preview` draws both again in a packed folder, and its card,** of the items and seeds it
   is given, so a better example costs no packing. A seed whose objects cannot be placed is

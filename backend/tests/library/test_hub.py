@@ -192,8 +192,9 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
 
 @pytest.fixture(autouse=True)
 def short_video(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Sequences of 4 frames, so every test that draws the preview stays quick."""
+    """Sequences of 4 small frames, so every test that draws the preview stays quick."""
     monkeypatch.setattr("video_bokeh.library._preview.VIDEO_FRAMES", 4)
+    monkeypatch.setattr("video_bokeh.library._preview.VIDEO_PANEL", 128)
 
 
 def _video_frames(path: Path) -> int:
@@ -211,9 +212,9 @@ def test_the_preview_is_a_figure_and_a_video_the_card_shows(
     with Image.open(preview) as image:
         assert image.format == "JPEG"
         width, height = image.size
-    assert 1500 <= width <= 1700
+    assert 2400 <= width <= 2600
     assert height < width
-    assert preview.stat().st_size <= 10**6
+    assert preview.stat().st_size <= 3 * 10**6
     # Three sequences of 4 frames each.
     assert _video_frames(tmp_path / "packed" / hub.VIDEO) == 12
     card = (tmp_path / "packed" / "README.md").read_text()
@@ -225,7 +226,9 @@ def test_the_preview_is_drawn_again_of_the_items_and_sequences_given(
     library: Path, tmp_path: Path
 ) -> None:
     packed = tmp_path / "packed"
-    hub.pack(library, packed, preview=False)
+    hub.pack(library, packed)
+    with Image.open(packed / hub.PREVIEW) as image:
+        two_rows = image.height  # of the fixture's three foregrounds
     hub.main(
         [
             "preview",
@@ -244,8 +247,8 @@ def test_the_preview_is_drawn_again_of_the_items_and_sequences_given(
         ]
     )
     with Image.open(packed / hub.PREVIEW) as image:
-        # One row of one foreground over one row of one background.
-        assert image.height < 3 * 256
+        # One foreground fills one row of the two the fixture's three take.
+        assert image.height < two_rows
     assert _video_frames(packed / hub.VIDEO) == 4
     card = (packed / "README.md").read_text()
     assert "datasets/someone/library/resolve/main/" in card

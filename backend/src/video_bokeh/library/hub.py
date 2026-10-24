@@ -90,14 +90,15 @@ VIDEO = "assets/preview.mp4"
 FIGURE = Template(f"""
 ![Four foregrounds and three backgrounds]({PREVIEW})
 
-*Four foregrounds, each as `rgb.png` over a checkerboard, `alpha.png` and `depth.png`
-inside the matte, with gray where the matte is 0, and three backgrounds, `rgb.png` and
-`depth.png`. Disparity is drawn in the Spectral colormap, near red and far violet.*
+*Foregrounds and backgrounds of the library. A foreground's color is drawn over a
+checkerboard and its disparity inside the matte, gray where the matte is 0. Disparity is
+drawn in the Spectral colormap, near red and far violet.*
 
 <video src="https://huggingface.co/datasets/$repo/resolve/main/{VIDEO}" controls autoplay
 loop muted playsinline width="100%"></video>
 
-*Sequences that Stage B generated from this library: all-in-focus, disparity and bokeh.*
+*Sequences that Stage B generated from this library at 1024 × 1024: all-in-focus,
+disparity and bokeh.*
 """)
 
 #: What the card says while the repository holds part of the library.
