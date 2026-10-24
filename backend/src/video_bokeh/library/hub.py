@@ -2,8 +2,8 @@
 
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
 folder per kind, with ``index.json``, the dataset card ``README.md`` and its preview, the
-figure ``assets/preview.jpg`` and the video ``assets/preview.mp4``. A shard holds whole items, so an item is never split. Stage A's
-inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card describes a
+figure ``assets/preview.jpg`` and the video ``assets/preview.mp4``. A shard holds whole
+items, so an item is never split. Stage A's inspection files, ``depth_raw.png`` and ``depth_input.png``, stay out. The card describes a
 library built with Depth Anything V2 Large, so ``pack`` takes no other. Its text is
 ``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a number.
 
@@ -27,7 +27,9 @@ fetched again unless its mark is deleted:
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
     uv run python -m video_bokeh.library.hub preview --library-root data/library/da2-large \
-        --packed data/library-packed --seeds 1005 1033 1050
+        --packed data/library-packed --foregrounds 6M__6MV7SSxmwd 0S__0SUuLNXyEz \
+        3n__3nqLIHRgfa 1b__1bGRKnW1f3 --backgrounds train__h_a415d5e8 train__h_a7671d5b \
+        testval__h_ea29ed84 --seeds 1005 1033 1050
     uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
         --output data/library-staged --every 5
     hf upload-large-folder vdanilov/video-bokeh-library data/library-staged \
@@ -228,7 +230,9 @@ def stage(
         for shard in index[kind]["shards"][::every]
     ]
     has_preview = (packed / PREVIEW).is_file()
-    for name in [*staged, PREVIEW, VIDEO] if has_preview else staged:
+    # A folder packed before the video existed holds the figure alone.
+    assets = [name for name in (PREVIEW, VIDEO) if (packed / name).is_file()]
+    for name in [*staged, *assets]:
         (output / name).parent.mkdir(parents=True, exist_ok=True)
         try:
             os.link(packed / name, output / name)
@@ -258,8 +262,9 @@ def card(
 ) -> str:
     """The dataset card for the shards that ``index`` lists.
 
-    With ``preview``, the card shows the figure at ``PREVIEW`` and the video at ``VIDEO``. With ``online``, the shard
-    files the repository holds so far, it opens with how much of the library they are.
+    With ``preview``, the card shows the figure at ``PREVIEW`` and the video at ``VIDEO``.
+    With ``online``, the shard files the repository holds so far, it opens with how much of
+    the library they are.
     """
     shards = {kind: index[kind]["shards"] for kind in (FOREGROUNDS, BACKGROUNDS)}
     all_shards = [s for kind in shards for s in shards[kind]]

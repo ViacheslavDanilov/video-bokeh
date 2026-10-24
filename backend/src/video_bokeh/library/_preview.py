@@ -100,7 +100,7 @@ def _background(library_root: Path, asset_id: str) -> list[tuple[str, Image.Imag
 def _sequence(library_root: Path, seed: int) -> list[list[np.ndarray]]:
     """The all-in-focus, colored disparity and bokeh frames of Stage B's sequence ``seed``.
 
-    A seed whose objects cannot be placed gives the next one that can, as the stream does.
+    A seed whose objects cannot be placed is refused, so the video plays the seeds it names.
     """
     from video_bokeh.loader import SequenceStream
 
@@ -114,6 +114,8 @@ def _sequence(library_root: Path, seed: int) -> list[list[np.ndarray]]:
         streams=("rgb", "disparity", "bokeh"),
     )
     item = next(iter(stream))
+    if item["seed"] != seed:
+        raise SystemExit(f"seed {seed} places no sequence; take another")
 
     def color(key: str) -> np.ndarray:
         rgb = item[key].permute(0, 2, 3, 1).numpy()
@@ -174,6 +176,11 @@ def write_preview(
     """
     fg_ids = list(foregrounds or _evenly(list_foregrounds(library_root), N_FOREGROUNDS))
     bg_ids = list(backgrounds or _evenly(list_backgrounds(library_root), N_BACKGROUNDS))
+    if len(fg_ids) > N_FOREGROUNDS or len(bg_ids) > N_BACKGROUNDS:
+        raise SystemExit(
+            f"the figure holds {N_FOREGROUNDS} foregrounds and {N_BACKGROUNDS} "
+            "backgrounds at most"
+        )
     rows = [
         [p for i in fg_ids[k : k + 2] for p in _foreground(library_root, i)]
         for k in range(0, len(fg_ids), 2)

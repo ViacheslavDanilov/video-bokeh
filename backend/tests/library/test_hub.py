@@ -252,6 +252,26 @@ def test_the_preview_is_drawn_again_of_the_items_and_sequences_given(
     assert "fetch --repo someone/library " in card
 
 
+def test_the_figure_refuses_more_items_than_it_holds(
+    library: Path, tmp_path: Path
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(library, packed, preview=False)
+    with pytest.raises(SystemExit, match="3 backgrounds at most"):
+        hub.preview(library, packed, backgrounds=["bg_a", "bg_b", "bg_a", "bg_b"])
+
+
+def test_staging_a_folder_packed_before_the_video_links_its_figure(
+    library: Path, tmp_path: Path
+) -> None:
+    packed, staged = tmp_path / "packed", tmp_path / "staged"
+    hub.pack(library, packed)
+    (packed / hub.VIDEO).unlink()
+    assert hub.stage(packed, staged, every=1) == (2, 2)
+    assert (staged / hub.PREVIEW).samefile(packed / hub.PREVIEW)
+    assert not (staged / hub.VIDEO).exists()
+
+
 def test_staging_takes_every_nth_shard_and_the_card_says_how_much_is_online(
     library: Path, tmp_path: Path
 ) -> None:

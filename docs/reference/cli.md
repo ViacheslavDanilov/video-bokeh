@@ -212,10 +212,10 @@ library built with it.
   takes seeds 0, 1 and 2. The video needs torch and imageio's ffmpeg, which the `library`
   extra installs; `--no-preview` leaves both out.
 - **`preview` draws both again in a packed folder, and its card,** of the items and seeds it
-  is given, so a better example costs no packing. Stage again afterwards, so the staged
-  card shows them too.
+  is given, so a better example costs no packing. A seed whose objects cannot be placed is
+  refused. Stage again afterwards into an empty folder, so the staged card shows them too.
 - **`stage` uploads a library in parts.** It hard-links every `--every`-th shard of each kind,
-  the full index and the figure into a folder of its own, with a card that says how many
+  the full index, the figure and the video into a folder of its own, with a card that says how many
   shards and items are online. The shards it takes are spread over the sorted ids, so a part
   draws from the whole sorted list; with `--every 5` it holds both BG-20k splits. Its output
   must be on the same disk as the packed folder.
@@ -227,7 +227,9 @@ library built with it.
 uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
   --output data/library-packed
 uv run python -m video_bokeh.library.hub preview --library-root data/library/da2-large \
-  --packed data/library-packed --seeds 1005 1033 1050
+  --packed data/library-packed --foregrounds 6M__6MV7SSxmwd 0S__0SUuLNXyEz 3n__3nqLIHRgfa \
+  1b__1bGRKnW1f3 --backgrounds train__h_a415d5e8 train__h_a7671d5b testval__h_ea29ed84 \
+  --seeds 1005 1033 1050
 uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
   --output data/library-staged --every 5
 hf upload-large-folder vdanilov/video-bokeh-library data/library-staged --repo-type dataset \
@@ -246,7 +248,7 @@ uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh-libra
 | `pack` | `--output` | **required** | where the shards, index, card and figure go |
 | `pack` | `--shard-gb` | `2` | a shard closes once it holds this many gigabytes |
 | `pack` | `--repo` | `vdanilov/video-bokeh-library` | the repository the card's commands name |
-| `pack` | `--no-preview` | off | draw no figure, and show none in the card |
+| `pack` | `--no-preview` | off | draw no figure or video, and show neither in the card |
 | `preview` | `--library-root` | **required** | the library the packed folder holds |
 | `preview` | `--packed` | **required** | a folder `pack` wrote |
 | `preview` | `--repo` | `vdanilov/video-bokeh-library` | the repository the card's commands name |
