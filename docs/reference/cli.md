@@ -207,10 +207,11 @@ library built with it.
 - **The card's text is `backend/src/video_bokeh/library/hub_card.md`.** Edit it there. `pack`
   fills in each `$name` from the index: counts, image sizes, shards and gigabytes.
 - **The figure shows the library, and the video what Stage B makes of it.** The figure holds
-  four foregrounds and three backgrounds on cards under two headed sections, a JPEG about
+  four foregrounds and three backgrounds on tinted cards under two headed sections, a JPEG about
   2,500 pixels wide and 3 MB at most. The video plays three sequences of 96 frames at 1024
-  pixels, all-in-focus, disparity and bokeh side by side, as H.264 at 24 frames per second.
-  Rendering the sequences at that size needs about 40 GB of memory. `pack` spreads the items
+  pixels in the demo's six panes, all in focus, disparity, mattes, bokeh, optical flow and
+  occlusion, as H.264 at 24 frames per second.
+  Rendering the sequences at that size needs about 45 GB of memory. `pack` spreads the items
   evenly over the sorted ids and takes seeds 0, 1 and 2. The video needs torch and imageio's
   ffmpeg, which the `library` extra installs; `--no-preview` leaves both out.
 - **`preview` draws both again in a packed folder, and its card,** of the items and seeds it

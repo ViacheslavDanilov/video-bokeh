@@ -102,8 +102,9 @@ drawn in the Spectral colormap, near red and far violet.*
 <video src="https://huggingface.co/datasets/$repo/resolve/main/{VIDEO}" controls autoplay
 loop muted playsinline width="100%"></video>
 
-*Sequences that Stage B generated from this library at 1024 × 1024: all-in-focus,
-disparity and bokeh.*
+*Sequences that Stage B generated from this library at 1024 × 1024. Top: the frames all
+in focus, their disparity and each object's matte. Bottom: their bokeh, the forward optical
+flow, colored by direction and speed, and in cyan what the next frame hides.*
 """)
 
 #: What the card says while the repository holds part of the library.

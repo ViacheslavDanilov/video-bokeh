@@ -190,10 +190,6 @@ two datasets, resized and cropped, and the output of one model:
 | backgrounds | [BG-20k](https://github.com/JizhiziLi/GFM) (Li et al., IJCV 2022) | MIT, on condition that papers using it cite Li et al.; each image's copyright stays with its owner |
 | disparity | [Depth Anything V2 Large](https://huggingface.co/depth-anything/Depth-Anything-V2-Large-hf) (Yang et al., NeurIPS 2024) | weights CC BY-NC 4.0 |
 
-BG-20k's terms are in its
-[release agreement](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf).
-Its paper says the photos were collected from Unsplash and Pexels.
-
 ## Citation
 
 If you use the library, please cite the three works it is built from:
