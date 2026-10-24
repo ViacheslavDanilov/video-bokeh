@@ -9,6 +9,8 @@ import tarfile
 from pathlib import Path
 
 import pytest
+import yaml
+from PIL import Image
 
 # The fixture library lives with the API tests, which use it too.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
@@ -155,3 +157,53 @@ def test_packing_refuses_a_used_folder_and_another_estimator(
     other = build_library(tmp_path / "other", ("fg_a",), ("bg_a",))
     with pytest.raises(SystemExit, match="da2-small"):
         hub.pack(other, tmp_path / "packed-other")
+
+
+def _front_matter(card: str) -> dict:
+    _, header, _ = card.split("---\n", 2)
+    return yaml.safe_load(header)
+
+
+def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
+    library: Path, tmp_path: Path
+) -> None:
+    hub.pack(library, tmp_path / "packed", shard_bytes=1, preview=False)
+    card = (tmp_path / "packed" / "README.md").read_text()
+    meta = _front_matter(card)
+    assert meta["license"] == "cc-by-nc-4.0"
+    assert meta["viewer"] is False
+    assert "image" in meta["tags"]
+    assert set(meta["task_categories"]) == {
+        "image-to-image",
+        "video-to-video",
+        "depth-estimation",
+    }
+    assert meta["size_categories"] == ["10K<n<100K"]
+    assert meta["source_datasets"] == ["OneOverZero/MAGICK", "BG-20k"]
+    assert meta["pretty_name"] == "Video Bokeh Library"
+    # Every number is filled in from the index, and no placeholder is left.
+    assert "$" not in card
+    assert "| items | 3 | 2 |" in card
+    assert "| image size | 64 × 64 | 192 × 192 |" in card
+    assert "| tar shards | 3 | 2 |" in card
+    assert "backgrounds-00001.tar" in card
+    assert f"fetch --repo {hub.REPO} " in card
+    # No figure was drawn, so the card shows none; the whole library is in it.
+    assert "assets/" not in card
+    assert "Upload status" not in card
+    for key in ("burgert2024magick", "li2022bridging", "yang2024depthanythingv2"):
+        assert f"{{{key}," in card
+
+
+def test_the_preview_is_a_figure_the_card_shows_within_its_bounds(
+    library: Path, tmp_path: Path
+) -> None:
+    hub.pack(library, tmp_path / "packed")
+    preview = tmp_path / "packed" / hub.PREVIEW
+    with Image.open(preview) as image:
+        assert image.format == "JPEG"
+        width, height = image.size
+    assert 1500 <= width <= 1700
+    assert height < width
+    assert preview.stat().st_size <= 10**6
+    assert f"]({hub.PREVIEW})" in (tmp_path / "packed" / "README.md").read_text()

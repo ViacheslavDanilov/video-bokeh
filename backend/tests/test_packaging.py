@@ -59,3 +59,15 @@ def test_dockerfile_installs_the_locked_versions() -> None:
     syncs = [line for line in lines if "uv sync" in line]
     assert syncs
     assert all("--locked" in line for line in syncs)
+
+
+def test_the_wheel_carries_the_dataset_card_template() -> None:
+    """``hub pack`` reads its card from a Markdown file, which the wheel must hold too."""
+    data = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
+    wheel = data["tool"]["hatch"]["build"]["targets"]["wheel"]
+    template = _PYPROJECT.parent / "src" / "video_bokeh" / "library" / "hub_card.md"
+    assert template.is_file()
+    assert any(
+        template.is_relative_to(_PYPROJECT.parent / p) for p in wheel["packages"]
+    )
+    assert not {"exclude", "only-include", "include"} & set(wheel)
