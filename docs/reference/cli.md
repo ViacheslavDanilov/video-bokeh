@@ -253,6 +253,7 @@ frames.
 | `--renderer` | str | `layered` | a renderer below, or `package.module:ClassName` for your own |
 | `--strength` | float | `16` | blur strength: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 | `--focus-disparity` | float | one object, drawn by area | one in-focus disparity in `[0, 1]` for every frame |
+| `--focus-object` | int | one object, drawn by area | the object the focus follows, by its page in `alpha/`; every sequence rendered must show it alone in some frame |
 | `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any the renderer cannot take |
 
 With `--missing`, a sequence that already has `bokeh/`, or that has none of the layers
