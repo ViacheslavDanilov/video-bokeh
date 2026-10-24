@@ -23,13 +23,14 @@ viewer: false
 
 # Video Bokeh
 
-The data of [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh), for training
-depth-aware bokeh on video. This repository holds its library under `library/`: cut-out
-objects and background photos, each with a disparity map, from which training video is
-composed. The library holds $foregrounds foregrounds and $backgrounds backgrounds, built
-once by the code's Stage A. Its Stage B places the foregrounds over a background as
-moving objects at disparities it assigns, so every generated frame comes with its mattes,
-its disparity and its bokeh.
+The data of the [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh) project,
+for training depth-aware bokeh on video. This repository holds its library under
+`library/`: $foregrounds cut-out objects, the foregrounds, and $backgrounds background
+photos, each with a disparity map. The project's code works in two stages. Stage A built
+this library once, from MAGICK and BG-20k images and Depth Anything V2 Large. Stage B
+composes training sequences from it, moving the foregrounds over a background at
+disparities it assigns, so every frame comes with its mattes and disparity, exact by
+construction, and its bokeh.
 $preview$status
 ## At a glance
 
@@ -42,14 +43,14 @@ $preview$status
 | size | $fg_gb GB | $bg_gb GB |
 
 - **$shards shards, $total_gb GB in all.** The largest shard is $largest_gb GB.
-- **Disparity, not depth.** Larger values are closer.
+- **`depth.png` holds disparity.** Larger values are closer.
 - **One estimator.** Every map comes from Depth Anything V2 Large.
 
 ## Quick start
 
 `fetch` downloads the shards one at a time and unpacks each into a library folder, so the
-disk needs $total_gb GB for the library plus room for one shard. Run again, it downloads only
-the shards it has not unpacked yet. It needs Python 3.13 and
+disk needs $total_gb GB for the library plus room for one shard. A second run downloads only
+the shards the first did not unpack. It needs Python 3.13 and
 [uv](https://docs.astral.sh/uv/).
 
 ```bash
@@ -67,8 +68,8 @@ data/library/da2-large/
 └── backgrounds/<id>/rgb.png, depth.png
 ```
 
-The sequence stream turns it into training data in memory. Each item is a new sequence,
-generated on the fly and never written to disk:
+`SequenceStream`, the project's PyTorch dataset, runs Stage B on that folder in memory.
+Each item is a new sequence, generated on the fly and never written to disk:
 
 ```python
 from pathlib import Path
@@ -87,8 +88,9 @@ print(item["rgb"].shape, item["disparity"].shape, item["bokeh"].shape)
 ```
 
 `uv run python -m video_bokeh.loader.example --library-root data/library/da2-large` trains a
-small network on it for 20 steps. The repository's README shows how to write sequences to disk
-instead, with optical flow and the layers each frame is composited from.
+small network on it for 20 steps. The project's
+[README](https://github.com/ViacheslavDanilov/video-bokeh) shows how to write sequences to
+disk instead, with optical flow and the layers each frame is composited from.
 
 To read one item without the code, open its files with Pillow and NumPy:
 
@@ -148,11 +150,10 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
 
 ## How it was built
 
-1. **Foregrounds.** We started from 11,868 hand-picked MAGICK images. A zero-shot
+1. **Foregrounds.** We started from the 11,868 MAGICK images its authors picked by hand. A zero-shot
    classifier, Perception Encoder (PE-Core-bigG-14-448, run through OpenCLIP), labeled each
    with a subject and a style. We kept the subjects person, animal, plant, food and object,
-   in the styles photo and render, with a subject score of at least 0.5. That keeps 8,586 of
-   them in the full library. Each was resized on its shorter side and center-cropped to
+   in the styles photo and render, with a subject score of at least 0.5. That leaves 8,586. Each was resized on its shorter side and center-cropped to
    $fg_side × $fg_side. Its alpha channel is the matte. No matting model ran.
 2. **Backgrounds.** All $backgrounds BG-20k images, resized and center-cropped to
    $bg_side × $bg_side. That leaves a quarter of a $fg_side-pixel frame to spare on every
@@ -168,10 +169,10 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
 
 ## Limitations
 
-- **The disparity is a model's estimate, not a measurement.** It is relative, and it can be
-  wrong, most visibly at thin structures such as hair.
-- **The foregrounds are generated images, not photos.** MAGICK made them with a text-to-image
-  model and cut them out by chroma keying.
+- **The disparity is a model's estimate.** It is relative, and it can be wrong, most visibly
+  at thin structures such as hair.
+- **The foregrounds are generated.** MAGICK made them with a text-to-image model and cut
+  them out by chroma keying.
 - **The subjects are uneven.** Of the 8,586 foregrounds of the full library, 3,974 are
   people, 2,327 objects, 1,406 food, 483 plants and 396 animals, by the classifier's labels.
 - **The labels are not shipped.** The classifier's subject and style of each foreground stay

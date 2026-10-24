@@ -142,7 +142,8 @@ def test_the_package_carries_its_card_and_its_counts(
     assert index["backgrounds"]["items"] == 2
     card = (tmp_path / "packed" / "README.md").read_text()
     assert "license: cc-by-nc-4.0" in card and "viewer: false" in card
-    assert "3 foregrounds" in card and "2 backgrounds" in card
+    prose = " ".join(card.split())  # the template wraps its lines
+    assert "3 cut-out objects" in prose and "2 background photos" in prose
 
 
 def test_packing_refuses_a_folder_that_is_no_library(tmp_path: Path) -> None:
