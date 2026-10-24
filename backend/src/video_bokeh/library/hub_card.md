@@ -198,57 +198,10 @@ If you use this dataset, please cite it:
 
 ```bibtex
 @misc{danilov2026videobokeh,
-  author       = {Danilov, Viacheslav and Dewil, Val{\'e}ry and Arias, Pablo},
+  author       = {Danilov, Viacheslav and Dewil, Valéry and Arias, Pablo},
   title        = {{Video Bokeh}},
   year         = {2026},
   publisher    = {Hugging Face},
   howpublished = {\url{https://huggingface.co/datasets/$repo}}
 }
 ```
-
-The library is built from MAGICK, BG-20k and Depth Anything V2. Please cite the three works
-too; BG-20k's license requires citing Li et al.
-
-<details>
-<summary>BibTeX of MAGICK, BG-20k and Depth Anything V2</summary>
-
-```bibtex
-@InProceedings{burgert2024magick,
-    author    = {Burgert, Ryan D. and Price, Brian L. and Kuen, Jason and Li, Yijun and Ryoo, Michael S.},
-    title     = {MAGICK: A Large-scale Captioned Dataset from Matting Generated Images using Chroma Keying},
-    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-    month     = {June},
-    year      = {2024},
-    pages     = {22595-22604}
-}
-
-@article{li2022bridging,
-  title={Bridging Composite and Real: Towards End-to-End Deep Image Matting},
-  volume={130},
-  ISSN={1573-1405},
-  url={http://dx.doi.org/10.1007/s11263-021-01541-0},
-  DOI={10.1007/s11263-021-01541-0},
-  number={2},
-  journal={International Journal of Computer Vision},
-  publisher={Springer Science and Business Media LLC},
-  author={Li, Jizhizi and Zhang, Jing and Maybank, Stephen J. and Tao, Dacheng},
-  year={2022},
-  month=Jan,
-  pages={246--266}
-}
-
-@inproceedings{yang2024depthanythingv2,
-  author = {Yang, Lihe and Kang, Bingyi and Huang, Zilong and Zhao, Zhen and Xu, Xiaogang and Feng, Jiashi and Zhao, Hengshuang},
-  booktitle = {Advances in Neural Information Processing Systems},
-  doi = {10.52202/079017-0688},
-  editor = {A. Globerson and L. Mackey and D. Belgrave and A. Fan and U. Paquet and J. Tomczak and C. Zhang},
-  pages = {21875--21911},
-  publisher = {Curran Associates, Inc.},
-  title = {{Depth Anything V2}},
-  url = {https://proceedings.neurips.cc/paper_files/paper/2024/file/26cfdcd8fe6fd75cc53e92963a656c58-Paper-Conference.pdf},
-  volume = {37},
-  year = {2024}
-}
-```
-
-</details>

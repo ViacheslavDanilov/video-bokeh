@@ -192,9 +192,7 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     assert "assets/" not in card
     assert "Upload status" not in card
     assert "@misc{danilov2026videobokeh," in card
-    assert "Danilov, Viacheslav and Dewil, Val{\\'e}ry and Arias, Pablo" in card
-    for key in ("burgert2024magick", "li2022bridging", "yang2024depthanythingv2"):
-        assert f"{{{key}," in card
+    assert "Danilov, Viacheslav and Dewil, Valéry and Arias, Pablo" in card
 
 
 @pytest.fixture(autouse=True)
