@@ -38,8 +38,8 @@ class Layered:
     """The layer-wise renderer, with ``strength`` the blur radius in pixels, at a
     1024-pixel width, one unit of disparity from the focus.
 
-    With no ``focus_disparity``, the focus follows one object, drawn by area;
-    ``bokeh/focus.json`` records which.
+    With no ``focus_disparity``, the focus follows one object, drawn by area unless
+    ``focus_object`` names it; ``bokeh/focus.json`` records which.
     """
 
     name: ClassVar[str] = RENDERER
@@ -52,6 +52,7 @@ class Layered:
         sequence_dirs: list[Path],
         strength: float,
         focus_disparity: float | None,
+        focus_object: int | None = None,
     ) -> None:
         missing = [seq.name for seq in sequence_dirs if not has_layers(seq)]
         if missing:
@@ -59,11 +60,16 @@ class Layered:
                 f"no complete layers/ in {', '.join(missing)}: the layered renderer "
                 "needs them. Write them with video_bokeh.scenes.generate --layers.",
             )
+        # Every focus first, so that an object a sequence lacks stops the batch before
+        # any bokeh is written.
+        foci = [
+            _focus(seq, frame_names(seq), focus_disparity, focus_object)
+            for seq in sequence_dirs
+        ]
         device = bokeh_device()
-        for seq in sequence_dirs:
+        for seq, (followed, zf) in zip(sequence_dirs, foci, strict=True):
             names = frame_names(seq)
-            focus_object, zf = _focus(seq, names, focus_disparity)
-            record = bokeh_record(focus_object, zf, strength)
+            record = bokeh_record(followed, zf, strength)
             frames = render_sequence(_read_frames(seq, names), zf, strength, device)
             write_bokeh(seq, zip(names, frames, strict=True), record)
 
@@ -72,6 +78,7 @@ def _focus(
     seq: Path,
     names: list[str],
     focus_disparity: float | None,
+    focus_object: int | None,
 ) -> tuple[int | None, list[float]]:
     if focus_disparity is not None:
         return None, [focus_disparity] * len(names)
@@ -82,7 +89,12 @@ def _focus(
         )
         for name in names
     ]
-    return focus_track(stats, focus_seed(sequence_seed(seq), seq.name))
+    try:
+        return focus_track(
+            stats, focus_seed(sequence_seed(seq), seq.name), focus_object
+        )
+    except ValueError as error:
+        raise ValueError(f"{error} in {seq.name}") from error
 
 
 def _read_frames(seq: Path, names: list[str]) -> Iterator[LayeredFrame]:

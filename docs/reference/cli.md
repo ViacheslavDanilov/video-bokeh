@@ -253,6 +253,7 @@ frames.
 | `--renderer` | str | `layered` | a renderer below, or `package.module:ClassName` for your own |
 | `--strength` | float | `16` | blur strength: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 | `--focus-disparity` | float | one object, drawn by area | one in-focus disparity in `[0, 1]` for every frame |
+| `--focus-object` | int | one object, drawn by area | the object the focus follows, by its page in `alpha/`; every sequence rendered must show it alone in some frame |
 | `--missing` | flag | off | render only the sequences without `bokeh/`, leaving out any the renderer cannot take |
 
 With `--missing`, a sequence that already has `bokeh/`, or that has none of the layers
@@ -265,7 +266,7 @@ batch. A directory whose name starts with a dot is never a sequence: the API gen
 | `layered` | this process, on the CPU, an NVIDIA card or a Mac's GPU | sequences written with `scenes.generate --layers` |
 
 The focus follows one object by default, drawn by the area it holds alone, keyed on the
-scene's seed, so `render.run` draws the object `scenes.generate --bokeh` would have. `bokeh/focus.json` records
+scene's seed, so `render.run` draws the object `scenes.generate --bokeh` would have. `--focus-object` names the object instead, followed by the same rule. `bokeh/focus.json` records
 the object, each frame's in-focus disparity, the renderer and its strength.
 
 **`layered` is the layer-wise renderer** that [layered-bokeh](../explanation/layered-bokeh.md)
@@ -279,7 +280,9 @@ pixels took 13 s on its 24 CPU cores and 6 s on the RTX 5090. At 1024 pixels it 
 ### Your own renderer
 
 Pass `--renderer my_package.my_module:MyRenderer`. The tool creates the class with no arguments
-and calls `render(self, sequence_dirs, strength, focus_disparity)` once, with every sequence.
+and calls `render(self, sequence_dirs, strength, focus_disparity)` once, with every sequence,
+adding `focus_object=` only when `--focus-object` is given; a renderer without that keyword
+then fails.
 It must write `<sequence>/bokeh/<frame>.png` for each one: RGB uint8, the sequence's own size,
 named like the `all_in_focus` frames. The interface is
 `video_bokeh.render.base.BokehRenderer`.

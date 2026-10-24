@@ -54,18 +54,27 @@ def frame_focus(alphas: Sequence[np.ndarray], disparity: np.ndarray) -> FrameFoc
 def focus_track(
     frames: Sequence[FrameFocus],
     seed: int,
+    chosen: int | None = None,
 ) -> tuple[int | None, list[float]]:
-    """The object the focus follows, or None, and every frame's in-focus disparity."""
+    """The object the focus follows, or None, and every frame's in-focus disparity.
+
+    ``chosen`` names the object instead of drawing it, and must show alone in some frame.
+    """
     n_objects = max((len(f.areas) for f in frames), default=0)
-    totals = [
-        sum(f.areas[i] for f in frames if i < len(f.areas)) / len(frames)
-        for i in range(n_objects)
-    ]
-    chosen = choose_focus_object(totals, seed)
     if chosen is None:
-        return None, [f.fallback for f in frames]
+        totals = [
+            sum(f.areas[i] for f in frames if i < len(f.areas)) / len(frames)
+            for i in range(n_objects)
+        ]
+        chosen = choose_focus_object(totals, seed)
+        if chosen is None:
+            return None, [f.fallback for f in frames]
+    if chosen >= n_objects:
+        raise ValueError(f"no object {chosen}")
     means = [f.means[chosen] if chosen < len(f.means) else None for f in frames]
-    first = next(z for z in means if z is not None)
+    first = next((z for z in means if z is not None), None)
+    if first is None:
+        raise ValueError(f"object {chosen} never shows alone")
     held: list[float] = []
     for z in means:
         first = z if z is not None else first

@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from video_bokeh.core._streams import read_alpha_tiff, read_disparity_png
 from video_bokeh.render import run as cli
 from video_bokeh.render.layered import Layered
 from video_bokeh.scenes.generate import generate_dataset
@@ -35,6 +36,10 @@ def dataset(library: Path, tmp_path: Path) -> Path:
 
 def _sequences(root: Path) -> list[Path]:
     return sorted((root / "sequences").iterdir())
+
+
+def _objects(seq: Path) -> list[np.ndarray]:
+    return read_alpha_tiff(next((seq / "alpha").glob("*.tif")))
 
 
 def _pixels(path: Path) -> np.ndarray:
@@ -139,6 +144,72 @@ def test_a_pinned_focus_holds_in_every_frame(dataset: Path) -> None:
         record = json.loads((seq / "bokeh" / "focus.json").read_text())
         assert record["object"] is None
         assert record["zf"] == [0.5] * FRAMES
+
+
+def _alone_mean_disparity(seq: Path, k: int) -> list[float]:
+    """Each frame's mean disparity over the pixels object ``k`` holds alone."""
+    means = []
+    for frame in sorted((seq / "disparity").glob("*.png")):
+        masks = [a > 0.5 for a in read_alpha_tiff(seq / "alpha" / f"{frame.stem}.tif")]
+        alone = masks[k] & ~np.any([m for j, m in enumerate(masks) if j != k], axis=0)
+        means.append(float(read_disparity_png(frame)[alone].mean()))
+    return means
+
+
+def test_a_chosen_object_is_followed_instead_of_drawn(dataset: Path) -> None:
+    cli.main(["--data-root", str(dataset)])
+    seq = next(s for s in _sequences(dataset) if len(_objects(s)) == 2)
+    drawn = json.loads((seq / "bokeh" / "focus.json").read_text())["object"]
+    other = 1 - drawn
+    cli.main(
+        ["--data-root", str(dataset), "--seqs", seq.name, "--focus-object", str(other)]
+    )
+    record = json.loads((seq / "bokeh" / "focus.json").read_text())
+    assert record["object"] == other
+    assert record["zf"] == pytest.approx(_alone_mean_disparity(seq, other), abs=1e-6)
+
+
+def test_choosing_the_drawn_object_renders_what_the_draw_does(dataset: Path) -> None:
+    cli.main(["--data-root", str(dataset)])
+    seq = _sequences(dataset)[0]
+    drawn = json.loads((seq / "bokeh" / "focus.json").read_text())["object"]
+    shutil.move(seq / "bokeh", seq / "drawn")
+    cli.main(
+        ["--data-root", str(dataset), "--seqs", seq.name, "--focus-object", str(drawn)]
+    )
+    for frame in sorted((seq / "drawn").iterdir()):
+        assert (seq / "bokeh" / frame.name).read_bytes() == frame.read_bytes()
+
+
+@pytest.mark.parametrize(
+    ("flags", "message"),
+    [
+        (["--focus-object", "-1"], "must be 0 or more"),
+        (["--focus-object", "0", "--focus-disparity", "0.5"], "exclude each other"),
+    ],
+)
+def test_a_bad_focus_object_is_refused_before_rendering(
+    dataset: Path,
+    capsys: pytest.CaptureFixture[str],
+    flags: list[str],
+    message: str,
+) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["--data-root", str(dataset), *flags])
+    assert message in capsys.readouterr().err
+    assert not any((seq / "bokeh").exists() for seq in _sequences(dataset))
+
+
+def test_an_object_a_sequence_lacks_is_refused_before_any_is_rendered(
+    dataset: Path,
+) -> None:
+    seqs = _sequences(dataset)
+    lacking = next(s for s in seqs if len(_objects(s)) == 1)
+    # Last, so that a renderer writing as it goes would have written the others.
+    batch = [*(s for s in seqs if s != lacking), lacking]
+    with pytest.raises(ValueError, match=f"no object 1 in {lacking.name}"):
+        Layered().render(batch, 16.0, None, focus_object=1)
+    assert not any((seq / "bokeh").exists() for seq in seqs)
 
 
 @pytest.mark.parametrize("damage", ["no layers", "interrupted"])
