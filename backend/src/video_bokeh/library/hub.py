@@ -1,7 +1,8 @@
-"""Publish a library on Hugging Face, and fetch it back into the layout Stage B reads.
+"""Publish a library and its benchmark on Hugging Face, and fetch both back to disk.
 
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
-folder per kind under ``library/``, with ``library/index.json``, the dataset card
+folder per kind under ``library/`` and one split per shard, as ``train-00000.tar`` and
+``test-00000.tar``, with ``library/index.json``, the dataset card
 ``README.md`` and its preview, the figure ``assets/preview.jpg`` and the video
 ``assets/preview.mp4``. The repository keeps the library under ``library/`` so that the
 generated sequences can sit beside it. A shard holds whole items, so an item is never
@@ -14,12 +15,18 @@ The card describes a library built with Depth Anything V2 Large, so ``pack`` tak
 other. Its text is ``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a
 number.
 
+``pack-sequences`` adds a benchmark that ``scenes.generate --split test`` wrote to a packed
+folder: its sequences in shards under ``sequences/``, one sample per sequence, the run's
+records beside them and a card that describes it. ``fetch-sequences`` writes it back as
+``scenes.generate`` wrote it.
+
 ``preview`` draws the preview of a packed folder again, of the items and sequences it is
 given, and writes its card again, so a better example costs no packing.
 
 ``stage`` hard-links every ``--every``-th shard of each kind, the full index, the preview
 and a card that says how much is online into a folder of its own, for a first upload that
-is part of the library. The shards it takes are spread over the sorted ids. ``--every 1``,
+is part of the library. The shards it takes are spread over each kind's train shards and
+then its test shards, and the benchmark stays out. ``--every 1``,
 or uploading the packed folder itself, gives the whole library and a card without the
 upload status.
 
@@ -28,9 +35,9 @@ each into a library root that Stage B and the sequence stream take as they are, 
 ``foregrounds/<id>/rgb.png`` and so on, without the previews, and deletes it, so the disk
 holds the library and one shard at most. A shard that the index lists but the repository
 does not hold yet is skipped and reported, so a repository can be uploaded in parts.
-``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file name, so that run
-again it fetches only what it lacks; a shard packed anew under an old name is not fetched
-again unless its mark is deleted:
+``fetch`` marks each shard it has unpacked in ``.fetched/`` by its path in the repository,
+so that run again it fetches only what it lacks; a shard packed anew under an old name is
+not fetched again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
@@ -44,12 +51,16 @@ again unless its mark is deleted:
         --repo-type dataset --exclude README.md
     hf upload vdanilov/video-bokeh data/library-staged/README.md README.md \
         --repo-type dataset
+    uv run python -m video_bokeh.library.hub pack-sequences --data-root data/benchmark \
+        --packed data/library-packed
     hf upload-large-folder vdanilov/video-bokeh data/library-packed \
         --repo-type dataset --exclude README.md
     hf upload vdanilov/video-bokeh data/library-packed/README.md README.md \
         --repo-type dataset
     uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh \
         --output data/library/da2-large
+    uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-bokeh \
+        --output data/benchmark
 
 Shards are plain tar: the images are PNG already, so compressing them again saves little.
 """

@@ -99,8 +99,8 @@ backgrounds that step 3 builds is on
 [train-on-the-sequence-stream](docs/how-to/train-on-the-sequence-stream.md) explains how to
 download it into the layout Stage B reads, in about 20 minutes, and train on it as step 5 does.
 
-[cli](docs/reference/cli.md#video_bokehlibraryhub--publish-or-download-a-library) says how
-the library is packed and published.
+[cli](docs/reference/cli.md#video_bokehlibraryhub--publish-or-download-a-library-and-its-benchmark)
+says how the library is packed and published.
 
 1. **Install** the dataset extras from the repository root, with Python 3.13+ and
    [uv](https://docs.astral.sh/uv/).
