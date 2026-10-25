@@ -1,7 +1,8 @@
-"""Publish a library on Hugging Face, and fetch it back into the layout Stage B reads.
+"""Publish a library and its fixed set on Hugging Face, and fetch both back to disk.
 
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
-folder per kind under ``library/``, with ``library/index.json``, the dataset card
+folder per kind under ``library/`` and one split per shard, as ``train-00000.tar`` and
+``test-00000.tar``, with ``library/index.json``, the dataset card
 ``README.md`` and its preview, the figure ``assets/preview.jpg`` and the video
 ``assets/preview.mp4``. The repository keeps the library under ``library/`` so that the
 generated sequences can sit beside it. A shard holds whole items, so an item is never
@@ -14,12 +15,18 @@ The card describes a library built with Depth Anything V2 Large, so ``pack`` tak
 other. Its text is ``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a
 number.
 
+``pack-sequences`` adds a fixed set that ``scenes.generate --split test`` wrote to a packed
+folder: its sequences in shards under ``sequences/``, one sample per sequence, the run's
+records beside them and a card that describes it. ``fetch-sequences`` writes it back as
+``scenes.generate`` wrote it.
+
 ``preview`` draws the preview of a packed folder again, of the items and sequences it is
 given, and writes its card again, so a better example costs no packing.
 
 ``stage`` hard-links every ``--every``-th shard of each kind, the full index, the preview
 and a card that says how much is online into a folder of its own, for a first upload that
-is part of the library. The shards it takes are spread over the sorted ids. ``--every 1``,
+is part of the library. The shards it takes are spread over each kind's train shards and
+then its test shards, and the fixed set stays out. ``--every 1``,
 or uploading the packed folder itself, gives the whole library and a card without the
 upload status.
 
@@ -28,9 +35,9 @@ each into a library root that Stage B and the sequence stream take as they are, 
 ``foregrounds/<id>/rgb.png`` and so on, without the previews, and deletes it, so the disk
 holds the library and one shard at most. A shard that the index lists but the repository
 does not hold yet is skipped and reported, so a repository can be uploaded in parts.
-``fetch`` marks each shard it has unpacked in ``.fetched/`` by its file name, so that run
-again it fetches only what it lacks; a shard packed anew under an old name is not fetched
-again unless its mark is deleted:
+``fetch`` marks each shard it has unpacked in ``.fetched/`` by its path in the repository,
+so that run again it fetches only what it lacks; a shard packed anew under an old name is
+not fetched again unless its mark is deleted:
 
     uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-large \
         --output data/library-packed
@@ -44,12 +51,16 @@ again unless its mark is deleted:
         --repo-type dataset --exclude README.md
     hf upload vdanilov/video-bokeh data/library-staged/README.md README.md \
         --repo-type dataset
+    uv run python -m video_bokeh.library.hub pack-sequences --data-root data/fixed-set \
+        --packed data/library-packed
     hf upload-large-folder vdanilov/video-bokeh data/library-packed \
         --repo-type dataset --exclude README.md
     hf upload vdanilov/video-bokeh data/library-packed/README.md README.md \
         --repo-type dataset
     uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh \
         --output data/library/da2-large
+    uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-bokeh \
+        --output data/fixed-set
 
 Shards are plain tar: the images are PNG already, so compressing them again saves little.
 """
@@ -57,12 +68,14 @@ Shards are plain tar: the images are PNG already, so compressing them again save
 from __future__ import annotations
 
 import argparse
+import csv
 import io
 import json
 import os
 import shutil
 import tarfile
 import tempfile
+from collections.abc import Callable
 from importlib import resources
 from pathlib import Path
 from string import Template
@@ -76,6 +89,7 @@ from video_bokeh.core._library import (
     list_backgrounds,
     list_foregrounds,
 )
+from video_bokeh.core._split import TEST, TRAIN, in_split
 from video_bokeh.library._preview import depth_preview
 from video_bokeh.scenes.generate import _library_estimator
 
@@ -105,6 +119,25 @@ REPO = "vdanilov/video-bokeh"
 LIBRARY = "library"
 #: The index of the library's shards, whose file names are relative to ``LIBRARY``.
 INDEX = f"{LIBRARY}/index.json"
+#: The repository's folder of the fixed set's sequences, its index, and the records of
+#: the run that wrote them, which sit beside the index.
+SEQUENCES = "sequences"
+SEQUENCE_INDEX = f"{SEQUENCES}/index.json"
+RECORDS = ("objects.csv", "run.json", "manifest.csv")
+#: The streams a packed sequence holds, each a folder of one file per frame.
+STREAMS = (
+    "all_in_focus",
+    "alpha",
+    "disparity",
+    "bokeh",
+    "flow",
+    "flow_back",
+    "occlusion",
+)
+#: What ``bokeh/`` holds beside its frames, and the member it is packed as.
+FOCUS = "focus.json"
+#: The extensions of a stream's frames.
+FRAME_TYPES = ("png", "tif")
 #: The card's figure and video, relative to the packed folder and to the card.
 PREVIEW = "assets/preview.jpg"
 VIDEO = "assets/preview.mp4"
@@ -134,6 +167,73 @@ STATUS = Template("""
 $online_fg of the $foregrounds foregrounds and $online_bg of the $backgrounds backgrounds.
 `fetch` downloads what is online and reports the shards it could not find yet. Run it
 again later, and it downloads only those.
+""")
+
+
+#: The card's subset of the fixed set's sequences, in its front matter.
+SEQUENCES_CONFIG = f"""- config_name: {SEQUENCES}
+  data_files:
+  - split: test
+    path: "{SEQUENCES}/test-*.tar"
+"""
+
+#: What the card says of the fixed set, when the repository holds one.
+FIXED_SET = Template("""
+## Fixed set
+
+**`sequences/` holds $sequences sequences that Stage B wrote once from the test split alone,**
+for evaluation: a network trained on the train split has seen none of their objects or
+backgrounds. Each sequence has $frames frames at $size × $size and $objects. In all they take $seq_gb GB in $seq_shards shards.
+
+| stream | one file per | what a pixel holds |
+|---|---|---|
+| `all_in_focus/<frame>.png` | frame | RGB, uint8: the frame with nothing blurred |
+| `disparity/<frame>.png` | frame | I;16, uint16: disparity, 0 far to 65535 near |
+| `alpha/<frame>.tif` | frame | uint8, one page per object: its soft matte, 0 to 255 |
+| `bokeh/<frame>.png` | frame | RGB, uint8: the frame as the bokeh renderer blurred it |
+| `flow/<frame>.png` | frame but the last | the exact optical flow to the next frame, in pixels |
+| `flow_back/<frame>.png` | frame but the first | the exact optical flow to the previous frame |
+| `occlusion/<frame>.png` | frame but the last | L, uint8: 255 where the next frame does not show the surface |
+
+- **The bokeh is rendered at strength `k = $strength`.** `bokeh/focus.json` names the object in
+  focus by its alpha page, or `null` when none is, and gives each frame's in-focus
+  disparity.
+- **The flow is computed, not estimated.** Every layer moves by a known transform, so the
+  flow follows the front-most surface at each pixel exactly. It is stored in KITTI's 16-bit
+  encoding: red `u · 64 + 2¹⁵`, green `v · 64 + 2¹⁵`, blue 1 where valid. Pillow reads it
+  as 8-bit color and loses it, so read it with `read_flow_png` from the code, or with
+  another reader that keeps 16 bits.
+- **The occlusion mask belongs to the forward flow.** No mask marks the pixels the previous
+  frame does not show, so the backward flow has none.
+- **The run's records sit beside the shards.** `manifest.csv` gives each sequence's seed,
+  object count and background, `objects.csv` each object's foreground and trajectory, and
+  `run.json` the settings that wrote them all.
+
+`fetch-sequences` downloads the shards one at a time and unpacks them into the layout
+`scenes.generate` writes, so the disk needs $seq_gb GB plus room for one shard:
+
+```bash
+uv run python -m video_bokeh.library.hub fetch-sequences --repo $repo \\
+  --output data/fixed-set
+```
+
+```text
+data/fixed-set/
+├── manifest.csv, objects.csv, run.json
+└── sequences/<id>/
+    ├── all_in_focus/, disparity/, alpha/, bokeh/ (with focus.json)
+    └── flow/, flow_back/, occlusion/
+```
+
+A shard holds one sample per sequence: its files are `<id>.<stream>.<frame>`, with
+`<id>.focus.json` for its focus and `<id>.json` for its rows of the records, their values
+kept as the CSV files write them. The `datasets` library streams them as the `sequences`
+subset, one row per sequence and a column per file. Its first row comes only after it has
+read a few whole sequences to learn the columns. It opens every image with Pillow, which
+reads a flow file as 8-bit color and an alpha file's first page alone, so `fetch-sequences`
+is the way to get the streams whole. The code repository's
+[dataset layout](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/docs/reference/dataset-layout.md)
+describes every stream in full.
 """)
 
 
@@ -179,29 +279,31 @@ def pack(
         (shards_root / kind).mkdir(parents=True, exist_ok=True)
         ids = _items(library_root, kind)
         shards: list[dict[str, Any]] = []
-        tar: tarfile.TarFile | None = None
-        size = 0
-        for asset_id in ids:
-            files = [library_root / kind / asset_id / name for name in READ[kind]]
-            files = [f for f in files if f.is_file()]
-            if tar is None or size >= shard_bytes:
-                if tar is not None:
-                    tar.close()
-                name = f"{kind}/{kind}-{len(shards):05d}.tar"
-                shards.append({"file": name, "items": 0})
-                tar = tarfile.open(shards_root / name, "w")
-                size = 0
-            for f in files:
-                tar.add(f, arcname=f"{asset_id}.{MEMBER[f.name]}")
-                size += f.stat().st_size
-            colored = depth_preview(library_root, kind, asset_id)
-            member = tarfile.TarInfo(f"{asset_id}.{DEPTH_PREVIEW}")
-            member.size, member.mtime = len(colored), int(files[0].stat().st_mtime)
-            tar.addfile(member, io.BytesIO(colored))
-            size += len(colored)
-            shards[-1]["items"] += 1
-        if tar is not None:
-            tar.close()
+        for split in (TRAIN, TEST):
+            tar: tarfile.TarFile | None = None
+            size = n_split = 0
+            for asset_id in in_split(ids, kind, split):
+                files = [library_root / kind / asset_id / name for name in READ[kind]]
+                files = [f for f in files if f.is_file()]
+                if tar is None or size >= shard_bytes:
+                    if tar is not None:
+                        tar.close()
+                    name = f"{kind}/{split}-{n_split:05d}.tar"
+                    shards.append({"file": name, "split": split, "items": 0})
+                    tar = tarfile.open(shards_root / name, "w")
+                    size = 0
+                    n_split += 1
+                for f in files:
+                    tar.add(f, arcname=f"{asset_id}.{MEMBER[f.name]}")
+                    size += f.stat().st_size
+                colored = depth_preview(library_root, kind, asset_id)
+                member = tarfile.TarInfo(f"{asset_id}.{DEPTH_PREVIEW}")
+                member.size, member.mtime = len(colored), int(files[0].stat().st_mtime)
+                tar.addfile(member, io.BytesIO(colored))
+                size += len(colored)
+                shards[-1]["items"] += 1
+            if tar is not None:
+                tar.close()
         for shard in shards:
             shard["bytes"] = (shards_root / shard["file"]).stat().st_size
         side = 0
@@ -244,7 +346,18 @@ def preview(
     """
     index = json.loads((packed / INDEX).read_text(encoding="utf-8"))
     _draw(library_root, packed, foregrounds, backgrounds, seeds)
-    (packed / "README.md").write_text(card(index, repo, True), encoding="utf-8")
+    sequences = packed / SEQUENCE_INDEX
+    (packed / "README.md").write_text(
+        card(
+            index,
+            repo,
+            True,
+            sequences=json.loads(sequences.read_text(encoding="utf-8"))
+            if sequences.is_file()
+            else None,
+        ),
+        encoding="utf-8",
+    )
 
 
 def stage(
@@ -296,20 +409,38 @@ def _gb(n_bytes: int) -> str:
     return f"{n_bytes / 10**9:,.1f}"
 
 
+def _shard_lines(folder: str, shards: list[dict[str, Any]]) -> list[str]:
+    """The shard files of ``folder``, one line per split, for the card's layout."""
+    lines = []
+    for split in (TRAIN, TEST):
+        names = [Path(s["file"]).name for s in shards if s["split"] == split]
+        if names:
+            last = f" … {names[-1]}" if len(names) > 1 else ""
+            lines.append(f"{folder}/{names[0]}{last}")
+    return lines
+
+
 def card(
     index: dict[str, dict[str, Any]],
     repo: str = REPO,
     preview: bool = False,
     online: set[str] | None = None,
+    sequences: dict[str, Any] | None = None,
 ) -> str:
     """The dataset card for the shards that ``index`` lists.
 
     With ``preview``, the card shows the figure at ``PREVIEW`` and the video at ``VIDEO``.
     With ``online``, the shard files the repository holds so far, it opens with how much of
-    the library they are.
+    the library they are. With ``sequences``, the index ``pack_sequences`` writes, it
+    describes the fixed set too.
     """
     shards = {kind: index[kind]["shards"] for kind in (FOREGROUNDS, BACKGROUNDS)}
     all_shards = [s for kind in shards for s in shards[kind]]
+    counts = {
+        (kind, split): sum(s["items"] for s in shards[kind] if s["split"] == split)
+        for kind in shards
+        for split in (TRAIN, TEST)
+    }
     status = ""
     if online is not None:
         held = {
@@ -324,13 +455,52 @@ def card(
             foregrounds=f"{index[FOREGROUNDS]['items']:,}",
             backgrounds=f"{index[BACKGROUNDS]['items']:,}",
         )
+    layout = [
+        line
+        for kind in (FOREGROUNDS, BACKGROUNDS)
+        for line in _shard_lines(f"{LIBRARY}/{kind}", shards[kind])
+    ]
+    fixed_set = config = intro = ""
+    if sequences is not None:
+        seq_shards = sequences["shards"]
+        layout += [
+            SEQUENCE_INDEX,
+            *(f"{SEQUENCES}/{name}" for name in RECORDS),
+            *_shard_lines(SEQUENCES, seq_shards),
+        ]
+        config = SEQUENCES_CONFIG
+        intro = (
+            f", and under `{SEQUENCES}/` a fixed set of {sequences['items']:,} sequences "
+            "that Stage B wrote from the test split"
+        )
+        low, high = sequences["objects"]
+        fixed_set = FIXED_SET.substitute(
+            repo=repo,
+            sequences=f"{sequences['items']:,}",
+            frames=sequences["frames"],
+            size=sequences["size"],
+            strength=f"{sequences['bokeh_strength']:g}",
+            objects=f"{low} to {high} objects"
+            if low != high
+            else f"{low} object{'s' * (low != 1)}",
+            seq_shards=len(seq_shards),
+            seq_gb=_gb(sum(s["bytes"] for s in seq_shards)),
+        )
     return _template().substitute(
         repo=repo,
         preview=FIGURE.substitute(repo=repo) if preview else "",
         assets=f"\n{PREVIEW}\n{VIDEO}" if preview else "",
         status=status,
+        sequences_config=config,
+        sequences_intro=intro,
+        fixed_set=fixed_set,
+        layout="\n".join(layout),
         foregrounds=f"{index[FOREGROUNDS]['items']:,}",
         backgrounds=f"{index[BACKGROUNDS]['items']:,}",
+        fg_train=f"{counts[FOREGROUNDS, TRAIN]:,}",
+        fg_test=f"{counts[FOREGROUNDS, TEST]:,}",
+        bg_train=f"{counts[BACKGROUNDS, TRAIN]:,}",
+        bg_test=f"{counts[BACKGROUNDS, TEST]:,}",
         fg_side=index[FOREGROUNDS]["side"],
         bg_side=index[BACKGROUNDS]["side"],
         fg_shards=len(shards[FOREGROUNDS]),
@@ -340,12 +510,6 @@ def card(
         bg_gb=_gb(sum(s["bytes"] for s in shards[BACKGROUNDS])),
         total_gb=_gb(sum(s["bytes"] for s in all_shards)),
         largest_gb=_gb(max((s["bytes"] for s in all_shards), default=0)),
-        fg_last=Path(shards[FOREGROUNDS][-1]["file"]).name
-        if shards[FOREGROUNDS]
-        else "",
-        bg_last=Path(shards[BACKGROUNDS][-1]["file"]).name
-        if shards[BACKGROUNDS]
-        else "",
     )
 
 
@@ -377,14 +541,9 @@ def _unpack(tar: tarfile.TarFile, kind_root: Path) -> None:
             shutil.copyfileobj(source, out)
 
 
-def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[str]:
-    """Download the shards of the Hugging Face dataset ``repo`` and unpack them one by one.
-
-    A shard already marked in ``library_root/.fetched`` is skipped. Return the shards that
-    the index lists and the repository does not hold yet.
-    """
+def _downloader(repo: str, revision: str | None) -> Callable[[str, str], Path]:
+    """Download a file of the dataset ``repo`` into a folder, and return its path there."""
     from huggingface_hub import hf_hub_download
-    from huggingface_hub.errors import EntryNotFoundError
 
     def download(name: str, folder: str) -> Path:
         return Path(
@@ -397,6 +556,23 @@ def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[st
             ),
         )
 
+    return download
+
+
+def _mark(fetched: Path, name: str) -> Path:
+    """The file that marks the repository's file ``name`` as unpacked."""
+    return fetched / f"{name.replace('/', '-')}.done"
+
+
+def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[str]:
+    """Download the shards of the Hugging Face dataset ``repo`` and unpack them one by one.
+
+    A shard already marked in ``library_root/.fetched`` is skipped. Return the shards that
+    the index lists and the repository does not hold yet.
+    """
+    from huggingface_hub.errors import EntryNotFoundError
+
+    download = _downloader(repo, revision)
     fetched = library_root / FETCHED
     fetched.mkdir(parents=True, exist_ok=True)
     missing: list[str] = []
@@ -404,11 +580,12 @@ def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[st
         index = json.loads(download(INDEX, folder).read_text(encoding="utf-8"))
         for kind in (FOREGROUNDS, BACKGROUNDS):
             for shard in index[kind]["shards"]:
-                done = fetched / f"{Path(shard['file']).name}.done"
+                name = f"{LIBRARY}/{shard['file']}"
+                done = _mark(fetched, name)
                 if done.exists():
                     continue
                 try:
-                    path = download(f"{LIBRARY}/{shard['file']}", folder)
+                    path = download(name, folder)
                 except EntryNotFoundError:
                     missing.append(shard["file"])
                     continue
@@ -416,6 +593,208 @@ def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[st
                     _unpack(tar, library_root / kind)
                 path.unlink()
                 done.touch()
+    return missing
+
+
+def _sequence_members(seq_dir: Path, seq_id: str) -> list[tuple[str, Path]]:
+    """A sequence's files and the names they take in a shard, stream by stream."""
+    members = []
+    for stream in STREAMS:
+        folder = seq_dir / stream
+        if not folder.is_dir():
+            continue
+        for frame in sorted(folder.iterdir()):
+            if frame.name == FOCUS and stream == "bokeh":
+                members.append((f"{seq_id}.{FOCUS}", frame))
+            elif frame.suffix[1:] in FRAME_TYPES:
+                members.append((f"{seq_id}.{stream}.{frame.name}", frame))
+    return members
+
+
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def pack_sequences(
+    data_root: Path,
+    packed: Path,
+    shard_bytes: int = SHARD_BYTES,
+    repo: str = REPO,
+) -> dict[str, Any]:
+    """Write the fixed set that ``scenes.generate`` wrote in ``data_root`` into ``packed``.
+
+    ``packed`` is a library ``pack`` wrote. Its ``sequences/`` gets the shards, the index
+    and the run's records, and its card is written again with the fixed set in it. A shard
+    holds whole sequences, one sample each: every file of sequence ``0001`` is a member
+    ``0001.<stream>.<frame>``, with ``0001.focus.json`` for its bokeh's focus and
+    ``0001.json`` for its row of ``manifest.csv`` and its rows of ``objects.csv``.
+    """
+    if not (packed / INDEX).is_file():
+        raise SystemExit(f"no {INDEX} in {packed}: pack the library there first")
+    if not (data_root / "manifest.csv").is_file():
+        raise SystemExit(f"no manifest.csv in {data_root}: not a finished Stage B run")
+    flags = json.loads((data_root / "run.json").read_text(encoding="utf-8"))["flags"]
+    split = flags.get("split")
+    if split != TEST:
+        raise SystemExit(
+            f"{data_root} drew its assets from {split or 'every asset'}: the card "
+            "describes a fixed set of test assets"
+        )
+    out = packed / SEQUENCES
+    if out.exists() and any(out.iterdir()):
+        raise SystemExit(
+            f"{out} is not empty: pack_sequences writes into an empty folder"
+        )
+    rows = _read_csv(data_root / "manifest.csv")
+    objects = _read_csv(data_root / "objects.csv")
+    if not rows:
+        raise SystemExit(f"{data_root} wrote no sequences")
+    # Every sequence is checked before a byte is written, so a refused run costs no copy.
+    sequences: list[tuple[str, list[tuple[str, Path]]]] = []
+    for row in rows:
+        seq_id = row["seq_id"]
+        if not (data_root / "sequences" / seq_id).is_dir():
+            raise SystemExit(
+                f"manifest.csv lists sequence {seq_id}, which is not there"
+            )
+        members = _sequence_members(data_root / "sequences" / seq_id, seq_id)
+        sequences.append((seq_id, members))
+    layout = [name.partition(".")[2] for name, _ in sequences[0][1]]
+    streams = {name.split(".")[0] for name in layout}
+    if lacking := [s for s in (*STREAMS, "focus") if s not in streams]:
+        raise SystemExit(
+            f"{data_root} has no {', '.join(lacking)}: the card describes a fixed set "
+            "written with --bokeh --flow --flow-back --occlusion"
+        )
+    for seq_id, members in sequences[1:]:
+        if [name.partition(".")[2] for name, _ in members] != layout:
+            raise SystemExit(
+                f"sequence {seq_id} holds other files than {rows[0]['seq_id']}: every "
+                "sample of a WebDataset subset must hold the same ones"
+            )
+    out.mkdir(parents=True, exist_ok=True)
+    shards: list[dict[str, Any]] = []
+    tar: tarfile.TarFile | None = None
+    size = 0
+    for row, (seq_id, members) in zip(rows, sequences, strict=True):
+        if tar is None or size >= shard_bytes:
+            if tar is not None:
+                tar.close()
+            name = f"{TEST}-{len(shards):05d}.tar"
+            shards.append({"file": name, "split": TEST, "items": 0})
+            tar = tarfile.open(out / name, "w")
+            size = 0
+        for name, path in members:
+            tar.add(path, arcname=name)
+            size += path.stat().st_size
+        record = json.dumps(
+            {**row, "objects": [o for o in objects if o["seq_id"] == seq_id]},
+            indent=1,
+        ).encode()
+        member = tarfile.TarInfo(f"{seq_id}.json")
+        member.size = len(record)
+        member.mtime = int((data_root / "manifest.csv").stat().st_mtime)
+        tar.addfile(member, io.BytesIO(record))
+        size += len(record)
+        shards[-1]["items"] += 1
+    if tar is not None:
+        tar.close()
+    for shard in shards:
+        shard["bytes"] = (out / shard["file"]).stat().st_size
+    placed = [int(row["n_objects"]) for row in rows]
+    index = {
+        "items": len(rows),
+        "frames": int(rows[0]["n_frames"]),
+        "size": int(rows[0]["size"]),
+        "objects": [min(placed), max(placed)],
+        "streams": list(STREAMS),
+        "bokeh_strength": flags["bokeh_strength"],
+        "shards": shards,
+    }
+    (packed / SEQUENCE_INDEX).write_text(
+        json.dumps(index, indent=1) + "\n", encoding="utf-8"
+    )
+    for record_name in RECORDS:
+        shutil.copyfile(data_root / record_name, out / record_name)
+    library = json.loads((packed / INDEX).read_text(encoding="utf-8"))
+    (packed / "README.md").write_text(
+        card(library, repo, (packed / PREVIEW).is_file(), sequences=index),
+        encoding="utf-8",
+    )
+    return index
+
+
+def _unpack_sequences(tar: tarfile.TarFile, sequences_root: Path) -> None:
+    """Write a shard's sequences into ``sequences_root`` as ``<id>/<stream>/<frame>``.
+
+    Each sequence's ``focus.json`` goes back into its ``bokeh/``, and its record is
+    skipped, since the run's records are fetched whole. A member that is not a plain file
+    named as ``pack_sequences`` names it is refused, so a shard cannot write outside
+    ``sequences_root``.
+    """
+    for member in tar:
+        key, _, suffix = member.name.partition(".")
+        parts = suffix.split(".")
+        if not member.isfile() or not key or "/" in key:
+            raise SystemExit(f"unexpected member {member.name!r} in a sequence shard")
+        if suffix == "json":
+            continue
+        if suffix == FOCUS:
+            target = sequences_root / key / "bokeh" / FOCUS
+        elif (
+            len(parts) == 3
+            and parts[0] in STREAMS
+            and parts[1].isdigit()
+            and parts[2] in FRAME_TYPES
+        ):
+            target = sequences_root / key / parts[0] / f"{parts[1]}.{parts[2]}"
+        else:
+            raise SystemExit(f"unexpected member {member.name!r} in a sequence shard")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source = tar.extractfile(member)
+        assert source is not None  # a plain file always has its bytes
+        with source, target.open("wb") as out:
+            shutil.copyfileobj(source, out)
+
+
+def fetch_sequences(repo: str, output: Path, revision: str | None = None) -> list[str]:
+    """Download the fixed set of ``repo`` into ``output``, as ``scenes.generate`` wrote it.
+
+    The shards are fetched and unpacked one at a time, as ``fetch`` does, and marked in
+    ``output/.fetched``. The run's records come last, ``manifest.csv`` after the others,
+    and only once every shard is in, so a ``manifest.csv`` marks a whole fixed set as it
+    marks a finished run. Return the shards that the index lists and the repository does
+    not hold yet.
+    """
+    from huggingface_hub.errors import EntryNotFoundError
+
+    download = _downloader(repo, revision)
+    fetched = output / FETCHED
+    fetched.mkdir(parents=True, exist_ok=True)
+    missing: list[str] = []
+    with tempfile.TemporaryDirectory(dir=output) as folder:
+        index = json.loads(download(SEQUENCE_INDEX, folder).read_text(encoding="utf-8"))
+        for shard in index["shards"]:
+            name = f"{SEQUENCES}/{shard['file']}"
+            done = _mark(fetched, name)
+            if done.exists():
+                continue
+            try:
+                path = download(name, folder)
+            except EntryNotFoundError:
+                missing.append(shard["file"])
+                continue
+            with tarfile.open(path) as tar:
+                _unpack_sequences(tar, output / SEQUENCES)
+            path.unlink()
+            done.touch()
+        if not missing:
+            for record_name in RECORDS:
+                # Moved in whole, so a crash never leaves a partial manifest.csv behind.
+                os.replace(
+                    download(f"{SEQUENCES}/{record_name}", folder), output / record_name
+                )
     return missing
 
 
@@ -458,6 +837,18 @@ def main(argv: list[str] | None = None) -> int:
         "--every", type=int, required=True, help="stage every n-th shard of each kind"
     )
     staging.add_argument("--repo", default=REPO, help="named in the card's commands")
+    sequencing = commands.add_parser(
+        "pack-sequences",
+        help="add a fixed set that scenes.generate wrote to a packed library",
+    )
+    sequencing.add_argument(
+        "--data-root", type=Path, required=True, help="the run scenes.generate wrote"
+    )
+    sequencing.add_argument(
+        "--packed", type=Path, required=True, help="the folder pack wrote"
+    )
+    sequencing.add_argument("--shard-gb", type=float, default=SHARD_BYTES / 10**9)
+    sequencing.add_argument("--repo", default=REPO, help="named in the card's commands")
     fetching = commands.add_parser(
         "fetch", help="download a packed library and unpack it"
     )
@@ -468,6 +859,16 @@ def main(argv: list[str] | None = None) -> int:
         "--output", type=Path, required=True, help="the library root to write"
     )
     fetching.add_argument("--revision", default=None)
+    fetching_sequences = commands.add_parser(
+        "fetch-sequences", help="download the fixed set and unpack it"
+    )
+    fetching_sequences.add_argument(
+        "--repo", required=True, help="a Hugging Face dataset repository"
+    )
+    fetching_sequences.add_argument(
+        "--output", type=Path, required=True, help="the folder to write the run into"
+    )
+    fetching_sequences.add_argument("--revision", default=None)
     args = parser.parse_args(argv)
     if args.command == "pack":
         index = pack(
@@ -489,6 +890,18 @@ def main(argv: list[str] | None = None) -> int:
             args.seeds,
         )
         print(f"Preview and card written in {args.packed}")
+    elif args.command == "pack-sequences":
+        index = pack_sequences(
+            args.data_root, args.packed, int(args.shard_gb * 10**9), args.repo
+        )
+        print(f"sequences: {index['items']} items in {len(index['shards'])} shards")
+    elif args.command == "fetch-sequences":
+        missing = fetch_sequences(args.repo, args.output, args.revision)
+        print(f"Fixed set in {args.output}")
+        if missing:
+            print(
+                f"{len(missing)} shards are not in the repository yet; fetch again later"
+            )
     elif args.command == "stage":
         staged, total = stage(args.packed, args.output, args.every, args.repo)
         print(f"{staged} of {total} shards staged in {args.output}")
