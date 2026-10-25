@@ -121,24 +121,20 @@ on the GPU with `batch_bokeh`. [loader](../reference/loader.md) has the recipe a
 with no download and no code of ours, one sample per item. Use it to inspect the data. Training
 needs the sequences, which only the code generates.
 
-Save this as `read_item.py`:
+It needs `datasets` and Pillow, nothing else. With uv, outside the project:
 
-```python
+```bash
+uv run --no-project --with datasets --with pillow python - <<'EOF'
 from datasets import load_dataset
 
 foregrounds = load_dataset("vdanilov/video-bokeh", "foregrounds", split="train", streaming=True)
 item = next(iter(foregrounds))
 print(sorted(item), item["depth.png"].mode)
-```
-
-It needs `datasets` and Pillow, nothing else. With uv, outside the project:
-
-```bash
-uv run --no-project --with datasets --with pillow python read_item.py
+EOF
 ```
 
 On an Apple M3 Pro on 2026-10-25 it printed the first item's keys and `I;16`, the 16-bit
-disparity, in 25 s, installing both libraries included.
+disparity, in 25 s on the first run, installing both libraries included, and in 5 s after.
 
 An item holds `rgb.png`, `alpha.png` and `depth.png` as PIL images, the depth one 16-bit,
 `depth_preview.jpg`, a colored view of the disparity, `json`, the item's metadata, and
