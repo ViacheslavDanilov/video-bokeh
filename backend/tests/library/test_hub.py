@@ -21,7 +21,9 @@ from huggingface_hub import DatasetCard  # noqa: E402
 from huggingface_hub.errors import EntryNotFoundError  # noqa: E402
 
 from video_bokeh.core._library import list_backgrounds, list_foregrounds  # noqa: E402
+from video_bokeh.core._split import listed_test_foregrounds  # noqa: E402
 from video_bokeh.library import hub  # noqa: E402
+from video_bokeh.scenes.generate import generate_dataset  # noqa: E402
 
 
 @pytest.fixture
@@ -96,27 +98,27 @@ def test_a_repository_uploaded_in_parts_is_fetched_in_parts(
     hub.pack(library, packed, shard_bytes=1)
     held = tmp_path / "not-uploaded-yet"
     held.mkdir()
-    for name in ("foregrounds-00001.tar", "foregrounds-00002.tar"):
+    for name in ("train-00001.tar", "train-00002.tar"):
         shutil.move(packed / "library" / "foregrounds" / name, held / name)
     downloaded = _hub(monkeypatch, packed)
     fetched = tmp_path / "fetched"
 
     missing = hub.fetch("someone/some-library", fetched)
     assert missing == [
-        "foregrounds/foregrounds-00001.tar",
-        "foregrounds/foregrounds-00002.tar",
+        "foregrounds/train-00001.tar",
+        "foregrounds/train-00002.tar",
     ]
     assert list_foregrounds(fetched) == ["fg_a"]
     assert list_backgrounds(fetched) == ["bg_a", "bg_b"]
 
-    for name in ("foregrounds-00001.tar", "foregrounds-00002.tar"):
+    for name in ("train-00001.tar", "train-00002.tar"):
         shutil.move(held / name, packed / "library" / "foregrounds" / name)
     downloaded.clear()
     assert hub.fetch("someone/some-library", fetched) == []
     assert downloaded == [
         "library/index.json",
-        "library/foregrounds/foregrounds-00001.tar",
-        "library/foregrounds/foregrounds-00002.tar",
+        "library/foregrounds/train-00001.tar",
+        "library/foregrounds/train-00002.tar",
     ]
     assert list_foregrounds(fetched) == ["fg_a", "fg_b", "fg_c"]
 
@@ -126,7 +128,7 @@ def test_a_shard_holds_each_item_under_webdataset_names_with_its_depth_preview(
 ) -> None:
     hub.pack(library, tmp_path / "packed", preview=False)
     shards = tmp_path / "packed" / "library"
-    with tarfile.open(shards / "foregrounds" / "foregrounds-00000.tar") as tar:
+    with tarfile.open(shards / "foregrounds" / "train-00000.tar") as tar:
         names = tar.getnames()
         preview = tar.extractfile("fg_a.depth_preview.jpg")
         assert preview is not None
@@ -142,7 +144,7 @@ def test_a_shard_holds_each_item_under_webdataset_names_with_its_depth_preview(
     ]
     with Image.open(library / "foregrounds" / "fg_a" / "rgb.png") as image:
         assert side == image.width  # the preview is drawn at the item's size
-    with tarfile.open(shards / "backgrounds" / "backgrounds-00000.tar") as tar:
+    with tarfile.open(shards / "backgrounds" / "train-00000.tar") as tar:
         assert tar.getnames()[:3] == [
             "bg_a.rgb.png",
             "bg_a.depth.png",
@@ -167,7 +169,7 @@ def test_fetching_refuses_a_shard_member_that_is_not_a_plain_item_file(
 ) -> None:
     packed = tmp_path / "packed"
     hub.pack(library, packed, preview=False)
-    shard = packed / "library" / "backgrounds" / "backgrounds-00000.tar"
+    shard = packed / "library" / "backgrounds" / "train-00000.tar"
     with tarfile.open(shard, "a") as tar:
         member = tarfile.TarInfo(name)
         member.type, member.linkname = kind, "/etc/passwd"
@@ -240,11 +242,14 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     assert meta["license"] == "cc-by-nc-4.0"
     assert meta["configs"] == [
         {
-            "config_name": "foregrounds",
-            "data_files": "library/foregrounds/*.tar",
-            "default": True,
-        },
-        {"config_name": "backgrounds", "data_files": "library/backgrounds/*.tar"},
+            "config_name": kind,
+            "data_files": [
+                {"split": split, "path": f"library/{kind}/{split}-*.tar"}
+                for split in ("train", "test")
+            ],
+            **({"default": True} if kind == "foregrounds" else {}),
+        }
+        for kind in ("foregrounds", "backgrounds")
     ]
     assert "image" in meta["tags"]
     assert set(meta["task_categories"]) == {"image-to-image", "depth-estimation"}
@@ -256,7 +261,7 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     assert "| items | 3 | 2 |" in card
     assert "| image size | 64 × 64 | 192 × 192 |" in card
     assert "| tar shards | 3 | 2 |" in card
-    assert "backgrounds-00001.tar" in card
+    assert "train-00001.tar" in card
     assert f"fetch --repo {hub.REPO} " in card
     # No figure was drawn, so the card shows none; the whole library is in it.
     assert "assets/" not in card
@@ -377,9 +382,9 @@ def test_staging_takes_every_nth_shard_and_the_card_says_how_much_is_online(
 
     tars = sorted(p.relative_to(staged).as_posix() for p in staged.rglob("*.tar"))
     assert tars == [
-        "library/backgrounds/backgrounds-00000.tar",
-        "library/foregrounds/foregrounds-00000.tar",
-        "library/foregrounds/foregrounds-00002.tar",
+        "library/backgrounds/train-00000.tar",
+        "library/foregrounds/train-00000.tar",
+        "library/foregrounds/train-00002.tar",
     ]
     for name in [*tars, hub.PREVIEW, hub.VIDEO]:
         assert (staged / name).samefile(packed / name)  # linked, not copied
@@ -411,3 +416,187 @@ def test_staging_refuses_a_used_folder_and_a_step_below_one(
     (tmp_path / "used" / "old.tar").write_bytes(b"")
     with pytest.raises(SystemExit, match="not empty"):
         hub.stage(tmp_path / "packed", tmp_path / "used", every=2)
+
+
+TEST_FG = min(listed_test_foregrounds())
+
+
+@pytest.fixture
+def split_library(tmp_path: Path) -> Path:
+    """Two foregrounds and two backgrounds in train, one of each in test."""
+    return build_library(
+        tmp_path / "split-library",
+        ("fg_a", "fg_b", TEST_FG),
+        ("train__h_a", "train__h_b", "testval__h_c"),
+        estimator="da2-large",
+    )
+
+
+def test_a_shard_holds_one_split_and_the_card_counts_each(
+    split_library: Path, tmp_path: Path
+) -> None:
+    index = hub.pack(split_library, tmp_path / "packed", preview=False)
+    assert [
+        (s["file"], s["split"], s["items"]) for s in index["foregrounds"]["shards"]
+    ] == [
+        ("foregrounds/train-00000.tar", "train", 2),
+        ("foregrounds/test-00000.tar", "test", 1),
+    ]
+    with tarfile.open(tmp_path / "packed/library/backgrounds/test-00000.tar") as tar:
+        assert {n.split(".")[0] for n in tar.getnames()} == {"testval__h_c"}
+    card = " ".join((tmp_path / "packed" / "README.md").read_text().split())
+    assert "| foregrounds | 2 | 1 |" in card
+    assert "| backgrounds | 2 | 1 |" in card
+
+
+@pytest.fixture
+def benchmark(split_library: Path, tmp_path: Path) -> Path:
+    """Two sequences of the test split, with every stream the card describes."""
+    out = tmp_path / "benchmark"
+    generate_dataset(
+        split_library,
+        out,
+        2,
+        3,
+        32,
+        seed=1000,
+        n_objects_max=1,
+        bokeh=True,
+        flow=True,
+        flow_back=True,
+        occlusion=True,
+        split="test",
+    )
+    return out
+
+
+def test_fetching_a_packed_benchmark_gives_back_what_the_writer_wrote(
+    split_library: Path,
+    benchmark: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    index = hub.pack_sequences(benchmark, packed)
+    assert (index["items"], index["frames"], index["size"]) == (2, 3, 32)
+    assert index["bokeh_strength"] == 16.0
+    _hub(monkeypatch, packed)
+    fetched = tmp_path / "fetched"
+    assert hub.fetch_sequences("someone/some-library", fetched) == []
+
+    got = {k: v for k, v in _files(fetched).items() if not k.startswith(".fetched/")}
+    assert got == _files(benchmark)
+    assert not list(fetched.glob("tmp*"))
+
+
+def test_a_sequence_is_one_sample_named_as_webdataset_names_one(
+    split_library: Path, benchmark: Path, tmp_path: Path
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    hub.pack_sequences(benchmark, packed)
+    with tarfile.open(packed / "sequences" / "test-00000.tar") as tar:
+        names = tar.getnames()
+        record = json.load(tar.extractfile("0001.json"))
+    assert {n.split(".")[0] for n in names} == {"0001", "0002"}
+    first = [n.partition(".")[2] for n in names if n.startswith("0001.")]
+    second = [n.partition(".")[2] for n in names if n.startswith("0002.")]
+    assert first == second  # every sample holds the same members
+    assert first[:3] == [
+        "all_in_focus.01.png",
+        "all_in_focus.02.png",
+        "all_in_focus.03.png",
+    ]
+    assert "flow.03.png" not in first and "flow_back.01.png" not in first
+    assert {"bokeh.01.png", "focus.json", "alpha.01.tif", "occlusion.02.png"} <= set(
+        first
+    )
+    assert record["seed"] == "1000"
+    assert [o["foreground"] for o in record["objects"]] == [TEST_FG]
+
+
+def test_the_card_describes_the_benchmark_when_there_is_one(
+    split_library: Path, benchmark: Path, tmp_path: Path
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    hub.pack_sequences(benchmark, packed)
+    card = (packed / "README.md").read_text()
+    assert _front_matter(card)["configs"][-1] == {
+        "config_name": "sequences",
+        "data_files": [{"split": "test", "path": "sequences/test-*.tar"}],
+    }
+    assert "$" not in card
+    prose = " ".join(card.split())
+    assert "a benchmark of 2 sequences that Stage B wrote from the test split" in prose
+    assert "Each sequence has 3 frames at 32 × 32" in prose
+    assert "strength `k = 16`" in prose
+    assert f"fetch-sequences --repo {hub.REPO}" in prose
+    assert "sequences/test-00000.tar" in card
+
+
+def test_packing_a_benchmark_refuses_what_the_card_does_not_describe(
+    split_library: Path, benchmark: Path, tmp_path: Path
+) -> None:
+    packed = tmp_path / "packed"
+    with pytest.raises(SystemExit, match="pack the library there first"):
+        hub.pack_sequences(benchmark, packed)
+    hub.pack(split_library, packed, preview=False)
+    train = tmp_path / "train-run"
+    generate_dataset(split_library, train, 1, 3, 32, seed=0, n_objects_max=1)
+    with pytest.raises(SystemExit, match="drew its assets from train"):
+        hub.pack_sequences(train, packed)
+    partial = tmp_path / "partial"
+    generate_dataset(
+        split_library, partial, 1, 3, 32, seed=0, n_objects_max=1, split="test"
+    )
+    with pytest.raises(SystemExit, match="has no bokeh, flow, flow_back, occlusion"):
+        hub.pack_sequences(partial, packed)
+
+
+def test_fetching_a_benchmark_writes_its_records_only_once_it_is_whole(
+    split_library: Path,
+    benchmark: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    hub.pack_sequences(benchmark, packed, shard_bytes=1)  # one sequence per shard
+    held = tmp_path / "held" / "test-00001.tar"
+    held.parent.mkdir()
+    shutil.move(packed / "sequences" / "test-00001.tar", held)
+    _hub(monkeypatch, packed)
+    fetched = tmp_path / "fetched"
+    assert hub.fetch_sequences("someone/some-library", fetched) == ["test-00001.tar"]
+    assert (fetched / "sequences" / "0001").is_dir()
+    assert not (fetched / "manifest.csv").exists()
+
+    shutil.move(held, packed / "sequences" / "test-00001.tar")
+    assert hub.fetch_sequences("someone/some-library", fetched) == []
+    assert (fetched / "manifest.csv").read_bytes() == (
+        benchmark / "manifest.csv"
+    ).read_bytes()
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["../0001.all_in_focus.01.png", "0001.all_in_focus.01.exe", "0001.layers.01.png"],
+)
+def test_fetching_a_benchmark_refuses_a_member_it_did_not_pack(
+    split_library: Path,
+    benchmark: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    hub.pack_sequences(benchmark, packed)
+    with tarfile.open(packed / "sequences" / "test-00000.tar", "a") as tar:
+        tar.addfile(tarfile.TarInfo(name), io.BytesIO(b""))
+    _hub(monkeypatch, packed)
+    with pytest.raises(SystemExit, match="unexpected member"):
+        hub.fetch_sequences("someone/some-library", tmp_path / "fetched")
+    assert not (tmp_path / "0001.all_in_focus.01.png").exists()
