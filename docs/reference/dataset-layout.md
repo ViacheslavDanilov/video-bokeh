@@ -142,7 +142,7 @@ layers/
   `src/video_bokeh/core/_streams.py` holds both sides of both formats.
 
 **The layers double the dataset and add two thirds to the write time.** Measured on the lab
-machine on 2026-10-10, five 80-frame sequences at 1024 × 1024 with 1 to 5 objects:
+machine, five 80-frame sequences at 1024 × 1024 with 1 to 5 objects:
 
 | | MiB per frame | seconds per sequence |
 |---|---|---|
@@ -204,9 +204,9 @@ mask as its `occlusion` stream. Writing a sequence again removes an old `occlusi
 The writer uses PNG compression level 3. It preserves the same 16-bit pixels as the
 old imagecodecs default, level 6, while spending less time compressing them.
 
-On an Apple M3 Pro on 2026-10-12, the 79 flow frames from an 80-frame, 512 × 512
-sequence from `da2-large`, seed 3, with one object gave these results. Each time is the
-median of three passes over all frames, with imagecodecs 2026.3.6. Writer time includes
+On an Apple M3 Pro, the 79 flow frames from an 80-frame, 512 × 512 sequence from
+`da2-large` with one object gave these results. Each time is the median of three passes
+over all frames, with imagecodecs 2026.3.6. Writer time includes
 quantization, pixel packing, PNG compression and file writing. Source loading and
 verification are outside the timer. PNG time measures compression alone.
 
@@ -223,8 +223,8 @@ Level 1 saved only another 0.02 s and used 3.32 MiB. Every decoded 16-bit pixel 
 asserted equal to the source for all four settings, including the validity channel.
 Default and explicit level 6 also produced identical encoded bytes on all 79 frames.
 
-The earlier one-object sequence measured on 2026-10-10 used the old default compression:
-2.2 MiB of `flow` against 37 MiB of `all_in_focus`.
+An earlier one-object sequence, written with the old default compression, used 2.2 MiB of
+`flow` against 37 MiB of `all_in_focus`.
 
 ### The bokeh stream
 
@@ -241,8 +241,8 @@ old one.
 - **`focus.json` beside the frames says what was in focus**: `{"object": 2, "zf": [...]}`,
   the object by its alpha page, or `null` when none held the focus, and each frame's in-focus
   disparity in `[0, 1]`. It also names the `renderer` and the `strength` it ran at, and the
-  layered renderer adds its `gamma` and `radius_step`. A sequence rendered before 2026-10-10
-  has only `object` and `zf`. A reader that lists the stream takes `*.png`.
+  layered renderer adds its `gamma` and `radius_step`. A sequence rendered before these fields
+  existed has only `object` and `zf`. A reader that lists the stream takes `*.png`.
 - **It appears complete or not at all.** The renderer writes into a hidden folder beside it,
   `.bokeh-` and a random suffix, a new one per run. It renames that folder to `bokeh/` only
   when every frame is in place. A run that was killed can leave one behind, and deleting it
@@ -250,8 +250,8 @@ old one.
 - **It is optional.** A sequence without it is still a complete Stage B sequence. The demo
   serves it; nothing in Stage B reads it.
 - **It is lossless**, rendered by the layered renderer from the layers, held in memory or
-  read from `layers/`, at the sequence's own size. A sequence rendered by any-to-bokeh
-  before 2026-10-15 was decoded from an mp4 at 1024 × 576 and resized back, and its
+  read from `layers/`, at the sequence's own size. A sequence rendered by any-to-bokeh,
+  the earlier renderer, was decoded from an mp4 at 1024 × 576 and resized back, and its
   `focus.json` names that renderer.
 
 ### How many objects a scene can hold
@@ -372,9 +372,9 @@ Real sequences, 1024 × 1024, three objects.
 | `alpha` | 50 | 3.8 |
 
 A 1000-sequence, 80-frame dataset is roughly **75–113 GB**, and `all_in_focus` is 92 % of it.
-These sizes predate 16-bit disparity. Re-measured on 2026-10-10, with 16-bit disparity and 1
-to 5 objects, a frame takes 1.30 MiB of `all_in_focus`, 0.39 MiB of `disparity` and 0.05 MiB
-of `alpha`, 1.75 MiB in all. The same dataset is then about **136 GiB**, and about **295 GiB**
+These sizes predate 16-bit disparity. Re-measured with 16-bit disparity and 1 to 5 objects,
+a frame takes 1.30 MiB of `all_in_focus`, 0.39 MiB of `disparity` and 0.05 MiB of `alpha`,
+1.75 MiB in all. The same dataset is then about **136 GiB**, and about **295 GiB**
 with `--layers`. Anything that shrinks the dataset meaningfully has to address
 `all_in_focus`.
 

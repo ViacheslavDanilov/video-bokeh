@@ -52,11 +52,11 @@ without rebuilding.
   choosing the trajectories, rendering the frames, writing them, and rendering the bokeh. The
   bar fills by their counts, beside the step under way, and stays full where it filled for
   half a second before the sequence is shown. On an Apple M3 Pro at the page's defaults, 80
-  frames at 512 px with two to four objects, it took 6.1 to 7.3 seconds on 2026-10-11, seeds
-  0 to 2, and 12.0 to 15.4 with the bokeh. Asking twice for the same sequence returns it in
-  milliseconds, because the sequence id is a hash and the directory on disk is the cache. Each
-  pane says it is preparing its video until the API starts sending it, since the API encodes a
-  stream the first time it is asked for, and says so if the video fails to load.
+  frames at 512 px with two to four objects, it took 6.1 to 7.3 seconds, and 12.0 to 15.4 with
+  the bokeh. Asking twice for the same sequence returns it in milliseconds, because the
+  sequence id is a hash and the directory on disk is the cache. Each pane says it is preparing
+  its video until the API starts sending it, since the API encodes a stream the first time it
+  is asked for, and says so if the video fails to load.
 - **What is on screen** — a line above the panes names the sequence's library, seed, bokeh
   strength, object count, frame count and size, says when it came from the cache, and gives
   its id with a copy button. The header names the library picked; its `id` is a hash of the

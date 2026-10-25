@@ -134,7 +134,7 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
 
 **Rendered in the workers, bokeh costs over two thirds of the throughput, and more workers
 do not win it back. Rendered on the GPU, it costs under a third, most of it for carrying the
-layers.** Measured on the lab machine on 2026-10-10, the way the next section measures:
+layers.** Measured on the lab machine, the way the next section measures:
 
 | streams | where the bokeh renders | items/s, 8 workers |
 |---|---|---|
@@ -187,12 +187,11 @@ cost shared memory too, as the next section says.
 `python -m video_bokeh.loader.benchmark --library-root <library>` runs this protocol;
 use `--streams` to select each row and `--output` to save the numbers and run settings as JSON.
 
-Measured on the lab machine (24 cores) on 2026-10-10: 512 pixels, 24 frames, 1 to 5
-objects, batches of 4, 8 workers, from the 30-asset development library. A `DataLoader` keeps
-two batches per worker ready, so each run first drew twice as many batches as there are
-workers, then timed as many again, at least 15. Timed any sooner, the run measures that buffer
-rather than the workers. The figures published here before that change were up to a quarter too
-high.
+Measured on the lab machine (24 cores): 512 pixels, 24 frames, 1 to 5 objects, batches of 4,
+8 workers, from the 30-asset development library. A `DataLoader` keeps two batches per worker
+ready, so each run first drew twice as many batches as there are workers, then timed as many
+again, at least 15. Timed any sooner, the run measures that buffer rather than the workers.
+The figures published here before that change were up to a quarter too high.
 
 | streams | items/s | MiB per item |
 |---|---|---|

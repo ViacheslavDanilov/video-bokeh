@@ -10,8 +10,8 @@ scoring.
 The methods run on a machine with an NVIDIA card. On the lab's RTX 5090, torch needs the CUDA
 12.8 wheels, which the methods' own pins (torch 1.8 to 2.4) predate, so each method gets a
 rebuild on a current torch with a small patch where its source calls something that torch
-removed. The inputs, licenses and difficulty of each candidate method were surveyed on
-2026-10-15; the survey is among the author's local notes.
+removed. A survey of each candidate method's inputs, licenses and difficulty is among the
+author's local notes.
 
 ## Dr.Bokeh
 
@@ -141,9 +141,9 @@ It writes `bokeh_ours_one_frame/`. `run_all.sh` runs and scores it with the othe
 ## Any-to-Bokeh
 
 [Any-to-Bokeh](https://github.com/vivoCameraResearch/any-to-bokeh) (ICLR 2026; code and
-weights CC BY-NC 4.0) is a video diffusion model, which this pipeline carried as a bokeh
-renderer until 2026-10-15. It is the learned baseline of the comparison, not a reference. It
-needs an environment of its own, Python 3.10 with the `diffusers` and `transformers` versions
+weights CC BY-NC 4.0) is a video diffusion model, which this pipeline once carried as a bokeh
+renderer. It is the learned baseline of the comparison, not a reference. It needs an
+environment of its own, Python 3.10 with the `diffusers` and `transformers` versions
 that its requirements pin, 6.7 GB of checkpoints from Google Drive and the Stable Video Diffusion base
 model, 4.2 GiB under Stability's own license, which `setup.sh` downloads into the Hugging
 Face cache.
@@ -225,7 +225,7 @@ done
   that link to their own sequences. The loop above scores each method there, and `summary.py`
   gives each subset its own table; the renders are already in place.
 
-`test_set.py` writes the earlier set of 40, which the comparison ran on until 2026-10-19:
+`test_set.py` writes the earlier set of 40, which the comparison first ran on:
 `any-01` to `any-32`, the first 32 seeds from 1,000,000 whose background has detail, and
 `night-01` to `night-08`, eight night scenes with small lights, each a different background,
 which `night/` links to.

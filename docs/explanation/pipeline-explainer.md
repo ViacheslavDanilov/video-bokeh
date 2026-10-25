@@ -210,7 +210,7 @@ follows one object per sequence, drawn with odds in proportion to its area, so o
 sharp and the others blur by how far they are from it in depth.
 [layered-bokeh](layered-bokeh.md) explains it.
 
-any-to-bokeh, a diffusion model, was the first renderer. It left the pipeline on 2026-10-15,
+any-to-bokeh, a diffusion model, was the first renderer. It has since left the pipeline,
 because it ran offline only, on an NVIDIA card, in an environment of its own, and could not
 join the same pass as the frames. Comparing our renderer with it and with other published ones
 is a task of its own, outside the pipeline.
