@@ -86,6 +86,7 @@ stream = SequenceStream(
     n_frames=8,
     size=256,
     streams=("rgb", "disparity", "bokeh"),
+    bokeh_strength=16.0,  # k: blur radius in pixels at 1024 px, one disparity unit off focus
 )
 item = next(iter(stream))
 print(item["rgb"].shape, item["disparity"].shape, item["bokeh"].shape)
