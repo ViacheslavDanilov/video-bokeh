@@ -51,7 +51,7 @@ roots whose sequences link to their own, so that ``score.py`` and ``summary.py``
 each subset apart without rendering it again.
 
 Every sequence draws from all of the library's assets, train and test, because the set was
-drawn before the library had splits and its seeds name those scenes only so.
+drawn before the library had splits and its seeds name those scenes only under `all`.
 """
 
 from __future__ import annotations

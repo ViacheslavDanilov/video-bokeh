@@ -50,7 +50,7 @@ def test_the_tracked_list_is_the_published_draw() -> None:
 
 
 def test_each_subject_is_in_the_test_split_in_its_share() -> None:
-    # The counts the dataset card and the reference give, from the tracked predictions.
+    # The counts the reference gives, from the tracked predictions.
     with PREDICTIONS.open(encoding="utf-8", newline="") as f:
         subjects = {row["page_id"]: row["top_subject"] for row in csv.DictReader(f)}
     counts = Counter(subjects[page_id(i)] for i in listed_test_foregrounds())
