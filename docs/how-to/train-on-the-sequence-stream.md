@@ -88,7 +88,7 @@ def main() -> None:
         n_frames=8,
         size=256,
         streams=("rgb", "disparity", "bokeh", "flow"),
-        bokeh_strength=16.0,  # k
+        bokeh_strength=16.0,
     )
     for batch in DataLoader(stream, batch_size=4, num_workers=4):
         rgb, disparity = batch["rgb"], batch["disparity"]  # (B, T, 3 or 1, H, W)
@@ -100,11 +100,12 @@ if __name__ == "__main__":
     main()
 ```
 
-**`bokeh_strength` is the bokeh's strength `k`:** the blur radius in pixels, at a 1024-pixel
-width, of a point one unit of disparity from the focus. It is 16 unless set, and one value
-holds for the whole stream. The focus follows one object of each sequence, drawn at random with
-odds by the area it alone covers; `focus_disparity=` pins one disparity for every frame
-instead.
+**The arguments set what each item holds.** `n_frames` is the length of a sequence and `size`
+the side of its frames in pixels. `streams` names what an item carries. `bokeh_strength` is the
+bokeh's strength `k`: the blur radius in pixels, at a 1024-pixel width, of a point one unit of
+disparity from the focus. It is 16 unless set, and one value holds for the whole stream. The
+focus follows one object of each sequence, drawn at random with odds by the area it alone
+covers; `focus_disparity=` pins one disparity for every frame instead.
 
 ## 5. When the workers cannot keep up
 

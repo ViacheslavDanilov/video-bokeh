@@ -35,8 +35,6 @@ def main() -> None:
         n_frames=8,
         size=256,
         streams=("rgb", "disparity", "bokeh"),
-        # k: the blur radius in pixels at a 1024-pixel width, one unit of disparity from
-        # the focus.
         bokeh_strength=16.0,
     )
     # In: the frame's 3 color channels and its disparity. Out: the bokeh's 3.
