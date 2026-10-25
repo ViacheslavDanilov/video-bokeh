@@ -18,7 +18,11 @@ size_categories:
 source_datasets:
 - OneOverZero/MAGICK
 - BG-20k
-viewer: false
+configs:
+- config_name: foregrounds
+  data_files: "library/foregrounds/*.tar"
+- config_name: backgrounds
+  data_files: "library/backgrounds/*.tar"
 ---
 
 # Video Bokeh
@@ -104,6 +108,17 @@ matte = np.asarray(Image.open(f"{item}/alpha.png")) / 255.0  # (H, W) in [0, 1]
 disparity = np.asarray(Image.open(f"{item}/depth.png")) / 65535.0  # (H, W) in [0, 1]
 ```
 
+The `datasets` library streams the shards without the code and without the download, one
+sample per item:
+
+```python
+from datasets import load_dataset
+
+foregrounds = load_dataset("$repo", "foregrounds", split="train", streaming=True)
+item = next(iter(foregrounds))
+# keys: rgb.png, alpha.png, depth.png, depth_preview.jpg, json, __key__ (the id), __url__
+```
+
 ## Repository layout
 
 ```text
@@ -114,13 +129,17 @@ library/backgrounds/backgrounds-00000.tar … $bg_last
 ```
 
 - **A shard is a plain tar.** The images are PNG already, so it is not compressed again.
-- **A shard holds whole items.** Its members are `foregrounds/<id>/rgb.png` and the other
-  files of the item, so unpacking every shard into one folder gives the layout Stage B reads,
-  shown under Quick start.
+- **A shard holds whole items, in WebDataset's layout.** An item's files share its id, as
+  `<id>.rgb.png`, `<id>.alpha.png`, `<id>.depth.png` and `<id>.json`. `fetch` writes them
+  back as `foregrounds/<id>/rgb.png` and so on, the layout Stage B reads, shown under Quick
+  start.
+- **Each item also holds `<id>.depth_preview.jpg`,** its disparity in color at the item's
+  size, drawn for a foreground where its matte reaches 0.04. It is there for the viewer, and
+  `fetch` leaves it out.
 - **`library/index.json` lists the shards of each kind**, with the number of items and the
   bytes each holds. `fetch` reads it first.
-- **The viewer is off.** The shards group files by folder, not by WebDataset's file-name
-  prefix, so the viewer would show each file as a sample of its own.
+- **The viewer has a subset per kind,** `foregrounds` and `backgrounds`, with a row per
+  item and a column per file.
 
 ## What each file holds
 

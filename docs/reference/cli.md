@@ -194,15 +194,20 @@ The command exits 1 when any estimator it checked is not `ready`, or failed to m
 `pack` writes a library into tar shards of about 2 GB under `library/`, with
 `library/index.json`, a dataset card `README.md`, the card's figure `assets/preview.jpg` and
 its video `assets/preview.mp4`, for a Hugging Face dataset repository. The library sits under
-`library/` so that the generated sequences can sit beside it in the same repository.
-The shards hold only what Stage B reads: each foreground's `rgb.png`, `alpha.png`, `depth.png`
-and `meta.json`, and each background's `rgb.png` and `depth.png`. A shard holds whole items.
-`fetch` downloads such a repository and unpacks it into a library root that Stage B and the
-sequence stream take as they are, one shard at a time, so the disk holds the library and one
-shard at most. Run again, `fetch` downloads only the shards it has not unpacked yet. `fetch`
-needs `huggingface-hub`, which the `loader` and `library` extras install, and so does
-`hf upload-large-folder`. The card names Depth Anything V2 Large, so `pack` takes only a
-library built with it.
+`library/` so that the generated sequences can sit beside it in the same repository. The
+shards hold only what Stage B reads: each foreground's `rgb.png`, `alpha.png`, `depth.png` and
+`meta.json`, and each background's `rgb.png` and `depth.png`. A shard holds whole items, in
+WebDataset's layout: an item's files share its id, as `<id>.rgb.png`, `<id>.alpha.png`,
+`<id>.depth.png` and `<id>.json`. Each item also carries `<id>.depth_preview.jpg`, its
+disparity in color at the item's size, which the Hub's viewer shows and nothing reads. The
+card declares a `foregrounds` and a `backgrounds` subset, so the viewer and the `datasets`
+library read an item as one row. `fetch` downloads such a repository and unpacks it into a
+library root that Stage B and the sequence stream take as they are, as
+`foregrounds/<id>/rgb.png` and so on without the previews, one shard at a time, so the disk
+holds the library and one shard at most. Run again, `fetch` downloads only the shards it has
+not unpacked yet. `fetch` needs `huggingface-hub`, which the `loader` and `library` extras
+install, and so does `hf upload-large-folder`. The card names Depth Anything V2 Large, so
+`pack` takes only a library built with it.
 
 - **The card's text is `backend/src/video_bokeh/library/hub_card.md`.** Edit it there. `pack`
   fills in each `$name` from the index: counts, image sizes, shards and gigabytes.
