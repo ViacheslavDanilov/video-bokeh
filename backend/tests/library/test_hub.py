@@ -239,7 +239,11 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     meta = _front_matter(card)
     assert meta["license"] == "cc-by-nc-4.0"
     assert meta["configs"] == [
-        {"config_name": "foregrounds", "data_files": "library/foregrounds/*.tar"},
+        {
+            "config_name": "foregrounds",
+            "data_files": "library/foregrounds/*.tar",
+            "default": True,
+        },
         {"config_name": "backgrounds", "data_files": "library/backgrounds/*.tar"},
     ]
     assert "image" in meta["tags"]
