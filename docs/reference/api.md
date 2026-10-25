@@ -94,6 +94,7 @@ directory name. A request's scene is drawn from the train split
 removed leaves the id, and every scene, as they were. The id moves when train assets are added
 or removed, when Stage A is re-run with a different estimator and when the library is rebuilt
 at another size, and it does not move when the same library is mounted somewhere else.
+`n_foregrounds` and `n_backgrounds` count the train assets too, the ones a scene can show.
 
 It does not cover pixel content. The same asset ids, estimator and size over different images
 produce the same id, wherever the library sits. So a library rebuilt in place keeps its id, and
