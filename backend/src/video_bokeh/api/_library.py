@@ -15,8 +15,14 @@ from pathlib import Path
 
 from PIL import Image
 
-from video_bokeh.core._library import FOREGROUNDS, list_backgrounds, list_foregrounds
+from video_bokeh.core._library import (
+    BACKGROUNDS,
+    FOREGROUNDS,
+    list_backgrounds,
+    list_foregrounds,
+)
 from video_bokeh.core._metadata import read_asset_metadata
+from video_bokeh.core._split import TRAIN, in_split
 
 _ID_CHARS = 12
 
@@ -68,8 +74,9 @@ def _asset_size(library_root: Path, foreground_ids: list[str]) -> int | None:
 def summarize(library_root: Path) -> LibrarySummary:
     """Read the library's shape and derive its id.
 
-    The id covers the asset ids, the depth estimator and the asset size. It moves when
-    assets are added or removed, when the depth estimator changes and when the library
+    The id covers the ids of the train assets, the ones a request's scene is drawn from,
+    the depth estimator and the asset size. It moves when train assets are added or
+    removed or the split moves them, when the depth estimator changes and when the library
     is rebuilt at another size, and it does not move when the same library is mounted at
     a different path -- sequences cached against it stay valid.
 
@@ -85,10 +92,10 @@ def summarize(library_root: Path) -> LibrarySummary:
     asset_size = _asset_size(library_root, foreground_ids)
 
     digest = hashlib.sha256()
-    for asset_id in foreground_ids:
+    for asset_id in in_split(foreground_ids, FOREGROUNDS, TRAIN):
         digest.update(b"fg:")
         digest.update(asset_id.encode())
-    for asset_id in background_ids:
+    for asset_id in in_split(background_ids, BACKGROUNDS, TRAIN):
         digest.update(b"bg:")
         digest.update(asset_id.encode())
     digest.update(b"model:")
