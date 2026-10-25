@@ -1,4 +1,4 @@
-"""Which assets training draws from and which only the benchmark draws from.
+"""Which assets training draws from and which only the fixed set draws from.
 
 Every asset of a library is in one of two splits, ``train`` and ``test``. Sequences made
 from test assets show a network objects and backgrounds it never trained on.

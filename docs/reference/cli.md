@@ -198,7 +198,7 @@ Backgrounds need no draw, because they follow BG-20k's split
 ([dataset-layout](dataset-layout.md#the-train-and-test-splits)).
 
 **The list is tracked, and it was drawn once from the published library.** Drawing it again,
-with other flags or from another library, changes the benchmark and the scene every seed names.
+with other flags or from another library, changes the fixed set and the scene every seed names.
 
 ```bash
 uv run python -m video_bokeh.library.split --library-root data/library/da2-large \
@@ -315,7 +315,7 @@ and `run.json` first, then writes `manifest.csv` atomically as the run's complet
 | `--seed` | int | `0` | sequence `i` is seeded from `seed + i` |
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
 | `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [dataset-layout](dataset-layout.md) |
-| `--split` | `train`, `test` or `all` | `train` | the assets the scenes draw from: `train`, the ones training sees, `test`, the benchmark's, or `all`, as every run before the split did — see [dataset-layout](dataset-layout.md#the-train-and-test-splits) |
+| `--split` | `train`, `test` or `all` | `train` | the assets the scenes draw from: `train`, the ones training sees, `test`, the fixed set's, or `all`, as every run before the split did — see [dataset-layout](dataset-layout.md#the-train-and-test-splits) |
 | `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [dataset-layout](dataset-layout.md) |
 | `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [dataset-layout](dataset-layout.md) |
 | `--flow-back` | flag | off | also write `flow_back/`, each frame's exact backward optical flow to the previous, in the same format |

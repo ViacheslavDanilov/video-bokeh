@@ -1,4 +1,4 @@
-"""Draw the test foregrounds once, so that the benchmark shows objects training never sees.
+"""Draw the test foregrounds once, so that the fixed set shows objects training never sees.
 
     python -m video_bokeh.library.split --library-root data/library/da2-large \\
         --predictions data/magick/predictions.csv
@@ -11,7 +11,7 @@ to the file ``video_bokeh.core._split`` reads. Backgrounds need no draw: they fo
 BG-20k's split.
 
 The list was drawn once, from the published library, and is tracked. Drawing it again
-with other arguments, or from another library, changes the benchmark and every sequence
+with other arguments, or from another library, changes the fixed set and every sequence
 a seed names.
 """
 

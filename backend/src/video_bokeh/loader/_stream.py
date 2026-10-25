@@ -108,8 +108,8 @@ class SequenceStream(IterableDataset):
     skipped, as the writer skips it.
 
     The scenes draw their assets from ``split``: ``train`` by default, the foregrounds and
-    backgrounds training may see, ``test``, the ones the benchmark is made of, or ``all``.
-    A network trained on ``test`` or ``all`` has seen the benchmark's assets.
+    backgrounds training may see, ``test``, the ones the fixed set is made of, or ``all``.
+    A network trained on ``test`` or ``all`` has seen the fixed set's assets.
 
     Every new iterator starts again at ``seed``, so a loop that re-creates its iterator
     each epoch sees the same sequences again. Seeds are consecutive, so ``seed=1``

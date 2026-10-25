@@ -57,7 +57,7 @@ produces.
 ### The train and test splits
 
 **Every asset is in one of two splits, train or test.** Training draws its scenes from train.
-The benchmark is made from test alone, so it shows a network objects and backgrounds it never
+The fixed set is made from test alone, so it shows a network objects and backgrounds it never
 trained on. Stage B draws from train unless told otherwise: `scenes.generate --split` and the
 sequence stream's `split` take `train`, `test` or `all`.
 
@@ -69,7 +69,7 @@ sequence stream's `split` take `train`, `test` or `all`.
 - **The foreground list was drawn once.** `video_bokeh.library.split` took 10 % of each
   subject CLIP gave the published library's foregrounds: 397 people, 233 objects, 141 food,
   48 plants and 40 animals. The draw is seeded and the list is tracked, because drawing it
-  again would change the benchmark.
+  again would change the fixed set.
 - **An asset that neither rule names is train.** A background without BG-20k's folder prefix
   and a foreground missing from the list are train, so a library of other assets is all
   train, and `--split test` refuses it.

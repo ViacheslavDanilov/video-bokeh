@@ -40,7 +40,7 @@ def test_listed_foregrounds_are_test_and_others_train() -> None:
 
 def test_the_tracked_list_is_the_published_draw() -> None:
     # library.split drew 859 of the published library's 8,586 foregrounds. A change to
-    # the file changes the benchmark, so it fails here first.
+    # the file changes the fixed set, so it fails here first.
     text = resources.files("video_bokeh.core").joinpath("test_foregrounds.txt")
     data = text.read_bytes()
     assert hashlib.sha256(data).hexdigest() == PUBLISHED_SHA256
