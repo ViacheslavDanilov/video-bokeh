@@ -213,7 +213,7 @@ uv run python -m video_bokeh.library.split --library-root data/library/da2-large
 | `--seed` | int | `0` | seeds the draw, with the subject |
 | `--output` | path | the tracked list | where the ids are written |
 
-## `video_bokeh.library.hub` — publish or download a library and its benchmark
+## `video_bokeh.library.hub` — publish or download a library and its fixed set
 
 `pack` writes a library into tar shards of about 2 GB under `library/`, with
 `library/index.json`, a dataset card `README.md`, the card's figure `assets/preview.jpg` and
@@ -249,7 +249,7 @@ install, and so does `hf upload-large-folder`. The card names Depth Anything V2 
 - **`preview` draws both again in a packed folder, and its card,** of the items and seeds it
   is given, so a better example costs no packing. A seed whose objects cannot be placed is
   refused. Stage again afterwards into an empty folder, so the staged card shows them too.
-- **`pack-sequences` adds the benchmark to a packed library.** It takes a run that
+- **`pack-sequences` adds the fixed set to a packed library.** It takes a run that
   `scenes.generate --split test --bokeh --flow --flow-back --occlusion` wrote, and refuses
   any other, because the card describes that one. It writes the run's sequences into tar
   shards under `sequences/`, one sample per sequence: every file of sequence `0001` is a
@@ -258,18 +258,18 @@ install, and so does `hf upload-large-folder`. The card names Depth Anything V2 
   records. Every sample must hold the same members, as WebDataset readers require, so the
   sequences of a run must have the same frame count. Beside the shards go
   `sequences/index.json`, the run's `manifest.csv`, `objects.csv` and `run.json`, and the
-  card is written again with a `sequences` subset and a section on the benchmark.
+  card is written again with a `sequences` subset and a section on the fixed set.
   `layers/` stays out.
-- **`fetch-sequences` downloads the benchmark** into the layout `scenes.generate` writes,
+- **`fetch-sequences` downloads the fixed set** into the layout `scenes.generate` writes,
   one shard at a time, and marks each in `.fetched/` as `fetch` does. The run's records
   come last, `manifest.csv` after the others, and only once every shard is in, so a
-  `manifest.csv` marks a whole benchmark as it marks a finished run.
+  `manifest.csv` marks a whole fixed set as it marks a finished run.
 - **`stage` uploads a library in parts.** It hard-links every `--every`-th shard of each kind,
   the full index, the figure and the video into a folder of its own, with a card that says
   how many shards and items are online. A folder packed before the video needs `preview`
   first. The shards it takes are spread over each kind's train shards and then its test
   shards, so with `--every 5` a part holds both splits. Its output must be on the same disk
-  as the packed folder. It leaves the benchmark out.
+  as the packed folder. It leaves the fixed set out.
   Uploading the packed folder afterwards adds the rest and the card of the whole library.
   Each upload sends the shards first and the card last, so a card never goes live before
   the shards it describes.
@@ -286,7 +286,7 @@ uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
 hf upload-large-folder vdanilov/video-bokeh data/library-staged --repo-type dataset \
   --exclude README.md
 hf upload vdanilov/video-bokeh data/library-staged/README.md README.md --repo-type dataset
-uv run python -m video_bokeh.library.hub pack-sequences --data-root data/benchmark \
+uv run python -m video_bokeh.library.hub pack-sequences --data-root data/fixed-set \
   --packed data/library-packed
 hf upload-large-folder vdanilov/video-bokeh data/library-packed --repo-type dataset \
   --exclude README.md
@@ -294,7 +294,7 @@ hf upload vdanilov/video-bokeh data/library-packed/README.md README.md --repo-ty
 uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh \
   --output data/library/da2-large
 uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-bokeh \
-  --output data/benchmark
+  --output data/fixed-set
 ```
 
 | command | flag | default | meaning |
@@ -314,14 +314,14 @@ uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-b
 | `stage` | `--output` | **required** | the folder to upload first |
 | `stage` | `--every` | **required** | stage shards 0, n, 2n, … of each kind; `1` stages all |
 | `stage` | `--repo` | `vdanilov/video-bokeh` | the repository the card's commands name |
-| `pack-sequences` | `--data-root` | **required** | the benchmark run `scenes.generate` wrote |
+| `pack-sequences` | `--data-root` | **required** | the run of the fixed set that `scenes.generate` wrote |
 | `pack-sequences` | `--packed` | **required** | a folder `pack` wrote |
 | `pack-sequences` | `--shard-gb` | `2` | a shard closes once it holds this many gigabytes |
 | `pack-sequences` | `--repo` | `vdanilov/video-bokeh` | the repository the card's commands name |
 | `fetch` | `--repo` | **required** | a Hugging Face dataset repository of shards |
 | `fetch` | `--output` | **required** | the library root to write |
 | `fetch` | `--revision` | latest | a branch, tag or commit of the repository |
-| `fetch-sequences` | `--repo` | **required** | a Hugging Face dataset repository with a benchmark |
+| `fetch-sequences` | `--repo` | **required** | a Hugging Face dataset repository with a fixed set |
 | `fetch-sequences` | `--output` | **required** | the folder to write the run into |
 | `fetch-sequences` | `--revision` | latest | a branch, tag or commit of the repository |
 

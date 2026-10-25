@@ -450,9 +450,9 @@ def test_a_shard_holds_one_split_and_the_card_counts_each(
 
 
 @pytest.fixture
-def benchmark(split_library: Path, tmp_path: Path) -> Path:
+def fixed_set(split_library: Path, tmp_path: Path) -> Path:
     """Two sequences of the test split, with every stream the card describes."""
-    out = tmp_path / "benchmark"
+    out = tmp_path / "fixed-set"
     generate_dataset(
         split_library,
         out,
@@ -470,15 +470,15 @@ def benchmark(split_library: Path, tmp_path: Path) -> Path:
     return out
 
 
-def test_fetching_a_packed_benchmark_gives_back_what_the_writer_wrote(
+def test_fetching_a_packed_fixed_set_gives_back_what_the_writer_wrote(
     split_library: Path,
-    benchmark: Path,
+    fixed_set: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     packed = tmp_path / "packed"
     hub.pack(split_library, packed, preview=False)
-    index = hub.pack_sequences(benchmark, packed)
+    index = hub.pack_sequences(fixed_set, packed)
     assert (index["items"], index["frames"], index["size"]) == (2, 3, 32)
     assert index["bokeh_strength"] == 16.0
     _hub(monkeypatch, packed)
@@ -486,16 +486,16 @@ def test_fetching_a_packed_benchmark_gives_back_what_the_writer_wrote(
     assert hub.fetch_sequences("someone/some-library", fetched) == []
 
     got = {k: v for k, v in _files(fetched).items() if not k.startswith(".fetched/")}
-    assert got == _files(benchmark)
+    assert got == _files(fixed_set)
     assert not list(fetched.glob("tmp*"))
 
 
 def test_a_sequence_is_one_sample_named_as_webdataset_names_one(
-    split_library: Path, benchmark: Path, tmp_path: Path
+    split_library: Path, fixed_set: Path, tmp_path: Path
 ) -> None:
     packed = tmp_path / "packed"
     hub.pack(split_library, packed, preview=False)
-    hub.pack_sequences(benchmark, packed)
+    hub.pack_sequences(fixed_set, packed)
     with tarfile.open(packed / "sequences" / "test-00000.tar") as tar:
         names = tar.getnames()
         record = json.load(tar.extractfile("0001.json"))
@@ -516,12 +516,12 @@ def test_a_sequence_is_one_sample_named_as_webdataset_names_one(
     assert [o["foreground"] for o in record["objects"]] == [TEST_FG]
 
 
-def test_the_card_describes_the_benchmark_when_there_is_one(
-    split_library: Path, benchmark: Path, tmp_path: Path
+def test_the_card_describes_the_fixed_set_when_there_is_one(
+    split_library: Path, fixed_set: Path, tmp_path: Path
 ) -> None:
     packed = tmp_path / "packed"
     hub.pack(split_library, packed, preview=False)
-    hub.pack_sequences(benchmark, packed)
+    hub.pack_sequences(fixed_set, packed)
     card = (packed / "README.md").read_text()
     assert _front_matter(card)["configs"][-1] == {
         "config_name": "sequences",
@@ -529,19 +529,19 @@ def test_the_card_describes_the_benchmark_when_there_is_one(
     }
     assert "$" not in card
     prose = " ".join(card.split())
-    assert "a benchmark of 2 sequences that Stage B wrote from the test split" in prose
-    assert "Each sequence has 3 frames at 32 × 32" in prose
+    assert "a fixed set of 2 sequences that Stage B wrote from the test split" in prose
+    assert "Each sequence has 3 frames at 32 × 32 and 1 to 1 objects" in prose
     assert "strength `k = 16`" in prose
     assert f"fetch-sequences --repo {hub.REPO}" in prose
     assert "sequences/test-00000.tar" in card
 
 
-def test_packing_a_benchmark_refuses_what_the_card_does_not_describe(
-    split_library: Path, benchmark: Path, tmp_path: Path
+def test_packing_a_fixed_set_refuses_what_the_card_does_not_describe(
+    split_library: Path, fixed_set: Path, tmp_path: Path
 ) -> None:
     packed = tmp_path / "packed"
     with pytest.raises(SystemExit, match="pack the library there first"):
-        hub.pack_sequences(benchmark, packed)
+        hub.pack_sequences(fixed_set, packed)
     hub.pack(split_library, packed, preview=False)
     train = tmp_path / "train-run"
     generate_dataset(split_library, train, 1, 3, 32, seed=0, n_objects_max=1)
@@ -555,15 +555,15 @@ def test_packing_a_benchmark_refuses_what_the_card_does_not_describe(
         hub.pack_sequences(partial, packed)
 
 
-def test_fetching_a_benchmark_writes_its_records_only_once_it_is_whole(
+def test_fetching_a_fixed_set_writes_its_records_only_once_it_is_whole(
     split_library: Path,
-    benchmark: Path,
+    fixed_set: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     packed = tmp_path / "packed"
     hub.pack(split_library, packed, preview=False)
-    hub.pack_sequences(benchmark, packed, shard_bytes=1)  # one sequence per shard
+    hub.pack_sequences(fixed_set, packed, shard_bytes=1)  # one sequence per shard
     held = tmp_path / "held" / "test-00001.tar"
     held.parent.mkdir()
     shutil.move(packed / "sequences" / "test-00001.tar", held)
@@ -576,7 +576,7 @@ def test_fetching_a_benchmark_writes_its_records_only_once_it_is_whole(
     shutil.move(held, packed / "sequences" / "test-00001.tar")
     assert hub.fetch_sequences("someone/some-library", fetched) == []
     assert (fetched / "manifest.csv").read_bytes() == (
-        benchmark / "manifest.csv"
+        fixed_set / "manifest.csv"
     ).read_bytes()
 
 
@@ -584,19 +584,78 @@ def test_fetching_a_benchmark_writes_its_records_only_once_it_is_whole(
     "name",
     ["../0001.all_in_focus.01.png", "0001.all_in_focus.01.exe", "0001.layers.01.png"],
 )
-def test_fetching_a_benchmark_refuses_a_member_it_did_not_pack(
+def test_fetching_a_fixed_set_refuses_a_member_it_did_not_pack(
     split_library: Path,
-    benchmark: Path,
+    fixed_set: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     name: str,
 ) -> None:
     packed = tmp_path / "packed"
     hub.pack(split_library, packed, preview=False)
-    hub.pack_sequences(benchmark, packed)
+    hub.pack_sequences(fixed_set, packed)
     with tarfile.open(packed / "sequences" / "test-00000.tar", "a") as tar:
         tar.addfile(tarfile.TarInfo(name), io.BytesIO(b""))
     _hub(monkeypatch, packed)
     with pytest.raises(SystemExit, match="unexpected member"):
         hub.fetch_sequences("someone/some-library", tmp_path / "fetched")
     assert not (tmp_path / "0001.all_in_focus.01.png").exists()
+
+
+def test_packing_a_fixed_set_checks_every_sequence_before_it_writes(
+    split_library: Path, fixed_set: Path, tmp_path: Path
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    (fixed_set / "sequences" / "0002" / "occlusion" / "01.png").unlink()
+    with pytest.raises(SystemExit, match="sequence 0002 holds other files than 0001"):
+        hub.pack_sequences(fixed_set, packed)
+    shutil.rmtree(fixed_set / "sequences" / "0002")
+    with pytest.raises(SystemExit, match="lists sequence 0002, which is not there"):
+        hub.pack_sequences(fixed_set, packed)
+    assert not (packed / "sequences").exists()  # refused before a shard was opened
+
+
+def test_fetching_a_fixed_set_refuses_a_link_member(
+    split_library: Path,
+    fixed_set: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    hub.pack_sequences(fixed_set, packed)
+    with tarfile.open(packed / "sequences" / "test-00000.tar", "a") as tar:
+        member = tarfile.TarInfo("0003.all_in_focus.01.png")
+        member.type, member.linkname = tarfile.SYMTYPE, "/etc/passwd"
+        tar.addfile(member)
+    _hub(monkeypatch, packed)
+    with pytest.raises(SystemExit, match="unexpected member"):
+        hub.fetch_sequences("someone/some-library", tmp_path / "fetched")
+    assert not (tmp_path / "fetched" / "sequences" / "0003").exists()
+
+
+def test_a_fetched_shard_is_marked_by_its_path_in_the_repository(
+    split_library: Path,
+    fixed_set: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Both kinds have a train-00000.tar, so a mark by file name alone would skip one.
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    hub.pack_sequences(fixed_set, packed)
+    _hub(monkeypatch, packed)
+    library, run = tmp_path / "library", tmp_path / "run"
+    hub.fetch("someone/some-library", library)
+    hub.fetch_sequences("someone/some-library", run)
+    assert sorted(p.name for p in (library / ".fetched").iterdir()) == [
+        "library-backgrounds-test-00000.tar.done",
+        "library-backgrounds-train-00000.tar.done",
+        "library-foregrounds-test-00000.tar.done",
+        "library-foregrounds-train-00000.tar.done",
+    ]
+    assert [p.name for p in (run / ".fetched").iterdir()] == [
+        "sequences-test-00000.tar.done"
+    ]
+    assert list_backgrounds(library) == ["testval__h_c", "train__h_a", "train__h_b"]

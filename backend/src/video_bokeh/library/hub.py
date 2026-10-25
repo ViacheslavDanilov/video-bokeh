@@ -1,4 +1,4 @@
-"""Publish a library and its benchmark on Hugging Face, and fetch both back to disk.
+"""Publish a library and its fixed set on Hugging Face, and fetch both back to disk.
 
 ``pack`` writes the files Stage B reads into tar shards of about ``--shard-gb`` each, one
 folder per kind under ``library/`` and one split per shard, as ``train-00000.tar`` and
@@ -15,7 +15,7 @@ The card describes a library built with Depth Anything V2 Large, so ``pack`` tak
 other. Its text is ``hub_card.md`` beside this file, with ``$name`` where ``card`` puts a
 number.
 
-``pack-sequences`` adds a benchmark that ``scenes.generate --split test`` wrote to a packed
+``pack-sequences`` adds a fixed set that ``scenes.generate --split test`` wrote to a packed
 folder: its sequences in shards under ``sequences/``, one sample per sequence, the run's
 records beside them and a card that describes it. ``fetch-sequences`` writes it back as
 ``scenes.generate`` wrote it.
@@ -26,7 +26,7 @@ given, and writes its card again, so a better example costs no packing.
 ``stage`` hard-links every ``--every``-th shard of each kind, the full index, the preview
 and a card that says how much is online into a folder of its own, for a first upload that
 is part of the library. The shards it takes are spread over each kind's train shards and
-then its test shards, and the benchmark stays out. ``--every 1``,
+then its test shards, and the fixed set stays out. ``--every 1``,
 or uploading the packed folder itself, gives the whole library and a card without the
 upload status.
 
@@ -51,7 +51,7 @@ not fetched again unless its mark is deleted:
         --repo-type dataset --exclude README.md
     hf upload vdanilov/video-bokeh data/library-staged/README.md README.md \
         --repo-type dataset
-    uv run python -m video_bokeh.library.hub pack-sequences --data-root data/benchmark \
+    uv run python -m video_bokeh.library.hub pack-sequences --data-root data/fixed-set \
         --packed data/library-packed
     hf upload-large-folder vdanilov/video-bokeh data/library-packed \
         --repo-type dataset --exclude README.md
@@ -60,7 +60,7 @@ not fetched again unless its mark is deleted:
     uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh \
         --output data/library/da2-large
     uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-bokeh \
-        --output data/benchmark
+        --output data/fixed-set
 
 Shards are plain tar: the images are PNG already, so compressing them again saves little.
 """
@@ -119,7 +119,7 @@ REPO = "vdanilov/video-bokeh"
 LIBRARY = "library"
 #: The index of the library's shards, whose file names are relative to ``LIBRARY``.
 INDEX = f"{LIBRARY}/index.json"
-#: The repository's folder of benchmark sequences, its index, and the records of the run
+#: The repository's folder of the fixed set's sequences, its index, and the records of the run
 #: that wrote them, which sit beside the index.
 SEQUENCES = "sequences"
 SEQUENCE_INDEX = f"{SEQUENCES}/index.json"
@@ -170,21 +170,21 @@ again later, and it downloads only those.
 """)
 
 
-#: The card's subset of benchmark sequences, in its front matter.
+#: The card's subset of the fixed set's sequences, in its front matter.
 SEQUENCES_CONFIG = f"""- config_name: {SEQUENCES}
   data_files:
   - split: test
     path: "{SEQUENCES}/test-*.tar"
 """
 
-#: What the card says of the benchmark, when the repository holds one.
-BENCHMARK = Template("""
-## Benchmark
+#: What the card says of the fixed set, when the repository holds one.
+FIXED_SET = Template("""
+## Fixed set
 
-**`sequences/` holds $sequences sequences that Stage B wrote from the test split alone,** so
-a network trained on the train split has seen none of their objects or backgrounds. Each
-sequence has $frames frames at $size × $size and 1 to 5 objects. In all they take $seq_gb GB
-in $seq_shards shards.
+**`sequences/` holds $sequences sequences that Stage B wrote once from the test split alone,**
+for evaluation: a network trained on the train split has seen none of their objects or
+backgrounds. Each sequence has $frames frames at $size × $size and $objects_min to $objects_max
+objects. In all they take $seq_gb GB in $seq_shards shards.
 
 | stream | one file per | what a pixel holds |
 |---|---|---|
@@ -215,11 +215,11 @@ in $seq_shards shards.
 
 ```bash
 uv run python -m video_bokeh.library.hub fetch-sequences --repo $repo \\
-  --output data/benchmark
+  --output data/fixed-set
 ```
 
 ```text
-data/benchmark/
+data/fixed-set/
 ├── manifest.csv, objects.csv, run.json
 └── sequences/<id>/
     ├── all_in_focus/, disparity/, alpha/, bokeh/ (with focus.json)
@@ -227,9 +227,12 @@ data/benchmark/
 ```
 
 A shard holds one sample per sequence: its files are `<id>.<stream>.<frame>`, with
-`<id>.focus.json` for its focus and `<id>.json` for its rows of the records. The `datasets`
-library streams them as the `sequences` subset, one row per sequence and a column per file.
-The code repository's
+`<id>.focus.json` for its focus and `<id>.json` for its rows of the records, their values
+kept as the CSV files write them. The `datasets` library streams them as the `sequences`
+subset, one row per sequence and a column per file. Its first row comes only after it has
+read a few whole sequences to learn the columns. It opens every image with Pillow, which
+reads a flow file as 8-bit color and an alpha file's first page alone, so `fetch-sequences`
+is the way to get the streams whole. The code repository's
 [dataset layout](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/docs/reference/dataset-layout.md)
 describes every stream in full.
 """)
@@ -430,11 +433,11 @@ def card(
     With ``preview``, the card shows the figure at ``PREVIEW`` and the video at ``VIDEO``.
     With ``online``, the shard files the repository holds so far, it opens with how much of
     the library they are. With ``sequences``, the index ``pack_sequences`` writes, it
-    describes the benchmark too.
+    describes the fixed set too.
     """
     shards = {kind: index[kind]["shards"] for kind in (FOREGROUNDS, BACKGROUNDS)}
     all_shards = [s for kind in shards for s in shards[kind]]
-    in_split = {
+    counts = {
         (kind, split): sum(s["items"] for s in shards[kind] if s["split"] == split)
         for kind in shards
         for split in (TRAIN, TEST)
@@ -458,7 +461,7 @@ def card(
         for kind in (FOREGROUNDS, BACKGROUNDS)
         for line in _shard_lines(f"{LIBRARY}/{kind}", shards[kind])
     ]
-    benchmark = config = intro = ""
+    fixed_set = config = intro = ""
     if sequences is not None:
         seq_shards = sequences["shards"]
         layout += [
@@ -468,15 +471,17 @@ def card(
         ]
         config = SEQUENCES_CONFIG
         intro = (
-            f", and under `{SEQUENCES}/` a benchmark of {sequences['items']:,} sequences "
+            f", and under `{SEQUENCES}/` a fixed set of {sequences['items']:,} sequences "
             "that Stage B wrote from the test split"
         )
-        benchmark = BENCHMARK.substitute(
+        fixed_set = FIXED_SET.substitute(
             repo=repo,
             sequences=f"{sequences['items']:,}",
             frames=sequences["frames"],
             size=sequences["size"],
             strength=f"{sequences['bokeh_strength']:g}",
+            objects_min=sequences["objects"][0],
+            objects_max=sequences["objects"][1],
             seq_shards=len(seq_shards),
             seq_gb=_gb(sum(s["bytes"] for s in seq_shards)),
         )
@@ -487,14 +492,14 @@ def card(
         status=status,
         sequences_config=config,
         sequences_intro=intro,
-        benchmark=benchmark,
+        fixed_set=fixed_set,
         layout="\n".join(layout),
         foregrounds=f"{index[FOREGROUNDS]['items']:,}",
         backgrounds=f"{index[BACKGROUNDS]['items']:,}",
-        fg_train=f"{in_split[FOREGROUNDS, TRAIN]:,}",
-        fg_test=f"{in_split[FOREGROUNDS, TEST]:,}",
-        bg_train=f"{in_split[BACKGROUNDS, TRAIN]:,}",
-        bg_test=f"{in_split[BACKGROUNDS, TEST]:,}",
+        fg_train=f"{counts[FOREGROUNDS, TRAIN]:,}",
+        fg_test=f"{counts[FOREGROUNDS, TEST]:,}",
+        bg_train=f"{counts[BACKGROUNDS, TRAIN]:,}",
+        bg_test=f"{counts[BACKGROUNDS, TEST]:,}",
         fg_side=index[FOREGROUNDS]["side"],
         bg_side=index[BACKGROUNDS]["side"],
         fg_shards=len(shards[FOREGROUNDS]),
@@ -616,10 +621,10 @@ def pack_sequences(
     shard_bytes: int = SHARD_BYTES,
     repo: str = REPO,
 ) -> dict[str, Any]:
-    """Write the benchmark that ``scenes.generate`` wrote in ``data_root`` into ``packed``.
+    """Write the fixed set that ``scenes.generate`` wrote in ``data_root`` into ``packed``.
 
     ``packed`` is a library ``pack`` wrote. Its ``sequences/`` gets the shards, the index
-    and the run's records, and its card is written again with the benchmark in it. A shard
+    and the run's records, and its card is written again with the fixed set in it. A shard
     holds whole sequences, one sample each: every file of sequence ``0001`` is a member
     ``0001.<stream>.<frame>``, with ``0001.focus.json`` for its bokeh's focus and
     ``0001.json`` for its row of ``manifest.csv`` and its rows of ``objects.csv``.
@@ -633,31 +638,45 @@ def pack_sequences(
     if split != TEST:
         raise SystemExit(
             f"{data_root} drew its assets from {split or 'every asset'}: the card "
-            "describes a benchmark of test assets"
+            "describes a fixed set of test assets"
         )
     out = packed / SEQUENCES
     if out.exists() and any(out.iterdir()):
         raise SystemExit(
             f"{out} is not empty: pack_sequences writes into an empty folder"
         )
-    out.mkdir(parents=True, exist_ok=True)
     rows = _read_csv(data_root / "manifest.csv")
     objects = _read_csv(data_root / "objects.csv")
-    shards: list[dict[str, Any]] = []
-    layout: list[str] | None = None
-    tar: tarfile.TarFile | None = None
-    size = 0
+    if not rows:
+        raise SystemExit(f"{data_root} wrote no sequences")
+    # Every sequence is checked before a byte is written, so a refused run costs no copy.
+    sequences: list[tuple[str, list[tuple[str, Path]]]] = []
     for row in rows:
         seq_id = row["seq_id"]
+        if not (data_root / "sequences" / seq_id).is_dir():
+            raise SystemExit(
+                f"manifest.csv lists sequence {seq_id}, which is not there"
+            )
         members = _sequence_members(data_root / "sequences" / seq_id, seq_id)
-        names = [name.partition(".")[2] for name, _ in members]
-        if layout is None:
-            layout = names
-        elif names != layout:
+        sequences.append((seq_id, members))
+    layout = [name.partition(".")[2] for name, _ in sequences[0][1]]
+    streams = {name.split(".")[0] for name in layout}
+    if lacking := [s for s in (*STREAMS, "focus") if s not in streams]:
+        raise SystemExit(
+            f"{data_root} has no {', '.join(lacking)}: the card describes a fixed set "
+            "written with --bokeh --flow --flow-back --occlusion"
+        )
+    for seq_id, members in sequences[1:]:
+        if [name.partition(".")[2] for name, _ in members] != layout:
             raise SystemExit(
                 f"sequence {seq_id} holds other files than {rows[0]['seq_id']}: every "
                 "sample of a WebDataset subset must hold the same ones"
             )
+    out.mkdir(parents=True, exist_ok=True)
+    shards: list[dict[str, Any]] = []
+    tar: tarfile.TarFile | None = None
+    size = 0
+    for row, (seq_id, members) in zip(rows, sequences, strict=True):
         if tar is None or size >= shard_bytes:
             if tar is not None:
                 tar.close()
@@ -682,16 +701,12 @@ def pack_sequences(
         tar.close()
     for shard in shards:
         shard["bytes"] = (out / shard["file"]).stat().st_size
-    streams = {n.split(".")[0] for n in layout or []}
-    if lacking := [s for s in (*STREAMS, "focus") if s not in streams]:
-        raise SystemExit(
-            f"{data_root} has no {', '.join(lacking)}: the card describes a benchmark "
-            "written with --bokeh --flow --flow-back --occlusion"
-        )
+    placed = [int(row["n_objects"]) for row in rows]
     index = {
         "items": len(rows),
-        "frames": int(rows[0]["n_frames"]) if rows else 0,
-        "size": int(rows[0]["size"]) if rows else 0,
+        "frames": int(rows[0]["n_frames"]),
+        "size": int(rows[0]["size"]),
+        "objects": [min(placed), max(placed)],
         "streams": list(STREAMS),
         "bokeh_strength": flags["bokeh_strength"],
         "shards": shards,
@@ -743,11 +758,11 @@ def _unpack_sequences(tar: tarfile.TarFile, sequences_root: Path) -> None:
 
 
 def fetch_sequences(repo: str, output: Path, revision: str | None = None) -> list[str]:
-    """Download the benchmark of ``repo`` into ``output``, as ``scenes.generate`` wrote it.
+    """Download the fixed set of ``repo`` into ``output``, as ``scenes.generate`` wrote it.
 
     The shards are fetched and unpacked one at a time, as ``fetch`` does, and marked in
     ``output/.fetched``. The run's records come last, ``manifest.csv`` after the others,
-    and only once every shard is in, so a ``manifest.csv`` marks a whole benchmark as it
+    and only once every shard is in, so a ``manifest.csv`` marks a whole fixed set as it
     marks a finished run. Return the shards that the index lists and the repository does
     not hold yet.
     """
@@ -775,7 +790,8 @@ def fetch_sequences(repo: str, output: Path, revision: str | None = None) -> lis
             done.touch()
         if not missing:
             for record_name in RECORDS:
-                shutil.copyfile(
+                # Moved in whole, so a crash never leaves a partial manifest.csv behind.
+                os.replace(
                     download(f"{SEQUENCES}/{record_name}", folder), output / record_name
                 )
     return missing
@@ -822,7 +838,7 @@ def main(argv: list[str] | None = None) -> int:
     staging.add_argument("--repo", default=REPO, help="named in the card's commands")
     sequencing = commands.add_parser(
         "pack-sequences",
-        help="add a benchmark that scenes.generate wrote to a packed library",
+        help="add a fixed set that scenes.generate wrote to a packed library",
     )
     sequencing.add_argument(
         "--data-root", type=Path, required=True, help="the run scenes.generate wrote"
@@ -843,7 +859,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     fetching.add_argument("--revision", default=None)
     fetching_sequences = commands.add_parser(
-        "fetch-sequences", help="download the benchmark and unpack it"
+        "fetch-sequences", help="download the fixed set and unpack it"
     )
     fetching_sequences.add_argument(
         "--repo", required=True, help="a Hugging Face dataset repository"
@@ -880,7 +896,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"sequences: {index['items']} items in {len(index['shards'])} shards")
     elif args.command == "fetch-sequences":
         missing = fetch_sequences(args.repo, args.output, args.revision)
-        print(f"Benchmark in {args.output}")
+        print(f"Fixed set in {args.output}")
         if missing:
             print(
                 f"{len(missing)} shards are not in the repository yet; fetch again later"

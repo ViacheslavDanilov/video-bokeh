@@ -39,7 +39,8 @@ $sequences_config---
 The data of the [video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh) project,
 for training depth-aware bokeh on video. This repository holds its library under
 `library/`: $foregrounds foregrounds, which are cut-out objects, and $backgrounds background
-photos, each with a disparity map$sequences_intro. The project's code works in two stages. Stage A built
+photos, each with a disparity map$sequences_intro.
+The project's code works in two stages. Stage A built
 this library once, from MAGICK and BG-20k images and Depth Anything V2 Large. Stage B
 composes training sequences from it, moving the foregrounds over a background at
 disparities it assigns, so the mattes, disparity and bokeh of every frame match the frame
@@ -55,14 +56,14 @@ $preview$status
 | tar shards | $fg_shards | $bg_shards |
 | size | $fg_gb GB | $bg_gb GB |
 
-- **$shards shards, $total_gb GB in all.** The largest shard is $largest_gb GB.
+- **The library's $shards shards hold $total_gb GB in all.** The largest shard is $largest_gb GB.
 - **`depth.png` holds disparity.** Larger values are closer.
 - **One estimator.** Every map comes from Depth Anything V2 Large.
 
 ## Train and test
 
 **Every item is in one of two splits.** A network trains on the train split. The test split
-is held out, so a benchmark made of it shows objects and backgrounds the network never saw.
+is held out, so sequences made of it show a network objects and backgrounds it never saw.
 
 | | train | test | how they were split |
 |---|---|---|---|
@@ -147,7 +148,7 @@ foregrounds = load_dataset("$repo", "foregrounds", split="train", streaming=True
 item = next(iter(foregrounds))
 # keys: rgb.png, alpha.png, depth.png, depth_preview.jpg, json, __key__ (the id), __url__
 ```
-$benchmark
+$fixed_set
 ## Repository layout
 
 ```text
