@@ -57,10 +57,10 @@ depth models run in this process. The runner is `docker` when this user can reac
 that has that runtime, and `local` otherwise. A shell opened before joining the `docker`
 group gets `local`. The log's header says which ran, and `VIDEO_BOKEH_RUNNER` picks one
 outright. Under `docker` the run checks for the image before anything long starts, and names
-`make images` when it is missing. On the RTX 5090 on 2026-10-07, with `COUNT=2 FRAMES=24`,
-any-to-bokeh still rendering the bokeh in a step of its own and each depth model in an image
-of its own, the whole run took 15 minutes under `docker`: 62 to 90 s per library, and the
-device check's peak memory matched the venv run's for every estimator.
+`make images` when it is missing. On the RTX 5090, with `COUNT=2 FRAMES=24`, any-to-bokeh
+still rendering the bokeh in a step of its own and each depth model in an image of its own,
+the whole run took 15 minutes under `docker`: 62 to 90 s per library, and the device check's
+peak memory matched the venv run's for every estimator.
 
 **One estimator failing does not stop the others.** A library that does not build is named in
 the summary, its estimator gets no sequences, and the rest go on. The run then exits 1. The
@@ -128,7 +128,7 @@ The script's own bokeh is in the MP4s from step 4: each sequence under
 ## What has not run yet
 
 - The script with `--bokeh` in step 3. Its earlier shape, with any-to-bokeh rendering the
-  bokeh in a step of its own, ran on an RTX 5090 on 2026-10-07.
+  bokeh in a step of its own, ran on an RTX 5090.
 - The script over every depth estimator. Only `da2-small` has gone through it. Every other
   checkpoint was already cached on the Apple machine but `da3-metric-large`, 1.2 GiB, which
   stays off it to spare its memory.

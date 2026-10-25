@@ -29,12 +29,12 @@ flag, see [cli](../reference/cli.md). For why the pipeline is shaped this way, s
 
 If `data/library_dev/da2-large/` already holds `foregrounds/` and `backgrounds/`, as `make
 libraries` leaves it, Stage A is done and you can skip to Stage B. Built with the default class
-filter from the pools as of 2026-10-01, it holds 17 foregrounds and 30 backgrounds, and 30 and
-30 with the filter off. Either is enough for every recipe below.
+filter from the tracked dev pools, it holds 17 foregrounds and 30 backgrounds, and 30 and 30
+with the filter off. Either is enough for every recipe below.
 
 ### How the dev pools were grown to 30 and 30
 
-On 2026-10-01, from `backend/`, keeping the 20 of each that were there:
+From `backend/`, keeping the 20 of each that were there:
 
 1. `uv run --extra acquire python -m video_bokeh.acquire.magick --metadata data/magick_metadata.csv --output data/magick_dev --count 30 --seed 11`
    downloads ten foregrounds. Seed 11 drew the first twenty, and a larger count keeps them,
@@ -222,11 +222,10 @@ uv run python -m video_bokeh.scenes.generate \
   --count 3 --frames 80 --size 512 --seed 0 --flow
 ```
 
-With the old PNG compression default, level 6, it took 20 s on an Apple M3 Pro on
-2026-10-10, against 14 s for the same three sequences without `--flow`. Each sequence's
-`flow/` held 79 files, 2.2 to 3.5 MiB in all. The writer now uses level 3. On a 512 px,
-seed 3 sequence measured on 2026-10-12, it saved 26.6% of writer time and used 2.67 MiB
-instead of 1.71 MiB, with identical decoded pixels.
+With the old PNG compression default, level 6, it took 20 s on an Apple M3 Pro, against
+14 s for the same three sequences without `--flow`. Each sequence's `flow/` held 79 files,
+2.2 to 3.5 MiB in all. The writer now uses level 3. On a 512 px sequence, it saved 26.6% of
+writer time and used 2.67 MiB instead of 1.71 MiB, with identical decoded pixels.
 [dataset-layout](../reference/dataset-layout.md#the-flow-stream--optional) has the format and
 the compression measurements. The earlier total generation timings have not been remeasured.
 
@@ -293,7 +292,7 @@ uv run python -m video_bokeh.scenes.generate \
   --count 2 --frames 24 --size 512 --seed 0 --bokeh
 ```
 
-It took 7 s on an Apple M3 Pro, on 2026-10-10.
+It took 7 s on an Apple M3 Pro.
 
 **The renderer can also draw the bokeh again over sequences already written**, from the layers
 Stage B wrote with `--layers`. This step is optional:
@@ -306,7 +305,7 @@ uv run --extra render python -m video_bokeh.render.run --data-root data/demo_lay
   --renderer layered
 ```
 
-The render took 3 s on an Apple M3 Pro, on 2026-10-10.
+The render took 3 s on an Apple M3 Pro.
 
 ---
 

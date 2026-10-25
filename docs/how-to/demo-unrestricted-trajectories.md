@@ -24,8 +24,8 @@ gitignored. To produce a dataset in the first place, see
 
 You need the artifact library at `backend/data/library_dev/da2-large/`, holding
 `foregrounds/` and `backgrounds/`. `make libraries` leaves it there, and Stage A in
-[generate-a-dataset](generate-a-dataset.md) builds it alone. Built from the pools as of
-2026-10-01 it holds 17 foregrounds and 30 backgrounds, and 30 and 30 with the class filter off;
+[generate-a-dataset](generate-a-dataset.md) builds it alone. Built from the tracked dev
+pools, it holds 17 foregrounds and 30 backgrounds, and 30 and 30 with the class filter off;
 either is enough for every recipe here.
 
 ---
@@ -81,8 +81,8 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 - Paint order is recomputed per frame, so a pair that swaps depth also swaps which one
   occludes the other. Expect to see it at three objects.
 
-Measured before 2026-10-01 on a library of 12 foregrounds and 20 backgrounds, 12 sequences per
-count at 40 frames and size 256:
+Measured on an earlier library of 12 foregrounds and 20 backgrounds, 12 sequences per count
+at 40 frames and size 256:
 
 | objects | slot width | skipped | mean rejections | sec/sequence |
 |---|---|---|---|---|

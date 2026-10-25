@@ -62,18 +62,18 @@ the next section says. `da3-metric-large` has not run yet; the lab machine runs 
 The `da2-*` and `depth-pro` run in this process, in the environment the `library` extra
 installs, under every runner: they need no environment of their own.
 
-Until 2026-10-15 they could also run in Docker images of their own at `uv.lock`'s versions. On
-the RTX 5090 on 2026-10-07 the libraries those built took 61 s for `da2-small` and 89 s for
-`depth-pro`. Against the in-process libraries, Depth Pro's 60 depth maps were identical and
-`da2-small`'s at most 0.002% of the range apart, so the images added nothing and were dropped.
+They could once also run in Docker images of their own at `uv.lock`'s versions. On the
+RTX 5090 the libraries those built took 61 s for `da2-small` and 89 s for `depth-pro`.
+Against the in-process libraries, Depth Pro's 60 depth maps were identical and `da2-small`'s
+at most 0.002% of the range apart, so the images added nothing and were dropped.
 
 **Depth Anything 3's other checkpoints are left out on purpose.** Small, Base and Large are
 multi-view models, which estimate depth from several views of one scene at once. Their output
 has no sky estimate, so the package never sets a sky to the far end, and where a sky lands is
-up to the image. Small and Base, run on the 20 dev backgrounds on 2026-10-01, agreed with
-`da2-large` at medians of 0.75 and 0.81, but on `testval__h_7b2a0862`, a background with sky,
-at 0.10 and 0.02, where `da3-mono-large` holds 0.96. A dataset cannot leave its skies to the
-image. Large 1.0 and Giant are CC BY-NC 4.0 besides.
+up to the image. Small and Base, run on 20 of the dev backgrounds, agreed with `da2-large` at
+medians of 0.75 and 0.81, but on `testval__h_7b2a0862`, a background with sky, at 0.10 and
+0.02, where `da3-mono-large` holds 0.96. A dataset cannot leave its skies to the image. Large
+1.0 and Giant are CC BY-NC 4.0 besides.
 
 ### Depth Anything 3's own environment
 
@@ -93,8 +93,8 @@ whose own OpenMP runtime clashes with torch's. To use a venv somewhere else, set
 asset is processed and names the script.
 
 `VIDEO_BOKEH_RUNNER=docker` runs the worker in the `video-bokeh-da3` image instead, which
-`make images` builds with the same packages; nothing else changes. On the RTX 5090 on 2026-10-07
-a Mono-Large library from the dev pools took 56 s that way, and its depth maps matched the venv's
+`make images` builds with the same packages; nothing else changes. On the RTX 5090 a
+Mono-Large library from the dev pools took 56 s that way, and its depth maps matched the venv's
 to 0.003% of the range on average over 47 assets, 0.12% at the worst pixel.
 
 Mono-Large's weights, 1.34 GB, download on first use, and Metric-Large's are the same size.
@@ -165,7 +165,7 @@ Without `--model`, `--measure` loads every registered estimator and so downloads
 cached: 5.97 GiB of checkpoints from scratch, by the Hub's metadata on 2026-10-01. On a machine
 short of disk or memory, name the ones to measure.
 
-Measured on an Apple M3 Pro on 2026-10-01:
+Measured on an Apple M3 Pro:
 
 ```
 Device: mps, 36.0 GiB of system memory, shared with the CPU
@@ -356,9 +356,9 @@ the object, each frame's in-focus disparity, the renderer and its strength.
 explains. It reads `layers/`, `alpha/` and `disparity/` and writes `bokeh/` losslessly. It
 refuses the whole batch, before rendering any, when a sequence has no complete `layers/`. It
 runs on the CPU unless `VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the
-CPU when that device is not there. On the lab machine on 2026-10-10, an 80-frame sequence at 512
-pixels took 13 s on its 24 CPU cores and 6 s on the RTX 5090. At 1024 pixels it took 40 s and
-20 s. Most of the time on the GPU is reading the layers and writing the PNGs.
+CPU when that device is not there. On the lab machine, an 80-frame sequence at 512 pixels
+took 13 s on its 24 CPU cores and 6 s on the RTX 5090. At 1024 pixels it took 40 s and 20 s.
+Most of the time on the GPU is reading the layers and writing the PNGs.
 
 ### Your own renderer
 
@@ -388,9 +388,9 @@ lossless H.264 at CRF 0, which uses the High 4:4:4 Predictive profile even with
 [`dom/media/platforms/PDMFactory.cpp`](https://raw.githubusercontent.com/mozilla-firefox/firefox/main/dom/media/platforms/PDMFactory.cpp)
 specifies. Firefox playback was not tested here.
 
-On an Apple M3 Pro on 2026-10-12, one 80-frame, 512 × 512 sequence from `da2-large`,
-seed 3, with one object gave the results below. Encoding times include frame loading and
-preview coloring. Each time is the median of three runs at 24 fps, using imageio's
+On an Apple M3 Pro, one 80-frame, 512 × 512 sequence from `da2-large` with one object
+gave the results below. Encoding times include frame loading and preview coloring. Each
+time is the median of three runs at 24 fps, using imageio's
 FFmpeg 7.1 and libx264. PSNR (peak signal-to-noise ratio) compares decoded RGB with the
 RGB frames passed to the encoder, over all pixels and frames. Higher is better.
 

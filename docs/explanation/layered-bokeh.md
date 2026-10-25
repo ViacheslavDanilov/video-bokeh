@@ -11,9 +11,8 @@ Our layer-wise renderer blurs each layer of a frame on its own, by how far it is
 focus, and then stacks the blurred layers back together. It is a classical algorithm in
 PyTorch, and it runs on a CPU, an NVIDIA card or a Mac's GPU.
 
-- **Decision, 2026-10-09:** this renderer replaces any-to-bokeh as the source of the
-  dataset's bokeh. It follows the 2026-10-08 sync. On 2026-10-15 any-to-bokeh left the
-  pipeline altogether; comparing the two is a task of its own.
+- **Decision:** this renderer replaces any-to-bokeh as the source of the dataset's bokeh.
+  any-to-bokeh has since left the pipeline altogether; comparing the two is a task of its own.
 
 This page explains the method.
 [0002-layers-are-stored-not-regenerated](../adr/0002-layers-are-stored-not-regenerated.md)
@@ -81,8 +80,8 @@ radii still mean more bins and more padding.
 
 ## Speed
 
-Measured on 2026-10-10 on real layers from the development library, 1 to 5 objects, strength
-16, in milliseconds per frame:
+Measured on real layers from the development library, 1 to 5 objects, strength 16, in
+milliseconds per frame:
 
 | device | 512 pixels | 1024 pixels |
 |---|---|---|

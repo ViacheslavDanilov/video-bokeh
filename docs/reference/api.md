@@ -12,10 +12,9 @@ from whichever library a request names.
 
 **A generated sequence comes with its bokeh, when torch is installed.** The API renders it in
 the same request with the layered renderer, so `POST /sequences` takes longer: on an Apple M3
-Pro on 2026-10-11, 80 frames at 512 pixels with four to five objects, seeds 0 to 2, took 8 to
-14 s without bokeh and 16 to 25 s with it, optical flow included in both. A sequence cached
-without bokeh gets it when it is asked for again. Without torch, as in the API's own
-install, sequences come without bokeh.
+Pro, 80 frames at 512 pixels with four to five objects took 8 to 14 s without bokeh and 16 to
+25 s with it, optical flow included in both. A sequence cached without bokeh gets it when it is
+asked for again. Without torch, as in the API's own install, sequences come without bokeh.
 
 Interactive docs are at `/docs` when the server is running.
 
@@ -211,8 +210,8 @@ backward flow and the occlusion mask. Generation writes `flow/`, `flow_back/` an
 `occlusion/` in the same pass as the frames. A cached sequence generated before that gets the
 ones it lacks on its next request, in one pass, each whole or not at all.
 
-Writing the flow costs about 40% more time. Measured on an Apple M3 Pro on 2026-10-11,
-80 frames, four objects, without bokeh, each pair back to back:
+Writing the flow costs about 40% more time. Measured on an Apple M3 Pro, 80 frames, four
+objects, without bokeh, each pair back to back:
 
 | Size | Without flow | With flow |
 |---|---|---|
@@ -223,7 +222,7 @@ With bokeh, 80 frames at 1024 px took 61.1 s without flow and 67.9 s with it. Th
 from 4.67 to 4.68 GiB, set by the bokeh pass after the frames are freed.
 
 The backward flow and the occlusion mask cost about another third. Measured on the same
-machine on 2026-10-20, 80 frames, four objects, without bokeh, each pair back to back:
+machine, 80 frames, four objects, without bokeh, each pair back to back:
 
 | Size | Seeds | Forward flow only | All three motion streams |
 |---|---|---|---|
@@ -261,8 +260,7 @@ yet, because the API rendered no bokeh, names the strength the request asked for
 and leaves its bokeh as it was. Only a renderer of one's own that needs no layers could.
 
 The cap of 64 is four times the default, because a wider blur takes longer to render and the
-call blocks while it renders. Measured on an Apple M3 Pro on 2026-10-22, with the bokeh on the
-CPU:
+call blocks while it renders. Measured on an Apple M3 Pro, with the bokeh on the CPU:
 
 | Shape | Seeds | At 16 | At 64 |
 |---|---|---|---|
@@ -275,9 +273,9 @@ process for each strength, so the peak is that generation's own.
 `cached` says whether this request generated the sequence or found it. A cache hit answers at
 once, 0.02 s over HTTP in the table below, unless it adds what a cached sequence lacks. For 80
 frames at 512 px with four to five objects on an Apple M3 Pro, adding the bokeh took 16 to
-19 s on 2026-10-10, and adding the flow 6 to 12 s on 2026-10-11, seeds 0 to 2.
+19 s, and adding the flow 6 to 12 s.
 
-**Without NDJSON, the call blocks while it generates.** Measured on 2026-09-24, before
+**Without NDJSON, the call blocks while it generates.** Measured before the API rendered
 bokeh, at size 512 with four to five objects per sequence:
 
 | Where | 24 frames | 80 frames | cache hit |
@@ -441,16 +439,16 @@ concurrent generation leaves nothing half-written behind.
 Deliberate, and worth knowing before the library or the audience grows.
 
 **Nothing evicts `sequences/`.** It grows until someone deletes it. Storage depends on the
-scene and optional streams. The one-object, 80-frame, 512 px sequence measured on 2026-10-12
-used 27,593,374 bytes for `all_in_focus`, `alpha` and `disparity` frames, plus 749,666 bytes
-for their CRF 17 MP4s. Bokeh, flow and layers add to that. Deleting the directory is safe: every
-sequence is reproducible from its library, its seed and the settings its request named, which
+scene and optional streams. A one-object, 80-frame, 512 px sequence used about 26 MiB for
+`all_in_focus`, `alpha` and `disparity` frames, plus about 0.7 MiB for their CRF 17 MP4s.
+Bokeh, flow and layers add to that. Deleting the directory is safe: every sequence is
+reproducible from its library, its seed and the settings its request named, which
 `sequence.json` records. That is the same reason [dataset-layout](dataset-layout.md) treats
 frames as disposable and the library as the thing to keep.
 
 **Each bokeh strength asked for stores a whole sequence.** k names the sequence, so a second k
-writes every stream again, not only `bokeh/`. Measured on 2026-10-22 from the `da2-large` dev
-library, a fresh sequence with its bokeh and all three motion streams, before any MP4:
+writes every stream again, not only `bokeh/`. Measured from the `da2-large` dev library, a
+fresh sequence with its bokeh and all three motion streams, before any MP4:
 
 | Shape | Seeds | Bytes on disk |
 |---|---|---|
