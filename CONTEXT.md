@@ -30,6 +30,12 @@ A library is built by exactly one depth estimator, so comparing depth estimators
 comparing libraries.
 _Avoid_: artifact library, asset store, cache
 
+**Split**:
+Which of two disjoint parts of the library an asset is in: train, the assets a network may
+train on, or test, the ones the benchmark is made of. Backgrounds follow BG-20k's own split,
+and the test foregrounds are a tracked list.
+_Avoid_: partition, fold, held-out set
+
 **Depth estimator**:
 Any model behind Stage A's interface that turns an asset into one disparity map — Depth
 Anything V2 by default, Depth Pro, or one of the user's own. With depth motion, one of the
