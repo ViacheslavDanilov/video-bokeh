@@ -30,6 +30,7 @@ from video_bokeh.core._library import (
     load_background,
     load_foreground,
 )
+from video_bokeh.core._split import ALL
 from video_bokeh.preview._colormap import apply_colormap
 
 #: Side of a foreground's panel, the gap between panels, a card's padding, the gap between
@@ -327,6 +328,8 @@ def _sequence(library_root: Path, seed: int) -> Iterator[list[np.ndarray]]:
         n_objects_max=4,
         seed=seed,
         streams=("rgb", "disparity", "object_alphas", "bokeh", "flow", "occlusion"),
+        # The card's seeds were picked before the library had splits, from every asset.
+        split=ALL,
     )
     item = next(iter(stream))
     if item["seed"] != seed:
