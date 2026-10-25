@@ -49,6 +49,9 @@ object in focus, its background, the side of that background, and the contrast a
 ``plain``, ``hard``, ``hair``, ``fire``, ``smoke`` and ``fine`` beside ``sequences`` are data
 roots whose sequences link to their own, so that ``score.py`` and ``summary.py`` can report
 each subset apart without rendering it again.
+
+Every sequence draws from all of the library's assets, train and test, because the set was
+drawn before the library had splits and its seeds name those scenes only under `all`.
 """
 
 from __future__ import annotations
@@ -73,6 +76,7 @@ from video_bokeh.core._library import (
     FOREGROUNDS,
     list_backgrounds,
 )
+from video_bokeh.core._split import ALL
 from video_bokeh.core._streams import read_alpha_tiff, read_paint_order
 from video_bokeh.scenes.generate import generate_dataset
 
@@ -262,6 +266,9 @@ def build(
             n_objects_max=n_objects_max,
             layers=True,
             bokeh=True,
+            # The published set was drawn before the library had splits, from every
+            # asset, so its seeds name those scenes only in `all`.
+            split=ALL,
         ):
             return None
         header, rows = _read_rows(staging / "manifest.csv")

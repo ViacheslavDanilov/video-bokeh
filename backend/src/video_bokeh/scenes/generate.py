@@ -14,7 +14,9 @@
         ├── flow_back/<frame>.png      with --flow-back: backward optical flow, the same
         └── occlusion/<frame>.png      with --occlusion: not visible next frame, 8-bit
 
-Disparity is sampled and transformed from the library, not estimated per frame.
+Disparity is sampled and transformed from the library, not estimated per frame. The
+scenes draw their assets from the train split unless ``--split`` names another; the
+fixed set is written with ``--split test``.
 
 Usage:
     uv run python -m video_bokeh.scenes.generate \\
@@ -46,6 +48,7 @@ from PIL import Image
 
 from video_bokeh.core._focus import FrameFocus, focus_seed, focus_track, frame_focus
 from video_bokeh.core._sequence_geometry import EASING_FNS, SampleConfig
+from video_bokeh.core._split import SPLITS, TRAIN
 from video_bokeh.core._streams import (
     BOKEH_STRENGTH,
     quantize_alpha,
@@ -190,8 +193,9 @@ def sample_sequence(
     n_objects_min: int,
     n_objects_max: int,
     cfg: SampleConfig | None = None,
+    split: str = TRAIN,
 ) -> Scene:
-    """The scene a seed and these settings name.
+    """The scene a seed and these settings name, from the assets of ``split``.
 
     The dataset writer, the API and the training stream all sample through here, so
     the same seed and settings give the same scene wherever it is made. Raises
@@ -204,6 +208,7 @@ def sample_sequence(
         size=size,
         n_objects=sample_n_objects(seed, n_objects_min, n_objects_max),
         cfg=cfg,
+        split=split,
     )
 
 
@@ -432,8 +437,12 @@ def generate_dataset(
     flow: bool = False,
     flow_back: bool = False,
     occlusion: bool = False,
+    split: str = TRAIN,
 ) -> int:
     """Write ``count`` sequences and return how many were actually written.
+
+    The scenes draw their assets from ``split``: ``train``, the assets training sees,
+    ``test``, the ones it does not, or ``all``.
 
     With ``bokeh``, each sequence's bokeh is rendered in the same run, from the layers
     held in memory; ``layers`` decides separately whether they are written too. With
@@ -471,6 +480,7 @@ def generate_dataset(
                 size=size,
                 n_objects_min=n_objects_min,
                 n_objects_max=n_objects_max,
+                split=split,
             )
         except CollisionRetriesExhausted as exc:
             skipped.append(seq_seed)
@@ -528,6 +538,7 @@ def generate_dataset(
             "flow": flow,
             "flow_back": flow_back,
             "occlusion": occlusion,
+            "split": split,
         },
         "library_root": str(library_root.resolve()),
         "estimator": _library_estimator(library_root),
@@ -570,6 +581,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--n-objects-min", type=int, default=1)
     parser.add_argument("--n-objects-max", type=int, default=5)
+    parser.add_argument(
+        "--split",
+        choices=SPLITS,
+        default=TRAIN,
+        help="the assets the scenes draw from: train, the ones training sees, test, "
+        "the ones it does not, or all (default: train)",
+    )
     parser.add_argument(
         "--bokeh",
         action="store_true",
@@ -629,6 +647,7 @@ def main(argv: list[str] | None = None) -> int:
             flow=args.flow,
             flow_back=args.flow_back,
             occlusion=args.occlusion,
+            split=args.split,
         )
     except ValueError as exc:
         parser.error(str(exc))

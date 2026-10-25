@@ -25,6 +25,8 @@ from video_bokeh.core._fusion import (
     place_in_band,
 )
 from video_bokeh.core._library import (
+    BACKGROUNDS,
+    FOREGROUNDS,
     BackgroundAsset,
     ForegroundAsset,
     list_backgrounds,
@@ -44,6 +46,7 @@ from video_bokeh.core._sequence_geometry import (
     warp_depth,
     warp_pillow,
 )
+from video_bokeh.core._split import TRAIN, in_split
 from video_bokeh.core._trajectory import DepthRange, sample_end_pose, sample_start_range
 
 _ACTIVE_WIDTH = 0.08
@@ -132,15 +135,21 @@ def sample_scene(
     n_objects: int,
     cfg: SampleConfig | None = None,
     bg_band_top: float = BG_BAND_TOP,
+    split: str = TRAIN,
 ) -> Scene:
-    """Sample objects, a background, poses, easings, and depth trajectories."""
+    """Sample objects, a background, poses, easings, and depth trajectories.
+
+    The assets are drawn from ``split``, ``train``, ``test`` or ``all``.
+    """
     cfg = cfg or SampleConfig()
     rng = random.Random(f"scene:{seed}")
 
-    fg_ids = list_foregrounds(library_root)
-    bg_ids = list_backgrounds(library_root)
+    fg_ids = in_split(list_foregrounds(library_root), FOREGROUNDS, split)
+    bg_ids = in_split(list_backgrounds(library_root), BACKGROUNDS, split)
     if not fg_ids or not bg_ids:
-        raise SystemExit(f"library at {library_root} has no foregrounds/backgrounds")
+        raise SystemExit(
+            f"library at {library_root} has no {split} foregrounds/backgrounds",
+        )
 
     n_objects = min(n_objects, len(fg_ids))
     chosen_fg = rng.sample(fg_ids, n_objects)

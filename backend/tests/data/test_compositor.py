@@ -847,6 +847,7 @@ def test_scene_records_match_the_sampled_scene(
         "occlusion": False,
         "bokeh": False,
         "bokeh_strength": 16.0,
+        "split": "train",
     }
     assert run["library_root"] == str(library.resolve())
     assert run["estimator"] == "test-estimator"

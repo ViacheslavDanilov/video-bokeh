@@ -54,6 +54,29 @@ cannot tell a model failure from a compositing failure — with this you can loo
 about 38 % of a foreground's footprint, which is nothing against the dataset the library
 produces.
 
+### The train and test splits
+
+**Every asset is in one of two splits, train or test.** Training draws its scenes from train.
+The fixed set is made from test alone, so it shows a network objects and backgrounds it never
+trained on. Stage B draws from train unless told otherwise: `scenes.generate --split` and the
+sequence stream's `split` take `train`, `test` or `all`.
+
+| | train | test | rule |
+|---|---|---|---|
+| backgrounds | 15,000 | 5,000 | BG-20k's own split: an id that starts with `testval__` came from its testval folder |
+| foregrounds | 7,727 | 859 | MAGICK has no split, so the test ids are listed in `backend/src/video_bokeh/core/test_foregrounds.txt` |
+
+- **The foreground list was drawn once.** `video_bokeh.library.split` took 10 % of each
+  subject CLIP gave the published library's foregrounds: 397 people, 233 objects, 141 food,
+  48 plants and 40 animals. The draw is seeded and the list is tracked, because drawing it
+  again would change the fixed set.
+- **An asset that neither rule names is train.** A background without BG-20k's folder prefix
+  and a foreground missing from the list are train, so a library of other assets is all
+  train, and `--split test` refuses it.
+- **A seed names a scene within its split.** The same seed draws different assets in `train`
+  and in `test`. Sequences written before the split existed drew from every asset, as
+  `--split all` does now.
+
 ---
 
 ## Stage B — a generated sequence

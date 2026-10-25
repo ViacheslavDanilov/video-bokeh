@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import shutil
 from itertools import islice
@@ -10,9 +11,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+from fixture_library import build_library
 from PIL import Image
 from torch.utils.data import DataLoader
 
+from video_bokeh.core._split import listed_test_foregrounds
 from video_bokeh.core._streams import (
     read_alpha_tiff,
     read_disparity_png,
@@ -463,3 +466,35 @@ def test_a_batch_without_the_layers_is_refused(library: Path) -> None:
     batch = next(iter(DataLoader(_stream(library, streams=("rgb",)), batch_size=2)))
     with pytest.raises(ValueError, match="layers.*object_alphas.*focus"):
         batch_bokeh(batch)
+
+
+def test_draws_the_split_the_writer_draws(tmp_path: Path) -> None:
+    # The fixture library is all train, so a test asset is added to each kind. The test
+    # stream then shows the scene `scenes.generate --split test` writes for its seed.
+    test_fg = min(listed_test_foregrounds())
+    library = build_library(
+        tmp_path / "library",
+        ("fg_a", test_fg),
+        ("bg_a", "testval__h_bg"),
+    )
+    generate_dataset(library, tmp_path / "out", 1, FRAMES, SIZE, seed=0, split="test")
+    with (tmp_path / "out" / "manifest.csv").open(encoding="utf-8") as f:
+        assert next(csv.DictReader(f))["background"] == "testval__h_bg"
+    item = next(iter(_stream(library, split="test")))
+    written = np.stack(
+        [
+            np.asarray(Image.open(p))
+            for p in sorted((tmp_path / "out/sequences/0001/all_in_focus").iterdir())
+        ],
+    )
+    streamed = item["rgb"].permute(0, 2, 3, 1).numpy() * 255.0
+    assert np.abs(written - streamed).max() <= 1.0
+
+
+def test_a_split_without_assets_is_refused_up_front(library: Path) -> None:
+    with pytest.raises(
+        ValueError, match="has no test foregrounds and no test backgrounds"
+    ):
+        _stream(library, split="test")
+    with pytest.raises(ValueError, match="split must be one of train, test, all"):
+        _stream(library, split="val")

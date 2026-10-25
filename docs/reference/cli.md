@@ -189,6 +189,30 @@ weights.
 The command exits 1 when any estimator it checked is not `ready`, or failed to measure. A
 `--model` that names no estimator is a usage error, before anything is checked.
 
+## `video_bokeh.library.split` — draw the test foregrounds
+
+Draws the foregrounds of the test split and writes their ids, sorted, one per line, to
+`backend/src/video_bokeh/core/test_foregrounds.txt`. It takes `--fraction` of each subject that
+CLIP gave the library's foregrounds, so each subject is in the test split in its own share.
+Backgrounds need no draw, because they follow BG-20k's split
+([dataset-layout](dataset-layout.md#the-train-and-test-splits)).
+
+**The list is tracked, and it was drawn once from the published library.** Drawing it again,
+with other flags or from another library, changes the fixed set and the scene every seed names.
+
+```bash
+uv run python -m video_bokeh.library.split --library-root data/library/da2-large \
+  --predictions data/magick/predictions.csv
+```
+
+| flag | type | default | meaning |
+|---|---|---|---|
+| `--library-root` | path | **required** | the library whose foregrounds are drawn from |
+| `--predictions` | path | **required** | the CLIP predictions of its MAGICK pool, as `acquire.classify` writes them; the draw reads `top_subject` |
+| `--fraction` | float | `0.1` | the share of each subject drawn, rounded per subject |
+| `--seed` | int | `0` | seeds the draw, with the subject |
+| `--output` | path | the tracked list | where the ids are written |
+
 ## `video_bokeh.library.hub` — publish or download a library
 
 `pack` writes a library into tar shards of about 2 GB under `library/`, with
@@ -291,6 +315,7 @@ and `run.json` first, then writes `manifest.csv` atomically as the run's complet
 | `--seed` | int | `0` | sequence `i` is seeded from `seed + i` |
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
 | `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [dataset-layout](dataset-layout.md) |
+| `--split` | `train`, `test` or `all` | `train` | the assets the scenes draw from: `train`, the ones training sees, `test`, the fixed set's, or `all`, as every run before the split did — see [dataset-layout](dataset-layout.md#the-train-and-test-splits) |
 | `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [dataset-layout](dataset-layout.md) |
 | `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [dataset-layout](dataset-layout.md) |
 | `--flow-back` | flag | off | also write `flow_back/`, each frame's exact backward optical flow to the previous, in the same format |

@@ -53,10 +53,16 @@ script again: each worker, or the fork server that starts them. Without the guar
 would start workers of its own.
 
 `n_objects_min` must be at least 1 and no more than `n_objects_max`; anything else is refused
-when the stream is created. So is a `library_root` with no foregrounds or no backgrounds, which
-would otherwise fail inside a DataLoader worker once iteration starts. `cfg`, a `SampleConfig`,
-changes the pose and motion ranges the way it does for the dataset writer; leave it out for the
-writer's defaults.
+when the stream is created. So is a `library_root` with no foregrounds or no backgrounds, or
+with none in the split asked for, which would otherwise fail inside a DataLoader worker once
+iteration starts. `cfg`, a `SampleConfig`, changes the pose and motion ranges the way it does
+for the dataset writer; leave it out for the writer's defaults.
+
+**`split` picks the assets the scenes are drawn from.** It is `train` by default, the
+foregrounds and backgrounds a network may train on. `test` takes the ones the fixed set is made
+of, and `all` takes both. A network trained on `test` or `all` has seen the fixed set's assets,
+so its scores on the fixed set overstate how well it generalizes.
+[dataset-layout](dataset-layout.md#the-train-and-test-splits) says which asset is in which split.
 
 ## What an item holds
 

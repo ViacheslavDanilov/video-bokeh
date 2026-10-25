@@ -12,8 +12,14 @@ import torch
 from torch.utils.data import IterableDataset, get_worker_info
 
 from video_bokeh.core._focus import focus_seed, focus_track, frame_focus
-from video_bokeh.core._library import list_backgrounds, list_foregrounds
+from video_bokeh.core._library import (
+    BACKGROUNDS,
+    FOREGROUNDS,
+    list_backgrounds,
+    list_foregrounds,
+)
 from video_bokeh.core._sequence_geometry import SampleConfig
+from video_bokeh.core._split import TRAIN, in_split
 from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.layered import render_bokeh
 from video_bokeh.scenes._compositor import (
@@ -101,6 +107,10 @@ class SequenceStream(IterableDataset):
     writes, unquantized. A seed whose objects cannot be placed without colliding is
     skipped, as the writer skips it.
 
+    The scenes draw their assets from ``split``: ``train`` by default, the foregrounds and
+    backgrounds training may see, ``test``, the ones the fixed set is made of, or ``all``.
+    A network trained on ``test`` or ``all`` has seen the fixed set's assets.
+
     Every new iterator starts again at ``seed``, so a loop that re-creates its iterator
     each epoch sees the same sequences again. Seeds are consecutive, so ``seed=1``
     repeats ``seed=0`` one item later: streams that must not overlap, one per rank or
@@ -121,23 +131,25 @@ class SequenceStream(IterableDataset):
         streams: Collection[str] = DEFAULT_STREAMS,
         bokeh_strength: float = BOKEH_STRENGTH,
         focus_disparity: float | None = None,
+        split: str = TRAIN,
     ) -> None:
         super().__init__()
         # Checked here, in the training process, rather than met as a SystemExit inside a
         # DataLoader worker once iteration starts.
-        empty = [
-            kind
-            for kind, ids in (
-                ("foregrounds", list_foregrounds(library_root)),
-                ("backgrounds", list_backgrounds(library_root)),
-            )
-            if not ids
-        ]
+        ids = {
+            FOREGROUNDS: list_foregrounds(library_root),
+            BACKGROUNDS: list_backgrounds(library_root),
+        }
+        empty = [kind for kind in ids if not ids[kind]]
         if empty:
             raise ValueError(
                 f"{library_root} is not a library: no {' and no '.join(empty)}. "
                 "Build one with video_bokeh.library.build.",
             )
+        empty = [kind for kind in ids if not in_split(ids[kind], kind, split)]
+        if empty:
+            missing = " and no ".join(f"{split} {kind}" for kind in empty)
+            raise ValueError(f"{library_root} has no {missing}")
         if not 1 <= n_objects_min <= n_objects_max:
             raise ValueError(
                 f"need 1 <= n_objects_min <= n_objects_max, "
@@ -165,6 +177,7 @@ class SequenceStream(IterableDataset):
         self.streams = frozenset(streams)
         self.bokeh_strength = bokeh_strength
         self.focus_disparity = focus_disparity
+        self.split = split
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         info = get_worker_info()
@@ -195,6 +208,7 @@ class SequenceStream(IterableDataset):
             n_objects_min=self.n_objects_min,
             n_objects_max=self.n_objects_max,
             cfg=self.cfg,
+            split=self.split,
         )
         frames = render_scene(
             scene,

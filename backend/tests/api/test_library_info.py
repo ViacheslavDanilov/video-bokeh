@@ -8,6 +8,7 @@ from PIL import Image
 
 from video_bokeh.api._library import DuplicateLibraryError, summarize, summarize_all
 from video_bokeh.core._metadata import write_asset_metadata
+from video_bokeh.core._split import listed_test_foregrounds
 
 
 def test_reports_what_is_mounted(library: Path, facts) -> None:
@@ -38,6 +39,19 @@ def test_id_moves_when_an_asset_is_added(make_library: Callable[..., Path]) -> N
     small = make_library("small", ("fg_a",), ("bg_a",))
     large = make_library("large", ("fg_a", "fg_b"), ("bg_a",))
     assert summarize(small).id != summarize(large).id
+
+
+def test_id_covers_the_train_assets_a_request_draws(
+    make_library: Callable[..., Path],
+) -> None:
+    """A request's scene is drawn from the train split, so test assets leave it alone."""
+    train = make_library("train", ("fg_a",), ("bg_a",))
+    both = make_library(
+        "both",
+        ("fg_a", min(listed_test_foregrounds())),
+        ("bg_a", "testval__h_bg"),
+    )
+    assert summarize(train).id == summarize(both).id
 
 
 def test_id_moves_when_the_depth_estimator_changes(
@@ -95,3 +109,24 @@ def test_id_is_short_enough_to_read(library: Path) -> None:
     summary = summarize(library)
     assert len(summary.id) == 12
     assert all(c in "0123456789abcdef" for c in summary.id)
+
+
+def test_a_request_draws_the_train_assets_the_id_covers(
+    make_library: Callable[..., Path],
+) -> None:
+    from video_bokeh.api._sequences import SequenceRequest, _scene
+
+    root = make_library(
+        "lib",
+        ("fg_a", min(listed_test_foregrounds())),
+        ("bg_a", "testval__h_bg"),
+    )
+    for seed in range(6):
+        request = SequenceRequest(
+            seed, frames=2, size=32, n_objects_min=1, n_objects_max=2
+        )
+        scene = _scene(root, request, lambda step, done, total: None)
+        assert [o.asset.asset_id for o in scene.objects] == ["fg_a"]
+        assert scene.background.asset_id == "bg_a"
+    summary = summarize(root)
+    assert (summary.n_foregrounds, summary.n_backgrounds) == (1, 1)
