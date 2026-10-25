@@ -56,7 +56,8 @@ $preview$status
 | tar shards | $fg_shards | $bg_shards |
 | size | $fg_gb GB | $bg_gb GB |
 
-- **The library's $shards shards hold $total_gb GB in all.** The largest shard is $largest_gb GB.
+- **The library's $shards shards hold $total_gb GB in all.** The largest shard is
+  $largest_gb GB.
 - **`depth.png` holds disparity.** Larger values are closer.
 - **One estimator.** Every map comes from Depth Anything V2 Large.
 

@@ -119,8 +119,8 @@ REPO = "vdanilov/video-bokeh"
 LIBRARY = "library"
 #: The index of the library's shards, whose file names are relative to ``LIBRARY``.
 INDEX = f"{LIBRARY}/index.json"
-#: The repository's folder of the fixed set's sequences, its index, and the records of the run
-#: that wrote them, which sit beside the index.
+#: The repository's folder of the fixed set's sequences, its index, and the records of
+#: the run that wrote them, which sit beside the index.
 SEQUENCES = "sequences"
 SEQUENCE_INDEX = f"{SEQUENCES}/index.json"
 RECORDS = ("objects.csv", "run.json", "manifest.csv")
@@ -183,8 +183,7 @@ FIXED_SET = Template("""
 
 **`sequences/` holds $sequences sequences that Stage B wrote once from the test split alone,**
 for evaluation: a network trained on the train split has seen none of their objects or
-backgrounds. Each sequence has $frames frames at $size × $size and $objects_min to $objects_max
-objects. In all they take $seq_gb GB in $seq_shards shards.
+backgrounds. Each sequence has $frames frames at $size × $size and $objects. In all they take $seq_gb GB in $seq_shards shards.
 
 | stream | one file per | what a pixel holds |
 |---|---|---|
@@ -474,14 +473,16 @@ def card(
             f", and under `{SEQUENCES}/` a fixed set of {sequences['items']:,} sequences "
             "that Stage B wrote from the test split"
         )
+        low, high = sequences["objects"]
         fixed_set = FIXED_SET.substitute(
             repo=repo,
             sequences=f"{sequences['items']:,}",
             frames=sequences["frames"],
             size=sequences["size"],
             strength=f"{sequences['bokeh_strength']:g}",
-            objects_min=sequences["objects"][0],
-            objects_max=sequences["objects"][1],
+            objects=f"{low} to {high} objects"
+            if low != high
+            else f"{low} object{'s' * (low != 1)}",
             seq_shards=len(seq_shards),
             seq_gb=_gb(sum(s["bytes"] for s in seq_shards)),
         )
