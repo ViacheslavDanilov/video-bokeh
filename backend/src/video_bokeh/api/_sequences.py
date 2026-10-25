@@ -22,6 +22,7 @@ from functools import partial
 from pathlib import Path
 
 from video_bokeh.core._focus import frame_focus
+from video_bokeh.core._split import TRAIN
 from video_bokeh.core._streams import BOKEH_STRENGTH
 from video_bokeh.scenes._compositor import (
     CollisionRetriesExhausted,
@@ -218,6 +219,8 @@ def _scene(library_root: Path, request: SequenceRequest, progress: Progress) -> 
             size=request.size,
             n_objects_min=request.n_objects_min,
             n_objects_max=request.n_objects_max,
+            # The library id covers the train assets alone, so a request draws only them.
+            split=TRAIN,
         )
     except CollisionRetriesExhausted as exc:
         raise SequenceUnsatisfiableError(str(exc)) from exc

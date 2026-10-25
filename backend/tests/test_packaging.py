@@ -61,6 +61,16 @@ def test_dockerfile_installs_the_locked_versions() -> None:
     assert all("--locked" in line for line in syncs)
 
 
+def test_the_wheel_carries_the_test_foreground_list() -> None:
+    """The split reads the test foregrounds from a text file, which the wheel must hold."""
+    data = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
+    wheel = data["tool"]["hatch"]["build"]["targets"]["wheel"]
+    listed = _PYPROJECT.parent / "src" / "video_bokeh" / "core" / "test_foregrounds.txt"
+    assert listed.is_file()
+    assert any(listed.is_relative_to(_PYPROJECT.parent / p) for p in wheel["packages"])
+    assert not {"exclude", "only-include", "include"} & set(wheel)
+
+
 def test_the_wheel_carries_the_dataset_card_template() -> None:
     """``hub pack`` reads its card from a Markdown file, which the wheel must hold too."""
     data = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))

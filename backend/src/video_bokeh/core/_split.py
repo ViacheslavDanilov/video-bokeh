@@ -35,7 +35,11 @@ TEST_FOREGROUNDS = "test_foregrounds.txt"
 @cache
 def listed_test_foregrounds() -> frozenset[str]:
     """The ids of the foregrounds in the test split."""
-    text = resources.files("video_bokeh.core").joinpath(TEST_FOREGROUNDS).read_text()
+    text = (
+        resources.files("video_bokeh.core")
+        .joinpath(TEST_FOREGROUNDS)
+        .read_text(encoding="utf-8")
+    )
     return frozenset(line for line in text.splitlines() if line)
 
 

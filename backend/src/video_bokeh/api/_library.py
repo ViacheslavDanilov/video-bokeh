@@ -37,6 +37,7 @@ class LibrarySummary:
     #: The directory's own name, which is what a person picks a library by.
     name: str
     root: Path
+    #: The train assets, the ones a request's scene is drawn from.
     n_foregrounds: int
     n_backgrounds: int
     depth_estimator: str | None
@@ -91,11 +92,13 @@ def summarize(library_root: Path) -> LibrarySummary:
     estimator = _depth_estimator(library_root, foreground_ids)
     asset_size = _asset_size(library_root, foreground_ids)
 
+    train_foregrounds = in_split(foreground_ids, FOREGROUNDS, TRAIN)
+    train_backgrounds = in_split(background_ids, BACKGROUNDS, TRAIN)
     digest = hashlib.sha256()
-    for asset_id in in_split(foreground_ids, FOREGROUNDS, TRAIN):
+    for asset_id in train_foregrounds:
         digest.update(b"fg:")
         digest.update(asset_id.encode())
-    for asset_id in in_split(background_ids, BACKGROUNDS, TRAIN):
+    for asset_id in train_backgrounds:
         digest.update(b"bg:")
         digest.update(asset_id.encode())
     digest.update(b"model:")
@@ -109,8 +112,8 @@ def summarize(library_root: Path) -> LibrarySummary:
         # symlinked library keeps the name it is listed and sorted under.
         name=Path(os.path.abspath(library_root)).name,
         root=library_root,
-        n_foregrounds=len(foreground_ids),
-        n_backgrounds=len(background_ids),
+        n_foregrounds=len(train_foregrounds),
+        n_backgrounds=len(train_backgrounds),
         depth_estimator=estimator,
         asset_size=asset_size,
     )
