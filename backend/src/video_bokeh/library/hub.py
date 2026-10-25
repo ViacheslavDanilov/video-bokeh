@@ -183,7 +183,8 @@ FIXED_SET = Template("""
 
 **`sequences/` holds $sequences sequences that Stage B wrote once from the test split alone,**
 for evaluation: a network trained on the train split has seen none of their objects or
-backgrounds. Each sequence has $frames frames at $size × $size and $objects. In all they take $seq_gb GB in $seq_shards shards.
+backgrounds. Each sequence has $frames frames at $size × $size and $objects. In all they
+take $seq_gb GB in $seq_shards shards.
 
 | stream | one file per | what a pixel holds |
 |---|---|---|
