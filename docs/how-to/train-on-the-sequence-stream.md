@@ -41,7 +41,7 @@ uv run python -m video_bokeh.library.hub fetch --repo vdanilov/video-bokeh \
   --output data/library/da2-large
 ```
 
-It takes about 20 minutes on a fast connection. If it stops, run it again: it downloads only
+It takes about 20 minutes at 100 MB/s. If it stops, run it again: it downloads only
 the shards it has not unpacked yet.
 
 ## 3. Run the example
@@ -54,8 +54,9 @@ for 20 steps:
 uv run python -m video_bokeh.loader.example --library-root data/library/da2-large
 ```
 
-It prints the loss at every step. On an RTX 5090 the 20 steps take about 20 s, and the loss
-falls from about 0.5 to under 0.2. Read its source as a template for your own loop:
+It prints the loss at every step. On a 24-core machine with an RTX 5090 the 20 steps take about
+20 s, and the loss falls from about 0.5 to under 0.2. Read its source as a template for your
+own loop:
 
 - **It asks the stream for `rgb`, `disparity` and `bokeh`**, and the `DataLoader`'s four
   workers render the bokeh on the CPU. The batches arrive finished, and the GPU stays with the
@@ -101,18 +102,18 @@ if __name__ == "__main__":
 
 **`bokeh_strength` is the bokeh's strength `k`:** the blur radius in pixels, at a 1024-pixel
 width, of a point one unit of disparity from the focus. It is 16 unless set, and one value
-holds for the whole stream. The focus follows one object of each sequence, drawn at random
-with odds by its area on screen; `focus_disparity=` pins one disparity for every frame
+holds for the whole stream. The focus follows one object of each sequence, drawn at random with
+odds by the area it alone covers; `focus_disparity=` pins one disparity for every frame
 instead.
 
 ## 5. When the workers cannot keep up
 
-**Bokeh rendered in the workers is the simple path, and the slow one.** It tops out near 0.9
-items per second at 512 pixels and 24 frames, however many workers render it, so a batch of 4
-takes about 4.5 s to arrive. A training step shorter than that waits for the loader. Then ask
-the workers for the layers instead of the bokeh, and render each batch on the GPU with
-`batch_bokeh`, where `k` can change from batch to batch. [loader](../reference/loader.md) has
-the recipe and what it costs.
+**Bokeh rendered in the workers is the simple path, and the slow one.** On a 24-core machine it
+tops out near 0.9 items per second at 512 pixels and 24 frames, however many workers render it,
+so a batch of 4 takes about 4.5 s to arrive. A training step shorter than that waits for the
+loader. Then ask the workers for the layers instead of the bokeh, and render each batch on the
+GPU with `batch_bokeh`, where `k` can change from batch to batch.
+[loader](../reference/loader.md) has the recipe and what it costs.
 
 ## 6. Read the library without the code
 
