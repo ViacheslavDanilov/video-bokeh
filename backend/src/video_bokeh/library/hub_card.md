@@ -86,12 +86,16 @@ stream = SequenceStream(
     n_frames=8,
     size=256,
     streams=("rgb", "disparity", "bokeh"),
-    bokeh_strength=16.0,  # k: blur radius in pixels at 1024 px, one disparity unit off focus
+    bokeh_strength=16.0,
 )
 item = next(iter(stream))
 print(item["rgb"].shape, item["disparity"].shape, item["bokeh"].shape)
 # torch.Size([8, 3, 256, 256]) torch.Size([8, 1, 256, 256]) torch.Size([8, 3, 256, 256])
 ```
+
+`n_frames` and `size` set the length of a sequence and the side of its frames, `streams` what an
+item carries, and `bokeh_strength` the bokeh's strength `k`, the blur radius in pixels at a
+1024-pixel width one unit of disparity from the focus.
 
 `uv run python -m video_bokeh.loader.example --library-root data/library/da2-large` trains a
 small network on it for 20 steps. The project's
