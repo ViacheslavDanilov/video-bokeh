@@ -492,7 +492,9 @@ def test_draws_the_split_the_writer_draws(tmp_path: Path) -> None:
 
 
 def test_a_split_without_assets_is_refused_up_front(library: Path) -> None:
-    with pytest.raises(ValueError, match="has no test foregrounds and no backgrounds"):
+    with pytest.raises(
+        ValueError, match="has no test foregrounds and no test backgrounds"
+    ):
         _stream(library, split="test")
     with pytest.raises(ValueError, match="split must be one of train, test, all"):
         _stream(library, split="val")

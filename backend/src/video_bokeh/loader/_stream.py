@@ -148,7 +148,8 @@ class SequenceStream(IterableDataset):
             )
         empty = [kind for kind in ids if not in_split(ids[kind], kind, split)]
         if empty:
-            raise ValueError(f"{library_root} has no {split} {' and no '.join(empty)}")
+            missing = " and no ".join(f"{split} {kind}" for kind in empty)
+            raise ValueError(f"{library_root} has no {missing}")
         if not 1 <= n_objects_min <= n_objects_max:
             raise ValueError(
                 f"need 1 <= n_objects_min <= n_objects_max, "
