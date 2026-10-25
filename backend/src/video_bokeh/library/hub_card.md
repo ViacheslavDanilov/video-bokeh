@@ -109,8 +109,8 @@ matte = np.asarray(Image.open(f"{item}/alpha.png")) / 255.0  # (H, W) in [0, 1]
 disparity = np.asarray(Image.open(f"{item}/depth.png")) / 65535.0  # (H, W) in [0, 1]
 ```
 
-The `datasets` library streams the shards without the code and without the download, one
-sample per item:
+The `datasets` library, with Pillow, streams the shards without the code and without the
+download, one sample per item:
 
 ```python
 from datasets import load_dataset
