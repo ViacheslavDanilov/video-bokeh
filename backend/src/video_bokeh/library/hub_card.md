@@ -21,6 +21,7 @@ source_datasets:
 configs:
 - config_name: foregrounds
   data_files: "library/foregrounds/*.tar"
+  default: true
 - config_name: backgrounds
   data_files: "library/backgrounds/*.tar"
 ---
