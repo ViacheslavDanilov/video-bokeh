@@ -25,7 +25,7 @@ every sequence, as a Stage B run writes them.
 ``score.py`` and ``summary.py`` can report them apart without rendering them again.
 
 Every sequence draws from all of the library's assets, train and test, because the set was
-drawn before the library had splits and its seeds name those scenes only so.
+drawn before the library had splits and its seeds name those scenes only under `all`.
 """
 
 from __future__ import annotations

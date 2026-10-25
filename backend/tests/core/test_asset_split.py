@@ -40,7 +40,7 @@ def test_listed_foregrounds_are_test_and_others_train() -> None:
 
 def test_the_tracked_list_is_the_published_draw() -> None:
     # library.split drew 859 of the published library's 8,586 foregrounds. A change to
-    # the file changes the benchmark, so it fails here first.
+    # the file changes the fixed set, so it fails here first.
     text = resources.files("video_bokeh.core").joinpath("test_foregrounds.txt")
     data = text.read_bytes()
     assert hashlib.sha256(data).hexdigest() == PUBLISHED_SHA256
@@ -50,7 +50,7 @@ def test_the_tracked_list_is_the_published_draw() -> None:
 
 
 def test_each_subject_is_in_the_test_split_in_its_share() -> None:
-    # The counts the dataset card and the reference give, from the tracked predictions.
+    # The counts the reference gives, from the tracked predictions.
     with PREDICTIONS.open(encoding="utf-8", newline="") as f:
         subjects = {row["page_id"]: row["top_subject"] for row in csv.DictReader(f)}
     counts = Counter(subjects[page_id(i)] for i in listed_test_foregrounds())

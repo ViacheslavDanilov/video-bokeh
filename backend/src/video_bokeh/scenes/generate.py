@@ -16,7 +16,7 @@
 
 Disparity is sampled and transformed from the library, not estimated per frame. The
 scenes draw their assets from the train split unless ``--split`` names another; the
-benchmark is written with ``--split test``.
+fixed set is written with ``--split test``.
 
 Usage:
     uv run python -m video_bokeh.scenes.generate \\

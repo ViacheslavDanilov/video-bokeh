@@ -59,9 +59,9 @@ iteration starts. `cfg`, a `SampleConfig`, changes the pose and motion ranges th
 for the dataset writer; leave it out for the writer's defaults.
 
 **`split` picks the assets the scenes are drawn from.** It is `train` by default, the
-foregrounds and backgrounds a network may train on. `test` takes the ones the benchmark is made
-of, and `all` takes both. A network trained on `test` or `all` has seen the benchmark's assets,
-so its scores on the benchmark overstate how well it generalizes.
+foregrounds and backgrounds a network may train on. `test` takes the ones the fixed set is made
+of, and `all` takes both. A network trained on `test` or `all` has seen the fixed set's assets,
+so its scores on the fixed set overstate how well it generalizes.
 [dataset-layout](dataset-layout.md#the-train-and-test-splits) says which asset is in which split.
 
 ## What an item holds
