@@ -279,7 +279,7 @@ uv run python -m video_bokeh.library.hub pack --library-root data/library/da2-la
   --output data/library-packed
 uv run python -m video_bokeh.library.hub preview --library-root data/library/da2-large \
   --packed data/library-packed --foregrounds 6M__6MV7SSxmwd 0S__0SUuLNXyEz 3n__3nqLIHRgfa \
-  1b__1bGRKnW1f3 --backgrounds train__h_a415d5e8 train__h_a7671d5b testval__h_ea29ed84 \
+  ID__IDbo1YsCOt --backgrounds train__h_a415d5e8 train__h_a7671d5b testval__h_ea29ed84 \
   --seeds 1005 1033 1050
 uv run python -m video_bokeh.library.hub stage --packed data/library-packed \
   --output data/library-staged --every 5
