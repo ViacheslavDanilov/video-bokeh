@@ -40,8 +40,10 @@ $sequences_config---
 
 Synthetic video for training and evaluating depth-aware bokeh. Every frame is composited
 from known layers, so its disparity, the soft matte of each object, its bokeh, its forward
-and backward optical flow and its occlusion match it by construction. The
-[code](https://github.com/ViacheslavDanilov/video-bokeh) that makes them is open.
+and backward optical flow and its occlusion match it by construction.
+
+**Code:** [github.com/ViacheslavDanilov/video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh)
+— the generator, the PyTorch loader and the download tools.
 
 - **The library**, under `library/`: $foregrounds cut-out foregrounds and $backgrounds
   background photos, each with a disparity map. It holds no sequences. The code's generator
