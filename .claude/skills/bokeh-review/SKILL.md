@@ -197,6 +197,7 @@ Apply to this pass's scope, not the whole PR history.
 | **#5 Docs style** | `docs/STYLE.md` for changes under `docs/explanation`, `how-to`, `reference`; check relative Markdown links and GitHub heading anchors in tracked pages per `docs/README.md` | none |
 | **#6 Docs drift** | public surface the PR changed that no page reflects, and pages that describe code this PR deleted | `document-release` on the PR's branch, analysis steps only |
 | **#7 Second model** | the same diff through a different model's eyes; its errors do not correlate with yours | `codex exec`, read-only, **whenever the pass touches a high-risk path** |
+| **#8 Prose** | paragraphs of tracked Markdown the pass changed that read as machine-written, and any em dash | `python3 scripts/check_prose.py --base <baseline>` |
 
 Lens #6 exists because this repo shipped the failure it catches, as the **Documentation
 surface** section of the conventions file describes. Read that section before running
@@ -216,12 +217,19 @@ for there. gstack's `codex review --base` takes no custom instructions, so it ca
 pointed at the risk. The gstack `codex` skill also keeps codex out of `.claude/skills/` by
 default; when the PR changes those files, the prompt says codex may read them.
 
+Run lens #8 from the worktree on any pass that changes tracked Markdown. It flags an em dash
+on its own, offline, and asks Jev, TypeSafe's classifier, how machine-written each changed
+paragraph reads when `TYPESAFE_API_KEY` is set; without the key it says so and checks the
+dash alone, so record the lens as partly run. A flagged paragraph is a **must-fix** when it
+carries an em dash, and otherwise a candidate to read and judge: the classifier misreads
+terse definitions, so rewrite only what a person would also find generic or inflated.
+
 A PR that changes a CLI flag, the on-disk dataset contract, or anything Pablo and Valery
 consume, and ships no documentation change and no named debt, is a **must-fix**. A PR that
 merely renames a private helper is not.
 
 Depth mapping: comment-only → discussion only; trivial → #1–#2; delta → #1–#2 on the delta,
-#3–#6 on delta files; full → #1–#6. On any depth but comment-only, #7 runs whenever the
+#3–#6 and #8 on delta files; full → #1–#6 and #8. On any depth but comment-only, #7 runs whenever the
 pass's scope touches a path from step 2's high-risk list. Do not skip a lens because
 another found something.
 
