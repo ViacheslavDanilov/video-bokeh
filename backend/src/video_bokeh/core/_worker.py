@@ -6,9 +6,6 @@ per line: the worker announces ``{"ready": true}`` once its model is loaded, the
 each request with one reply, or with ``{"error": "..."}``. When stdin closes, the worker
 exits.
 
-A model that cannot be driven that way, such as a vendored demo script, runs to completion
-instead, through ``run_script``.
-
 A worker keeps file descriptor 1 for the protocol alone. It duplicates fd 1 for its
 replies and points fd 1 at stderr, so that nothing else can write there: not a model's
 logging, not native code, not a child process.
@@ -20,21 +17,17 @@ import getpass
 import json
 import os
 import subprocess
-import sys
 import tempfile
-from collections import deque
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
 #: Enough of the worker's stderr to show why it failed, not a whole model load.
 _STDERR_TAIL = 4000
-#: The same, counted in lines, for a script whose output is streamed as it runs.
-_SCRIPT_TAIL_LINES = 60
 
 
 class WorkerError(RuntimeError):
-    """A worker refused a request or exited, or a script failed, with the reason."""
+    """A worker refused a request or exited, with the reason."""
 
 
 def interpreter(env_var: str, default: Path, setup: str) -> Path:
@@ -150,36 +143,6 @@ def _outermost(paths: Iterable[Path]) -> list[Path]:
         if not any(path.is_relative_to(outer) for outer in kept):
             kept.append(path)
     return kept
-
-
-def run_script(argv: list[str], cwd: Path) -> None:
-    """Run a program to completion, showing its output as it goes.
-
-    Its stdout and stderr are forwarded to ours line by line, because a model run can take
-    minutes and silence looks like a hang. Raises WorkerError with the last lines if it
-    exits non-zero.
-    """
-    tail: deque[str] = deque(maxlen=_SCRIPT_TAIL_LINES)
-    with subprocess.Popen(
-        argv,
-        cwd=cwd,
-        # Nothing to read: under docker -i the terminal would otherwise be attached.
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    ) as proc:
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            sys.stderr.write(line)
-            tail.append(line)
-    if proc.returncode != 0:
-        raise WorkerError(
-            f"{' '.join(argv[:2])} exited with code {proc.returncode}:\n"
-            f"{''.join(tail).strip()}",
-        )
 
 
 class WorkerProcess:
