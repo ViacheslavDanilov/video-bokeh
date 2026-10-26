@@ -9,10 +9,21 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 const SEQUENCES = path.join(os.tmpdir(), "video-bokeh-e2e", "sequences");
 const LIBRARIES = path.join(os.tmpdir(), "video-bokeh-e2e", "library");
 
-/** Open the page once its library is ready to generate. */
+/**
+ * The side, in pixels, of the sequences the tests generate. The page's own default is
+ * 512, four times the pixels, and nearly all of the time a run takes is the API building
+ * sequences, while what the tests look at is the page, which is the same at either size.
+ */
+const E2E_SIZE = 256;
+
+/** Open the page once its library is ready to generate, with the size the tests use. */
 async function openPage(page: Page) {
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  const picker = page.getByRole("combobox", { name: "Size" });
+  await picker.click();
+  await page.getByRole("option", { name: `${E2E_SIZE} × ${E2E_SIZE}` }).click();
+  await expect(picker).toHaveText(`${E2E_SIZE} × ${E2E_SIZE}`);
 }
 
 /** Generate with the current parameters, optionally choosing a seed first. */
@@ -1577,7 +1588,10 @@ test("keeps the layout still when the info row is wider than the minimum", async
   // Narrowed afterwards: a page that flips between fitting and scrolling cannot be clicked.
   const first = page.locator("figure").first();
   const before = (await first.boundingBox())!.width;
-  await page.setViewportSize({ width: 1100, height: 800 });
+  // Wide enough for the row on one line: it is a few pixels wider with "256 × 256" than
+  // with "512 × 512", the digit 1 being narrower, and a work area it does not fit takes
+  // the column whole and wraps it, which is another case than this one.
+  await page.setViewportSize({ width: 1160, height: 800 });
   await expect
     .poll(async () => (await first.boundingBox())!.width)
     .not.toBe(before);
