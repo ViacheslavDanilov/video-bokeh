@@ -17,10 +17,18 @@ from pathlib import Path
 
 
 def render_fake_bokeh(sequence_dir: Path) -> None:
+    """Write the stream, unless the sequence has one: tests that share a sequence each
+    ask for it, and the first to ask lands it. It is copied beside ``bokeh/`` and renamed
+    into place, as a renderer's is, so a ``bokeh/`` that exists is always complete."""
     bokeh = sequence_dir / "bokeh"
-    bokeh.mkdir()
+    if bokeh.is_dir():
+        return
+    work = sequence_dir / ".bokeh-tmp"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir()
     for frame in sorted((sequence_dir / "all_in_focus").glob("*.png")):
-        shutil.copy(frame, bokeh / frame.name)
+        shutil.copy(frame, work / frame.name)
+    work.rename(bokeh)
 
 
 if __name__ == "__main__":
