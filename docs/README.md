@@ -52,7 +52,7 @@ For example, from `how-to/`, link to the pipeline with
 
 The gitignored half of the vault may keep Obsidian wikilinks:
 
-- A bare name resolves anywhere in the vault: `[[magick]]`, `[[pipeline-explainer]]`.
+- A bare name resolves anywhere in the vault: `[[datasets]]`, `[[pipeline-explainer]]`.
 - Prefix with a path only to disambiguate a transcript from its meeting note, which share a filename: `[[meetings/2026-06-26-unrestricted-pipeline-algorithm]]` versus `[[meetings/transcripts/2026-06-26-unrestricted-pipeline-algorithm]]`.
 - Media embeds with `![[image.png]]`. Older notes rely on Obsidian resolving that by filename alone; newer ones spell the path out. Both work as long as the file stays inside this vault.
 

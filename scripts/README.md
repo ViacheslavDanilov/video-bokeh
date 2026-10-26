@@ -12,7 +12,7 @@ estimators. See [Depth Anything 3's own environment](../docs/reference/cli.md#de
 
 `analyze_magick_distribution.py` plots the CLIP keep curves and writes `summary.json` under
 `docs/attachments/2026-05-20-magick-distribution/`. See
-[MAGICK dataset](../docs/explanation/magick.md) for the source and filter.
+[Source datasets](../docs/explanation/datasets.md#magick-foregrounds) for the source and filter.
 
 ```bash
 uv run python scripts/analyze_magick_distribution.py
