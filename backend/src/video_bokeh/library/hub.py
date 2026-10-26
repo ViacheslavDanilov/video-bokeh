@@ -153,10 +153,10 @@ Disparity is drawn in the Spectral colormap, near red and far violet.*
 <video src="https://huggingface.co/datasets/$repo/resolve/main/{VIDEO}" controls autoplay
 loop muted playsinline width="100%"></video>
 
-*Sequences that Stage B generated from this library at 1024 × 1024. Top: the frames all
-in focus, their disparity and each object's matte in its own color. Bottom: their bokeh,
-the forward optical flow, colored by direction and speed, and in cyan what the next frame
-hides.*
+*Sequences the generator composed from both splits of the library, at 1024 × 1024. Top:
+the frames all in focus, their disparity and each object's matte in its own color. Bottom:
+their bokeh, the forward optical flow, colored by direction and speed, and in cyan what the
+next frame hides.*
 """)
 
 #: What the card says while the repository holds part of the library.
@@ -181,37 +181,10 @@ SEQUENCES_CONFIG = f"""- config_name: {SEQUENCES}
 FIXED_SET = Template("""
 ## Fixed set
 
-**`sequences/` holds $sequences sequences that Stage B wrote once from the test split alone,**
-for evaluation: a network trained on the train split has seen none of their objects or
-backgrounds. Each sequence has $frames frames at $size × $size and $objects. In all they
-take $seq_gb GB in $seq_shards shards.
-
-| stream | one file per | what a pixel holds |
-|---|---|---|
-| `all_in_focus/<frame>.png` | frame | RGB, uint8: the frame with nothing blurred |
-| `disparity/<frame>.png` | frame | I;16, uint16: disparity, 0 far to 65535 near |
-| `alpha/<frame>.tif` | frame | uint8, one page per object: its soft matte, 0 to 255 |
-| `bokeh/<frame>.png` | frame | RGB, uint8: the frame as the bokeh renderer blurred it |
-| `flow/<frame>.png` | frame but the last | the exact optical flow to the next frame, in pixels |
-| `flow_back/<frame>.png` | frame but the first | the exact optical flow to the previous frame |
-| `occlusion/<frame>.png` | frame but the last | L, uint8: 255 where the next frame does not show the surface |
-
-- **The bokeh is rendered at strength `k = $strength`.** `bokeh/focus.json` names the object in
-  focus by its alpha page, or `null` when none is, and gives each frame's in-focus
-  disparity.
-- **The flow is computed, not estimated.** Every layer moves by a known transform, so the
-  flow follows the front-most surface at each pixel exactly. It is stored in KITTI's 16-bit
-  encoding: red `u · 64 + 2¹⁵`, green `v · 64 + 2¹⁵`, blue 1 where valid. Pillow reads it
-  as 8-bit color and loses it, so read it with `read_flow_png` from the code, or with
-  another reader that keeps 16 bits.
-- **The occlusion mask belongs to the forward flow.** No mask marks the pixels the previous
-  frame does not show, so the backward flow has none.
-- **The run's records sit beside the shards.** `manifest.csv` gives each sequence's seed,
-  object count and background, `objects.csv` each object's foreground and trajectory, and
-  `run.json` the settings that wrote them all.
-
-`fetch-sequences` downloads the shards one at a time and unpacks them into the layout
-`scenes.generate` writes, so the disk needs $seq_gb GB plus room for one shard:
+**`sequences/` holds $sequences sequences that the generator wrote once from the test split,**
+for evaluation: none of their objects or backgrounds is in the train split. Each has $frames
+frames at $size × $size and $objects, and its bokeh is rendered at `k = $strength`.
+`fetch-sequences` needs $seq_gb GB of disk, plus room for one shard of at most $seq_largest GB:
 
 ```bash
 uv run python -m video_bokeh.library.hub fetch-sequences --repo $repo \\
@@ -226,16 +199,85 @@ data/fixed-set/
     └── flow/, flow_back/, occlusion/
 ```
 
-A shard holds one sample per sequence: its files are `<id>.<stream>.<frame>`, with
-`<id>.focus.json` for its focus and `<id>.json` for its rows of the records, their values
-kept as the CSV files write them. The `datasets` library streams them as the `sequences`
-subset, one row per sequence and a column per file. Its first row comes only after it has
-read a few whole sequences to learn the columns. It opens every image with Pillow, which
-reads a flow file as 8-bit color and an alpha file's first page alone, so `fetch-sequences`
-is the way to get the streams whole. The code repository's
+| File | Frames | Mode | Type | Values |
+|---|---|---|---|---|
+| `all_in_focus/<frame>.png` | all | RGB | uint8 | the frame with nothing blurred |
+| `disparity/<frame>.png` | all | I;16 | uint16 | disparity in [0, 1] times 65535, one scale for the whole sequence, larger closer |
+| `alpha/<frame>.tif` | all | a page per object | uint8 | each object's soft matte, 0 to 255 |
+| `bokeh/<frame>.png` | all | RGB | uint8 | the frame as the layered renderer blurred it |
+| `flow/<frame>.png` | all but the last | RGB | uint16 | the optical flow to the next frame, KITTI-encoded |
+| `flow_back/<frame>.png` | all but the first | RGB | uint16 | the optical flow to the previous frame, KITTI-encoded |
+| `occlusion/<frame>.png` | all but the last | L | uint8 | 255 where the next frame does not show the surface |
+
+- **The flow is exact.** Every layer moves by a known transform, so the flow follows the
+  front-most surface at each pixel. KITTI's encoding stores red `u · 64 + 2¹⁵`, green
+  `v · 64 + 2¹⁵` and blue 1 where valid, so read it with a 16-bit reader such as the code's
+  `read_flow_png`. The occlusion mask belongs to the forward flow; the backward flow has none.
+- **`bokeh/focus.json`** names the object in focus by its alpha page, or `null`, gives each
+  frame's in-focus disparity as `zf`, and records the renderer and its settings.
+- **The run's records sit beside the shards.** `manifest.csv` gives each sequence's seed,
+  object count and background, `objects.csv` each object's foreground and trajectory, and
+  `run.json` the settings. With them the generator writes the same sequences again, with
+  their layers if asked, to render the bokeh at another strength or focus.
+- **A shard holds one sample per sequence,** its files named `<id>.<stream>.<frame>`, with
+  `<id>.focus.json` and `<id>.json`, the sequence's rows of the records.
+
+The code repository's
 [dataset layout](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/docs/reference/dataset-layout.md)
 describes every stream in full.
 """)
+
+#: What the card's reading section says of the fixed set's subset, when there is one.
+SEQUENCES_DATASETS = f"""
+**Read the fixed set with `fetch-sequences`, not `datasets`.** Its `{SEQUENCES}` subset has a
+row per sequence, but Pillow decodes a flow file as 8-bit color and an alpha file as its
+first page alone, and the first row comes only after a few whole sequences.
+"""
+
+
+def _glance(index: dict[str, dict[str, Any]], sequences: dict[str, Any] | None) -> str:
+    """The card's table of what the repository holds, with the fixed set when it has one."""
+    fg, bg = index[FOREGROUNDS], index[BACKGROUNDS]
+    rows = [
+        ["", "Foregrounds", "Backgrounds"],
+        ["Items", f"{fg['items']:,}", f"{bg['items']:,}"],
+        ["Size", f"{fg['side']} × {fg['side']}", f"{bg['side']} × {bg['side']}"],
+        [
+            "Files",
+            "`rgb.png`, `alpha.png`, `depth.png`, `meta.json`",
+            "`rgb.png`, `depth.png`",
+        ],
+        ["Shards", str(len(fg["shards"])), str(len(bg["shards"]))],
+        [
+            "On disk",
+            f"{_gb(sum(s['bytes'] for s in fg['shards']))} GB",
+            f"{_gb(sum(s['bytes'] for s in bg['shards']))} GB",
+        ],
+    ]
+    shards = [*fg["shards"], *bg["shards"]]
+    if sequences is not None:
+        side = sequences["size"]
+        extra = [
+            "Fixed set",
+            f"{sequences['items']:,} sequences",
+            f"{sequences['frames']} frames at {side} × {side}",
+            f"{len(STREAMS)} streams, a file per frame",
+            str(len(sequences["shards"])),
+            f"{_gb(sum(s['bytes'] for s in sequences['shards']))} GB",
+        ]
+        rows = [[*row, cell] for row, cell in zip(rows, extra, strict=True)]
+        shards += sequences["shards"]
+    lines = [
+        "|" + "|".join(f" {cell} " if cell else " " for cell in row) + "|"
+        for row in rows
+    ]
+    lines.insert(1, "|" + "---|" * len(rows[0]))
+    total = _gb(sum(s["bytes"] for s in shards))
+    return "\n".join(lines) + (
+        f"\n\nIn all, {len(shards)} shards hold {total} GB. **`depth.png` holds disparity, "
+        "not depth:** larger values are closer. Every disparity map comes from Depth "
+        "Anything V2 Large."
+    )
 
 
 def _items(library_root: Path, kind: str) -> list[str]:
@@ -461,7 +503,8 @@ def card(
         for kind in (FOREGROUNDS, BACKGROUNDS)
         for line in _shard_lines(f"{LIBRARY}/{kind}", shards[kind])
     ]
-    fixed_set = config = intro = ""
+    fixed_set = config = part = reading = ""
+    split_use = " The test split is held out for evaluation."
     if sequences is not None:
         seq_shards = sequences["shards"]
         layout += [
@@ -470,10 +513,15 @@ def card(
             *_shard_lines(SEQUENCES, seq_shards),
         ]
         config = SEQUENCES_CONFIG
-        intro = (
-            f", and under `{SEQUENCES}/` a fixed set of {sequences['items']:,} sequences "
-            "made from the library's test split, for evaluation"
+        part = (
+            f"\n- **The fixed set**, under `{SEQUENCES}/`: {sequences['items']:,} "
+            "sequences the generator wrote once from the library's test split, for "
+            "evaluation."
         )
+        split_use = (
+            " The test split is held out for evaluation: the fixed set is made of it."
+        )
+        reading = SEQUENCES_DATASETS
         low, high = sequences["objects"]
         fixed_set = FIXED_SET.substitute(
             repo=repo,
@@ -484,8 +532,8 @@ def card(
             objects=f"{low} to {high} objects"
             if low != high
             else f"{low} object{'s' * (low != 1)}",
-            seq_shards=len(seq_shards),
             seq_gb=_gb(sum(s["bytes"] for s in seq_shards)),
+            seq_largest=_gb(max(s["bytes"] for s in seq_shards)),
         )
     return _template().substitute(
         repo=repo,
@@ -493,7 +541,10 @@ def card(
         assets=f"\n{PREVIEW}\n{VIDEO}" if preview else "",
         status=status,
         sequences_config=config,
-        sequences_intro=intro,
+        sequences_part=part,
+        split_use=split_use,
+        sequences_datasets=reading,
+        glance=_glance(index, sequences),
         fixed_set=fixed_set,
         layout="\n".join(layout),
         foregrounds=f"{index[FOREGROUNDS]['items']:,}",
@@ -504,13 +555,7 @@ def card(
         bg_test=f"{counts[BACKGROUNDS, TEST]:,}",
         fg_side=index[FOREGROUNDS]["side"],
         bg_side=index[BACKGROUNDS]["side"],
-        fg_shards=len(shards[FOREGROUNDS]),
-        bg_shards=len(shards[BACKGROUNDS]),
-        shards=len(all_shards),
-        fg_gb=_gb(sum(s["bytes"] for s in shards[FOREGROUNDS])),
-        bg_gb=_gb(sum(s["bytes"] for s in shards[BACKGROUNDS])),
         total_gb=_gb(sum(s["bytes"] for s in all_shards)),
-        largest_gb=_gb(max((s["bytes"] for s in all_shards), default=0)),
     )
 
 
