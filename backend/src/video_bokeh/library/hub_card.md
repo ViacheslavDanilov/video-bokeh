@@ -149,6 +149,8 @@ item = next(iter(foregrounds))
 $sequences_datasets
 ## Library files
 
+The files of an item, as `fetch` writes them under `data/library/da2-large/`:
+
 | File | Mode | Type | Values |
 |---|---|---|---|
 | `foregrounds/<id>/rgb.png` | RGBA | uint8 | the cut-out, with its matte as alpha |
