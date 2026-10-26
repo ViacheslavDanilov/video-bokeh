@@ -40,7 +40,7 @@ $sequences_config---
 
 Synthetic video for training and evaluating depth-aware bokeh. Every frame is composited
 from known layers, so its disparity, the soft matte of each object, its bokeh, its forward
-and backward optical flow and its occlusion are exact by construction. The
+and backward optical flow and its occlusion match it by construction. The
 [code](https://github.com/ViacheslavDanilov/video-bokeh) that makes them is open.
 
 - **The library**, under `library/`: $foregrounds cut-out foregrounds and $backgrounds
@@ -67,13 +67,14 @@ fixed seed, for the test split; the code lists them in
 | Foregrounds | $fg_train | $fg_test |
 | Backgrounds | $bg_train | $bg_test |
 
-The generator draws from the train split unless it is told otherwise.$split_use There is no
+The generator draws from the train split unless it is told otherwise, by `split="test"` in
+`SequenceStream` or `--split test` in `scenes.generate`.$split_use There is no
 validation split: draw one from the train split, with seeds far from the training run's.
 
 ## Quick start
 
 It needs Python 3.13, [uv](https://docs.astral.sh/uv/) and $total_gb GB of disk for the
-library, plus room for one shard.
+library, plus room for one shard of at most $largest_gb GB.
 
 ```bash
 git clone https://github.com/ViacheslavDanilov/video-bokeh

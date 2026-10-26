@@ -202,7 +202,7 @@ data/fixed-set/
 | File | Frames | Mode | Type | Values |
 |---|---|---|---|---|
 | `all_in_focus/<frame>.png` | all | RGB | uint8 | the frame with nothing blurred |
-| `disparity/<frame>.png` | all | I;16 | uint16 | disparity in [0, 1] times 65535, one scale for the whole sequence, larger closer |
+| `disparity/<frame>.png` | all | I;16 | uint16 | disparity in [0, 1] times 65535, on one axis for every sequence, the background under 0.05 |
 | `alpha/<frame>.tif` | all | a page per object | uint8 | each object's soft matte, 0 to 255 |
 | `bokeh/<frame>.png` | all | RGB | uint8 | the frame as the layered renderer blurred it |
 | `flow/<frame>.png` | all but the last | RGB | uint16 | the optical flow to the next frame, KITTI-encoded |
@@ -217,8 +217,9 @@ data/fixed-set/
   frame's in-focus disparity as `zf`, and records the renderer and its settings.
 - **The run's records sit beside the shards.** `manifest.csv` gives each sequence's seed,
   object count and background, `objects.csv` each object's foreground and trajectory, and
-  `run.json` the settings. With them the generator writes the same sequences again, with
-  their layers if asked, to render the bokeh at another strength or focus.
+  `run.json` the settings. With them, and code whose sampling has not changed since,
+  `scenes.generate` writes the same sequences again with their layers, `--layers`, and
+  `render.run` renders their bokeh from those at another strength or focus.
 - **A shard holds one sample per sequence,** its files named `<id>.<stream>.<frame>`, with
   `<id>.focus.json` and `<id>.json`, the sequence's rows of the records.
 
@@ -261,7 +262,7 @@ def _glance(index: dict[str, dict[str, Any]], sequences: dict[str, Any] | None) 
             "Fixed set",
             f"{sequences['items']:,} sequences",
             f"{sequences['frames']} frames at {side} × {side}",
-            f"{len(STREAMS)} streams, a file per frame",
+            f"{len(STREAMS)} streams of per-frame files",
             str(len(sequences["shards"])),
             f"{_gb(sum(s['bytes'] for s in sequences['shards']))} GB",
         ]
@@ -556,6 +557,7 @@ def card(
         fg_side=index[FOREGROUNDS]["side"],
         bg_side=index[BACKGROUNDS]["side"],
         total_gb=_gb(sum(s["bytes"] for s in all_shards)),
+        largest_gb=_gb(max((s["bytes"] for s in all_shards), default=0)),
     )
 
 
