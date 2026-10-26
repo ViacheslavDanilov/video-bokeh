@@ -208,7 +208,7 @@ uv run python -m video_bokeh.scenes.generate \
 What binds now is the depth axis, not the image format. Objects get disjoint slots above the
 background, so each extra object narrows every slot and makes collisions harder to avoid. Five
 places every scene; six starts losing them. The measured sweep is in
-[demo-unrestricted-trajectories](demo-unrestricted-trajectories.md), and
+[check-trajectories-by-eye](check-trajectories-by-eye.md), and
 [dataset-layout](../reference/dataset-layout.md) says what to raise if you need more.
 
 ### Optical flow
@@ -276,7 +276,7 @@ What to check:
   so one is always clearly in front.
 
 A fuller set of checks on the trajectory model is in
-[demo-unrestricted-trajectories](demo-unrestricted-trajectories.md).
+[check-trajectories-by-eye](check-trajectories-by-eye.md).
 
 ---
 

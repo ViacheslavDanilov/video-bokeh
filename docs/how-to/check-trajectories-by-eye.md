@@ -1,7 +1,7 @@
 ---
 type: how-to
 status: active
-tags: [how-to, unrestricted-trajectories, demo, vpv, runbook]
+tags: [how-to, trajectories, demo, vpv, runbook]
 related: [pipeline-explainer, generate-a-dataset, dataset-layout]
 ---
 
@@ -9,10 +9,9 @@ related: [pipeline-explainer, generate-a-dataset, dataset-layout]
 
 How to convince yourself the depth trajectories are right, using `vpv`.
 
-There used to be a second depth mode to compare against. There is only one now, so the
-comparison is against the **claim** instead: each object moves freely through depth, and its
-disparity moves *with* its apparent size. An object that grows on screen must get brighter in
-the disparity stream, and two objects that cross must swap which one is drawn in front.
+Each object moves freely through depth, and its disparity moves *with* its apparent size. An
+object that grows on screen must get brighter in the disparity stream, and two objects that
+cross must swap which one is drawn in front.
 
 Commands run from `backend/` unless stated. Output lands in `backend/data/`, which is
 gitignored. To produce a dataset in the first place, see

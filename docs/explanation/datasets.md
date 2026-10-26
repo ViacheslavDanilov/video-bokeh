@@ -69,5 +69,5 @@ pass, or can render it again afterward over saved layers.
 - [generate-a-dataset](../how-to/generate-a-dataset.md) has the acquisition, library,
   generation, and rendering recipes.
 - [dataset-layout](../reference/dataset-layout.md) defines the files and formats each stage writes.
-- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) explains how to
-  check motion and depth by eye.
+- [check-trajectories-by-eye](../how-to/check-trajectories-by-eye.md) explains how to check
+  motion and depth by eye.
