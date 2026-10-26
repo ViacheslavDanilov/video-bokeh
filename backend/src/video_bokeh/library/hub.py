@@ -472,7 +472,7 @@ def card(
         config = SEQUENCES_CONFIG
         intro = (
             f", and under `{SEQUENCES}/` a fixed set of {sequences['items']:,} sequences "
-            "that Stage B wrote from the test split"
+            "made from its test split, for evaluation"
         )
         low, high = sequences["objects"]
         fixed_set = FIXED_SET.substitute(
