@@ -40,8 +40,10 @@ $sequences_config---
 
 Synthetic video for training and evaluating depth-aware bokeh. Every frame is composited
 from known layers, so its disparity, the soft matte of each object, its bokeh, its forward
-and backward optical flow and its occlusion match it by construction. The
-[code](https://github.com/ViacheslavDanilov/video-bokeh) that makes them is open.
+and backward optical flow and its occlusion match it by construction.
+
+**Code:** [github.com/ViacheslavDanilov/video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh)
+— the generator, the PyTorch loader and the download tools.
 
 - **The library**, under `library/`: $foregrounds cut-out foregrounds and $backgrounds
   background photos, each with a disparity map. It holds no sequences. The code's generator
@@ -59,8 +61,8 @@ $glance
 
 **Every asset is in the train split or the test split.** The backgrounds follow BG-20k's own
 split. MAGICK has no split, so 10% of the foregrounds of each subject were drawn once, with a
-fixed seed, for the test split; the code lists them in
-`backend/src/video_bokeh/core/test_foregrounds.txt`.
+fixed seed, for the test split; the code repository lists them in
+[`test_foregrounds.txt`](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/backend/src/video_bokeh/core/test_foregrounds.txt).
 
 | | Train | Test |
 |---|---|---|
@@ -68,7 +70,7 @@ fixed seed, for the test split; the code lists them in
 | Backgrounds | $bg_train | $bg_test |
 
 The generator draws from the train split unless it is told otherwise, by `split="test"` in
-`SequenceStream` or `--split test` in `scenes.generate`.$split_use There is no
+the code's `SequenceStream` or `--split test` in its `scenes.generate`.$split_use There is no
 validation split: draw one from the train split, with seeds far from the training run's.
 
 ## Quick start
@@ -128,7 +130,7 @@ A library item is plain PNG, read with Pillow and NumPy:
 import numpy as np
 from PIL import Image
 
-item = "data/library/da2-large/foregrounds/<id>"
+item = "data/library/da2-large/foregrounds/<id>"  # a folder `fetch` wrote
 rgba = np.asarray(Image.open(f"{item}/rgb.png"))  # (H, W, 4) uint8
 matte = np.asarray(Image.open(f"{item}/alpha.png")) / 255.0  # (H, W) in [0, 1]
 disparity = np.asarray(Image.open(f"{item}/depth.png")) / 65535.0  # (H, W) in [0, 1]
@@ -146,6 +148,8 @@ item = next(iter(foregrounds))
 ```
 $sequences_datasets
 ## Library files
+
+The files of an item, as `fetch` writes them under `data/library/da2-large/`:
 
 | File | Mode | Type | Values |
 |---|---|---|---|
@@ -171,7 +175,7 @@ $sequences_datasets
   statistics of the raw estimate, such as `core_frac`, the share of the square the trusted
   core covers, and `low_confidence`, true when that core is under 0.2% of it.
 
-## Repository layout
+## Files in this repository
 
 ```text
 README.md$assets
@@ -224,8 +228,9 @@ $layout
   foreground.
 - **The subjects are uneven.** Of the 8,586 foregrounds, 3,974 are people, 2,327 objects,
   1,406 food, 483 plants and 396 animals, by the classifier's labels. The labels are not
-  shipped: they stay in the code repository, in `backend/data/magick/predictions.csv`, keyed
-  by `page_id`, the part of a foreground id after `__`.
+  shipped: they stay in the code repository, in
+  [`predictions.csv`](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/backend/data/magick/predictions.csv), keyed by `page_id`, the part of a
+  foreground id after `__`.
 
 ## Sources and license
 

@@ -184,7 +184,8 @@ FIXED_SET = Template("""
 **`sequences/` holds $sequences sequences that the generator wrote once from the test split,**
 for evaluation: none of their objects or backgrounds is in the train split. Each has $frames
 frames at $size × $size and $objects, and its bokeh is rendered at `k = $strength`.
-`fetch-sequences` needs $seq_gb GB of disk, plus room for one shard of at most $seq_largest GB:
+`fetch-sequences`, run in the code's `backend/` folder like `fetch`, needs $seq_gb GB of disk,
+plus room for one shard of at most $seq_largest GB:
 
 ```bash
 uv run python -m video_bokeh.library.hub fetch-sequences --repo $repo \\
@@ -217,9 +218,9 @@ data/fixed-set/
   frame's in-focus disparity as `zf`, and records the renderer and its settings.
 - **The run's records sit beside the shards.** `manifest.csv` gives each sequence's seed,
   object count and background, `objects.csv` each object's foreground and trajectory, and
-  `run.json` the settings. With them, and code whose sampling has not changed since,
-  `scenes.generate` writes the same sequences again with `--layers`, and `render.run`
-  renders their bokeh from those layers at another strength or focus.
+  `run.json` the settings. With them, and code whose sampling has not changed since, the
+  code's `scenes.generate` writes the same sequences again with `--layers`, and its
+  `render.run` renders their bokeh from those layers at another strength or focus.
 - **A shard holds one sample per sequence,** its files named `<id>.<stream>.<frame>`, with
   `<id>.focus.json` and `<id>.json`, the sequence's rows of the records.
 
