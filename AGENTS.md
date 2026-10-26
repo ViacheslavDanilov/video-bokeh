@@ -1,11 +1,11 @@
-# Video Bokeh — Agent Guide
+# Video Bokeh: Agent Guide
 
-Depth-aware synthetic bokeh pipeline for video. FastAPI backend (Python 3.13, `uv`), Next.js frontend (Node 24, `pnpm`). Two stacks, two toolchains — read the area-specific guide before touching code:
+Depth-aware synthetic bokeh pipeline for video. FastAPI backend (Python 3.13, `uv`), Next.js frontend (Node 24, `pnpm`). Two stacks, two toolchains: read the area-specific guide before touching code:
 
-- `backend/AGENTS.md` — Python, uv, ruff, ty, pytest
-- `frontend/AGENTS.md` — Next.js (non-standard), pnpm 11, eslint, prettier
+- `backend/AGENTS.md`: Python, uv, ruff, ty, pytest
+- `frontend/AGENTS.md`: Next.js (non-standard), pnpm 11, eslint, prettier
 
-## Authorship — hard rule
+## Authorship: hard rule
 
 **Every commit and pull request in this repository is authored by Viacheslav Danilov alone. No AI tool is ever credited anywhere in the repository's history.**
 
@@ -93,27 +93,27 @@ The problem this solves, in one or two sentences. Not a restatement of What.
    }
    ```
 3. **Never `--force-push` to `main`.** Force-push to feature branches only after the user authorizes it.
-4. **Pre-commit runs on every commit.** Config is `.pre-commit-config.yaml`. If hooks fail, fix the underlying issue — don't use `--no-verify`.
+4. **Pre-commit runs on every commit.** Config is `.pre-commit-config.yaml`. If hooks fail, fix the underlying issue. Don't use `--no-verify`.
 5. **Don't amend pushed commits** without the user's go-ahead (force-push territory).
 6. Commit and pull request text follows the notation in "Commit messages" and "Pull requests" above.
 
 ## Secrets and data
 
 - `.env` files are gitignored. Never commit them or paste their contents into chat logs.
-- Two `.env.example` templates are checked in: `backend/.env.example` for the backend process (`VIDEO_BOKEH_LIBRARY`, `VIDEO_BOKEH_DATA_ROOT`, `CORS_ORIGINS` and `VIDEO_BOKEH_RENDER_BOKEH`, all four read by `backend/src/video_bokeh/api/_settings.py`, and `VIDEO_BOKEH_LAYERED_DEVICE`, read by the layered renderer), and the root `.env.example` for `docker compose` (`VIDEO_BOKEH_DATA_ROOT`, `VIDEO_BOKEH_LIBRARY`). Nothing auto-loads the backend one — there is no dotenv in the backend, so those are exported or passed on the command line.
-- **`backend/data/` is a deliberate exception.** Most of it is gitignored, but the small development pools are tracked on purpose: `magick_dev/` (30 foregrounds), `bg-20k_dev/` (30 backgrounds) and `magick_metadata.csv`. Cloning the repo is then enough to run the pipeline — no downloads, no Kaggle credentials, no waiting. That is worth the 76 MiB, of which `magick_metadata.csv` alone is 15.4 MiB. How the pools were grown is in `docs/how-to/generate-a-dataset.md`.
+- Two `.env.example` templates are checked in: `backend/.env.example` for the backend process (`VIDEO_BOKEH_LIBRARY`, `VIDEO_BOKEH_DATA_ROOT`, `CORS_ORIGINS` and `VIDEO_BOKEH_RENDER_BOKEH`, all four read by `backend/src/video_bokeh/api/_settings.py`, and `VIDEO_BOKEH_LAYERED_DEVICE`, read by the layered renderer), and the root `.env.example` for `docker compose` (`VIDEO_BOKEH_DATA_ROOT`, `VIDEO_BOKEH_LIBRARY`). Nothing auto-loads the backend one: there is no dotenv in the backend, so those are exported or passed on the command line.
+- **`backend/data/` is a deliberate exception.** Most of it is gitignored, but the small development pools are tracked on purpose: `magick_dev/` (30 foregrounds), `bg-20k_dev/` (30 backgrounds) and `magick_metadata.csv`. Cloning the repo is then enough to run the pipeline: no downloads, no Kaggle credentials, no waiting. That is worth the 76 MiB, of which `magick_metadata.csv` alone is 15.4 MiB. How the pools were grown is in `docs/how-to/generate-a-dataset.md`.
 - **`magick/metadata.csv` and `magick/predictions.csv` are tracked too.** The predictions are CLIP's subject and style scores for 11,868 MAGICK images, 4.5 MiB that only a GPU run of `video_bokeh.acquire.classify` can remake, and `scripts/analyze_magick_distribution.py` reads them. `predictions.json` beside them records the OpenCLIP model that made them, as it does beside `magick_dev/predictions.csv`. The metadata, 1.2 MiB, names those images, and `classify` reads it from the same directory. `magick/` is laid out like `magick_dev/`, but its `images/` holds only a `.gitkeep`: a full MAGICK mirror's images downloaded there stay ignored.
 - **`bg-20k/images/`, `library/` and `library_dev/` are tracked empty, each with a `.gitkeep`,** so a clone has the folders the pool and library commands fill (`docs/how-to/generate-a-dataset.md`, "Full pools"). Everything inside them stays ignored: a library is built by Stage A, never tracked.
 - Everything *generated* under `backend/data/` stays ignored: `library*/`, `synth*/` and anything else a run produces. Adding a generated tree to git is still wrong; adding a source asset the dev recipes depend on is not.
 
 ## Don't touch
 
-- `backend/data/` — mostly gitignored, with the tracked exception described under "Secrets and data".
-- `frontend/.next/`, `frontend/node_modules/`, `.venv/`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/` — generated.
+- `backend/data/`: mostly gitignored, with the tracked exception described under "Secrets and data".
+- `frontend/.next/`, `frontend/node_modules/`, `.venv/`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`: generated.
 
 ## Verification before claiming done
 
-Run the actual check, don't assume. Type-checking and tests verify correctness of code, not of features — for UI changes, also start the dev server and confirm the behavior in a browser.
+Run the actual check, don't assume. Type-checking and tests verify correctness of code, not of features. For UI changes, also start the dev server and confirm the behavior in a browser.
 
 | Layer | Command |
 |---|---|
@@ -132,25 +132,25 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 
 ## Where things live
 
-- `backend/src/video_bokeh/` — FastAPI runtime and dataset pipeline (run scripts from `backend/`)
-- `frontend/src/` — Next.js app
-- `docs/` — documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/`, `reference/` and `adr/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
-- `scripts/` — repo-level setup and lab scripts (`setup_depth_anything_3.sh`, `lab_run.sh`)
-- `comparison/` — runs other published bokeh renderers on our sequences and scores them against ours. Their code is cloned into an ignored folder, never tracked. `comparison/README.md` has the recipe
-- `.assets/` — the README's demo video, `video-bokeh-demo.mp4`. The README plays a copy uploaded to GitHub, so this is the original
-- `CONTEXT.md` — the project glossary. Grilling adds a term to it once the term is settled
-- `.claude/skills/` — the agent lifecycle: `/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call. `docs/how-to/agent-lifecycle.md` shows how to drive it
+- `backend/src/video_bokeh/`: FastAPI runtime and dataset pipeline (run scripts from `backend/`)
+- `frontend/src/`: Next.js app
+- `docs/`: documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/`, `reference/` and `adr/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
+- `scripts/`: repo-level setup and lab scripts (`setup_depth_anything_3.sh`, `lab_run.sh`)
+- `comparison/`: runs other published bokeh renderers on our sequences and scores them against ours. Their code is cloned into an ignored folder, never tracked. `comparison/README.md` has the recipe
+- `.assets/`: the README's demo video, `video-bokeh-demo.mp4`. The README plays a copy uploaded to GitHub, so this is the original
+- `CONTEXT.md`: the project glossary. Grilling adds a term to it once the term is settled
+- `.claude/skills/`: the agent lifecycle (`/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call). `docs/how-to/agent-lifecycle.md` shows how to drive it
 
 ## Working principles
 
-Adapted from [Andrej Karpathy's observations on LLM coding pitfalls](https://github.com/multica-ai/andrej-karpathy-skills) (MIT licensed). These bias toward caution over speed — for trivial tasks, use judgment.
+Adapted from [Andrej Karpathy's observations on LLM coding pitfalls](https://github.com/multica-ai/andrej-karpathy-skills) (MIT licensed). These bias toward caution over speed. For trivial tasks, use judgment.
 
 ### 1. Think before coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
 
 - State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
+- If multiple interpretations exist, present them. Don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
@@ -173,7 +173,7 @@ Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, sim
 - Don't "improve" adjacent code, comments, or formatting.
 - Don't refactor things that aren't broken.
 - Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
+- If you notice unrelated dead code, mention it. Don't delete it.
 - Remove imports and variables that *your* changes made unused; leave pre-existing dead code alone unless asked.
 
 The test: every changed line should trace directly to the request.

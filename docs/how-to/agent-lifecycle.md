@@ -104,7 +104,7 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 3. It runs the page in a browser and syncs any documentation the change made stale.
 4. On your own branch it fixes what it found, at most three rounds. It runs the same checks, then pushes the fixes.
 5. It publishes one review on GitHub and tells you whether the PR is ready to merge.
-6. You merge — or the agent does, when you have handed this batch of pull requests over.
+6. You merge, or the agent does when you have handed this batch of pull requests over.
 
 ## Where things end up
 
@@ -114,6 +114,6 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 | Tickets for a big feature | `docs/plans/YYYY-MM-DD-<branch-slug>/` | no |
 | Glossary of project terms | `CONTEXT.md` | yes |
 | Decisions that are hard to reverse | `docs/adr/` | yes |
-| The review | the pull request on GitHub | — |
+| The review | the pull request on GitHub | n/a |
 
 `.claude/skills/shared/bokeh-conventions.md` lists every skill the three commands call and the ones deliberately left out.

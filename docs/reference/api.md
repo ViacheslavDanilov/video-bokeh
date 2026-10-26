@@ -59,7 +59,7 @@ broken library, and the API says which half is missing.
 The two paths are read per request, not at startup: the container starts before the library
 volume is populated, and `/health` answers either way.
 
-`CORS_ORIGINS` is the exception — it is read once when the app is built, because middleware is
+`CORS_ORIGINS` is the exception: it is read once when the app is built, because middleware is
 installed then. **The page and the API always sit on different ports**, so without a matching
 origin here the browser refuses every request before it reaches a route.
 
@@ -109,7 +109,7 @@ keyed on that id, so either library would serve the other's sequences.
 `name` is the directory's own name. Under compose a single library is always called `library`,
 because that is where compose mounts it.
 
-`asset_size` is the side Stage A stored foregrounds at. Backgrounds are deliberately larger —
+`asset_size` is the side Stage A stored foregrounds at. Backgrounds are deliberately larger:
 Stage A oversizes them so the Stage B warp never samples past the edge.
 
 Answers 503 when there is no library at the configured path. The message names the path.
@@ -236,8 +236,8 @@ machine, 80 frames, four objects, without bokeh, each pair back to back:
 answers 422 and lists the ids. An id that is not mounted answers the same way. The API never
 picks a library for you. The response's `library` names the one the sequence came from.
 
-The same parameters against two libraries built from the same assets give the same scene —
-the objects, their paths and their masks — and differ only in disparity. That is what
+The same parameters against two libraries built from the same assets give the same scene
+(the objects, their paths and their masks) and differ only in disparity. That is what
 comparing depth estimators means here.
 
 **The sequence id is a hash of the five numbers, the library id and the bokeh strength.**
@@ -348,14 +348,14 @@ Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or
 `flow`, `flow_back` and `occlusion` when the sequence has them.
 
 **`alpha` is one color per object, not one silhouette.** The stream is a multi-page TIFF
-with one page per object, and the page index is that object's identity for the whole clip —
+with one page per object, and the page index is that object's identity for the whole clip.
 `scenes/_compositor.py` fixes it deliberately, because paint order is recomputed every frame
 as objects move past each other. So an object keeps its color from the first frame to the
 last, and watching which color covers which is watching the depth ordering change.
 
 The masks are **amodal**: each page holds the object's full silhouette, including the part a
 nearer object hides. They are painted in page order, so where two overlap the higher object
-number wins — that is identity order, not distance. The disparity pane beside it is where
+number wins. That is identity order, not distance. The disparity pane beside it is where
 distance is read.
 
 `object_colors` in the sequence response names the color of each object, so a legend cannot
@@ -399,7 +399,7 @@ specifies. Firefox playback was not tested here.
 Existing cached MP4s keep their original encoding. The API re-encodes only when a video
 is missing or its stream directory's modification or change time is newer than the video. Changing the
 encoder settings alone does not invalidate cached files. The
-[CLI reference](cli.md#video_bokehpreviewpack--png-streams-to-mp4) measures file sizes,
+[CLI reference](cli.md#video_bokehpreviewpack-png-streams-to-mp4) measures file sizes,
 encoding times and fidelity for all five streams.
 
 **`?colormap=` applies to `disparity` only.** It is 16-bit grayscale on disk and gets its
@@ -468,7 +468,7 @@ libraries of thousands it is worth caching on the directories' modification time
 
 **Two identical requests arriving together both generate.** There is no lock. The rename
 decides which one lands and the loser discards its work, so the result is correct and no
-directory is ever overwritten while someone reads it — it just costs the duplicated CPU. For
+directory is ever overwritten while someone reads it. It just costs the duplicated CPU. For
 an audience of a handful of people that is cheaper than the coordination would be.
 
 **The library id does not cover pixel content.** Covered above under `GET /libraries`.

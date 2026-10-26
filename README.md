@@ -85,7 +85,7 @@ docker compose up api
 The containers are `video-bokeh-api` and `video-bokeh-web`. `api` mounts the libraries
 read-only at `/data/library` and writes sequences to `/data/sequences`; both come from
 `VIDEO_BOKEH_DATA_ROOT`, which defaults to `backend/data`. Generating a sequence in the container
-costs roughly half again what it costs natively — the numbers are in
+costs roughly half again what it costs natively. The numbers are in
 [docs/reference/api.md](docs/reference/api.md).
 
 ## Generate Your Own Dataset
@@ -102,7 +102,7 @@ from the test split, 79 GB, for evaluation.
 download the library into the layout Stage B reads, in about 20 minutes, train on its train
 split as step 5 does, and evaluate on the fixed set.
 
-[cli](docs/reference/cli.md#video_bokehlibraryhub--publish-or-download-a-library-and-its-fixed-set)
+[cli](docs/reference/cli.md#video_bokehlibraryhub-publish-or-download-a-library-and-its-fixed-set)
 says how the library is packed and published.
 
 1. **Install** the dataset extras from the repository root, with Python 3.13+ and
@@ -152,7 +152,7 @@ says how the library is packed and published.
    `--model` picks the depth estimator: Depth Anything V2, Depth Pro, Depth Anything 3, or a
    class of your own. [cli](docs/reference/cli.md#depth-estimators) lists them with their
    weights' licenses. A class filter keeps 8,586 of the 11,868 foregrounds, and
-   [generate-a-dataset](docs/how-to/generate-a-dataset.md#1-stage-a--build-the-library) says
+   [generate-a-dataset](docs/how-to/generate-a-dataset.md#1-stage-a-build-the-library) says
    how to turn it off.
 
 4. **Generate sequences.** Stage B composites objects onto a background and writes each
@@ -169,8 +169,8 @@ says how the library is packed and published.
    - `--bokeh` renders each sequence's bokeh in the same run. `--bokeh-strength` (16) is the
      blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus.
    - `--layers`, `--flow`, `--flow-back` and `--occlusion` each add a stream.
-     [cli](docs/reference/cli.md#video_bokehscenesgenerate--stage-b) has every flag, and
-     [dataset-layout](docs/reference/dataset-layout.md#stage-b--a-generated-sequence) every
+     [cli](docs/reference/cli.md#video_bokehscenesgenerate-stage-b) has every flag, and
+     [dataset-layout](docs/reference/dataset-layout.md#stage-b-a-generated-sequence) every
      stream.
 
 5. **Or train on the fly.** `SequenceStream`, in `video_bokeh.loader`, generates a new

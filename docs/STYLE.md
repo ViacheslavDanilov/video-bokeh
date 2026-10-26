@@ -5,7 +5,7 @@ tags: [meta, writing-style, vault]
 
 # Vault writing style
 
-Plain, direct prose. The vault is read by Pablo and Valery as well as Slava — keep the technical density for code comments and design specs, not for the shared notes.
+Plain, direct prose. The vault is read by Pablo and Valery as well as Slava. Keep the technical density for code comments and design specs, not for the shared notes.
 
 ## Rules
 
@@ -27,15 +27,15 @@ Plain, direct prose. The vault is read by Pablo and Valery as well as Slava — 
 
 ## Where this applies
 
-- `reports/*` — meeting prep, weekly summaries, deep dives.
-- `meetings/*` — meeting notes, action items, decisions.
-- `explanation/*` — long-running topic pages.
-- `how-to/*` — runbooks.
+- `reports/*`: meeting prep, weekly summaries, deep dives.
+- `meetings/*`: meeting notes, action items, decisions.
+- `explanation/*`: long-running topic pages.
+- `how-to/*`: runbooks.
 
 ## Where it doesn't apply
 
-- Code comments and docstrings — terse and technical is correct.
-- `specs/*` and `plans/*` — these sit next to the code; the audience is a developer with the file open.
+- Code comments and docstrings: terse and technical is correct.
+- `specs/*` and `plans/*`: these sit next to the code; the audience is a developer with the file open.
 - Source files in `backend/`, `frontend/`, etc.
 
 ## Reference
