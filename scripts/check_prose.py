@@ -12,7 +12,8 @@ review never fails for want of a key. Paragraphs go to api.typesafe.ai, so run i
 public text only.
 
 It prints one line per flagged paragraph and exits 0, or 1 with ``--strict`` when
-anything was flagged. Only the standard library is used, so it runs with any Python 3.
+anything was flagged. It needs only the standard library of Python 3.9 or later, the
+version macOS ships.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -59,7 +61,7 @@ def paragraphs(text: str) -> list[tuple[int, int, str]]:
     found: list[tuple[int, int, str]] = []
     cur: list[str] = []
     first = last = 0
-    fence = False
+    fence = quote = False
 
     def close() -> None:
         if cur:
@@ -74,10 +76,17 @@ def paragraphs(text: str) -> list[tuple[int, int, str]]:
             continue
         if fence or not s or s.startswith(_NOT_PROSE):
             close()
+            quote = False
             continue
-        if _ITEM.match(s) or s.startswith("> "):
+        if s.startswith("> "):
+            if not quote:
+                close()
+            quote = True
+            s = s[2:]
+        elif _ITEM.match(s):
             close()
-            s = re.sub(r"^([-*]|\d+\.|>) ", "", s)
+            quote = False
+            s = _ITEM.sub("", s)
         if not cur:
             first = n
         cur.append(s)
@@ -97,17 +106,20 @@ def changed_lines(path: str, base: str) -> set[int]:
     lines: set[int] = set()
     for match in re.finditer(r"^@@ .* \+(\d+)(?:,(\d+))? @@", diff, re.M):
         start, count = int(match[1]), int(match[2] or 1)
-        lines.update(range(start, start + count))
+        # A hunk that only deletes names the line before the gap: check both sides.
+        lines.update(range(start, start + count) if count else (start, start + 1))
     return lines
 
 
 def changed_markdown(base: str) -> list[str]:
+    """The Markdown files added, changed or renamed since ``base``, by their new path."""
     out = subprocess.run(
         [
             "git",
             "diff",
             "--name-only",
-            "--diff-filter=AM",
+            "-z",
+            "--diff-filter=AMR",
             f"{base}...HEAD",
             "--",
             "*.md",
@@ -116,7 +128,11 @@ def changed_markdown(base: str) -> list[str]:
         text=True,
         check=True,
     ).stdout
-    return [p for p in out.splitlines() if p]
+    return [p for p in out.split("\0") if p]
+
+
+class Refused(Exception):
+    """api.typesafe.ai refused the request itself, as it does a wrong key."""
 
 
 def ask_jev(text: str, key: str) -> float | None:
@@ -135,6 +151,12 @@ def ask_jev(text: str, key: str) -> float | None:
         try:
             with urllib.request.urlopen(request, timeout=60) as response:
                 return json.load(response)["answers"]["ai"]["noul"]
+        except urllib.error.HTTPError as error:
+            if 400 <= error.code < 500 and error.code != 429:
+                raise Refused(
+                    f"api.typesafe.ai refused the request: HTTP {error.code}"
+                ) from error
+            time.sleep(2**attempt)
         except (OSError, KeyError, ValueError):
             time.sleep(2**attempt)
     return None
@@ -171,16 +193,18 @@ def main(argv: list[str] | None = None) -> int:
     if not key:
         print("TYPESAFE_API_KEY is not set: checked the em dash only", file=sys.stderr)
     elif judged:
-        with concurrent.futures.ThreadPoolExecutor(8) as pool:
-            scores = list(pool.map(lambda t: ask_jev(t[2], key), judged))
-        failed = sum(s is None for s in scores)
+        try:
+            with concurrent.futures.ThreadPoolExecutor(8) as pool:
+                scored = list(pool.map(lambda t: (t, ask_jev(t[2], key)), judged))
+        except Refused as error:
+            print(f"{error}: checked the em dash only", file=sys.stderr)
+            scored = []
+        failed = sum(score is None for _, score in scored)
         if failed:
             print(f"Jev did not answer for {failed} paragraphs", file=sys.stderr)
         flagged += [
             f"{path}:{line}: reads as machine-written ({score:.2f}): {text[:100]}"
-            for (path, line, text), score in sorted(
-                zip(judged, scores, strict=True), key=lambda pair: -(pair[1] or 0)
-            )
+            for (path, line, text), score in sorted(scored, key=lambda p: -(p[1] or 0))
             if score is not None and score >= args.threshold
         ]
     print("\n".join(flagged) if flagged else f"{len(targets)} paragraphs, none flagged")
