@@ -1585,38 +1585,6 @@ test("centers the info, six panes and transport as one column", async ({
 });
 
 /**
- * A small pane in a 1100 px window is narrower than the transport needs for one line, so
- * the column is wider than it is and the pane sits in the middle of it. The transport
- * stays on a single line, which the height it keeps free assumes. One pane, so that the
- * grid is far from the width where it would take the whole work area.
- */
-test("keeps the transport on one line under a small pane", async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 800 });
-  await openPage(page);
-  await generateSequence(page);
-  for (const name of ["Alpha", "Disparity", "Optical flow"])
-    await page.getByRole("button", { name: `Close ${name} pane` }).click();
-  await expect(page.locator("figure")).toHaveCount(1);
-  await expect
-    .poll(async () => {
-      const { info, grid, overflow } = await columnEdges(page);
-      const box = (await page
-        .getByRole("button", { name: "Play" })
-        .locator("xpath=..")
-        .boundingBox())!;
-      return {
-        // Well inside the column, as this test is about.
-        small: grid.right - grid.left < info.right - info.left - 100,
-        centered:
-          Math.abs(grid.left - info.left - (info.right - grid.right)) <= 1,
-        oneLine: box.height <= 60,
-        overflow,
-      };
-    })
-    .toEqual({ small: true, centered: true, oneLine: true, overflow: 0 });
-});
-
-/**
  * The info row is wider on one line than the column's minimum when the seed has many
  * digits. If the column were narrower than the row it would wrap, the grid would drop by
  * a line, six panes only just fitting at 200 px would no longer fit, and the page would
@@ -2687,7 +2655,9 @@ test("steps a frame zoomed in without the frames from memory", async ({
  * The zoom makes the transport wider, up to 743 px on one line. The column takes that
  * width where the work area has it, so the transport stays on one line under panes that
  * need less. Only a narrower work area wraps it, and the page still fits the window then.
- * The panes leave room for a second line only when there is one.
+ * The panes leave room for a second line only when there is one. A small pane in a 1100
+ * px window sits centered in the wider column, well inside it, and the page does not
+ * scroll across.
  */
 test("keeps the transport on one line wherever the work area allows", async ({
   page,
@@ -2740,4 +2710,24 @@ test("keeps the transport on one line wherever the work area allows", async ({
     return height;
   };
   expect(await sizeAt(1050)).toBe(await sizeAt(1200));
+
+  // A small pane in a 1100 px window is narrower than the transport needs for one line, so
+  // the column is wider than it is and the pane sits in the middle of it. The transport
+  // stays on a single line, which the height it keeps free assumes. One pane, so that the
+  // grid is far from the width where it would take the whole work area.
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect
+    .poll(async () => {
+      const { info, grid, overflow } = await columnEdges(page);
+      const box = (await bar.boundingBox())!;
+      return {
+        // Well inside the column, as this test is about.
+        small: grid.right - grid.left < info.right - info.left - 100,
+        centered:
+          Math.abs(grid.left - info.left - (info.right - grid.right)) <= 1,
+        oneLine: box.height <= 60,
+        overflow,
+      };
+    })
+    .toEqual({ small: true, centered: true, oneLine: true, overflow: 0 });
 });
