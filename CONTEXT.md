@@ -7,12 +7,12 @@ that shows them.
 ## Assets and the library
 
 **Asset pool**:
-A source collection of images before Stage A — MAGICK foregrounds, BG-20K backgrounds, and
+A source collection of images before Stage A: MAGICK foregrounds, BG-20K backgrounds, and
 their small development subsets.
 _Avoid_: dataset, source data
 
 **Foreground**:
-A cut-out image in the library, with its matte and disparity map — the reusable template
+A cut-out image in the library, with its matte and disparity map, the reusable template
 that objects are made from.
 _Avoid_: object (for the library item), cut-out, sprite
 
@@ -37,7 +37,7 @@ and the test foregrounds are a tracked list.
 _Avoid_: partition, fold, held-out set
 
 **Depth estimator**:
-Any model behind Stage A's interface that turns an asset into one disparity map — Depth
+Any model behind Stage A's interface that turns an asset into one disparity map: Depth
 Anything V2 by default, Depth Pro, or one of the user's own. With depth motion, one of the
 only two terms in this project where the word "depth" survives.
 _Avoid_: depth model
@@ -51,7 +51,7 @@ _Avoid_: core mask, valid region
 
 **Scene**:
 The sampled setup a sequence is rendered from: its background, its objects with their
-trajectories, the frame count and the size — everything the seed and the run's settings decide
+trajectories, the frame count and the size, everything the seed and the run's settings decide
 before a frame is drawn.
 _Avoid_: layout, plan
 
@@ -90,7 +90,7 @@ overlap.
 _Avoid_: mask, segmentation, label map, matte
 
 **Disparity**:
-Inverse distance scaled to [0, 1], where larger means closer — the one quantity every map in
+Inverse distance scaled to [0, 1], where larger means closer, the one quantity every map in
 the pipeline stores.
 _Avoid_: depth, depth map
 
@@ -147,7 +147,7 @@ A nearer object covering a farther one on screen while their active bands stay a
 Expected and allowed.
 
 **Collision**:
-Two objects overlapping on screen and in active band on the same frame — a sample with no
+Two objects overlapping on screen and in active band on the same frame: a sample with no
 defensible depth order, so its trajectories are thrown away and resampled.
 _Avoid_: overlap, intersection
 
@@ -187,7 +187,7 @@ mask asked for, it renders them too, in the same pass.
 _Avoid_: rendering
 
 **Sequence stream**:
-Sequences Stage B generates in memory for a training loop and never writes — the on-the-fly
+Sequences Stage B generates in memory for a training loop and never writes, the on-the-fly
 counterpart of the dataset. `loader` is its role word in code, as `library` is Stage A's.
 _Avoid_: online dataset
 
@@ -215,7 +215,7 @@ A stream encoded as video for a person to watch; never part of the dataset.
 _Avoid_: render
 
 **Colormap**:
-How a preview paints disparity for a person — Spectral or gray.
+How a preview paints disparity for a person: Spectral or gray.
 
 **Stream info**:
 What the API reports for one stream of a generated sequence: where to fetch its preview and

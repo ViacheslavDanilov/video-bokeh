@@ -21,8 +21,8 @@ flag, see [cli](../reference/cli.md). For why the pipeline is shaped this way, s
 
 ## Before you start
 
-1. Foregrounds in `data/magick_dev` — see [magick](../explanation/magick.md).
-2. Backgrounds in `data/bg-20k_dev` — see [datasets](../explanation/datasets.md).
+1. Foregrounds in `data/magick_dev`, see [magick](../explanation/magick.md).
+2. Backgrounds in `data/bg-20k_dev`, see [datasets](../explanation/datasets.md).
 3. Dependencies: `uv sync --extra library` from the repo root.
 4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says whether
    each depth estimator can run there, before a build finds out. See [cli](../reference/cli.md).
@@ -149,7 +149,7 @@ The recipes below use the dev library. For the final dataset, pass
    mv backend/data/library/<name> backend/data/library_dev/<estimator>
    ```
 
-## 1. Stage A — build the library
+## 1. Stage A: build the library
 
 Run the matching build command in [Library names](#library-names).
 
@@ -162,7 +162,7 @@ style are among `--subjects` and `--styles`, and whose subject score is at least
 `--subjects "" --styles "" --subject-thr 0` to turn it off; any one of them alone leaves the
 other two filtering.
 
-A fast check with no large download — 3 foregrounds, 2 backgrounds, the small model, **6.7 s**
+A fast check with no large download (3 foregrounds, 2 backgrounds, the small model), **6.7 s**
 on an M-series Mac using `mps`:
 
 ```bash
@@ -174,7 +174,7 @@ uv run python -m video_bokeh.library.build \
 
 ---
 
-## 2. Stage B — generate sequences
+## 2. Stage B: generate sequences
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
@@ -226,7 +226,7 @@ With the old PNG compression default, level 6, it took 20 s on an Apple M3 Pro, 
 14 s for the same three sequences without `--flow`. Each sequence's `flow/` held 79 files,
 2.2 to 3.5 MiB in all. The writer now uses level 3. On a 512 px sequence, it saved 26.6% of
 writer time and used 2.67 MiB instead of 1.71 MiB, with identical decoded pixels.
-[dataset-layout](../reference/dataset-layout.md#the-flow-stream--optional) has the format and
+[dataset-layout](../reference/dataset-layout.md#the-flow-stream-optional) has the format and
 the compression measurements. The earlier total generation timings have not been remeasured.
 
 ---
@@ -249,7 +249,7 @@ seq_id  seed  n_frames  size  n_objects  n_rejections  n_range_fallbacks
 
 `n_rejections` counts trajectory sets the collision validator threw away; it climbs with object
 count. `n_range_fallbacks` counts objects that could not find an end pose within the retry
-budget and held their start scale instead — expect `0`, and treat anything else as a sign the
+budget and held their start scale instead. Expect `0`, and treat anything else as a sign the
 depth axis is unusually tight. Column meanings in full:
 [dataset-layout](../reference/dataset-layout.md).
 
