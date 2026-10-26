@@ -55,9 +55,9 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da3-mono-large` | `depth-anything/DA3MONO-LARGE` | Apache-2.0 |
 | `da3-metric-large` | `depth-anything/DA3METRIC-LARGE` | Apache-2.0 |
 
-Licenses as checked on 2026-09-30, and on 2026-10-01 for `da3-metric-large`. Non-commercial
+Licenses as each model's card states them. Non-commercial
 weights are fine for a research dataset. Both `da3-*` need an environment of their own first, as
-the next section says. `da3-metric-large` has not run yet; the lab machine runs it first.
+the next section says. `da3-metric-large` has not run yet.
 
 The `da2-*` and `depth-pro` run in this process, in the environment the `library` extra
 installs, under every runner: they need no environment of their own.
@@ -162,7 +162,7 @@ in a fresh process. When the weights were not cached before the run, the load ti
 `(download)`, because it includes fetching them. An estimator that fails, running out of memory
 for instance, gets `failed` and the reason under the table; the others are still measured.
 Without `--model`, `--measure` loads every registered estimator and so downloads whatever is not
-cached: 5.97 GiB of checkpoints from scratch, by the Hub's metadata on 2026-10-01. On a machine
+cached: 5.97 GiB of checkpoints from scratch, by the Hub's metadata. On a machine
 short of disk or memory, name the ones to measure.
 
 Measured on an Apple M3 Pro:
@@ -178,7 +178,8 @@ da3-mono-large   in place     1.2 GiB, cached   ready    5.2 s  0.37 s     2.1 G
 depth-pro        in place     3.5 GiB, cached   ready    4.5 s  5.98 s     20.5 GiB
 ```
 
-**Depth Pro's memory is six times its weights.** That gap is what the verdict cannot see.
+**Depth Pro needs six times its weights in memory**, 20.5 GiB for 3.5 GiB of weights, so
+`ready` alone cannot say whether it fits.
 
 **The memory column means a different thing on each device**, as well as each backend can say
 it. CUDA keeps a true peak allocation. MPS keeps none, so this is what its driver still holds
@@ -246,9 +247,10 @@ install, and so does `hf upload-large-folder`. The card names Depth Anything V2 
   needs about 45 GB of memory. `pack` spreads the items evenly over the sorted ids and takes
   seeds 0, 1 and 2. The video needs torch and imageio's
   ffmpeg, which the `library` extra installs; `--no-preview` leaves both out.
-- **`preview` draws both again in a packed folder, and its card,** of the items and seeds it
-  is given, so a better example costs no packing. A seed whose objects cannot be placed is
-  refused. Stage again afterwards into an empty folder, so the staged card shows them too.
+- **`preview` redraws the figure, the video and the card of a packed folder** from the items
+  and seeds it is given, so a better example needs no repacking. It refuses a seed whose
+  objects cannot be placed. Run `stage` again afterwards, into an empty folder, so the staged
+  card shows the new example too.
 - **`pack-sequences` adds the fixed set to a packed library.** It takes a run that
   `scenes.generate --split test --bokeh --flow --flow-back --occlusion` wrote, and refuses
   any other, because the card describes that one. It writes the run's sequences into tar
@@ -519,7 +521,7 @@ includes warm-up and timed rendering; CPU and MPS runs leave that JSON field nul
 | `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs no Kaggle account, and uses a token in `~/.kaggle/access_token`, or a legacy `~/.kaggle/kaggle.json`, when one exists |
 | `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks, with the model that made the rest. Writes `predictions.json` beside the predictions, recording each run's rows, model, weights and date |
 
-**The two sources carry licenses of their own**, as checked on 2026-10-22. MAGICK's images are
+**The two sources carry licenses of their own.** MAGICK's images are
 CC BY-NC 4.0, as its [project page](https://ryanndagreat.github.io/MAGICK/) states; its Hugging
 Face card states none. BG-20k is MIT-licensed under its
 [release agreement](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf),

@@ -21,8 +21,8 @@ flag, see [cli](../reference/cli.md). For why the pipeline is shaped this way, s
 
 ## Before you start
 
-1. Foregrounds in `data/magick_dev` (see [magick](../explanation/magick.md)).
-2. Backgrounds in `data/bg-20k_dev` (see [datasets](../explanation/datasets.md)).
+1. Foregrounds in `data/magick_dev` (see [datasets](../explanation/datasets.md#magick-foregrounds)).
+2. Backgrounds in `data/bg-20k_dev` (see [datasets](../explanation/datasets.md#bg-20k-backgrounds)).
 3. Dependencies: `uv sync --extra library` from the repo root.
 4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says whether
    each depth estimator can run there, before a build finds out. See [cli](../reference/cli.md).
@@ -91,9 +91,9 @@ copies across shards are accepted; names in different splits remain separate.
 Use `data/magick` and `data/bg-20k` as Stage A's source roots.
 
 **Neither source needs an account.** MAGICK comes from Hugging Face over plain HTTPS.
-kagglehub signs in only for private datasets or ones that ask for consent. On 2026-10-22, with
-no Kaggle credentials on the machine, kagglehub 1.0.0 fetched single BG-20k files and started
-the 13.1 GiB archive. If Kaggle ever refuses an anonymous download, create an API token at
+kagglehub signs in only for private datasets or ones that ask for consent. With no Kaggle
+credentials on the machine, kagglehub fetches single BG-20k files and the 13.1 GiB archive.
+If Kaggle ever refuses an anonymous download, create an API token at
 [kaggle.com/settings](https://www.kaggle.com/settings), save it as `~/.kaggle/access_token`,
 and run the command again. kagglehub still reads a legacy `~/.kaggle/kaggle.json` too.
 
@@ -208,7 +208,7 @@ uv run python -m video_bokeh.scenes.generate \
 What binds now is the depth axis, not the image format. Objects get disjoint slots above the
 background, so each extra object narrows every slot and makes collisions harder to avoid. Five
 places every scene; six starts losing them. The measured sweep is in
-[demo-unrestricted-trajectories](demo-unrestricted-trajectories.md), and
+[check-trajectories-by-eye](check-trajectories-by-eye.md), and
 [dataset-layout](../reference/dataset-layout.md) says what to raise if you need more.
 
 ### Optical flow
@@ -267,8 +267,7 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 What to check:
 
 - **Disparity tracks size.** An object that grows on screen must get brighter in the
-  disparity pane. Growing while darkening means the depth-scale law inverted, which is the
-  one regression this pipeline exists to prevent.
+  disparity pane. Growing while darkening means the depth-scale law is inverted.
 - **Each object keeps its page.** Page `k` is object `k` for the whole clip. A mask that
   jumps pages mid-clip is a bug. `vpv` shows only the first page of a TIFF, so check the
   masks with `read_alpha_tiff` rather than by eye.
@@ -276,7 +275,7 @@ What to check:
   so one is always clearly in front.
 
 A fuller set of checks on the trajectory model is in
-[demo-unrestricted-trajectories](demo-unrestricted-trajectories.md).
+[check-trajectories-by-eye](check-trajectories-by-eye.md).
 
 ---
 

@@ -90,8 +90,8 @@ costs roughly half again what it costs natively. The numbers are in
 
 ## Generate Your Own Dataset
 
-Five steps take you from the source images to written sequences or a training loop. Each one
-links the page with the details.
+Five steps take you from the source images to written sequences or a training loop, each with
+a link to the page that has the details.
 
 **To skip building a library, download ours.** The library of 8,586 foregrounds and 20,000
 backgrounds that step 3 builds is on
@@ -126,8 +126,8 @@ says how the library is packed and published.
    ```
 
    - **No Kaggle account is needed.** kagglehub signs in only for private datasets or ones
-     that ask for consent, and it fetched BG-20k with no credentials on 2026-10-22. If Kaggle
-     refuses anyway, create an API token at [kaggle.com/settings](https://www.kaggle.com/settings),
+     that ask for consent, and it fetches BG-20k with no credentials. If Kaggle refuses
+     anyway, create an API token at [kaggle.com/settings](https://www.kaggle.com/settings),
      save it as `~/.kaggle/access_token`, and run `make pools` again.
    - **Downloaded by hand instead?** Put BG-20k's images in `backend/data/bg-20k/images/train/`
      and `images/testval/`, and `make pools` skips BG-20k. MAGICK's go in

@@ -48,7 +48,7 @@ flowchart LR
   that cannot share our Python environment run in one of its own.
   [0001-on-disk-formats-join-the-stages](../adr/0001-on-disk-formats-join-the-stages.md) records
   why.
-- **Cost rises at one end.** Stage A runs a neural depth estimator and Stage B never does.
+- **Stage A is the expensive stage.** It runs a neural depth estimator, and Stage B never does.
   The bokeh comes from our layer-wise renderer, which runs on any machine, in Stage B's pass
   or again over written sequences.
 
@@ -254,7 +254,7 @@ then train on as many sequences as it likes, from the same distribution as the w
   depths
 - [generate-a-dataset](../how-to/generate-a-dataset.md): how to run Stages A and B
 - [loader](../reference/loader.md): the sequence stream, for training on the fly
-- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md): how to judge
-  the result by eye
+- [check-trajectories-by-eye](../how-to/check-trajectories-by-eye.md): how to judge the
+  result by eye
 - Local-only note `meetings/2026-06-26-unrestricted-pipeline-algorithm.md`: where the
   unrestricted design was agreed

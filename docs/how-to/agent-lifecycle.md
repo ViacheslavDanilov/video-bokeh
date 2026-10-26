@@ -53,7 +53,7 @@ flowchart TD
     PUSH --> CI["CI: pre-commit, tests, frontend build,<br/>browser smoke, Docker"]
 
     subgraph S2 ["Session 2: /bokeh-review"]
-        LENSES["two-axis-review + /code-review<br/>history, threads, docs style,<br/>document-release"] --> HIGH{"High-risk?"}
+        LENSES["two-axis-review + /code-review<br/>history, threads, docs style,<br/>document-release, check_prose"] --> HIGH{"High-risk?"}
         HIGH -->|"yes"| CODEX["codex second opinion"]
         HIGH -->|"no"| GATE
         CODEX --> GATE["Notation gate"]
@@ -91,7 +91,7 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 2. The agent states the route in one line: feature, no meeting behind it. Correct it if it is wrong.
 3. It offers a CEO review, because nobody scoped this yet. Say yes, and it lists what would make the feature noticeably stronger, kept apart from what you asked for. Pick the ones worth taking. Anything that changes what the dataset contains or what the paper claims comes back as a draft email to Pablo and Valery, not as code.
 4. Grilling starts. Each round is a short numbered list of questions, every one with the agent's recommended answer. Reply with the numbers you disagree with. New terms land in `CONTEXT.md` as they are settled.
-5. The agent restates the goal and the acceptance criteria as a checklist. **This is the checkpoint that matters most**: a wrong criterion here costs a rebuilt feature later. Say yes, or fix the list.
+5. The agent restates the goal and the acceptance criteria as a checklist. Read it closely: a wrong criterion here costs a rebuilt feature later. Say yes, or fix the list.
 6. It writes the spec to `docs/specs/` and confirms where the tests will sit. Then it branches and builds test-first.
 7. A fresh-context self-check compares the diff against the repo rules and the spec, and the agent fixes what it finds.
 8. It runs the checks that the **Pushing** section of `.claude/skills/shared/bokeh-conventions.md` asks for before a push. For a frontend change like this one, they include the browser smoke test. Then it pushes the branch and opens the pull request, without asking.
