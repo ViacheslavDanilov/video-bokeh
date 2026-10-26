@@ -16,6 +16,60 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Whether a change can affect the browser smoke. A change to docs, scripts or
+  # tests the smoke does not use skips it, and GitHub counts a skipped required check
+  # as passed. A manual run always takes it.
+  changes:
+    runs-on: ubuntu-latest
+    name: "Changes"
+    timeout-minutes: 5
+    outputs:
+      smoke: ${{ steps.diff.outputs.smoke }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Find what the change touches
+      id: diff
+      shell: bash
+      env:
+        EVENT: ${{ github.event_name }}
+        PUSH_BEFORE: ${{ github.event.before }}
+      run: |
+        # A pull request is checked out as its merge commit, whose first parent is the
+        # main it merges into.
+        case "$EVENT" in
+          pull_request) base="HEAD^1" ;;
+          push) base="$PUSH_BEFORE" ;;
+          *) base="" ;;
+        esac
+        if [ -z "$base" ] || ! git rev-parse -q --verify "$base^{commit}" >/dev/null; then
+          echo "smoke=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        # core.quotePath=false keeps non-ASCII names unquoted, so they match below.
+        files=$(git -c core.quotePath=false diff --name-only --no-renames "$base" HEAD)
+        echo "$files"
+        # The smoke is skipped only when every changed file is known not to reach it:
+        # Markdown, docs, the comparison and repo scripts, agent files, the README's
+        # video, and backend tests other than the API helpers the smoke serves. Any
+        # other path, a new one included, runs it. Each grep reads
+        # its whole input, and `|| true` keeps an empty result from failing the step.
+        relevant=$(
+          {
+            printf '%s\n' "$files" |
+              grep -v -E '\.md$|^(docs|comparison|scripts|\.claude|\.assets)/|^backend/tests/' || true
+            printf '%s\n' "$files" | grep -E '^backend/tests/api/' | grep -v -E '\.md$' || true
+          }
+        )
+        if [ -n "${relevant//[[:space:]]/}" ]; then
+          echo "smoke=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "smoke=false" >> "$GITHUB_OUTPUT"
+        fi
+
   backend:
     runs-on: ubuntu-latest
     name: "Backend: Lint & Type Check"
@@ -100,6 +154,10 @@ jobs:
   # browser against the real API and a tiny real library: the library loads, a sequence
   # generates, and every stream decodes.
   browser-smoke:
+    needs: changes
+    # Runs unless the change was shown not to reach the app, so a failed check of the
+    # change runs the smoke rather than skipping it.
+    if: ${{ !cancelled() && needs.changes.outputs.smoke != 'false' }}
     runs-on: ubuntu-latest
     name: "Frontend: Browser Smoke"
     # The job took 6.8 minutes with 40 tests on 2026-10-21, and 12.9 with 45 on a slower

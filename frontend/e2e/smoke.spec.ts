@@ -9,10 +9,21 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 const SEQUENCES = path.join(os.tmpdir(), "video-bokeh-e2e", "sequences");
 const LIBRARIES = path.join(os.tmpdir(), "video-bokeh-e2e", "library");
 
-/** Open the page once its library is ready to generate. */
+/**
+ * The side, in pixels, of the sequences the tests generate. The page's own default is
+ * 512, four times the pixels, and nearly all of the time a run takes is the API building
+ * sequences, while what the tests look at is the page, which is the same at either size.
+ */
+const E2E_SIZE = 256;
+
+/** Open the page once its library is ready to generate, with the size the tests use. */
 async function openPage(page: Page) {
   await page.goto("/");
   await expect(page.getByText("2 objects, 2 backgrounds")).toBeVisible();
+  const picker = page.getByRole("combobox", { name: "Size" });
+  await picker.click();
+  await page.getByRole("option", { name: `${E2E_SIZE} × ${E2E_SIZE}` }).click();
+  await expect(picker).toHaveText(`${E2E_SIZE} × ${E2E_SIZE}`);
 }
 
 /** Generate with the current parameters, optionally choosing a seed first. */
@@ -574,21 +585,68 @@ function expectOneSteadyBox(seen: BarSeen, place: string) {
 }
 
 /**
+ * Make a generation report the way the API does while it builds a sequence, in steps
+ * counted up over about a second, and then hand over the sequence the API returns for the
+ * parameters as they are: a cached one, so the page gets real videos without the wait. For
+ * the tests that look at how the bar and the line around it behave, not at what the API
+ * reports, which "shows the steps of a generation" checks against the real one.
+ */
+async function stageProgress(page: Page) {
+  await page.addInitScript(() => {
+    const real = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (init?.method !== "POST" || !url.endsWith("/sequences"))
+        return real(input, init);
+      const response = await real(input, init);
+      if (!response.ok) return response;
+      const lines = (await response.text()).split("\n").filter((l) => l.trim());
+      const { sequence } = JSON.parse(lines.at(-1)!);
+      const n: number = sequence.frames;
+      const events: object[] = [
+        {
+          steps: [
+            { step: "sampling", total: 1 },
+            { step: "frames", total: n },
+            { step: "writing", total: n },
+          ],
+        },
+        { step: "sampling", done: 1, total: 1 },
+      ];
+      for (const step of ["frames", "writing"])
+        for (let quarter = 1; quarter <= 4; quarter++)
+          events.push({ step, done: (n * quarter) / 4, total: n });
+      events.push({ sequence: { ...sequence, cached: false } });
+      const encoder = new TextEncoder();
+      const body = new ReadableStream({
+        async start(controller) {
+          for (const event of events) {
+            controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+            await new Promise((done) => setTimeout(done, 80));
+          }
+          controller.close();
+        },
+      });
+      return new Response(body, {
+        headers: { "content-type": "application/x-ndjson" },
+      });
+    };
+  });
+}
+
+/**
  * One bar for the whole generation: it fills once, never going back at a new step, stays
  * where it is while the step's name changes beside it, and is seen full there before the
  * sequence takes the screen. On the empty screen first, then in the line above the panes,
  * where the next sequence's progress shows while one is on screen.
  */
 test("fills one progress bar for the whole generation", async ({ page }) => {
-  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
-  test.slow();
+  await stageProgress(page);
   await openPage(page);
   await watchBar(page);
-  const seed = page.getByRole("spinbutton", { name: "Seed" });
   const generate = page.getByRole("button", { name: "Generate sequence" });
   const progress = page.getByRole("status", { name: "Generation progress" });
 
-  await seed.fill("61");
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
@@ -600,7 +658,6 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
     videos.first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
   const before = await top();
 
-  await seed.fill("62");
   await generate.click();
   await expect(progress).toBeVisible();
   expect(await top()).toBe(before);
@@ -612,15 +669,13 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
 test("fits generation progress at 390 px without shifting the bar", async ({
   page,
 }) => {
-  test.slow();
   await page.setViewportSize({ width: 390, height: 844 });
+  await stageProgress(page);
   await openPage(page);
   await watchBar(page);
-  const seed = page.getByRole("spinbutton", { name: "Seed" });
   const generate = page.getByRole("button", { name: "Generate sequence" });
   const progress = page.getByRole("status", { name: "Generation progress" });
 
-  await seed.fill("71");
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
@@ -637,7 +692,6 @@ test("fits generation progress at 390 px without shifting the bar", async ({
     )
     .toEqual([true, true, true, true]);
 
-  await seed.fill("72");
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
@@ -1308,9 +1362,27 @@ test("chooses the disparity colormap and its legend", async ({ page }) => {
   await expect(page.getByRole("combobox", { name: "Colormap" })).toHaveCount(1);
 });
 
-/** Open all six streams: bokeh faked into the sequence, and occlusion from "Add pane". */
-async function openSixPanes(page: Page, seed: number) {
-  const videos = await generateSequence(page, seed);
+/**
+ * The seed of the one sequence every six-pane test opens, so the API builds it once. It
+ * gets bokeh faked into it, which no other test's sequence may have: the default seed's
+ * stays at four streams.
+ */
+const SIX_PANE_SEED = 81;
+
+/**
+ * Open all six streams: bokeh faked into the sequence, and occlusion from "Add pane". The
+ * sequence is shared, so it may already have its bokeh from an earlier test: generating
+ * it then lists five streams at once, and faking the bokeh again changes nothing.
+ */
+async function openSixPanes(page: Page) {
+  await page
+    .getByRole("spinbutton", { name: "Seed" })
+    .fill(String(SIX_PANE_SEED));
+  await page.getByRole("button", { name: "Generate sequence" }).click();
+  const videos = page.locator("video");
+  await expect
+    .poll(() => videos.count(), { timeout: 60_000 })
+    .toBeGreaterThanOrEqual(4);
   await fakeBokeh(page);
   await page.getByRole("button", { name: "Generate sequence" }).click();
   await expect(videos).toHaveCount(5, { timeout: 60_000 });
@@ -1330,7 +1402,7 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 1760, height: 640 });
   await openPage(page);
-  await openSixPanes(page, 81);
+  await openSixPanes(page);
   const figures = page.locator("figure");
   // Six panes side by side, each too narrow for a long caption.
   const tops = await figures.evaluateAll((els) =>
@@ -1449,7 +1521,7 @@ test("centers the info, six panes and transport as one column", async ({
   test.slow();
   await page.setViewportSize({ width: 2560, height: 1300 });
   await openPage(page);
-  await openSixPanes(page, 82);
+  await openSixPanes(page);
 
   const expectCentered = async (place: string) => {
     await expect
@@ -1513,38 +1585,6 @@ test("centers the info, six panes and transport as one column", async ({
 });
 
 /**
- * A small pane in a 1100 px window is narrower than the transport needs for one line, so
- * the column is wider than it is and the pane sits in the middle of it. The transport
- * stays on a single line, which the height it keeps free assumes. One pane, so that the
- * grid is far from the width where it would take the whole work area.
- */
-test("keeps the transport on one line under a small pane", async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 800 });
-  await openPage(page);
-  await generateSequence(page, 84);
-  for (const name of ["Alpha", "Disparity", "Optical flow"])
-    await page.getByRole("button", { name: `Close ${name} pane` }).click();
-  await expect(page.locator("figure")).toHaveCount(1);
-  await expect
-    .poll(async () => {
-      const { info, grid, overflow } = await columnEdges(page);
-      const box = (await page
-        .getByRole("button", { name: "Play" })
-        .locator("xpath=..")
-        .boundingBox())!;
-      return {
-        // Well inside the column, as this test is about.
-        small: grid.right - grid.left < info.right - info.left - 100,
-        centered:
-          Math.abs(grid.left - info.left - (info.right - grid.right)) <= 1,
-        oneLine: box.height <= 60,
-        overflow,
-      };
-    })
-    .toEqual({ small: true, centered: true, oneLine: true, overflow: 0 });
-});
-
-/**
  * The info row is wider on one line than the column's minimum when the seed has many
  * digits. If the column were narrower than the row it would wrap, the grid would drop by
  * a line, six panes only just fitting at 200 px would no longer fit, and the page would
@@ -1572,12 +1612,15 @@ test("keeps the layout still when the info row is wider than the minimum", async
     await route.fulfill({ response, body });
   });
   await openPage(page);
-  await openSixPanes(page, 85);
+  await openSixPanes(page);
   await expect(page.getByText("123456789012345")).toBeVisible();
   // Narrowed afterwards: a page that flips between fitting and scrolling cannot be clicked.
   const first = page.locator("figure").first();
   const before = (await first.boundingBox())!.width;
-  await page.setViewportSize({ width: 1100, height: 800 });
+  // Wide enough for the row on one line: it is a few pixels wider with "256 × 256" than
+  // with "512 × 512", the digit 1 being narrower, and a work area it does not fit takes
+  // the column whole and wraps it, which is another case than this one.
+  await page.setViewportSize({ width: 1160, height: 800 });
   await expect
     .poll(async () => (await first.boundingBox())!.width)
     .not.toBe(before);
@@ -1609,7 +1652,7 @@ test("keeps six panes that fill the width across the work area", async ({
   test.slow();
   await page.setViewportSize({ width: 1100, height: 600 });
   await openPage(page);
-  await openSixPanes(page, 83);
+  await openSixPanes(page);
   for (const [width, height] of [
     [1100, 600],
     [390, 800],
@@ -1644,7 +1687,7 @@ test("scrubs every pane to the nearest frame while dragging", async ({
   test.slow();
   await page.setViewportSize({ width: 1760, height: 640 });
   await openPage(page);
-  const videos = await openSixPanes(page, 91);
+  const videos = await openSixPanes(page);
   const canvases = page.locator("figure canvas");
   await expect(canvases).toHaveCount(6);
   // Every pane's frames decoded into memory.
@@ -1892,9 +1935,13 @@ test("moves the position thumb smoothly while the panes play", async ({
  * frame the thumb is where the leading video is, not a render behind it. A thumb that waits
  * for a render stands still while the video moves on, then jumps. Measured on its rendered
  * position against the video's time, read in the same animation frame. Following the video
- * renders nothing either, which the script time shows, at this throttling: a render of
- * every pane on each timeupdate took 470 ms of it a second, one of the slider on each
- * animation frame 140 ms, and following without rendering 8 ms.
+ * renders nothing either, which the script time shows, taken while the test runs nothing on
+ * the page. A slower machine takes longer over every script, so the time is counted in runs
+ * of a fixed computation on the same throttled main thread, which a CI runner and a laptop
+ * agree on where seconds do not. At this throttling, following the video took 1 to 4 of
+ * them a second, a render of the slider on each animation frame 52 to 64, and one of every
+ * pane on each timeupdate as well 164 to 224. Three times the throttling, a slower runner's
+ * stand-in, kept following at 1 to 7.
  */
 test("keeps the position thumb on the playing video under a loaded main thread", async ({
   page,
@@ -1902,22 +1949,42 @@ test("keeps the position thumb on the playing video under a loaded main thread",
   test.slow();
   await page.setViewportSize({ width: 1760, height: 640 });
   await openPage(page);
-  const videos = await openSixPanes(page, 101);
+  const videos = await openSixPanes(page);
   const slider = page.getByRole("slider", { name: "Position" });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await cdp.send("Performance.enable");
-  const scriptSeconds = async () =>
-    (await cdp.send("Performance.getMetrics")).metrics.find(
-      (m) => m.name === "ScriptDuration",
-    )!.value;
+  // The main thread's script time so far and the clock it was read at, in seconds.
+  const scriptSeconds = async () => {
+    const { metrics } = await cdp.send("Performance.getMetrics");
+    const value = (name: string) => metrics.find((m) => m.name === name)!.value;
+    return { script: value("ScriptDuration"), at: value("Timestamp") };
+  };
 
   await slider.focus();
   await page.keyboard.press("Home");
   await page.getByRole("button", { name: "Play" }).click();
   // Started after the play, so each animation frame reads the thumb after it has moved.
   await page.waitForTimeout(400);
-  const scriptBefore = await scriptSeconds();
+  // How long the throttled main thread takes over a fixed computation, in seconds: the
+  // median of seven runs, taken while the panes play as they do for the measurement.
+  const reference = await page.evaluate(() => {
+    const runs: number[] = [];
+    let sum = 0;
+    for (let run = 0; run < 7; run++) {
+      const start = performance.now();
+      for (let i = 0; i < 1_000_000; i++) sum += Math.sqrt(i);
+      runs.push(performance.now() - start);
+    }
+    // The sum is used, so the loop cannot be optimized away.
+    return sum > 0 ? runs.sort((a, b) => a - b)[3] / 1000 : 0;
+  });
+  // The app's script time alone, over two seconds in which the test runs nothing on the page.
+  const before = await scriptSeconds();
+  await page.waitForTimeout(2000);
+  const after = await scriptSeconds();
+  const scriptPerSecond =
+    (after.script - before.script) / (after.at - before.at);
   const seen = await slider.evaluate(
     async (thumb, lead) => {
       const video = lead as HTMLVideoElement;
@@ -1950,25 +2017,23 @@ test("keeps the position thumb on the playing video under a loaded main thread",
         };
         requestAnimationFrame(read);
       });
-      return { behind, seconds: (performance.now() - started) / 1000 };
+      return behind;
     },
     await videos.first().elementHandle(),
   );
-  const scriptPerSecond =
-    ((await scriptSeconds()) - scriptBefore) / seen.seconds;
   await page.getByRole("button", { name: "Pause" }).click();
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
 
-  expect(seen.behind.length).toBeGreaterThan(20);
+  expect(seen.length).toBeGreaterThan(20);
   // How far the thumb trails the video, in frames, apart from the loop back to the start.
-  const trailing = seen.behind.filter((d) => Math.abs(d) < 40);
+  const trailing = seen.filter((d) => Math.abs(d) < 40);
   const spread = Math.sqrt(
     trailing.reduce((sum, d) => sum + d * d, 0) / trailing.length,
   );
   // About 0.01 of a frame following the video, against 0.8 a render behind and 1.5 when
   // every pane renders too.
   expect(spread).toBeLessThan(0.25);
-  expect(scriptPerSecond).toBeLessThan(0.05);
+  expect(scriptPerSecond / reference).toBeLessThan(20);
 });
 
 /**
@@ -2327,7 +2392,7 @@ test("zooms and moves every pane's view together", async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 1500, height: 800 });
   await openPage(page);
-  await waitForDecoded(await generateSequence(page, 111));
+  await waitForDecoded(await generateSequence(page));
   const factor = page.getByRole("button", { name: /show the whole frame$/ });
   await expect(factor).toHaveText("1×");
   await expect(page.getByRole("button", { name: "Zoom out" })).toBeDisabled();
@@ -2403,7 +2468,7 @@ test("zooms about the pointer with a pinch and a double-click", async ({
   test.slow();
   await page.setViewportSize({ width: 1500, height: 800 });
   await openPage(page);
-  await waitForDecoded(await generateSequence(page, 112));
+  await waitForDecoded(await generateSequence(page));
   const factor = page.getByRole("button", { name: /show the whole frame$/ });
   const box = (await page.locator("[data-pane-view]").nth(2).boundingBox())!;
   const x = box.x + box.width * 0.3;
@@ -2493,7 +2558,7 @@ test("keeps the zoom keys out of fields and starts each sequence whole", async (
   test.slow();
   await page.setViewportSize({ width: 1500, height: 800 });
   await openPage(page);
-  await waitForDecoded(await generateSequence(page, 113));
+  await waitForDecoded(await generateSequence(page));
   const factor = page.getByRole("button", { name: /show the whole frame$/ });
   const video = page.locator("[data-pane-view] video").first();
   const canvas = page.locator("[data-pane-view] canvas").first();
@@ -2551,7 +2616,7 @@ test("steps a frame zoomed in without the frames from memory", async ({
   test.slow();
   await page.setViewportSize({ width: 1500, height: 800 });
   await openPage(page);
-  const videos = await generateSequence(page, 114);
+  const videos = await generateSequence(page);
   await waitForDecoded(videos);
   const canvases = page.locator("figure canvas");
   await expect
@@ -2612,7 +2677,9 @@ test("steps a frame zoomed in without the frames from memory", async ({
  * The zoom makes the transport wider, up to 743 px on one line. The column takes that
  * width where the work area has it, so the transport stays on one line under panes that
  * need less. Only a narrower work area wraps it, and the page still fits the window then.
- * The panes leave room for a second line only when there is one.
+ * The panes leave room for a second line only when there is one. A small pane in a 1100
+ * px window sits centered in the wider column, well inside it, and the page does not
+ * scroll across.
  */
 test("keeps the transport on one line wherever the work area allows", async ({
   page,
@@ -2620,7 +2687,7 @@ test("keeps the transport on one line wherever the work area allows", async ({
   test.slow();
   await page.setViewportSize({ width: 1100, height: 860 });
   await openPage(page);
-  await generateSequence(page, 115);
+  await generateSequence(page);
   const bar = page.getByRole("button", { name: "Play" }).locator("xpath=..");
   const layout = () =>
     bar.evaluate((el) => ({
@@ -2665,4 +2732,24 @@ test("keeps the transport on one line wherever the work area allows", async ({
     return height;
   };
   expect(await sizeAt(1050)).toBe(await sizeAt(1200));
+
+  // A small pane in a 1100 px window is narrower than the transport needs for one line, so
+  // the column is wider than it is and the pane sits in the middle of it. The transport
+  // stays on a single line, which the height it keeps free assumes. One pane, so that the
+  // grid is far from the width where it would take the whole work area.
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect
+    .poll(async () => {
+      const { info, grid, overflow } = await columnEdges(page);
+      const box = (await bar.boundingBox())!;
+      return {
+        // Well inside the column, as this test is about.
+        small: grid.right - grid.left < info.right - info.left - 100,
+        centered:
+          Math.abs(grid.left - info.left - (info.right - grid.right)) <= 1,
+        oneLine: box.height <= 60,
+        overflow,
+      };
+    })
+    .toEqual({ small: true, centered: true, oneLine: true, overflow: 0 });
 });

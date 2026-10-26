@@ -90,8 +90,8 @@ costs roughly half again what it costs natively. The numbers are in
 
 ## Generate Your Own Dataset
 
-Five steps take you from the source images to written sequences or a training loop. Each one
-links the page with the details.
+Five steps take you from the source images to written sequences or a training loop, each with
+a link to the page that has the details.
 
 **To skip building a library, download ours.** The library of 8,586 foregrounds and 20,000
 backgrounds that step 3 builds is on

@@ -267,8 +267,7 @@ vpv "*/all_in_focus/*.png" "*/disparity/*.png"
 What to check:
 
 - **Disparity tracks size.** An object that grows on screen must get brighter in the
-  disparity pane. Growing while darkening means the depth-scale law inverted, which is the
-  one regression this pipeline exists to prevent.
+  disparity pane. Growing while darkening means the depth-scale law is inverted.
 - **Each object keeps its page.** Page `k` is object `k` for the whole clip. A mask that
   jumps pages mid-clip is a bug. `vpv` shows only the first page of a TIFF, so check the
   masks with `read_alpha_tiff` rather than by eye.

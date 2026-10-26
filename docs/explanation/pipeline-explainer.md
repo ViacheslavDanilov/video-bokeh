@@ -48,7 +48,7 @@ flowchart LR
   that cannot share our Python environment run in one of its own.
   [0001-on-disk-formats-join-the-stages](../adr/0001-on-disk-formats-join-the-stages.md) records
   why.
-- **Cost rises at one end.** Stage A runs a neural depth estimator and Stage B never does.
+- **Stage A is the expensive stage.** It runs a neural depth estimator, and Stage B never does.
   The bokeh comes from our layer-wise renderer, which runs on any machine, in Stage B's pass
   or again over written sequences.
 
