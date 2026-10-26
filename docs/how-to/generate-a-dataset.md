@@ -21,8 +21,8 @@ flag, see [cli](../reference/cli.md). For why the pipeline is shaped this way, s
 
 ## Before you start
 
-1. Foregrounds in `data/magick_dev`, see [magick](../explanation/magick.md).
-2. Backgrounds in `data/bg-20k_dev`, see [datasets](../explanation/datasets.md).
+1. Foregrounds in `data/magick_dev` (see [magick](../explanation/magick.md)).
+2. Backgrounds in `data/bg-20k_dev` (see [datasets](../explanation/datasets.md)).
 3. Dependencies: `uv sync --extra library` from the repo root.
 4. On a new machine, `uv run --extra library python -m video_bokeh.library.check` says whether
    each depth estimator can run there, before a build finds out. See [cli](../reference/cli.md).
@@ -162,8 +162,8 @@ style are among `--subjects` and `--styles`, and whose subject score is at least
 `--subjects "" --styles "" --subject-thr 0` to turn it off; any one of them alone leaves the
 other two filtering.
 
-A fast check with no large download (3 foregrounds, 2 backgrounds, the small model), **6.7 s**
-on an M-series Mac using `mps`:
+A fast check with no large download (3 foregrounds, 2 backgrounds, the small model) takes
+**6.7 s** on an M-series Mac using `mps`:
 
 ```bash
 uv run python -m video_bokeh.library.build \

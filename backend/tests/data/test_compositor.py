@@ -126,7 +126,7 @@ def test_zoom_in_raises_object_disparity(tmp_path) -> None:
     rgba = np.zeros((size, size, 4), dtype=np.uint8)
     rgba[4:28, 4:28, :3] = 180
     rgba[4:28, 4:28, 3] = 255
-    # Gradient depth: left=0.1, right=0.9, large src_range so place_in_band stretches
+    # Gradient depth: left=0.1, right=0.9; large src_range so place_in_band stretches
     depth = np.tile(np.linspace(0.1, 0.9, size, dtype=np.float32), (size, 1))
     alpha = (rgba[..., 3] / 255.0).astype(np.float32)
     write_foreground(tmp_path, "fg_grad", Image.fromarray(rgba, "RGBA"), alpha, depth)

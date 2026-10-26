@@ -468,7 +468,7 @@ libraries of thousands it is worth caching on the directories' modification time
 
 **Two identical requests arriving together both generate.** There is no lock. The rename
 decides which one lands and the loser discards its work, so the result is correct and no
-directory is ever overwritten while someone reads it, it just costs the duplicated CPU. For
+directory is ever overwritten while someone reads it. It just costs the duplicated CPU. For
 an audience of a handful of people that is cheaper than the coordination would be.
 
 **The library id does not cover pixel content.** Covered above under `GET /libraries`.

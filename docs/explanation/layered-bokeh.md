@@ -68,8 +68,8 @@ radii still mean more bins and more padding.
 
 ## Settings
 
-- **Strength**: how strong the blur is, as the blur radius in pixels, at 1024 pixels wide, one
-  unit of disparity from the focus. 16 by default, the unit and the default any-to-bokeh
+- **Strength**: the blur radius in pixels, at 1024 pixels wide, one unit of disparity from the
+  focus. 16 by default, the unit and the default any-to-bokeh
   uses as `k`, so the two can be compared at the same setting.
 - **Radius step**: the width of a radius bin, 1 pixel by default. A wider step means fewer
   convolutions, and a radius off by up to the step. A step wider than every radius gives
