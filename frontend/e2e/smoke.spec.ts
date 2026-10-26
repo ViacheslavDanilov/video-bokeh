@@ -1939,9 +1939,9 @@ test("moves the position thumb smoothly while the panes play", async ({
  * the page. A slower machine takes longer over every script, so the time is counted in runs
  * of a fixed computation on the same throttled main thread, which a CI runner and a laptop
  * agree on where seconds do not. At this throttling, following the video took 1 to 4 of
- * them a second, a render of the slider on each animation frame 52 to 64, and one of every
- * pane on each timeupdate as well 164 to 224. Three times the throttling, a slower runner's
- * stand-in, kept following at 1 to 7.
+ * them a second, a render of the slider on each animation frame 52 to 64, and that together
+ * with a render of every pane on each timeupdate 164 to 224. Three times the throttling, a
+ * slower runner's stand-in, kept following at 1 to 7.
  */
 test("keeps the position thumb on the playing video under a loaded main thread", async ({
   page,
@@ -1983,8 +1983,12 @@ test("keeps the position thumb on the playing video under a loaded main thread",
   const before = await scriptSeconds();
   await page.waitForTimeout(2000);
   const after = await scriptSeconds();
-  const scriptPerSecond =
-    (after.script - before.script) / (after.at - before.at);
+  const ratio =
+    (after.script - before.script) / (after.at - before.at) / reference;
+  // Printed even when the test passes, to show how close a run came to the limit.
+  console.log(
+    `script ratio ${ratio.toFixed(2)} (reference ${(reference * 1000).toFixed(1)} ms)`,
+  );
   const seen = await slider.evaluate(
     async (thumb, lead) => {
       const video = lead as HTMLVideoElement;
@@ -2033,7 +2037,7 @@ test("keeps the position thumb on the playing video under a loaded main thread",
   // About 0.01 of a frame following the video, against 0.8 a render behind and 1.5 when
   // every pane renders too.
   expect(spread).toBeLessThan(0.25);
-  expect(scriptPerSecond / reference).toBeLessThan(20);
+  expect(ratio).toBeLessThan(20);
 });
 
 /**
