@@ -38,16 +38,21 @@ $sequences_config---
 
 # Video Bokeh
 
+[![Code: GitHub](https://img.shields.io/badge/GitHub-video--bokeh-181717.svg?logo=github)](https://github.com/ViacheslavDanilov/video-bokeh)
+[![Docs: Tutorial](https://img.shields.io/badge/Docs-Tutorial-2ea44f.svg)](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/docs/how-to/train-on-the-sequence-stream.md)
+[![PyTorch: SequenceStream](https://img.shields.io/badge/PyTorch-SequenceStream-ee4c2c.svg?logo=pytorch&logoColor=white)](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/docs/reference/loader.md)
+[![Format: WebDataset](https://img.shields.io/badge/Format-WebDataset-orange.svg)](https://github.com/webdataset/webdataset)
+[![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/downloads/)
+
 Synthetic video for training and evaluating depth-aware bokeh. Every frame is composited
 from known layers, so its disparity, the soft matte of each object, its bokeh, its forward
 and backward optical flow and its occlusion match it by construction.
 
-**Code:** [github.com/ViacheslavDanilov/video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh)
-— the generator, the PyTorch loader and the download tools.
-
 - **The library**, under `library/`: $foregrounds cut-out foregrounds and $backgrounds
   background photos, each with a disparity map. It holds no sequences. The code's generator
   composes new ones from it while a network trains, as many as the training asks for.$sequences_part
+- **The code**, at [github.com/ViacheslavDanilov/video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh):
+  the generator, the PyTorch loader and the download tools.
 
 The code works in two stages. Stage A built the library once, from MAGICK and BG-20k images
 and Depth Anything V2 Large. Stage B, the generator, moves the foregrounds over a background
