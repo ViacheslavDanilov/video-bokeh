@@ -3,7 +3,7 @@
  *
  * A colormap with no legend cannot be read, so this has to exist anyway. The eleven
  * stops are the ColorBrewer Spectral anchors in the order the backend's lookup table
- * uses them — red is near, violet is far — so the bar and the depth map beside it are
+ * uses them (red is near, violet is far), so the bar and the depth map beside it are
  * the same scale.
  *
  * While a sequence generates it sweeps along that axis instead of showing a spinner: the
