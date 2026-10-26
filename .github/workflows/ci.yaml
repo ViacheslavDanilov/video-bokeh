@@ -54,7 +54,7 @@ jobs:
         echo "$files"
         # The smoke is skipped only when every changed file is known not to reach it:
         # Markdown, docs, the comparison and repo scripts, agent files, the README's
-        # video, and backend tests other than the API helpers the smoke serves. Any
+        # video and its sources, and backend tests other than the API helpers the smoke serves. Any
         # other path, a new one included, runs it. Each grep reads
         # its whole input, and `|| true` keeps an empty result from failing the step.
         relevant=$(
