@@ -25,6 +25,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -74,7 +75,7 @@ def paragraphs(text: str) -> list[tuple[int, int, str]]:
             close()
             fence = not fence
             continue
-        if fence or not s or s.startswith(_NOT_PROSE):
+        if fence or not s or s == ">" or s.startswith(_NOT_PROSE):
             close()
             quote = False
             continue
@@ -193,11 +194,26 @@ def main(argv: list[str] | None = None) -> int:
     if not key:
         print("TYPESAFE_API_KEY is not set: checked the em dash only", file=sys.stderr)
     elif judged:
-        try:
-            with concurrent.futures.ThreadPoolExecutor(8) as pool:
-                scored = list(pool.map(lambda t: (t, ask_jev(t[2], key)), judged))
-        except Refused as error:
-            print(f"{error}: checked the em dash only", file=sys.stderr)
+        # A refused key fails every request alike: the first refusal stops the rest.
+        refused: list[Refused] = []
+        stop = threading.Event()
+
+        def judge(
+            target: tuple[str, int, str],
+        ) -> tuple[tuple[str, int, str], float | None]:
+            if stop.is_set():
+                return target, None
+            try:
+                return target, ask_jev(target[2], key)
+            except Refused as error:
+                refused.append(error)
+                stop.set()
+                return target, None
+
+        with concurrent.futures.ThreadPoolExecutor(8) as pool:
+            scored = list(pool.map(judge, judged))
+        if refused:
+            print(f"{refused[0]}: checked the em dash only", file=sys.stderr)
             scored = []
         failed = sum(score is None for _, score in scored)
         if failed:

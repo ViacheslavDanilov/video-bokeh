@@ -45,6 +45,8 @@ echo code
 
 > A quote that runs
 > over two lines.
+>
+> A second quoted paragraph.
 
 Last words.
 """
@@ -53,7 +55,8 @@ Last words.
         (17, 17, "an item"),
         (18, 18, "another item"),
         (20, 21, "A quote that runs over two lines."),
-        (23, 23, "Last words."),
+        (23, 23, "A second quoted paragraph."),
+        (25, 25, "Last words."),
     ]
 
 
@@ -160,8 +163,12 @@ def test_a_refused_key_falls_back_to_the_dash_check(
 ) -> None:
     page = tmp_path / "page.md"
     page.write_text(
-        "The loader reads one shard at a time and unpacks each item into the"
-        " library folder, then deletes the shard.\n"
+        "\n\n".join(
+            f"Paragraph {n} reads one shard at a time and unpacks each item into"
+            " the library folder, then deletes the shard."
+            for n in range(40)
+        )
+        + "\n"
     )
     calls = []
 
@@ -175,4 +182,4 @@ def test_a_refused_key_falls_back_to_the_dash_check(
     assert check_prose.main([str(page), "--strict"]) == 0
     out = capsys.readouterr()
     assert "HTTP 401: checked the em dash only" in out.err
-    assert calls == [1]
+    assert len(calls) <= 8  # at most the requests already in flight
