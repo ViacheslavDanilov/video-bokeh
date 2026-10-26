@@ -16,7 +16,7 @@ its rules here would only let the two drift apart.
 | The lifecycle as a picture, and how to drive it | `docs/how-to/agent-lifecycle.md` |
 
 If this file and those disagree, **they win and this file gets fixed.** Never restate a
-commit or PR rule here — point at `AGENTS.md` instead.
+commit or PR rule here. Point at `AGENTS.md` instead.
 
 ## Language
 
@@ -34,12 +34,12 @@ gitignored:
 
 | Path | In git | Used by these skills for |
 |---|---|---|
-| `docs/explanation/`, `docs/how-to/`, `docs/reference/` | **yes** | durable shared knowledge — a change here is a normal PR |
-| `docs/adr/` | **yes** | decisions that are hard to reverse, one file each — see **Domain docs** |
+| `docs/explanation/`, `docs/how-to/`, `docs/reference/` | **yes** | durable shared knowledge: a change here is a normal PR |
+| `docs/adr/` | **yes** | decisions that are hard to reverse, one file each, see **Domain docs** |
 | `docs/meetings/`, `docs/meetings/transcripts/` | no | meeting input; written by `bokeh-meeting` |
-| `docs/specs/`, `docs/plans/` | no | specs and tickets — see **Specs and tickets** |
+| `docs/specs/`, `docs/plans/` | no | specs and tickets, see **Specs and tickets** |
 | `docs/reports/` | no | findings, measurements, investigation outcomes |
-| `docs/templates/` | no | Templater scaffolds — read them, do not edit them |
+| `docs/templates/` | no | Templater scaffolds: read them, do not edit them |
 
 **Never `git add` anything under the gitignored half.** A file there is a working note, not
 a deliverable. Never commit `backend/data/` either.
@@ -59,7 +59,7 @@ were written for one, so read their wording through this table:
 
 `<slug>` is the branch slug, so `bokeh-review` finds the spec from the branch name alone.
 The spec links its meeting note with a wikilink when there is one. All of these files are
-gitignored — never commit them.
+gitignored, so never commit them.
 
 ## Domain docs
 
@@ -82,7 +82,7 @@ work this out on its own:
 | `README.md`, `backend/README.md`, `frontend/README.md` | how to run the thing |
 | `AGENTS.md`, `backend/AGENTS.md`, `frontend/AGENTS.md` | rules for whoever edits it next |
 | `docs/explanation/` | why the pipeline works the way it does |
-| `docs/how-to/` | runbooks — every command in one has to be a command someone ran |
+| `docs/how-to/` | runbooks: every command in one has to be a command someone ran |
 | `docs/reference/` | the on-disk contract and other lookup tables |
 
 Both passes must follow `docs/README.md`, section **Links**: tracked pages use relative
@@ -135,12 +135,13 @@ trip that a local run does not.
   `Co-Authored-By: Claude` trailer, runs a bare `git push`, and adds a section to the PR body
   with `gh pr edit`. It edits the body even when the run changed no file. Never run that
   step. Commit what they wrote yourself, per root `AGENTS.md`.
-- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN — …`, its tests as `test(qa): …`, and
-  a fix it takes back as `Revert "…"`. Let it: it needs a clean tree and one commit per fix,
-  so that it can `git revert HEAD` a fix that made things worse. Before the push, bring each
-  of those subjects to root `AGENTS.md` notation; a revert becomes `fix:` too.
+- gstack `qa` commits each fix as `fix(qa): ISSUE-NNN` plus a short description, its tests
+  as `test(qa): …`, and a fix it takes back as `Revert "…"`. Let it: it needs a clean tree
+  and one commit per fix, so that it can `git revert HEAD` a fix that made things worse.
+  Before the push, bring each of those subjects to root `AGENTS.md` notation; a revert
+  becomes `fix:` too.
   `git rebase -i` needs an editor this harness cannot drive, so do it non-interactively.
-  Write one line per commit to reword — its current subject, a tab, the new subject — then
+  Write one line per commit to reword (its current subject, a tab, the new subject), then
   replay only the commits after the pushed head:
 
   ```bash
@@ -172,7 +173,7 @@ During the PR #15 review both gstack preambles offered an upgrade and a commit t
 
 ## Which skill to reach for
 
-These three skills are rails and repo conventions. **The heavy lifting is delegated** — do
+These three skills are rails and repo conventions. **The heavy lifting is delegated**: do
 not reimplement what an installed skill already does. `vendored` means a copy under
 `.claude/skills/`; `.claude/skills/VENDORED.md` says where each came from and what was
 changed.
@@ -206,7 +207,7 @@ changed.
 | Build a PDF from markdown | `make-pdf` | gstack |
 | FastAPI patterns | `fastapi` | global |
 | Raise pytest coverage | `pytest-coverage` | global |
-| Nothing above fits the task | `find-skills` — see below | global |
+| Nothing above fits the task | `find-skills`, see below | global |
 
 **If a listed skill is not installed, say so out loud and continue by hand.** Never skip the
 step silently, and never pretend a delegated pass ran.
@@ -217,13 +218,13 @@ spec) and `bokeh-review` (this repo's full pre-merge flow, which calls the middl
 
 ### When the table has no row for what you are facing
 
-The table is a starting point, not the whole world. When a task lands outside it — a domain
-none of these skills covers, or two of them fit equally and the choice matters — run
+The table is a starting point, not the whole world. When a task lands outside it (a domain
+none of these skills covers, or two of them fit equally and the choice matters), run
 **`find-skills`** and see what the ecosystem already has before improvising a workflow of
 your own. Doing the work with the right skill loaded beats doing it from general knowledge.
 
 Two limits on that. `find-skills` installs from the open ecosystem via `npx skills`, so it
-**proposes, and the user decides** — never install one mid-task and carry on. And a newly
+**proposes, and the user decides**. Never install one mid-task and carry on. And a newly
 installed skill is third-party instructions that will load in every later session, so say
 plainly what it is and where it came from.
 
@@ -234,22 +235,22 @@ is worse than no ceremony.
 
 Recorded so nobody re-litigates it:
 
-- **superpowers** — dropped on 2026-09-26 and disabled in `.claude/settings.json`. It covers
+- **superpowers**: dropped on 2026-09-26 and disabled in `.claude/settings.json`. It covers
   the same stages as the vendored skills, at more length, and its session hook forces a skill
   before every reply, questions included.
-- **gstack `ship`** — bumps `VERSION` and writes a `CHANGELOG`, which this repo does not
+- **gstack `ship`**: bumps `VERSION` and writes a `CHANGELOG`, which this repo does not
   keep, titles the PR `v<version> type: …`, and adds an AI co-author trailer. Root
   `AGENTS.md` forbids the last two. `bokeh-task` opens the PR instead.
-- **gstack `land-and-deploy`, `canary`** — there is no deploy target, and merging is the
+- **gstack `land-and-deploy`, `canary`**: there is no deploy target, and merging is the
   user's.
-- **gstack `autoplan`, `spec`** — scope comes from meetings and from the user, not from an
+- **gstack `autoplan`, `spec`**: scope comes from meetings and from the user, not from an
   auto-decided chain of reviews; `to-spec` already writes the spec.
-- **Pocock `implement`, `grill-with-docs`, `grill-me`** — thin wrappers the model may not call.
+- **Pocock `implement`, `grill-with-docs`, `grill-me`**: thin wrappers the model may not call.
   `bokeh-task` calls what they wrap: `grilling`, `domain-modeling`, `tdd`, `two-axis-review`.
-- **Pocock `triage`, `wayfinder`** — built around an issue tracker this repo does not have.
-- **Graphify** — a code knowledge graph pays off on codebases ten times this size, and a
+- **Pocock `triage`, `wayfinder`**: built around an issue tracker this repo does not have.
+- **Graphify**: a code knowledge graph pays off on codebases ten times this size, and a
   stale graph gives wrong answers the way stale docs did.
-- **`data-analyst`** — SQL and pandas, and this project has neither.
+- **`data-analyst`**: SQL and pandas, and this project has neither.
 
 ## Adding a skill to these rails
 

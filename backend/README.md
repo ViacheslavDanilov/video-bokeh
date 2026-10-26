@@ -31,18 +31,18 @@ backend/src/video_bokeh/
 | render bokeh again for written sequences | `uv sync --no-dev --extra render` |
 | develop on the repository | `uv sync --all-extras --dev` |
 
-Drop `--no-dev` and uv adds the `dev` group — pytest, ruff, ty, pre-commit — on top, which
+Drop `--no-dev` and uv adds the `dev` group (pytest, ruff, ty, pre-commit) on top, which
 only the last row wants.
 
 ### Smoke test
 
 A fresh clone can run the pipeline without a download: the two source
 pools `data/magick_dev` (30 foregrounds) and `data/bg-20k_dev` (30 backgrounds) are tracked on
-purpose. The artifact library is not — it is generated, and `.gitignore` keeps
-`backend/data/library*/` out — so build it once with Stage A, then run Stage B as often as you
+purpose. The artifact library is not: it is generated, and `.gitignore` keeps
+`backend/data/library*/` out, so build it once with Stage A, then run Stage B as often as you
 like. Both numbers below were measured on an Apple M3 Pro.
 
-**Stage A — build the library.** Install `uv sync --no-dev --extra library`.
+**Stage A: build the library.** Install `uv sync --no-dev --extra library`.
 
 ```bash
 uv run python -m video_bokeh.library.build \
@@ -51,10 +51,10 @@ uv run python -m video_bokeh.library.build \
 ```
 
 **11 s**, on MPS, once the depth model is cached; the first run also pulls it from Hugging
-Face. `da2-small` is the fast model and is what makes this a smoke test — `da2-large` is the
+Face. `da2-small` is the fast model and is what makes this a smoke test, while `da2-large` is the
 default elsewhere and is slower and better. The CLIP filter keeps 17 of the 30 foregrounds.
 
-**Stage B — generate sequences.** `uv sync --no-dev` is enough; Stage B needs no torch.
+**Stage B: generate sequences.** `uv sync --no-dev` is enough; Stage B needs no torch.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
@@ -73,7 +73,7 @@ value for the whole run. In Python, `video_bokeh.scenes.generate.generate_datase
 stream's `SequenceStream` take it as `bokeh_strength`. The API takes `bokeh_strength` in each
 request, and the demo has a slider for it.
 
-Full recipes — building a library, downloading the source pools — are in
+Full recipes (building a library, downloading the source pools) are in
 [`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md). Every flag is in
 [`docs/reference/cli.md`](../docs/reference/cli.md). The on-disk contract each stage writes is
 in [`docs/reference/dataset-layout.md`](../docs/reference/dataset-layout.md). Training straight
@@ -114,7 +114,7 @@ curl -X POST http://localhost:8000/sequences \
 
 That takes 8 to 14 seconds on an Apple M3 Pro, or 16 to 25 with its bokeh, and answers with a
 sequence id. The same request
-again returns the same id in 0.02 s — the id is a hash of the parameters and the library, so
+again returns the same id in 0.02 s: the id is a hash of the parameters and the library, so
 the directory on disk is the cache. Then open
 `http://localhost:8000/sequences/<id>/disparity.mp4`.
 
@@ -127,7 +127,7 @@ Timings for other frame counts, and for the container, are in `docs/reference/ap
 
 `docker compose up` from the repository root is the entry point. It builds this image and the
 frontend together, publishes 8000 and 3000, and mounts the data root named by
-`VIDEO_BOKEH_DATA_ROOT` — see `compose.yaml` and `.env.example`, both at the root.
+`VIDEO_BOKEH_DATA_ROOT`. See `compose.yaml` and `.env.example`, both at the root.
 
 ```bash
 # From the repository root

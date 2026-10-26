@@ -54,7 +54,7 @@ flowchart LR
 
 ---
 
-## Stage A — build the library
+## Stage A: build the library
 
 Run the depth estimator once per asset, clean the result, and save it.
 
@@ -68,7 +68,7 @@ a bad depth map later can be traced to the model or to the compositing rather th
 
 ### 2. Estimate depth
 
-The model returns a disparity map — brighter means closer. That map, before propagation, is
+The model returns a disparity map: brighter means closer. That map, before propagation, is
 saved as `depth_raw.png` for diagnosis only, scaled to its own minimum and maximum in 16 bits.
 
 Which model runs is a flag: Depth Anything V2 by default, Depth Pro, Depth Anything 3, or one
@@ -83,7 +83,7 @@ large dark patch, so the holes are removed first.
 The trusted core is built in three steps:
 
 1. Erode the object's alpha mask inward, because borders are unreliable.
-2. Drop any pixel in the eroded region whose depth falls below the 2nd percentile — those are
+2. Drop any pixel in the eroded region whose depth falls below the 2nd percentile. Those are
    the holes.
 3. What remains is the core.
 
@@ -96,12 +96,12 @@ Reliable values exist only inside the core, but compositing needs a value at eve
 Every pixel outside the core takes the depth of its nearest trusted pixel, and the result is
 lightly blurred to soften the seams. That becomes `depth.png`.
 
-Backgrounds skip all of this — they are already full-frame, so the estimator's output is
+Backgrounds skip all of this: they are already full-frame, so the estimator's output is
 saved directly.
 
 ---
 
-## Stage B — generate sequences
+## Stage B: generate sequences
 
 Pick a background and some objects, one to five by default, give each a motion path and a
 depth trajectory, check nothing collides, render every frame.
@@ -109,17 +109,17 @@ depth trajectory, check nothing collides, render every frame.
 ### The disparity axis
 
 Think of disparity as a ruler from 0 to 1. Zero is infinitely far, one is against the lens.
-**Larger means closer**, throughout the pipeline — disparity is roughly proportional to
+**Larger means closer**, throughout the pipeline, since disparity is roughly proportional to
 `1 / distance`.
 
 The background takes the bottom sliver, `[0, 0.05]`. Everything above is divided between the
 objects into disjoint **slots**, separated by small gaps:
 
 ```
-Background:  [0.00 — 0.05]
-Object 1:          [0.05 ————————————— 0.515]
+Background:  [0.00 - 0.05]
+Object 1:          [0.05 ------------- 0.515]
 Gap:                                          0.02
-Object 2:                                     [0.535 ————————————— 1.00]
+Object 2:                                     [0.535 ------------- 1.00]
 ```
 
 An object never fills its slot. It occupies a narrow **active band**, 0.08 wide by default,
@@ -152,7 +152,7 @@ guaranteed by construction is now checked instead.
 disparity are both proportional to `1 / distance`, so they rise and fall together. The
 approved research spec writes the reciprocal because it derives the rule for depth-as-distance
 and then applies the formula to a disparity interval. Taken literally it makes an object that
-grows on screen recede in the depth stream — exactly the inconsistency this design exists to
+grows on screen recede in the depth stream, exactly the inconsistency this design exists to
 remove. The code is right and the spec's formula is not; `derive_end_range` in
 `src/video_bokeh/core/_trajectory.py` carries the argument in full.
 
@@ -165,7 +165,7 @@ Two objects can end up overlapping on screen while sharing a depth.
 That sample has no defensible depth ordering and would teach the model something untrue.
 
 Every frame is checked for pairs that overlap in alpha **and** in disparity interval. A
-2D overlap alone is fine — that is just occlusion. If any frame collides, the whole trajectory
+2D overlap alone is fine: that is just occlusion. If any frame collides, the whole trajectory
 set is discarded and resampled, up to 50 times, after which the sequence is skipped rather
 than written. The manifest records the rejection count.
 
@@ -182,7 +182,7 @@ occludes the other, which is the whole point of letting them move.
 
 **Each object keeps one alpha page for the whole clip**, even as paint order changes. The
 masks are recorded before occlusion is resolved, so they are independent soft masks, not a
-partition of the frame — a renderer can blur each layer separately and then composite. That
+partition of the frame, so a renderer can blur each layer separately and then composite. That
 independence is also why a single index or label map cannot stand in for them: two objects
 can be partly transparent at the same pixel.
 
@@ -239,7 +239,7 @@ with the same homography as the color. Three things follow:
   the way per-frame estimation would.
 
 A sequence is also reproducible. Sampling is deterministic, so the library, the seed and the
-run's settings — frame count, size, the object range and the sampling configuration —
+run's settings (frame count, size, the object range and the sampling configuration)
 regenerate it exactly. The manifest records the seed, the frame count and the size.
 
 **Stage B also runs inside training.** The sequence stream, [loader](../reference/loader.md),
@@ -250,11 +250,11 @@ then train on as many sequences as it likes, from the same distribution as the w
 
 ## Related
 
-- [dataset-layout](../reference/dataset-layout.md) — the on-disk contract, with formats and bit
+- [dataset-layout](../reference/dataset-layout.md): the on-disk contract, with formats and bit
   depths
-- [generate-a-dataset](../how-to/generate-a-dataset.md) — how to run Stages A and B
-- [loader](../reference/loader.md) — the sequence stream, for training on the fly
-- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md) — how to judge
+- [generate-a-dataset](../how-to/generate-a-dataset.md): how to run Stages A and B
+- [loader](../reference/loader.md): the sequence stream, for training on the fly
+- [demo-unrestricted-trajectories](../how-to/demo-unrestricted-trajectories.md): how to judge
   the result by eye
-- Local-only note `meetings/2026-06-26-unrestricted-pipeline-algorithm.md` — where the
+- Local-only note `meetings/2026-06-26-unrestricted-pipeline-algorithm.md`: where the
   unrestricted design was agreed

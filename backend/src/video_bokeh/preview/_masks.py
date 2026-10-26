@@ -1,7 +1,7 @@
 """Turn a frame's per-object alpha planes into one image a person can read.
 
 A sequence's alpha stream is a multi-page TIFF with **one page per object, in a fixed
-order for the whole clip** — `scenes/_compositor.py` is explicit that the index is the
+order for the whole clip**. `scenes/_compositor.py` is explicit that the index is the
 object's identity and not its draw order, because paint order is recomputed every frame
 as objects move past each other in depth.
 
@@ -24,7 +24,7 @@ import numpy as np
 
 #: ColorBrewer Set1, a qualitative scheme: neighboring entries are as unlike each other
 #: as the space allows, because these are labels rather than a measurement. Deliberately
-#: nothing like `Spectral`, which is a ramp and carries an order — mixing the two up is
+#: nothing like `Spectral`, which is a ramp and carries an order. Mixing the two up is
 #: exactly the mistake this pane could invite.
 OBJECT_COLORS: tuple[tuple[int, int, int], ...] = (
     (228, 26, 28),

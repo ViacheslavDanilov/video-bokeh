@@ -1,10 +1,10 @@
-# Vercel — Style Reference
+# Vercel: Style Reference
 
 The demo uses a light monochrome interface so the video streams carry the color.
 This is the subset of the Vercel reference used by `globals.css` and `layout.tsx`.
 The frontend defines the semantic tokens and loads Geist through the `geist` package.
 
-## Tokens — Colors
+## Tokens: Colors
 
 The canvas, text, and borders establish the interface hierarchy.
 
@@ -20,7 +20,7 @@ The canvas, text, and borders establish the interface hierarchy.
 The original reference defines no error color. The error treatment in `globals.css` is a
 demo extension. Color in the depth, alpha, and flow legends represents data.
 
-## Tokens — Typography
+## Tokens: Typography
 
 Geist Sans carries interface text. Geist Mono carries identifiers, frame counters, and
 metadata. `layout.tsx` loads both families and exposes their font variables.
@@ -37,7 +37,7 @@ Use 12px text for metadata and counters. The reference's mono label treatment us
 `0.071em` tracking, as recorded by the `.label-mono` rule in `globals.css`.
 Use tabular numbers for the frame counter so its width stays steady during playback.
 
-## Tokens — Spacing & Shapes
+## Tokens: Spacing & Shapes
 
 The interface uses a compact spacing scale based on 4px increments.
 Smaller control gaps use 6px, 8px, and 12px. The page uses 24px padding and gaps, while the
