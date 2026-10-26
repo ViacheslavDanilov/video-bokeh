@@ -2,7 +2,7 @@
 
 Setup plays at 1x and the generation wait is sped up to last GEN_EDIT seconds (about 4x),
 whatever the generation took. The rest plays at 1x. Usage:
-    python3 edit.py FRAMES_DIR   # then the ffmpeg command it prints
+    python3 edit.py FRAMES_DIR   # then, from this folder, the ffmpeg command it prints
 """
 
 import json
@@ -42,7 +42,7 @@ print(f"generation wait at {speed:.2f}x")
 for name in marks:
     print(f"{name:9} {edit_time(marks[name] - t0):6.2f} s in the edit")
 print(
-    f"cd {frames_dir} && ffmpeg -f concat -safe 0 -i list.ffconcat"
+    f"ffmpeg -f concat -safe 0 -i {frames_dir / 'list.ffconcat'}"
     f" -vf 'fps=30,crop=3600:1672:0:0,format=yuv420p' -frames:v {edit_frames}"
-    " -c:v libx264 -preset slow -crf 12 -movflags +faststart ui-edit.mp4"
+    " -c:v libx264 -preset slow -crf 12 -movflags +faststart project/assets/ui-edit.mp4"
 )

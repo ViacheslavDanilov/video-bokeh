@@ -32,8 +32,9 @@ license, and GSAP, so the render needs no network.
 
 ## Make the video
 
-The demo must run at `http://localhost:3000` (`make web` from the repository root), and the
-sequence it generates must not be cached, or there is no progress bar to film.
+The demo must run at `http://localhost:3000`: `make api` and `make web` from the repository
+root. The sequence it generates must not be cached, or there is no progress bar to film:
+delete its folder under `backend/data/sequences/` first, or pick a new seed.
 
 1. Record. From this folder:
 
@@ -45,11 +46,10 @@ sequence it generates must not be cached, or there is no progress bar to film.
    frames are 3600 × 1674. The script picks `da2-large`, types the seed, generates, plays, and
    drags two panes. It marks every step in `frames/frames.json`.
 
-2. Edit. `python3 edit.py frames` prints the step times and an ffmpeg command. Run that
-   command, then move the result and take its last frame:
+2. Edit. `python3 edit.py frames` prints the step times and an ffmpeg command that writes
+   `project/assets/ui-edit.mp4`. Run that command, then take the edit's last frame:
 
    ```bash
-   mv frames/ui-edit.mp4 project/assets/ui-edit.mp4
    ffmpeg -sseof -1 -i project/assets/ui-edit.mp4 -update 1 project/assets/ui-last-frame.png
    ```
 
