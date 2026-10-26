@@ -16,9 +16,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # Whether a change can affect the browser smoke: the app, the API it drives, the
-  # helpers that serve it a fixture library, their dependencies, or this workflow. A
-  # change to docs alone skips the smoke, and GitHub counts a skipped required check
+  # Whether a change can affect the browser smoke. A change to docs, scripts or
+  # tests the smoke does not use skips it, and GitHub counts a skipped required check
   # as passed. A manual run always takes it.
   changes:
     runs-on: ubuntu-latest
@@ -50,13 +49,22 @@ jobs:
           echo "smoke=true" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-        files=$(git diff --name-only --no-renames "$base" HEAD)
+        # core.quotePath=false keeps non-ASCII names unquoted, so they match below.
+        files=$(git -c core.quotePath=false diff --name-only --no-renames "$base" HEAD)
         echo "$files"
-        # grep reads its whole input: -q would stop at the first match and, under
-        # pipefail, fail the pipe on a long list.
-        if echo "$files" | grep -v '\.md$' | grep -E \
-            '^(frontend/|backend/src/|backend/tests/api/|(backend/)?pyproject\.toml$|uv\.lock$|\.github/workflows/)' \
-            >/dev/null; then
+        # The smoke is skipped only when every changed file is known not to reach it:
+        # Markdown, docs, the comparison and repo scripts, agent files, the README's
+        # video, and backend tests other than the API helpers the smoke serves. Any
+        # other path, a new one included, runs it. Each grep reads
+        # its whole input, and `|| true` keeps an empty result from failing the step.
+        relevant=$(
+          {
+            printf '%s\n' "$files" |
+              grep -v -E '\.md$|^(docs|comparison|scripts|\.claude|\.assets)/|^backend/tests/' || true
+            printf '%s\n' "$files" | grep -E '^backend/tests/api/' | grep -v -E '\.md$' || true
+          }
+        )
+        if [ -n "${relevant//[[:space:]]/}" ]; then
           echo "smoke=true" >> "$GITHUB_OUTPUT"
         else
           echo "smoke=false" >> "$GITHUB_OUTPUT"
