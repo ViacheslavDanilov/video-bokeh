@@ -529,7 +529,10 @@ def test_the_card_describes_the_fixed_set_when_there_is_one(
     }
     assert "$" not in card
     prose = " ".join(card.split())
-    assert "a fixed set of 2 sequences that Stage B wrote from the test split" in prose
+    assert (
+        "a fixed set of 2 sequences made from the library's test split, for evaluation"
+        in prose
+    )
     assert "Each sequence has 3 frames at 32 × 32 and 1 object." in prose
     assert "strength `k = 16`" in prose
     assert f"fetch-sequences --repo {hub.REPO}" in prose
