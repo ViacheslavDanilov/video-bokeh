@@ -137,9 +137,8 @@ uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-b
   --output data/fixed-set
 ```
 
-It writes the layout `scenes.generate` writes: `manifest.csv`, `objects.csv` and `run.json`,
-and a folder per sequence under `sequences/`. Read a frame with the readers the code writes
-the streams with:
+It writes the same layout as `scenes.generate`: `manifest.csv`, `objects.csv` and `run.json`,
+and a folder per sequence under `sequences/`. Read a frame with the code's own stream readers:
 
 ```python
 from pathlib import Path
