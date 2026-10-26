@@ -128,7 +128,7 @@ GPU with `batch_bokeh`, where `k` can change from batch to batch.
 
 **The fixed set is 300 sequences that Stage B wrote once from the test split,** so a network
 trained as above has seen none of their objects or backgrounds. Each has 80 frames at
-1024 × 1024 and every stream: the frames all in focus, disparity, the mattes, bokeh at
+1024 × 1024 and seven streams: the frames all in focus, disparity, the mattes, bokeh at
 `k = 16` with its focus, forward and backward optical flow, and occlusion. It takes 79 GB, and
 about 15 minutes at 100 MB/s:
 
@@ -172,8 +172,8 @@ not show. The last frame has no flow and no occlusion, and the first has no back
 [dataset-layout](../reference/dataset-layout.md) describes every stream.
 
 **Keep the test split for the end.** To pick or tune a model, validate on sequences the
-stream draws from train, with seeds far from the training run's. A stream on `split="test"`,
-or the fixed set itself, used for that would be fitted to.
+stream draws from train, with seeds far from the training run's. Choosing a model on the fixed
+set, or on a stream with `split="test"`, fits that choice to the test split.
 
 ## 7. Read the library without the code
 
@@ -195,6 +195,7 @@ EOF
 An item holds `rgb.png`, `alpha.png` and `depth.png` as PIL images, the depth one 16-bit,
 `depth_preview.jpg`, a colored view of the disparity, `json`, the item's metadata, and
 `__key__`, its id. The `backgrounds` subset holds `rgb.png`, `depth.png` and
-`depth_preview.jpg`. Each subset has a `train` and a `test` split. The `sequences` subset
-streams the fixed set, one row per sequence, but Pillow reads its flow files as 8-bit color
-and its alpha files one page only, so step 6 is the way to evaluate on it.
+`depth_preview.jpg`. Both subsets have a `train` and a `test` split. The `sequences` subset
+has only `test`: it streams the fixed set, one row per sequence. `datasets` decodes each of its
+files as one Pillow image, a flow file as 8-bit color and an alpha file as its first page
+alone, so step 6 is the way to evaluate on it.
