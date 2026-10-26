@@ -46,8 +46,10 @@ candidates whose sheet is still in ``sheets/``, once the others are deleted, int
 or, with ``--name``, into a folder for a trial style.
 
     comparison/envs/render/bin/python comparison/review.py collect \\
-        --data-root data/test_set --out data/test_set_review --link
-    comparison/envs/render/bin/python comparison/review.py sheets data/test_set_review
+        --data-root backend/data/balanced_test_set \\
+        --out backend/data/balanced_test_set_review --link
+    comparison/envs/render/bin/python comparison/review.py sheets \\
+        backend/data/balanced_test_set_review
 """
 
 from __future__ import annotations

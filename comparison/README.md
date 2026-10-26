@@ -231,10 +231,14 @@ done
 
 ```bash
 comparison/envs/render/bin/python comparison/review.py collect \
-  --data-root backend/data/test_set --out backend/data/test_set_review --link --every-frame
-comparison/envs/render/bin/python comparison/review.py sheets backend/data/test_set_review
+  --data-root backend/data/balanced_test_set --out backend/data/balanced_test_set_review \
+  --link --every-frame
+comparison/envs/render/bin/python comparison/review.py sheets \
+  backend/data/balanced_test_set_review
 ```
 
+- `collect` takes the whole set's root, not a subset's: it copies the root's `manifest.csv`,
+  which the subset roots do not have, and every subset's scores with it.
 - `<sequence>/<method>/<frame>.png` holds each method's frames, with the same file names in
   every method's folder, so that a viewer such as VPV can flip between them. The methods are
   `all_in_focus`, `ours`, `drbokeh`, `mpib`, `bokehme` and `any_to_bokeh`. `mpib` is the
