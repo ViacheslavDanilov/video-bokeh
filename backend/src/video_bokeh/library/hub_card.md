@@ -38,6 +38,12 @@ $sequences_config---
 
 # Video Bokeh
 
+[![Code: GitHub](https://img.shields.io/badge/GitHub-video--bokeh-181717.svg?logo=github)](https://github.com/ViacheslavDanilov/video-bokeh)
+[![Docs: Tutorial](https://img.shields.io/badge/Docs-Tutorial-2ea44f.svg)](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/docs/how-to/train-on-the-sequence-stream.md)
+[![PyTorch: SequenceStream](https://img.shields.io/badge/PyTorch-SequenceStream-ee4c2c.svg?logo=pytorch&logoColor=white)](https://github.com/ViacheslavDanilov/video-bokeh/blob/main/docs/reference/loader.md)
+[![Format: WebDataset](https://img.shields.io/badge/Format-WebDataset-orange.svg)](https://github.com/webdataset/webdataset)
+[![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/downloads/)
+
 Synthetic video for training and evaluating depth-aware bokeh. Every frame is composited
 from known layers, so its disparity, the soft matte of each object, its bokeh, its forward
 and backward optical flow and its occlusion match it by construction.
