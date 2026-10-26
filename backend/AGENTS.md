@@ -59,46 +59,7 @@ backend/
 
 ## Datasets
 
-Dataset scripts assume working directory is `backend/`. Examples:
-
-```bash
-# 1. Acquire sources
-#    MAGICK dev pool (HuggingFace), then CLIP predictions for what it lacks
-uv run python -m video_bokeh.acquire.magick \
-  --metadata data/magick_metadata.csv \
-  --output   data/magick_dev \
-  --count    30 --seed 11
-uv run python -m video_bokeh.acquire.classify --data-root data/magick_dev --keep-existing \
-  --num-workers 0
-#    BG-20k dev pool, one file at a time (Kaggle): no account needed
-uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11
-#    BG-20k full archive
-uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
-
-# 2. Stage A: build the artifact library (depth runs once per asset)
-uv run python -m video_bokeh.library.build \
-  --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
-  --output data/library_dev/da2-large --size 1024 --model da2-large
-
-# 3. Stage B: generate sequences on the fly from the library
-#    Writes all_in_focus/*.png (RGB), alpha/*.tif (one page per object)
-#    and disparity/*.png (uint16), and with --layers the layers/ stream the
-#    layered renderer needs. --bokeh renders each sequence's bokeh in the same
-#    run, from the layers in memory, and --flow writes its exact optical flow.
-#    Each run rewrites manifest.csv (sequences and background ids), objects.csv
-#    (object trajectories and fallbacks), and run.json (settings and provenance).
-#    See docs/reference/dataset-layout.md.
-uv run python -m video_bokeh.scenes.generate \
-  --library-root data/library_dev/da2-large --output data/synth_dev \
-  --count 10 --frames 80 --size 1024 --seed 0 --n-objects-max 5 --layers
-
-# 4. Optional: render bokeh again into each sequence's bokeh/, over sequences written
-#    with --layers, at another strength or focus than --bokeh rendered in the same run.
-uv run --extra render python -m video_bokeh.render.run --data-root data/synth_dev \
-  --strength 24
-```
-
-`backend/data/` is gitignored, so outputs stay local.
+Dataset scripts run from `backend/`. [`docs/how-to/generate-a-dataset.md`](../docs/how-to/generate-a-dataset.md) holds every recipe: acquiring the pools, Stage A's library, Stage B's sequences and re-rendering the bokeh. [`docs/reference/cli.md`](../docs/reference/cli.md) lists each module's flags. `backend/data/` is mostly gitignored, so outputs stay local.
 
 ## Verification before claiming done
 
