@@ -208,7 +208,7 @@ done
   transition, between the object and what lies behind it.
 - `plain-01` to `plain-60` are the first 60 seeds from 4,000,000 that can be placed and whose
   background has detail, with any object of the library. On a flat background, such as a
-  white wall, no renderer's blur shows; `test_set.py` says how detail is measured.
+  white wall, no renderer's blur shows; `balanced_test_set.py` says how detail is measured.
 - `hair-01` to `hair-15`, and 15 each of `fire`, `smoke` and `fine` (fine detail), focus on
   one of 107 library objects that `hard_edge_objects.txt` lists with their category, picked
   by hand for their edges. A light edge, and every flame and wisp of smoke, goes on a dark
@@ -224,11 +224,6 @@ done
 - `plain/`, `hard/`, `hair/`, `fire/`, `smoke/` and `fine/` beside `sequences/` are data roots
   that link to their own sequences. The loop above scores each method there, and `summary.py`
   gives each subset its own table; the renders are already in place.
-
-`test_set.py` writes the earlier set of 40, which the comparison first ran on:
-`any-01` to `any-32`, the first 32 seeds from 1,000,000 whose background has detail, and
-`night-01` to `night-08`, eight night scenes with small lights, each a different background,
-which `night/` links to.
 
 ## Looking at the results
 
