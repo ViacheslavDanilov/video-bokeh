@@ -91,9 +91,9 @@ copies across shards are accepted; names in different splits remain separate.
 Use `data/magick` and `data/bg-20k` as Stage A's source roots.
 
 **Neither source needs an account.** MAGICK comes from Hugging Face over plain HTTPS.
-kagglehub signs in only for private datasets or ones that ask for consent. On 2026-10-22, with
-no Kaggle credentials on the machine, kagglehub 1.0.0 fetched single BG-20k files and started
-the 13.1 GiB archive. If Kaggle ever refuses an anonymous download, create an API token at
+kagglehub signs in only for private datasets or ones that ask for consent. With no Kaggle
+credentials on the machine, kagglehub 1.0.0 fetched single BG-20k files and started the
+13.1 GiB archive. If Kaggle ever refuses an anonymous download, create an API token at
 [kaggle.com/settings](https://www.kaggle.com/settings), save it as `~/.kaggle/access_token`,
 and run the command again. kagglehub still reads a legacy `~/.kaggle/kaggle.json` too.
 
