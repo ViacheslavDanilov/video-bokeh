@@ -3,7 +3,7 @@
 The figure, about 2,500 pixels wide, has two sections under a heading and a rule. Up to
 four foregrounds sit two to a row, each on a blue-tinted card as ``rgb.png`` over a
 checkerboard, ``alpha.png`` and ``depth.png`` inside the matte; up to three backgrounds sit
-in one row, each on a warm-tinted card as ``rgb.png`` and ``depth.png``. The video plays
+in one row, each on a green-tinted card as ``rgb.png`` and ``depth.png``. The video plays
 sequences that Stage B generates from the library at 1024 pixels, in the six panes the
 demo shows: all in focus, disparity and the objects' mattes over bokeh, forward optical
 flow and occlusion, with a dot for each sequence under them. Disparity is drawn with
@@ -68,10 +68,9 @@ VIDEO_DOTS = 36
 _INK = (31, 35, 40)
 _MUTED = (110, 118, 128)
 _RULE = (214, 218, 224)
-#: The cards: blue-tinted for foregrounds, warm-tinted for backgrounds, one edge for both.
-_FG_FILL = (246, 249, 255)
-_BG_FILL = (255, 250, 243)
-_CARD_EDGE = (205, 219, 245)
+#: The cards, each a fill and an edge: blue-tinted for foregrounds, green for backgrounds.
+_FG_COLORS = ((246, 249, 255), (205, 219, 245))
+_BG_COLORS = ((241, 249, 243), (198, 226, 206))
 _PAPER = (255, 255, 255)
 #: The matte a foreground's disparity is drawn from: Stage A's default ``--alpha-threshold``,
 #: where its trusted core starts. Below it, the faint halo of MAGICK's mattes is drawn gray.
@@ -187,7 +186,7 @@ def _card(
     top: int,
     panels: list[Image.Image],
     captions: Sequence[tuple[str, str]],
-    fill: tuple[int, int, int],
+    colors: tuple[tuple[int, int, int], tuple[int, int, int]],
 ) -> int:
     """Panels side by side on a rounded card, each under its caption; return its width."""
     side = panels[0].width
@@ -196,8 +195,8 @@ def _card(
     draw.rounded_rectangle(
         (left, top, left + width, top + height),
         12,
-        fill=fill,
-        outline=_CARD_EDGE,
+        fill=colors[0],
+        outline=colors[1],
         width=2,
     )
     font = _font(20)
@@ -274,7 +273,7 @@ def write_preview(
             row_top,
             _foreground(library_root, asset_id),
             _FG_CAPTIONS,
-            _FG_FILL,
+            _FG_COLORS,
         )
     top += fg_rows * (fg_card + CARD_GAP) + 16
     top = _heading(
@@ -289,7 +288,7 @@ def write_preview(
             top,
             _background(library_root, asset_id),
             _BG_CAPTIONS,
-            _BG_FILL,
+            _BG_COLORS,
         )
         left += width + CARD_GAP
     _legend(canvas, draw, top + bg_card + 22)

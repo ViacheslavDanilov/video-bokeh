@@ -208,7 +208,7 @@ def test_the_package_carries_its_card_and_its_counts(
     card = (tmp_path / "packed" / "README.md").read_text()
     assert "license: cc-by-nc-4.0" in card
     prose = " ".join(card.split())  # the template wraps its lines
-    assert "3 foregrounds" in prose and "2 background photos" in prose
+    assert "3 cut-out foregrounds" in prose and "2 background photos" in prose
 
 
 def test_packing_refuses_a_folder_that_is_no_library(tmp_path: Path) -> None:
@@ -258,9 +258,11 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     assert meta["pretty_name"] == "Video Bokeh"
     # Every number is filled in from the index, and no placeholder is left.
     assert "$" not in card
-    assert "| items | 3 | 2 |" in card
-    assert "| image size | 64 × 64 | 192 × 192 |" in card
-    assert "| tar shards | 3 | 2 |" in card
+    assert "| | Foregrounds | Backgrounds |\n" in card
+    assert "| Items | 3 | 2 |" in card
+    assert "| Size | 64 × 64 | 192 × 192 |" in card
+    assert "| Shards | 3 | 2 |" in card
+    assert "## Fixed set" not in card
     assert "train-00001.tar" in card
     assert f"fetch --repo {hub.REPO} " in card
     # No figure was drawn, so the card shows none; the whole library is in it.
@@ -445,8 +447,8 @@ def test_a_shard_holds_one_split_and_the_card_counts_each(
     with tarfile.open(tmp_path / "packed/library/backgrounds/test-00000.tar") as tar:
         assert {n.split(".")[0] for n in tar.getnames()} == {"testval__h_c"}
     card = " ".join((tmp_path / "packed" / "README.md").read_text().split())
-    assert "| foregrounds | 2 | 1 |" in card
-    assert "| backgrounds | 2 | 1 |" in card
+    assert "| Foregrounds | 2 | 1 |" in card
+    assert "| Backgrounds | 2 | 1 |" in card
 
 
 @pytest.fixture
@@ -530,11 +532,14 @@ def test_the_card_describes_the_fixed_set_when_there_is_one(
     assert "$" not in card
     prose = " ".join(card.split())
     assert (
-        "a fixed set of 2 sequences made from the library's test split, for evaluation"
-        in prose
+        "2 sequences the generator wrote once from the library's test split, for "
+        "evaluation" in prose
     )
-    assert "Each sequence has 3 frames at 32 × 32 and 1 object." in prose
-    assert "strength `k = 16`" in prose
+    assert "| | Foregrounds | Backgrounds | Fixed set |" in card
+    assert "| Items | 3 | 3 | 2 sequences |" in card
+    assert "Each has 3 frames at 32 × 32 and 1 object" in prose
+    assert "rendered at `k = 16`" in prose
+    assert "Read the fixed set with `fetch-sequences`, not `datasets`." in prose
     assert f"fetch-sequences --repo {hub.REPO}" in prose
     assert "sequences/test-00000.tar" in card
 
