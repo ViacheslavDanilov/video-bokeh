@@ -57,7 +57,7 @@ the same in Stage B. The library records the `--model` string in each foreground
 
 Licenses as each model's card states them. Non-commercial
 weights are fine for a research dataset. Both `da3-*` need an environment of their own first, as
-the next section says.
+the next section says. `da3-metric-large` has not run yet.
 
 The `da2-*` and `depth-pro` run in this process, in the environment the `library` extra
 installs, under every runner: they need no environment of their own.

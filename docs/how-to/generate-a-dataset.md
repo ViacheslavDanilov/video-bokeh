@@ -92,7 +92,8 @@ Use `data/magick` and `data/bg-20k` as Stage A's source roots.
 
 **Neither source needs an account.** MAGICK comes from Hugging Face over plain HTTPS.
 kagglehub signs in only for private datasets or ones that ask for consent. With no Kaggle
-credentials on the machine, kagglehub fetches single BG-20k files and the 13.1 GiB archive. If Kaggle ever refuses an anonymous download, create an API token at
+credentials on the machine, kagglehub fetches single BG-20k files and the 13.1 GiB archive.
+If Kaggle ever refuses an anonymous download, create an API token at
 [kaggle.com/settings](https://www.kaggle.com/settings), save it as `~/.kaggle/access_token`,
 and run the command again. kagglehub still reads a legacy `~/.kaggle/kaggle.json` too.
 
