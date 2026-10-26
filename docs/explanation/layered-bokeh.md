@@ -68,13 +68,13 @@ radii still mean more bins and more padding.
 
 ## Settings
 
-- **Strength** — how strong the blur is: the blur radius in pixels, at 1024 pixels wide, one
-  unit of disparity from the focus. 16 by default, the unit and the default any-to-bokeh
+- **Strength**: the blur radius in pixels, at 1024 pixels wide, one unit of disparity from the
+  focus. 16 by default, the unit and the default any-to-bokeh
   uses as `k`, so the two can be compared at the same setting.
-- **Radius step** — the width of a radius bin, 1 pixel by default. A wider step means fewer
+- **Radius step**: the width of a radius bin, 1 pixel by default. A wider step means fewer
   convolutions, and a radius off by up to the step. A step wider than every radius gives
   one blur per layer.
-- **Gamma** — the power for linear light, 2.2 by default. 1 blurs the colors as they are.
+- **Gamma**: the power for linear light, 2.2 by default. 1 blurs the colors as they are.
 
 ---
 
@@ -117,6 +117,6 @@ One thread is what each worker of a training loader gets.
 
 ## Related
 
-- [pipeline-explainer](pipeline-explainer.md) — the two stages, and where bokeh fits
-- [dataset-layout](../reference/dataset-layout.md) — the `layers/` stream the renderer reads
-- [loader](../reference/loader.md) — the layers in a training loop
+- [pipeline-explainer](pipeline-explainer.md): the two stages, and where bokeh fits
+- [dataset-layout](../reference/dataset-layout.md): the `layers/` stream the renderer reads
+- [loader](../reference/loader.md): the layers in a training loop

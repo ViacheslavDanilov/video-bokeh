@@ -184,7 +184,8 @@ def main() -> int:
 
     os.environ["KAGGLEHUB_CACHE"] = str(args.output.resolve())
 
-    import kagglehub  # noqa: E402 — must be imported after KAGGLEHUB_CACHE is set
+    # Must be imported after KAGGLEHUB_CACHE is set.
+    import kagglehub  # noqa: E402
 
     path = Path(kagglehub.dataset_download(KAGGLE_DATASET))
     try:

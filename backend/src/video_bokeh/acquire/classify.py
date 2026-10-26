@@ -3,7 +3,7 @@
 
 Reads `<data_root>/metadata.csv`, loads each image from
 `<data_root>/images/<pp>/<page_id>.png`, encodes it with an OpenCLIP model,
-and scores it against two orthogonal taxonomies — *subject* (what is in the
+and scores it against two orthogonal taxonomies: *subject* (what is in the
 image) and *style* (how it is rendered). Writes a sibling `predictions.csv`
 (page_id, top_subject, top_subject_score, top_style, top_style_score,
 per-class scores for both axes, prompt) without touching the authoritative
@@ -16,21 +16,21 @@ repository, https://github.com/mlfoundations/open_clip. `--keep-existing` refuse
 predictions that another model made, so one file never mixes two models unseen.
 
 Subject taxonomy (edit `SUBJECT_TAXONOMY` / `SUBJECT_TEMPLATES` to tweak):
-    person   — humans, portraits, body parts
-    animal   — any living creature (mammal, bird, insect, reptile, fish)
-    plant    — flowers, leaves, trees, bark, botanical subjects
-    food     — cooked or raw edibles (fruit, meat, baked goods, drinks)
-    object   — inanimate man-made items (containers, tools, furniture, clothing, electronics)
-    text     — letters, logos, stamps, banners, typography
-    effect   — water splashes, smoke, fire, bubbles, particle FX
+    person:    humans, portraits, body parts
+    animal:    any living creature (mammal, bird, insect, reptile, fish)
+    plant:     flowers, leaves, trees, bark, botanical subjects
+    food:      cooked or raw edibles (fruit, meat, baked goods, drinks)
+    object:    inanimate man-made items (containers, tools, furniture, clothing, electronics)
+    text:      letters, logos, stamps, banners, typography
+    effect:    water splashes, smoke, fire, bubbles, particle FX
 
 Style taxonomy (edit `STYLE_TAXONOMY` / `STYLE_TEMPLATES` to tweak):
-    photo        — real-world photographs (DSLR, candid, documentary)
-    illustration — digital illustration, vector art, stickers, concept art
-    drawing      — pencil/ink/line drawings, tattoo line art, sketches
-    painting     — oil, watercolor, acrylic, digital painting
-    render       — 3D render, CGI, octane render
-    cartoon      — cartoon, anime, comic book panel
+    photo:         real-world photographs (DSLR, candid, documentary)
+    illustration:  digital illustration, vector art, stickers, concept art
+    drawing:       pencil/ink/line drawings, tattoo line art, sketches
+    painting:      oil, watercolor, acrylic, digital painting
+    render:        3D render, CGI, octane render
+    cartoon:       cartoon, anime, comic book panel
 
 Each class has multiple noun phrasings × multiple templates; the text
 embeddings are averaged per class (prompt ensembling), which typically yields
@@ -293,7 +293,7 @@ def encode_class_prompts(
     For each class we expand `nouns × templates` into a flat prompt list,
     encode them, L2-normalize each, mean-pool over the prompts, then
     L2-normalize the mean. Averaging on the unit sphere (normalize → mean →
-    re-normalize) is the standard CLIP ensemble recipe — smooths out the
+    re-normalize) is the standard CLIP ensemble recipe, and it smooths out the
     single-prompt jitter.
     """
     class_embeddings: list[torch.Tensor] = []

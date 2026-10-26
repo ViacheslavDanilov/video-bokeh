@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Tokens from DESIGN.md — the Vercel style reference: a near-white canvas, black
+ * Tokens from DESIGN.md, the Vercel style reference: a near-white canvas, black
  * typography, hairline borders, and no decorative color at all.
  *
  * Monochrome is the right call for this page rather than a fashion: every frame and
@@ -30,7 +30,7 @@
   --accent-foreground: #171717;
 
   /*
-   * DESIGN.md has no error color — it describes a marketing site, which has no
+   * DESIGN.md has no error color: it describes a marketing site, which has no
    * failure states. An interface needs one, so this is an extension of the reference,
    * not a quotation from it: the least saturated red that still clears 4.5:1 on the
    * canvas, used only for the rule beside a message.

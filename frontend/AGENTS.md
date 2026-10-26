@@ -2,11 +2,11 @@
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes: APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
 <!-- END:nextjs-agent-rules -->
 
-# Frontend — Agent Guide
+# Frontend: Agent Guide
 
 Next.js 16, React 19, TypeScript 5, Tailwind 4. Node.js 24, pnpm. ESLint + Prettier. Root rules in `../AGENTS.md` still apply.
 
@@ -23,7 +23,7 @@ Next.js 16, React 19, TypeScript 5, Tailwind 4. Node.js 24, pnpm. ESLint + Prett
 
   Both are native modules required for normal operation (sharp = Next.js image optimization; unrs-resolver = eslint-config-next resolver). New native deps with postinstall scripts will fail `pnpm install --frozen-lockfile` until added here.
 
-- **Always use `--frozen-lockfile`** in CI-equivalent installs. If `pnpm install` wants to update the lockfile and you didn't change `package.json`, something is wrong — investigate before committing.
+- **Always use `--frozen-lockfile`** in CI-equivalent installs. If `pnpm install` wants to update the lockfile and you didn't change `package.json`, something is wrong, so investigate before committing.
 
 ## Commands
 
@@ -44,7 +44,7 @@ Run from `frontend/`.
 ## UI components
 
 `src/components/ui/` is shadcn/ui, built on the `radix-ui` package. The files are **copied
-into the repository, not a dependency** — edit them directly, and `pnpm dlx shadcn@latest add
+into the repository, not a dependency**: edit them directly, and `pnpm dlx shadcn@latest add
 <name>` brings in new ones (`dlx`, never `npx`: this repo is pnpm only).
 
 One local change so far: `slider.tsx` forwards the accessible name and description to the
@@ -61,7 +61,7 @@ compiled stylesheet.** The symptom is not an error: every custom property resolv
 so popovers are transparent, slider tracks vanish, and the page looks broken in ways that
 point at the components. It cost an hour once.
 
-Check it by reading a variable rather than guessing — `getComputedStyle(document.documentElement).getPropertyValue('--popover')` empty means stale. The fix is `rm -rf .next` and restart.
+Check it by reading a variable rather than guessing: `getComputedStyle(document.documentElement).getPropertyValue('--popover')` empty means stale. The fix is `rm -rf .next` and restart.
 
 ## Talking to the API
 
@@ -71,7 +71,7 @@ variable it is read at build time, so a container built for one address cannot b
 another without rebuilding.
 
 **Which streams a sequence has comes from the server's stream info.** Do not hardcode stream
-names in components — a stream added to the API appears in the interface on its own, and that
+names in components: a stream added to the API appears in the interface on its own, and that
 is the point.
 
 ## Conventions
@@ -83,6 +83,6 @@ is the point.
 
 ## Verification before claiming done
 
-For any UI change, run `pnpm dev`, open the page in a browser, and exercise the feature path. Type-check and lint do not verify visual behavior. If you cannot test the UI in a browser, say so — don't claim success.
+For any UI change, run `pnpm dev`, open the page in a browser, and exercise the feature path. Type-check and lint do not verify visual behavior. If you cannot test the UI in a browser, say so. Don't claim success.
 
-`pnpm e2e` drives the main path for you: it starts the API against two tiny fixture libraries and a dev server on ports 8765 and 3765, then checks in Chromium that the libraries load, a sequence generates from the one picked and every stream decodes. It needs the backend's `api` extra installed, and `pnpm exec playwright install chromium` once. It proves the wiring, not how the page looks — a visual change still needs your eyes.
+`pnpm e2e` drives the main path for you: it starts the API against two tiny fixture libraries and a dev server on ports 8765 and 3765, then checks in Chromium that the libraries load, a sequence generates from the one picked and every stream decodes. It needs the backend's `api` extra installed, and `pnpm exec playwright install chromium` once. It proves the wiring, not how the page looks, and a visual change still needs your eyes.

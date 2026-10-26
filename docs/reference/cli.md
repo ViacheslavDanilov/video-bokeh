@@ -18,7 +18,7 @@ uv run python -m video_bokeh.<role>.<module> [flags]
 
 ---
 
-## `video_bokeh.library.build` — Stage A
+## `video_bokeh.library.build`: Stage A
 
 Estimates depth once per asset and writes the artifact library.
 
@@ -125,7 +125,7 @@ Without them it still checks the class, and reports what it cannot know as unkno
 - `peak_memory(self)`, for an estimator that keeps its weights in another process: the bytes
   that process has used on its device.
 
-## `video_bokeh.library.check` — will it run here?
+## `video_bokeh.library.check`: will it run here?
 
 Asks, before a library build, whether each depth estimator can run on this machine. Needs
 `--extra library`, like Stage A.
@@ -189,7 +189,7 @@ weights.
 The command exits 1 when any estimator it checked is not `ready`, or failed to measure. A
 `--model` that names no estimator is a usage error, before anything is checked.
 
-## `video_bokeh.library.split` — draw the test foregrounds
+## `video_bokeh.library.split`: draw the test foregrounds
 
 Draws the foregrounds of the test split and writes their ids, sorted, one per line, to
 `backend/src/video_bokeh/core/test_foregrounds.txt`. It takes `--fraction` of each subject that
@@ -213,7 +213,7 @@ uv run python -m video_bokeh.library.split --library-root data/library/da2-large
 | `--seed` | int | `0` | seeds the draw, with the subject |
 | `--output` | path | the tracked list | where the ids are written |
 
-## `video_bokeh.library.hub` — publish or download a library and its fixed set
+## `video_bokeh.library.hub`: publish or download a library and its fixed set
 
 `pack` writes a library into tar shards of about 2 GB under `library/`, with
 `library/index.json`, a dataset card `README.md`, the card's figure `assets/preview.jpg` and
@@ -325,7 +325,7 @@ uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-b
 | `fetch-sequences` | `--output` | **required** | the folder to write the run into |
 | `fetch-sequences` | `--revision` | latest | a branch, tag or commit of the repository |
 
-## `video_bokeh.scenes.generate` — Stage B
+## `video_bokeh.scenes.generate`: Stage B
 
 Samples scenes from the library and writes the sequence tree in [dataset-layout](dataset-layout.md).
 Each run also rewrites `manifest.csv` (including the background asset id), `objects.csv`
@@ -343,18 +343,18 @@ and `run.json` first, then writes `manifest.csv` atomically as the run's complet
 | `--size` | int | `1024` | square frame side |
 | `--seed` | int | `0` | sequence `i` is seeded from `seed + i` |
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
-| `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5 — see [dataset-layout](dataset-layout.md) |
-| `--split` | `train`, `test` or `all` | `train` | the assets the scenes draw from: `train`, the ones training sees, `test`, the fixed set's, or `all`, as every run before the split did — see [dataset-layout](dataset-layout.md#the-train-and-test-splits) |
-| `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer — see [dataset-layout](dataset-layout.md) |
-| `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG — see [dataset-layout](dataset-layout.md) |
+| `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5. See [dataset-layout](dataset-layout.md) |
+| `--split` | `train`, `test` or `all` | `train` | the assets the scenes draw from: `train`, the ones training sees, `test`, the fixed set's, or `all`, as every run before the split did. See [dataset-layout](dataset-layout.md#the-train-and-test-splits) |
+| `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer. See [dataset-layout](dataset-layout.md) |
+| `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG. See [dataset-layout](dataset-layout.md) |
 | `--flow-back` | flag | off | also write `flow_back/`, each frame's exact backward optical flow to the previous, in the same format |
-| `--occlusion` | flag | off | also write `occlusion/`, for each frame but the last an 8-bit mask of the pixels whose surface the next frame does not show — see [dataset-layout](dataset-layout.md) |
+| `--occlusion` | flag | off | also write `occlusion/`, for each frame but the last an 8-bit mask of the pixels whose surface the next frame does not show. See [dataset-layout](dataset-layout.md) |
 | `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
 | `--bokeh-strength` | float | `16` | the bokeh's strength: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 
 `bg_band_top` is not exposed on the CLI. Changing it needs the Python API.
 
-## `video_bokeh.scenes.stats` — dataset statistics
+## `video_bokeh.scenes.stats`: dataset statistics
 
 Reads the current run's records and manifest-listed sequence files, without resampling.
 Prints JSON with counts, object-count distribution, depth motion and fallback shares,
@@ -373,7 +373,7 @@ uv run python -m video_bokeh.scenes.stats --data-root data/synth_dev --output st
 
 Datasets without `objects.csv` or `run.json` produce a usage error naming the missing file.
 
-## `video_bokeh.render.run` — render bokeh again
+## `video_bokeh.render.run`: render bokeh again
 
 Renders the bokeh again for written sequences, and writes each one's `bokeh/` stream, as
 [dataset-layout](dataset-layout.md) describes. The layered renderer needs their layers. It
@@ -424,7 +424,7 @@ It must write `<sequence>/bokeh/<frame>.png` for each one: RGB uint8, the sequen
 named like the `all_in_focus` frames. The interface is
 `video_bokeh.render.base.BokehRenderer`.
 
-## `video_bokeh.preview.pack` — PNG streams to MP4
+## `video_bokeh.preview.pack`: PNG streams to MP4
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -476,7 +476,7 @@ white where the pixel is hidden in the next frame, with a black frame for the la
 The output name doesn't include the colormap, so re-running `--streams disparity` with a
 different `--colormap` overwrites the previous `disparity.mp4` rather than writing a second file.
 
-## `video_bokeh.loader.example` — a training loop on the sequence stream
+## `video_bokeh.loader.example`: a training loop on the sequence stream
 
 Needs the `loader` extra.
 [train-on-the-sequence-stream](../how-to/train-on-the-sequence-stream.md) runs it and reads its
@@ -487,7 +487,7 @@ source.
 | `--library-root` | path | `data/library_dev/da2-large` | library the stream draws its sequences from |
 | `--steps` | int | `20` | training steps to run before it stops |
 
-## `video_bokeh.loader.benchmark` — sequence-stream throughput
+## `video_bokeh.loader.benchmark`: sequence-stream throughput
 
 Needs the `loader` extra. Measures the protocol in [loader](loader.md#what-each-choice-costs),
 prints one line per number, and optionally saves the flags, measurements and environment as JSON.
@@ -541,5 +541,5 @@ pool. See [Full pools](../how-to/generate-a-dataset.md#full-pools) for the comma
 
 ## Related
 
-- [dataset-layout](dataset-layout.md) — what these commands write
-- [generate-a-dataset](../how-to/generate-a-dataset.md) — the recipes that use them
+- [dataset-layout](dataset-layout.md): what these commands write
+- [generate-a-dataset](../how-to/generate-a-dataset.md): the recipes that use them

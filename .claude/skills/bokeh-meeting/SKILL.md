@@ -16,7 +16,7 @@ File a sync into the vault so that `bokeh-task` can work from it later. **Read
 [`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first** for the language
 policy and the vault map; this skill does not repeat them.
 
-The digest is the artifact that survives. Months later nobody reopens the recording — they
+The digest is the artifact that survives. Months later nobody reopens the recording. They
 read this note and act on it, so a decision recorded vaguely becomes a decision lost.
 
 Make a TodoWrite list with one item per step below, then follow it.
@@ -28,7 +28,7 @@ Make a TodoWrite list with one item per step below, then follow it.
 | `https://fathom.video/share/<token>` or `/calls/<id>` | `get_recording_by_url` → keep `recording_id` and `url` |
 | A bare number | `get_recording_by_call_id`; if that 404s, retry the same number as a `recording_id` |
 | A local file (`meeting.txt`, a pasted dump) | Read it; skip the MCP entirely |
-| Nothing | `list_meetings` and offer the recent ones — never guess |
+| Nothing | `list_meetings` and offer the recent ones, never guess |
 
 With a recording id: `get_meeting_transcript` (pass the `url` so timestamps become deep
 links) and `get_meeting_summary`. If the MCP fails, stop and surface the error rather than
@@ -37,13 +37,13 @@ writing a note from the summary alone.
 ## 2. Derive the metadata
 
 Date, duration in minutes, attendees, recording URL, and a topic line. Attendees use the
-short names the vault already uses — Slava, Pablo, Valery — not the full transcript labels.
+short names the vault already uses (Slava, Pablo, Valery), not the full transcript labels.
 
 Slug: `YYYY-MM-DD-<topic-slug>`, lowercase kebab-case, the main story of the meeting in two
 to four words. **The transcript and the digest share the slug** and differ only by folder.
 Check `docs/meetings/` for an existing file with that slug before writing anything.
 
-Find the previous sync — the newest note in `docs/meetings/` before this date — so the
+Find the previous sync (the newest note in `docs/meetings/` before this date) so the
 digest can link back to it.
 
 ## 3. Depth checkpoint
@@ -51,9 +51,9 @@ digest can link back to it.
 Ask once, in Russian, which topics deserve full depth. Default split, stated so the user can
 override it in one word:
 
-- **Full depth** — anything touching the pipeline, the dataset, formats, algorithms,
+- **Full depth**: anything touching the pipeline, the dataset, formats, algorithms,
   measurements, or a decision someone will implement later.
-- **Compressed** — logistics, hardware, travel, small talk, and side topics the project does
+- **Compressed**: logistics, hardware, travel, small talk, and side topics the project does
   not act on.
 
 A long meeting is usually 20% decisions and 80% context. Getting this split wrong in either
@@ -80,7 +80,7 @@ tags: [transcript, fathom, <topic tags>]
 
 Then the heading, a one-line pointer to the digest, and the transcript **verbatim**. Keep
 Fathom's own `ACTION ITEM:` and `SCREEN SHARING:` markers where they fall. Do not clean up,
-reorder or summarize here — this file exists precisely so the digest can be checked against
+reorder or summarize here: this file exists precisely so the digest can be checked against
 it.
 
 ## 5. Write the digest
@@ -89,7 +89,7 @@ it.
 processed`, `transcript:` and `recording:`. Then:
 
 ```markdown
-# YYYY-MM-DD — <Topic>
+# YYYY-MM-DD: <Topic>
 
 > <Kind of sync>, <n> min. Raw transcript: [[meetings/transcripts/<slug>]].
 > Previous sync: [[meetings/<previous-slug>]].
@@ -120,14 +120,14 @@ Rules that make the difference:
    plain verbs, concrete numbers, jargon unpacked on first use. Pablo and Valery read this
    vault too.
 2. **A decision, an open question or a trade-off gets its own labeled bullet.** Never bury
-   one inside prose — that is the single rule this note exists to serve.
+   one inside prose. That is the single rule this note exists to serve.
 3. **Deep sections carry the mechanism, not the vibe.** Formats, thresholds, file paths,
    who argued what and why the alternative was rejected. A table beats a paragraph for
-   anything enumerable — streams and their formats, options and their trade-offs.
+   anything enumerable: streams and their formats, options and their trade-offs.
 4. **Harvest Fathom's `ACTION ITEM:` markers, then re-attribute them.** Fathom credits
    whoever was speaking, which is often the person *asking*, not the owner. Assign from
    context and fold them into the per-person lists.
-5. **Transcription is lossy — repair the obvious, flag the rest.** Known technical terms get
+5. **Transcription is lossy: repair the obvious, flag the rest.** Known technical terms get
    normalized silently (`Twif` → TIFF, `VPB` → VPV, `Hug and Face` → Hugging Face,
    `any2bokeh` → any-to-bokeh). Genuinely garbled cross-talk is marked as unclear or left
    out, never smoothed into a confident claim. If two readings are possible, say so.
@@ -145,13 +145,13 @@ Prior meeting notes do this and it is worth the effort for anything a reader mus
 Reply in Russian: both paths, which topics got full depth, how many action items landed on
 whom, and anything you marked as unclear.
 
-**Do not commit.** `docs/meetings/` is gitignored — say so once if the user expects a commit.
+**Do not commit.** `docs/meetings/` is gitignored, so say so once if the user expects a commit.
 
-## Red flags — stop and ask
+## Red flags: stop and ask
 
 - The recording is one the user has not mentioned and may not want filed.
 - Two meetings on the same date compete for the slug.
 - The transcript contradicts a decision recorded in an earlier meeting note. Write both,
-  flag the conflict in **Open questions**, and say it in chat — do not silently pick one.
+  flag the conflict in **Open questions**, and say it in chat. Do not silently pick one.
 - A decision in the transcript contradicts what the code does. That is a finding for
   `bokeh-task`'s investigate route, not something to quietly correct in the minutes.

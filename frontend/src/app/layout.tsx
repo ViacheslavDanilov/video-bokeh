@@ -4,7 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 // Geist Sans and Geist Mono, per DESIGN.md. The `geist` package is Vercel's own and
-// ships the fonts only — there is no public Vercel component library, so the look
+// ships the fonts only, and there is no public Vercel component library, so the look
 // comes from the tokens in globals.css rather than from anything installed.
 
 export const metadata: Metadata = {
