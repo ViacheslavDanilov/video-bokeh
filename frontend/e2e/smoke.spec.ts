@@ -585,21 +585,68 @@ function expectOneSteadyBox(seen: BarSeen, place: string) {
 }
 
 /**
+ * Make a generation report the way the API does while it builds a sequence, in steps
+ * counted up over about a second, and then hand over the sequence the API returns for the
+ * parameters as they are: a cached one, so the page gets real videos without the wait. For
+ * the tests that look at how the bar and the line around it behave, not at what the API
+ * reports, which "shows the steps of a generation" checks against the real one.
+ */
+async function stageProgress(page: Page) {
+  await page.addInitScript(() => {
+    const real = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (init?.method !== "POST" || !url.endsWith("/sequences"))
+        return real(input, init);
+      const response = await real(input, init);
+      if (!response.ok) return response;
+      const lines = (await response.text()).split("\n").filter((l) => l.trim());
+      const { sequence } = JSON.parse(lines.at(-1)!);
+      const n: number = sequence.frames;
+      const events: object[] = [
+        {
+          steps: [
+            { step: "sampling", total: 1 },
+            { step: "frames", total: n },
+            { step: "writing", total: n },
+          ],
+        },
+        { step: "sampling", done: 1, total: 1 },
+      ];
+      for (const step of ["frames", "writing"])
+        for (let quarter = 1; quarter <= 4; quarter++)
+          events.push({ step, done: (n * quarter) / 4, total: n });
+      events.push({ sequence: { ...sequence, cached: false } });
+      const encoder = new TextEncoder();
+      const body = new ReadableStream({
+        async start(controller) {
+          for (const event of events) {
+            controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+            await new Promise((done) => setTimeout(done, 80));
+          }
+          controller.close();
+        },
+      });
+      return new Response(body, {
+        headers: { "content-type": "application/x-ndjson" },
+      });
+    };
+  });
+}
+
+/**
  * One bar for the whole generation: it fills once, never going back at a new step, stays
  * where it is while the step's name changes beside it, and is seen full there before the
  * sequence takes the screen. On the empty screen first, then in the line above the panes,
  * where the next sequence's progress shows while one is on screen.
  */
 test("fills one progress bar for the whole generation", async ({ page }) => {
-  // Two generations, about 14 s each in CI, leave no room in the default 30 s.
-  test.slow();
+  await stageProgress(page);
   await openPage(page);
   await watchBar(page);
-  const seed = page.getByRole("spinbutton", { name: "Seed" });
   const generate = page.getByRole("button", { name: "Generate sequence" });
   const progress = page.getByRole("status", { name: "Generation progress" });
 
-  await seed.fill("61");
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
@@ -611,7 +658,6 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
     videos.first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
   const before = await top();
 
-  await seed.fill("62");
   await generate.click();
   await expect(progress).toBeVisible();
   expect(await top()).toBe(before);
@@ -623,15 +669,13 @@ test("fills one progress bar for the whole generation", async ({ page }) => {
 test("fits generation progress at 390 px without shifting the bar", async ({
   page,
 }) => {
-  test.slow();
   await page.setViewportSize({ width: 390, height: 844 });
+  await stageProgress(page);
   await openPage(page);
   await watchBar(page);
-  const seed = page.getByRole("spinbutton", { name: "Seed" });
   const generate = page.getByRole("button", { name: "Generate sequence" });
   const progress = page.getByRole("status", { name: "Generation progress" });
 
-  await seed.fill("71");
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
@@ -648,7 +692,6 @@ test("fits generation progress at 390 px without shifting the bar", async ({
     )
     .toEqual([true, true, true, true]);
 
-  await seed.fill("72");
   await generate.click();
   await expect(progress).toBeVisible();
   await expect(progress).toBeHidden({ timeout: 60_000 });
