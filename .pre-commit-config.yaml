@@ -33,4 +33,4 @@ repos:
     pass_filenames: false
     args: [backend/src]
 
-exclude: ^backend/data/
+exclude: ^(backend/data/|\.assets/demo/project/assets/vendor/)
