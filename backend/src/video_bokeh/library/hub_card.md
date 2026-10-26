@@ -42,12 +42,11 @@ Synthetic video for training and evaluating depth-aware bokeh. Every frame is co
 from known layers, so its disparity, the soft matte of each object, its bokeh, its forward
 and backward optical flow and its occlusion match it by construction.
 
-**Code:** [github.com/ViacheslavDanilov/video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh)
-— the generator, the PyTorch loader and the download tools.
-
 - **The library**, under `library/`: $foregrounds cut-out foregrounds and $backgrounds
   background photos, each with a disparity map. It holds no sequences. The code's generator
   composes new ones from it while a network trains, as many as the training asks for.$sequences_part
+- **The code**, at [github.com/ViacheslavDanilov/video-bokeh](https://github.com/ViacheslavDanilov/video-bokeh):
+  the generator, the PyTorch loader and the download tools.
 
 The code works in two stages. Stage A built the library once, from MAGICK and BG-20k images
 and Depth Anything V2 Large. Stage B, the generator, moves the foregrounds over a background
