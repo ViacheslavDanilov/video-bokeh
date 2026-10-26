@@ -1,6 +1,6 @@
 # The on-disk formats join the stages
 
-The three stages — build the library, generate sequences, render bokeh — talk to each other
+The three stages (build the library, generate sequences, render bokeh) talk to each other
 only through the library and sequence layouts in `docs/reference/dataset-layout.md`. That is
 what lets a depth estimator or bokeh renderer be swapped without touching the rest, including
 models that cannot share our environment: Depth Anything 3 pins `numpy<2`, and

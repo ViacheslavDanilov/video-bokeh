@@ -5,7 +5,7 @@ tags: [reference, loader, training, pytorch]
 related: [dataset-layout, cli]
 ---
 
-# Sequence stream — the on-the-fly loader
+# Sequence stream: the on-the-fly loader
 
 `video_bokeh.loader.SequenceStream` generates a new sequence from a library for every item a
 training loop asks for. Nothing is written to disk. It is the same Stage B that
@@ -150,7 +150,7 @@ layers.** Measured on the lab machine, the way the next section measures:
 | `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.07 |
 
 `python -m video_bokeh.loader.benchmark --library-root <library> --streams rgb,object_alphas,layers,focus --gpu-bokeh --device cuda`
-runs this measurement, with the flags listed in the [CLI reference](cli.md#video_bokehloaderbenchmark--sequence-stream-throughput).
+runs this measurement, with the flags listed in the [CLI reference](cli.md#video_bokehloaderbenchmark-sequence-stream-throughput).
 
 - **The workers cannot keep up.** With bokeh they deliver 0.84 items per second at 8 workers,
   0.93 at 16 and 0.90 at 24, where without it they deliver 2.96, 3.44 and 3.40. Past 16
@@ -221,7 +221,7 @@ Worker `w` of `W` takes seeds `seed + w`, `seed + w + W`, `seed + w + 2W`, and s
 - **Workers never repeat each other.** Each seed goes to exactly one worker.
 - **A run is reproducible.** The same `seed` and the same `num_workers` give the same stream.
 - **One worker matches the written dataset.** With `num_workers` of 0 or 1, the stream yields
-  the scenes of seeds `seed`, `seed + 1`, ... — the ones `video_bokeh.scenes.generate --seed`
+  the scenes of seeds `seed`, `seed + 1`, ...: the ones `video_bokeh.scenes.generate --seed`
   writes. Only the pixels differ: the files on disk are quantized to 8-bit RGB, 8-bit mattes
   and 16-bit disparity, and the stream is not.
 - **Nearby seeds give almost the same stream.** Across its workers, one stream uses every

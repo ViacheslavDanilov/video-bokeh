@@ -1,4 +1,4 @@
-# Backend — Agent Guide
+# Backend: Agent Guide
 
 FastAPI on Python 3.13, managed with `uv`. Type checker: `ty` (astral). Linter/formatter: `ruff`. Tests: `pytest`. Root rules in `../AGENTS.md` still apply.
 
@@ -7,7 +7,7 @@ FastAPI on Python 3.13, managed with `uv`. Type checker: `ty` (astral). Linter/f
 - **Python 3.13 only.** `requires-python = ">=3.13"` in `pyproject.toml`. Don't downgrade syntax for older versions.
   - One exception: `src/video_bokeh/library/depth/_da3_worker.py` runs under Depth Anything 3's own Python 3.12, so it stays compatible with that. `pyproject.toml` gives ruff a `py312` target for that file alone.
 - **A model that cannot share our environment runs in its own.** Today that is Depth Anything 3 alone; every other model runs in this process. `VIDEO_BOKEH_RUNNER=docker`, the default of `make` and `scripts/lab_run.sh` on Linux with Docker's NVIDIA runtime, runs such a model in the image its class names in `docker_image`, built from `docker/` by `make images`; `local`, the default elsewhere, runs it in its venv. `core/_worker.py`'s `runner` reads the variable and `model_command` builds the command; the Makefile and `lab_run.sh` only pick the default. Tests reset the variable, so a shell export cannot change them.
-- **`uv` is the package manager** — not pip, not poetry, not conda. Lockfile is `../uv.lock` (at repo root because this is a uv workspace; `[tool.uv.workspace] members = ["backend"]`).
+- **`uv` is the package manager**: not pip, not poetry, not conda. Lockfile is `../uv.lock` (at repo root because this is a uv workspace; `[tool.uv.workspace] members = ["backend"]`).
 - **All Python commands go through `uv run ...`** so they use the locked environment.
 
 ## Commands
@@ -51,11 +51,11 @@ backend/
 
 ## Conventions
 
-- **Ruff config** is in `backend/pyproject.toml` (`[tool.ruff]`). Line length 88, target `py313`. Lint selection includes pyflakes, isort, bugbear, comprehensions, pyupgrade — don't reintroduce things ruff would remove.
+- **Ruff config** is in `backend/pyproject.toml` (`[tool.ruff]`). Line length 88, target `py313`. Lint selection includes pyflakes, isort, bugbear, comprehensions, pyupgrade. Don't reintroduce things ruff would remove.
 - **isort first-party package** is `video_bokeh` (configured). Local imports follow the third-party block.
 - **Type hints required on public functions.** `ty` runs in pre-commit against `src/`. Tests are excluded.
 - **`data/` is excluded from pre-commit** (see top-level `.pre-commit-config.yaml`). Don't add Python files there.
-- **No emoji in code or commit messages** unless the user explicitly asks. (README files can use them — they already do.)
+- **No emoji in code or commit messages** unless the user explicitly asks. (README files can use them, and they already do.)
 
 ## Datasets
 
@@ -70,17 +70,17 @@ uv run python -m video_bokeh.acquire.magick \
   --count    30 --seed 11
 uv run python -m video_bokeh.acquire.classify --data-root data/magick_dev --keep-existing \
   --num-workers 0
-#    BG-20k dev pool, one file at a time (Kaggle) — no account needed
+#    BG-20k dev pool, one file at a time (Kaggle): no account needed
 uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k_dev --count 30 --seed 11
 #    BG-20k full archive
 uv run python -m video_bokeh.acquire.bg20k --output data/bg-20k
 
-# 2. Stage A — build the artifact library (depth runs once per asset)
+# 2. Stage A: build the artifact library (depth runs once per asset)
 uv run python -m video_bokeh.library.build \
   --fg-data-root data/magick_dev --bg-data-root data/bg-20k_dev \
   --output data/library_dev/da2-large --size 1024 --model da2-large
 
-# 3. Stage B — generate sequences on the fly from the library
+# 3. Stage B: generate sequences on the fly from the library
 #    Writes all_in_focus/*.png (RGB), alpha/*.tif (one page per object)
 #    and disparity/*.png (uint16), and with --layers the layers/ stream the
 #    layered renderer needs. --bokeh renders each sequence's bokeh in the same
@@ -98,10 +98,10 @@ uv run --extra render python -m video_bokeh.render.run --data-root data/synth_de
   --strength 24
 ```
 
-`backend/data/` is gitignored — outputs stay local.
+`backend/data/` is gitignored, so outputs stay local.
 
 ## Verification before claiming done
 
 - Run `uv run pre-commit run --all-files` before reporting work as complete. CI runs the same hooks.
-- For API changes, hit the endpoint (`curl` or `/docs`) — type-check doesn't verify behavior.
+- For API changes, hit the endpoint (`curl` or `/docs`): type-check doesn't verify behavior.
 - For dataset scripts, run them against a small `--count` and confirm the output layout matches what the script claims.

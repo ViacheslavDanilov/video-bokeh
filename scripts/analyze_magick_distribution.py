@@ -310,7 +310,7 @@ def survival_grid_plot(grid_data: dict, fname: str) -> None:
     ax.set_yticks(range(len(thr)), [f"{t:.1f}" for t in thr])
     ax.set_xlabel("style threshold (top_style_score ≥)")
     ax.set_ylabel("subject threshold (top_subject_score ≥)")
-    ax.set_title("Joint keep-set size — subject ∈ keep × style ∈ {photo, render}")
+    ax.set_title("Joint keep-set size: subject ∈ keep × style ∈ {photo, render}")
     for i in range(len(thr)):
         for j in range(len(thr)):
             v = grid[i, j]

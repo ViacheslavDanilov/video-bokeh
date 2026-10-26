@@ -32,7 +32,7 @@ either is enough for every recipe here.
 
 ## 1. The main check: does disparity follow size
 
-Generate the demo sequences with [Stage B — generate sequences](generate-a-dataset.md#2-stage-b--generate-sequences).
+Generate the demo sequences with [Stage B: generate sequences](generate-a-dataset.md#2-stage-b-generate-sequences).
 
 ```bash
 cd data/demo/sequences

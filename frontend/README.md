@@ -3,7 +3,7 @@
 The sequence browser: pick a depth estimator, set the parameters, generate a sequence from that
 estimator's library, and compare its streams side by side.
 
-Next.js 16, React 19, Tailwind 4, shadcn/ui on Radix primitives. **pnpm only** — never npm or
+Next.js 16, React 19, Tailwind 4, shadcn/ui on Radix primitives. **pnpm only**: never npm or
 yarn.
 
 ## Run it
@@ -33,22 +33,22 @@ without rebuilding.
 
 ## What the page does
 
-- **Depth estimator** — which library the sequence comes from, one library per depth
+- **Depth estimator**: which library the sequence comes from, one library per depth
   estimator. The same seed through two estimators gives the same objects on the same paths;
   only the disparity differs. The list is read again whenever the page regains focus, so a
   library built while it is open shows without a reload.
-- **Parameters** — seed, bokeh strength, frames, size, and the range of objects a sequence may
+- **Parameters**: seed, bokeh strength, frames, size, and the range of objects a sequence may
   contain. The seed picks a count in that range, so the same numbers from the same library
   always name the same sequence.
-- **Bokeh strength** — k, the blur radius in pixels at a 1024 px width, one unit of
+- **Bokeh strength**: k, the blur radius in pixels at a 1024 px width, one unit of
   disparity from the focus: 0 to 64, 16 by default, in steps of 1. It changes the Bokeh
   stream alone, but it names the sequence as the seed does, so another k generates another
   sequence and the same k again comes from the cache. Outside the page, k is
   `bokeh_strength` in the API's request ([api.md](../docs/reference/api.md#post-sequences)),
   `--bokeh-strength` for `scenes.generate`
-  ([cli.md](../docs/reference/cli.md#video_bokehscenesgenerate--stage-b)), and
+  ([cli.md](../docs/reference/cli.md#video_bokehscenesgenerate-stage-b)), and
   `bokeh_strength` for the training stream ([loader.md](../docs/reference/loader.md#bokeh)).
-- **Generate** — one call, with one bar for the whole of it. The API names its steps first:
+- **Generate**: one call, with one bar for the whole of it. The API names its steps first:
   choosing the trajectories, rendering the frames, writing them, and rendering the bokeh. The
   bar fills by their counts, beside the step under way, and stays full where it filled for
   half a second before the sequence is shown. On an Apple M3 Pro at the page's defaults, 80
@@ -57,11 +57,11 @@ without rebuilding.
   sequence id is a hash and the directory on disk is the cache. Each pane says it is preparing
   its video until the API starts sending it, since the API encodes a stream the first time it
   is asked for, and says so if the video fails to load.
-- **What is on screen** — a line above the panes names the sequence's library, seed, bokeh
+- **What is on screen**: a line above the panes names the sequence's library, seed, bokeh
   strength, object count, frame count and size, says when it came from the cache, and gives
   its id with a copy button. The header names the library picked; its `id` is a hash of the
   asset list, the depth estimator and the asset size, which every cached sequence is keyed on.
-- **Compare** — up to six panes, each showing any stream, all driven by one transport so
+- **Compare**: up to six panes, each showing any stream, all driven by one transport so
   the frames line up. The disparity pane picks its colormap under the video, among those the
   API lists: Spectral, near red to far violet, by default, or gray, near white to far black.
   The legend beside the picker follows the map on screen. The transport
@@ -82,10 +82,10 @@ without rebuilding.
   "All streams shown". A repeat comes from switching an open pane's stream. The occlusion
   mask opens no pane of its own, so a sequence opens with the panes it always did; "Add
   pane" or a pane's stream picker shows it.
-- **Arrange** — drag a pane by the grip in its header to a place between panes, where a
+- **Arrange**: drag a pane by the grip in its header to a place between panes, where a
   line shows where it will go, or focus the grip and press the left or right arrow;
   playback goes on in step.
-- **Zoom** — every pane shows the same region of the frame, up to 16 times the whole
+- **Zoom**: every pane shows the same region of the frame, up to 16 times the whole
   frame. Pinch on a trackpad, or scroll with Ctrl or Cmd held, over a pane to zoom about
   the pointer; double-click a pane to zoom in 4× about the point, and again to see the whole
   frame. Zoomed in, drag a pane or scroll over it to move around the frame. The `+` and `-`

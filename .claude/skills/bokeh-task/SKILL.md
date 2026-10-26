@@ -16,7 +16,7 @@ disable-model-invocation: false
 # Bokeh task
 
 One entry point for work, whether it came out of a sync or out of the user's head. **Read
-[`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first** — it fixes the
+[`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first**. It fixes the
 language policy, the vault map, where specs live, the skill table and the authorship trap,
 and this skill does not repeat them.
 
@@ -46,17 +46,17 @@ newest and the one that first decided it.
 
 If the ask is ambiguous, ask once. Never infer scope from a slug.
 
-## 2. Triage — two levels
+## 2. Triage: two levels
 
 **Where the result lands**, which decides whether there is a PR at all:
 
 | Destination | Ends with |
 |---|---|
 | Code in this repo | a pull request |
-| `docs/explanation/`, `docs/how-to/`, `docs/reference/` | a pull request — these are in git |
+| `docs/explanation/`, `docs/how-to/`, `docs/reference/` | a pull request, as these are in git |
 | `docs/reports/`, `docs/specs/`, `docs/plans/`, `docs/meetings/` | a file, no commit |
 | The paper | a hand-off to the paper repository |
-| Outside this repo — an email, an IT ticket | a draft, or an honest "not this repo" |
+| Outside this repo (an email, an IT ticket) | a draft, or an honest "not this repo" |
 
 **Which route**, stated in one line for the user to override:
 
@@ -72,9 +72,9 @@ If the ask is ambiguous, ask once. Never infer scope from a slug.
 
 Signals for **investigate** even when the ask sounds like a change: no reproduction, "надо
 проверить", a claim in the note that no one has checked against the code, or a request for
-an estimate. When feature and bug both fit, take **bug** — repro-first is stricter.
+an estimate. When feature and bug both fit, take **bug**: repro-first is stricter.
 
-## 3. Product check — optional
+## 3. Product check: optional
 
 Offer `plan-ceo-review` on the **feature** route when the task did not come from a meeting
 decision, or when it opens a new direction: a new property of the dataset, a new view in the
@@ -89,11 +89,11 @@ separately. Tell it up front what the product is, because it assumes a startup:
   reviewers;
 - there is no market, no growth and no revenue.
 
-The user picks the expansions worth taking. One that changes the research direction — what
-the dataset contains, how it is measured, what the paper claims — needs Pablo and Valery
+The user picks the expansions worth taking. One that changes the research direction (what
+the dataset contains, how it is measured, what the paper claims) needs Pablo and Valery
 first: draft the email, and do not build it until they agree.
 
-## 4. Pin down the requirements — checkpoint
+## 4. Pin down the requirements: checkpoint
 
 A request has no acceptance criteria. **You derive them and get them confirmed.**
 
@@ -113,13 +113,13 @@ Then reply in Russian with:
 - Источник: заметка и пункт, или «запрос в чате»
 - Маршрут и куда ляжет результат
 - Цель одним предложением, своими словами
-- Критерии приёмки чеклистом — выведенные вами, а не процитированные
+- Критерии приёмки чеклистом: выведенные вами, а не процитированные
 - Что вне скоупа
 - Открытые вопросы
 
 **Wait for an explicit yes.**
 
-## 5. Reality check — before any code
+## 5. Reality check: before any code
 
 Verify the source's factual claims against the repo. The record has been wrong before: a
 formula was written as its own reciprocal, and asset counts were stated inverted. Read the
@@ -156,7 +156,7 @@ the hypothesis that turned out right, so the next person debugging learns from i
 
 Read-only. **No branch, no code, no PR.** The deliverable is understanding.
 
-Gather evidence — code paths, `git log` and `git blame`, the generated artifacts, the
+Gather evidence: code paths, `git log` and `git blame`, the generated artifacts, the
 documented behavior in `docs/explanation/` and `docs/reference/`. For an unknown cause, run
 the first three phases of `diagnosing-bugs` and stop before the fix. `fact-checker` when a
 claim about the outside world is in dispute.
@@ -175,7 +175,7 @@ step 11. **A task that ends here with no code is a successful run.**
 
 ## 6d. Route: docs
 
-Tracked docs are a PR like any other. Match `docs/STYLE.md`, keep the runbooks executable —
+Tracked docs are a PR like any other. Match `docs/STYLE.md`, keep the runbooks executable:
 every command in `docs/how-to/` must be one you actually ran.
 
 `document-generate` (gstack) for a page from scratch; `editor` or `no-ai-slop` for a pass
@@ -220,24 +220,24 @@ git pull                 # only if the user wants latest
 git checkout -b <type>/<short-kebab-slug>
 ```
 
-`<type>` matches the Conventional Commit type — `feat`, `fix`, `docs`. Slug ≤ 5 words, and
+`<type>` matches the Conventional Commit type, such as `feat`, `fix`, `docs`. Slug ≤ 5 words, and
 the same slug names the spec. **Never commit to `main`.**
 
 Invoke `tdd` at the seams the spec agreed: one failing test, the smallest change that passes
 it, next test. `codebase-design` when the shape of an interface is the open question.
 
 Stay surgical. Every changed line traces to the task. Do not improve adjacent code, do not
-delete pre-existing dead code — mention it instead.
+delete pre-existing dead code. Mention it instead.
 
 Module notes:
 
-- **`backend/`** — uv-managed. Run from `backend/`; `uv run pytest`, `uv run ruff check
+- **`backend/`**: uv-managed. Run from `backend/`; `uv run pytest`, `uv run ruff check
   src/`, `uv run ty check src/`. Code lives under `backend/src/video_bokeh/`: `acquire`,
   `library`, `scenes`, `core`, `preview`, `layered`, `render`, `loader`, `api`.
-- **`frontend/`** — **pnpm only**, never npm or yarn. Next.js 16 diverges from training
+- **`frontend/`**: **pnpm only**, never npm or yarn. Next.js 16 diverges from training
   data: read `node_modules/next/dist/docs/` before writing code, as `frontend/AGENTS.md`
   demands.
-- **`backend/data/`** — gitignored artifacts, never staged.
+- **`backend/data/`**: gitignored artifacts, never staged.
 
 If a folder's semantics changed, update the `AGENTS.md` in every folder you touched.
 
@@ -246,7 +246,7 @@ If a folder's semantics changed, update the `AGENTS.md` in every folder you touc
 Run what the root `AGENTS.md` verification table lists for the layers you touched, and
 report what the commands printed. Never claim done without output.
 
-Generation throughput is a published number here — `docs/how-to/` quotes seconds per sequence —
+Generation throughput is a published number here (`docs/how-to/` quotes seconds per sequence),
 so when a change touches the render or I/O path, use `benchmark` and put the measured
 before/after in the PR. A format migration that quietly triples write time is a regression
 even though every test passes.
@@ -267,16 +267,16 @@ rather than what you meant. Like every delegation, the prompt carries the limits
 **Delegating** in the conventions file.
 
 Fix every hard standards violation and every spec gap, each fix a further commit. Fix a
-judgment-call smell when it is cheap, otherwise name it in the PR body. One round only —
+judgment-call smell when it is cheap, otherwise name it in the PR body. One round only:
 the full review is `/bokeh-review`'s job.
 
 ## 10. Commit and open the PR
 
 Commit per root `AGENTS.md`: Conventional Commits, one logical change per commit, no AI
-trailer anywhere. Run a plain `git commit` and read its exit code — pre-commit reformats and
+trailer anywhere. Run a plain `git commit` and read its exit code: pre-commit reformats and
 aborts, and piping the command through `tail` or `&&` hides that.
 
-`git log origin/main..HEAD --oneline` — do the commits read as one coherent change?
+`git log origin/main..HEAD --oneline`: do the commits read as one coherent change?
 
 Run the checks that **Pushing** in the conventions file asks for before any push. Then push
 and open the pull request without asking, per root `AGENTS.md` rule 2:
@@ -305,12 +305,12 @@ with the next step: **new session, `/bokeh-review <n>`.** **Do not merge**: merg
 user's, and a pull request they hand over is merged only under root `AGENTS.md` rule 2, after
 its review.
 
-## Red flags — stop and ask
+## Red flags: stop and ask
 
 - The acceptance criteria are yours to invent and the user has not confirmed them.
 - The source contradicts the code, or contradicts an earlier meeting's decision.
-- The change alters the on-disk dataset contract — stream layout, bit depth, channel
-  count. Downstream readers like `backend/src/video_bokeh/render/layered.py` break
+- The change alters the on-disk dataset contract (stream layout, bit depth, channel
+  count). Downstream readers like `backend/src/video_bokeh/render/layered.py` break
   silently.
 - An expansion from the CEO review changes the research direction, and Pablo and Valery
   have not agreed to it.

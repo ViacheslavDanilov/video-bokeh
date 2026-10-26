@@ -5,7 +5,7 @@ tags: [reference, dataset, formats, on-disk-contract]
 related: [pipeline-explainer, generate-a-dataset]
 ---
 
-# Dataset layout — the on-disk contract
+# Dataset layout: the on-disk contract
 
 This page is the single source of truth for what the pipeline writes to disk. Every format
 below was checked by opening a generated file, not by reading a docstring.
@@ -15,7 +15,7 @@ pull request.
 
 ---
 
-## Stage A — the artifact library
+## Stage A: the artifact library
 
 Built once per asset pool by `video_bokeh.library.build`. Depth is estimated here and never again.
 
@@ -44,13 +44,13 @@ carry it without visible banding.
 stay on disk for inspection. Libraries built without them still load.
 
 `meta.json` records the `--model` string Stage A ran with, the propagation parameters, and
-raw-depth statistics such as `core_frac` — the fraction of the image the trusted core covers.
+raw-depth statistics such as `core_frac`, the fraction of the image the trusted core covers.
 Stage B reads its `estimator` for the run record. The other fields let a bad disparity map
 be diagnosed without re-running Stage A.
 
 `depth_input.png` is the image the estimator was actually given: the cut-out composited onto
 the neutral texture, because a depth model cannot read a transparent cut-out. Statistics alone
-cannot tell a model failure from a compositing failure — with this you can look. It costs
+cannot tell a model failure from a compositing failure. With this you can look. It costs
 about 38 % of a foreground's footprint, which is nothing against the dataset the library
 produces.
 
@@ -79,7 +79,7 @@ sequence stream's `split` take `train`, `test` or `all`.
 
 ---
 
-## Stage B — a generated sequence
+## Stage B: a generated sequence
 
 Written by `video_bokeh.scenes.generate`. This is the layout `render.run`, the preview packer and the API read.
 
@@ -120,18 +120,18 @@ cannot drift apart.
 `UnidentifiedImageError` on a TIFF with more than four samples per pixel; it reads a paged
 file exactly. The writer pins `photometric="minisblack"` for a second reason: without it
 `tifffile` infers meaning from the array shape, turning three masks into one RGB page and four
-into one RGBA page — silently, and exactly at the commonest object counts.
+into one RGBA page, silently, and exactly at the commonest object counts.
 
 **Alpha masks are soft and they overlap.** Measured over 24 frames: every frame has partially
 transparent pixels, a median 7.9 % of the frame, and 13 of 24 frames had two objects with
 non-zero alpha at the same pixel. The masks are independent of each other, recorded before
-occlusion is resolved — they are not a partition of the frame, so a single index or label map
+occlusion is resolved. They are not a partition of the frame, so a single index or label map
 cannot represent them.
 
 **Disparity, not depth.** Larger means closer, throughout the pipeline. The background
 occupies `[0, bg_band_top]` with `bg_band_top = 0.05`; foreground objects live above it.
 
-### The layers stream — optional
+### The layers stream: optional
 
 `layers/` holds what each frame was composited from. `scenes.generate --layers` writes it;
 without the flag no layers are written, and any left from an earlier run are removed.
@@ -176,7 +176,7 @@ Of the 2.03 MiB the layers add, the background's color is 1.14 MiB: it is a seco
 all-in-focus frame. Its disparity is 0.22 MiB. The object pages are mostly empty and compress
 to 0.44 MiB for color and 0.23 MiB for disparity.
 
-### The flow stream — optional
+### The flow stream: optional
 
 `flow/` holds each frame's forward optical flow to the next, written by `scenes.generate --flow`
 in the same pass as the frames, and by the API with every sequence of two frames or more. Every
@@ -294,7 +294,7 @@ of 40 frames:
 | 6 | 0.142 | 2 | 8.75 | 2.18 |
 | 8 | 0.101 | 11 | 1.42 | 3.48 |
 
-Five places every scene. Six starts losing them, and eight loses 11 of 12 — its low rejection
+Five places every scene. Six starts losing them, and eight loses 11 of 12: its low rejection
 count is an artifact of scenes hitting the retry cap and being skipped rather than counted.
 
 Above five, give each object more room rather than expecting the writer to refuse: lower the
@@ -364,7 +364,7 @@ code changes.
 
 ### Dataset statistics
 
-[`scenes.stats`](cli.md#video_bokehscenesstats--dataset-statistics) reads the records without
+[`scenes.stats`](cli.md#video_bokehscenesstats-dataset-statistics) reads the records without
 sampling scenes again. It prints JSON and can save the same JSON to a file. It reports
 sequence and frame counts, the object-count distribution and mean, depth motion and range
 fallback shares, rejection counts, foreground and background reuse, first-frame active band
@@ -405,6 +405,6 @@ with `--layers`. Anything that shrinks the dataset meaningfully has to address
 
 ## Related
 
-- [pipeline-explainer](../explanation/pipeline-explainer.md) — why the pipeline is built this way
-- [generate-a-dataset](../how-to/generate-a-dataset.md) — how to produce this tree
-- [cli](cli.md) — every flag of every module
+- [pipeline-explainer](../explanation/pipeline-explainer.md): why the pipeline is built this way
+- [generate-a-dataset](../how-to/generate-a-dataset.md): how to produce this tree
+- [cli](cli.md): every flag of every module
