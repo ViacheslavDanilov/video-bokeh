@@ -53,7 +53,7 @@ flowchart TD
     PUSH --> CI["CI: pre-commit, tests, frontend build,<br/>browser smoke, Docker"]
 
     subgraph S2 ["Session 2: /bokeh-review"]
-        LENSES["two-axis-review + /code-review<br/>history, threads, docs style,<br/>document-release"] --> HIGH{"High-risk?"}
+        LENSES["two-axis-review + /code-review<br/>history, threads, docs style,<br/>document-release, check_prose"] --> HIGH{"High-risk?"}
         HIGH -->|"yes"| CODEX["codex second opinion"]
         HIGH -->|"no"| GATE
         CODEX --> GATE["Notation gate"]
