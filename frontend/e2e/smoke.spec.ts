@@ -1935,9 +1935,13 @@ test("moves the position thumb smoothly while the panes play", async ({
  * frame the thumb is where the leading video is, not a render behind it. A thumb that waits
  * for a render stands still while the video moves on, then jumps. Measured on its rendered
  * position against the video's time, read in the same animation frame. Following the video
- * renders nothing either, which the script time shows, at this throttling: a render of
- * every pane on each timeupdate took 470 ms of it a second, one of the slider on each
- * animation frame 140 ms, and following without rendering 8 ms.
+ * renders nothing either, which the script time shows, taken while the test runs nothing on
+ * the page. A slower machine takes longer over every script, so the time is counted in runs
+ * of a fixed computation on the same throttled main thread, which a CI runner and a laptop
+ * agree on where seconds do not. At this throttling, following the video took 1 to 4 of
+ * them a second, a render of the slider on each animation frame 52 to 64, and one of every
+ * pane on each timeupdate as well 164 to 224. Three times the throttling, a slower runner's
+ * stand-in, kept following at 1 to 7.
  */
 test("keeps the position thumb on the playing video under a loaded main thread", async ({
   page,
@@ -1950,17 +1954,37 @@ test("keeps the position thumb on the playing video under a loaded main thread",
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await cdp.send("Performance.enable");
-  const scriptSeconds = async () =>
-    (await cdp.send("Performance.getMetrics")).metrics.find(
-      (m) => m.name === "ScriptDuration",
-    )!.value;
+  // The main thread's script time so far and the clock it was read at, in seconds.
+  const scriptSeconds = async () => {
+    const { metrics } = await cdp.send("Performance.getMetrics");
+    const value = (name: string) => metrics.find((m) => m.name === name)!.value;
+    return { script: value("ScriptDuration"), at: value("Timestamp") };
+  };
 
   await slider.focus();
   await page.keyboard.press("Home");
   await page.getByRole("button", { name: "Play" }).click();
   // Started after the play, so each animation frame reads the thumb after it has moved.
   await page.waitForTimeout(400);
-  const scriptBefore = await scriptSeconds();
+  // How long the throttled main thread takes over a fixed computation, in seconds: the
+  // median of seven runs, taken while the panes play as they do for the measurement.
+  const reference = await page.evaluate(() => {
+    const runs: number[] = [];
+    let sum = 0;
+    for (let run = 0; run < 7; run++) {
+      const start = performance.now();
+      for (let i = 0; i < 1_000_000; i++) sum += Math.sqrt(i);
+      runs.push(performance.now() - start);
+    }
+    // The sum is used, so the loop cannot be optimized away.
+    return sum > 0 ? runs.sort((a, b) => a - b)[3] / 1000 : 0;
+  });
+  // The app's script time alone, over two seconds in which the test runs nothing on the page.
+  const before = await scriptSeconds();
+  await page.waitForTimeout(2000);
+  const after = await scriptSeconds();
+  const scriptPerSecond =
+    (after.script - before.script) / (after.at - before.at);
   const seen = await slider.evaluate(
     async (thumb, lead) => {
       const video = lead as HTMLVideoElement;
@@ -1993,25 +2017,23 @@ test("keeps the position thumb on the playing video under a loaded main thread",
         };
         requestAnimationFrame(read);
       });
-      return { behind, seconds: (performance.now() - started) / 1000 };
+      return behind;
     },
     await videos.first().elementHandle(),
   );
-  const scriptPerSecond =
-    ((await scriptSeconds()) - scriptBefore) / seen.seconds;
   await page.getByRole("button", { name: "Pause" }).click();
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
 
-  expect(seen.behind.length).toBeGreaterThan(20);
+  expect(seen.length).toBeGreaterThan(20);
   // How far the thumb trails the video, in frames, apart from the loop back to the start.
-  const trailing = seen.behind.filter((d) => Math.abs(d) < 40);
+  const trailing = seen.filter((d) => Math.abs(d) < 40);
   const spread = Math.sqrt(
     trailing.reduce((sum, d) => sum + d * d, 0) / trailing.length,
   );
   // About 0.01 of a frame following the video, against 0.8 a render behind and 1.5 when
   // every pane renders too.
   expect(spread).toBeLessThan(0.25);
-  expect(scriptPerSecond).toBeLessThan(0.05);
+  expect(scriptPerSecond / reference).toBeLessThan(20);
 });
 
 /**
