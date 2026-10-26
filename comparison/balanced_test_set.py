@@ -11,9 +11,10 @@ Every sequence has 24 frames of 1024 pixels, one or two objects, its layers and 
 which is what ``run_all.sh`` needs. Every sequence is kept or passed over by a rule; none was
 chosen by looking at it.
 
-``plain-01`` to ``plain-60`` are drawn as ``test_set.py`` draws its ``any`` sequences: the
-first 60 seeds from 4,000,000 that can be placed and whose background has detail, with any
-object of the library.
+``plain-01`` to ``plain-60`` are the first 60 seeds from 4,000,000 that can be placed and
+whose background has detail, with any object of the library. A background has detail when its
+gray levels, at 512 pixels, differ from a Gaussian blur of radius 2 by 3 levels or more on
+average: on a flat one, such as a white wall, no renderer's blur shows.
 
 ``hair-01`` to ``hair-15``, and 15 each of ``fire``, ``smoke`` and ``fine``, have a hard edge
 in focus. Their objects come from ``hard_edge_objects.txt``, 107 library foregrounds picked by
@@ -66,10 +67,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 from review import focus_alpha
 from scipy import ndimage
-from test_set import _read_rows, detail
 
 from video_bokeh.core._library import (
     BACKGROUNDS,
@@ -127,9 +127,26 @@ def read_objects(path: Path) -> dict[str, str]:
     return picked
 
 
+def _read_rows(path: Path) -> tuple[list[str], list[list[str]]]:
+    with path.open(encoding="utf-8", newline="") as f:
+        rows = list(csv.reader(f))
+    return rows[0], rows[1:]
+
+
+def detail(library_root: Path, background: str) -> float:
+    """How much a blur would change a background: the mean absolute difference, in gray
+    levels at 512 pixels, from its Gaussian blur of radius 2."""
+    with Image.open(library_root / BACKGROUNDS / background / "rgb.png") as im:
+        gray = im.convert("L").resize((512, 512), Image.Resampling.BILINEAR)
+        blurred = gray.filter(ImageFilter.GaussianBlur(2))
+    return float(
+        np.abs(np.asarray(gray, np.float32) - np.asarray(blurred, np.float32)).mean()
+    )
+
+
 def background_stats(library_root: Path, background: str) -> tuple[float, float]:
     """A background's mean luminance in ``[0, 1]``, at 512 pixels, and its detail, as
-    ``test_set.detail`` measures it."""
+    ``detail`` measures it."""
     with Image.open(library_root / BACKGROUNDS / background / "rgb.png") as im:
         gray = im.convert("L").resize((512, 512), Image.Resampling.BILINEAR)
     lum = float(np.asarray(gray, np.float32).mean() / 255)

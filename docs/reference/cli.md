@@ -55,9 +55,9 @@ the same in Stage B. The library records the `--model` string in each foreground
 | `da3-mono-large` | `depth-anything/DA3MONO-LARGE` | Apache-2.0 |
 | `da3-metric-large` | `depth-anything/DA3METRIC-LARGE` | Apache-2.0 |
 
-Licenses as checked on 2026-09-30, and on 2026-10-01 for `da3-metric-large`. Non-commercial
+Licenses as each model's card states them. Non-commercial
 weights are fine for a research dataset. Both `da3-*` need an environment of their own first, as
-the next section says. `da3-metric-large` has not run yet; the lab machine runs it first.
+the next section says. `da3-metric-large` has not run yet.
 
 The `da2-*` and `depth-pro` run in this process, in the environment the `library` extra
 installs, under every runner: they need no environment of their own.
@@ -162,7 +162,7 @@ in a fresh process. When the weights were not cached before the run, the load ti
 `(download)`, because it includes fetching them. An estimator that fails, running out of memory
 for instance, gets `failed` and the reason under the table; the others are still measured.
 Without `--model`, `--measure` loads every registered estimator and so downloads whatever is not
-cached: 5.97 GiB of checkpoints from scratch, by the Hub's metadata on 2026-10-01. On a machine
+cached: 5.97 GiB of checkpoints from scratch, by the Hub's metadata. On a machine
 short of disk or memory, name the ones to measure.
 
 Measured on an Apple M3 Pro:
@@ -521,7 +521,7 @@ includes warm-up and timed rendering; CPU and MPS runs leave that JSON field nul
 | `video_bokeh.acquire.bg20k` | `--output`, and `--count`, `--seed` (default 11) to grow a pool one file at a time instead of downloading the archive. Needs no Kaggle account, and uses a token in `~/.kaggle/access_token`, or a legacy `~/.kaggle/kaggle.json`, when one exists |
 | `video_bokeh.acquire.classify` | `--data-root`, `--output`, `--model`, `--pretrained`, `--device`, `--batch-size`, `--num-workers`, `--keep-existing` to classify only the images the output lacks, with the model that made the rest. Writes `predictions.json` beside the predictions, recording each run's rows, model, weights and date |
 
-**The two sources carry licenses of their own**, as checked on 2026-10-22. MAGICK's images are
+**The two sources carry licenses of their own.** MAGICK's images are
 CC BY-NC 4.0, as its [project page](https://ryanndagreat.github.io/MAGICK/) states; its Hugging
 Face card states none. BG-20k is MIT-licensed under its
 [release agreement](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf),
