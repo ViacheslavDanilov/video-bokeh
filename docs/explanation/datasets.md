@@ -21,7 +21,7 @@ channels. `video_bokeh.acquire.magick` fetches them from
 
 ### Source pools
 
-`video_bokeh.acquire.magick` downloads a sample named by the checked-in metadata.
+The command downloads a sample named by the checked-in metadata.
 It preserves the upstream `images/<prefix>/<page_id>.png` layout.
 The full mirror uses the same layout, so Stage A can read either pool.
 
