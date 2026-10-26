@@ -95,9 +95,12 @@ links the page with the details.
 
 **To skip building a library, download ours.** The library of 8,586 foregrounds and 20,000
 backgrounds that step 3 builds is on
-[Hugging Face](https://huggingface.co/datasets/vdanilov/video-bokeh), in 115 GB of shards.
+[Hugging Face](https://huggingface.co/datasets/vdanilov/video-bokeh), in 115 GB of shards,
+each asset in a train or a test split. Beside it is the fixed set: 300 sequences written once
+from the test split, 79 GB, for evaluation.
 [train-on-the-sequence-stream](docs/how-to/train-on-the-sequence-stream.md) explains how to
-download it into the layout Stage B reads, in about 20 minutes, and train on it as step 5 does.
+download the library into the layout Stage B reads, in about 20 minutes, train on its train
+split as step 5 does, and evaluate on the fixed set.
 
 [cli](docs/reference/cli.md#video_bokehlibraryhub--publish-or-download-a-library-and-its-fixed-set)
 says how the library is packed and published.
