@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>Video Bokeh: end</title>
+  <link rel="stylesheet" href="../assets/composition.css" />
+  <script src="../assets/vendor/gsap.min.js"></script>
+</head>
+<body>
+  <div id="root" data-composition-id="end" data-duration="3" data-width="1920" data-height="1080">
+<div id="end-layout" class="end-layout">
+        <div class="brand">
+          <img src="../assets/logo.svg" alt="Video Bokeh aperture logo" />
+          <h2>Video Bokeh</h2>
+        </div>
+        <p class="repository">github.com/ViacheslavDanilov/video-bokeh</p>
+      </div>
+  </div>
+  <script>
+    // Local scene time. HyperFrames owns media playback and clip visibility.
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["end"] = tl;
+    tl.fromTo("#end-layout", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 0);
+    tl.to("#end-layout", { opacity: 1, duration: 2.7, ease: "none" }, 0.3);
+    tl.to("#root", { opacity: 1, duration: 3, ease: "none" }, 0);
+  </script>
+</body>
+</html>

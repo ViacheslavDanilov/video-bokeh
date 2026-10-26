@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>Video Bokeh: streams</title>
+  <link rel="stylesheet" href="../assets/composition.css" />
+  <script src="../assets/vendor/gsap.min.js"></script>
+</head>
+<body>
+  <div id="root" data-composition-id="streams" data-duration="6" data-width="1920" data-height="1080">
+<div id="streams-layout" class="streams-layout">
+        <h2 class="streams-heading">One sequence. Every stream.</h2>
+        <div class="stream-grid">
+          <figure class="stream-card">
+            <div class="stream-image">
+              <video id="stream-focus" class="clip stream-video" src="../assets/readme-loops/all_in_focus.mp4"
+                     data-start="0" data-duration="6" data-media-start="0" data-track-index="3"
+                     muted playsinline preload="auto" aria-label="All in focus"></video>
+            </div>
+            <figcaption class="stream-label">All in focus</figcaption>
+          </figure>
+          <figure class="stream-card">
+            <div class="stream-image">
+              <video id="stream-bokeh" class="clip stream-video" src="../assets/readme-loops/bokeh.mp4"
+                     data-start="0" data-duration="6" data-media-start="0" data-track-index="4"
+                     muted playsinline preload="auto" aria-label="Bokeh"></video>
+            </div>
+            <figcaption class="stream-label">Bokeh</figcaption>
+          </figure>
+          <figure class="stream-card">
+            <div class="stream-image">
+              <video id="stream-disparity" class="clip stream-video" src="../assets/readme-loops/disparity.mp4"
+                     data-start="0" data-duration="6" data-media-start="0" data-track-index="5"
+                     muted playsinline preload="auto" aria-label="Disparity"></video>
+            </div>
+            <figcaption class="stream-label">Disparity</figcaption>
+          </figure>
+          <figure class="stream-card">
+            <div class="stream-image">
+              <video id="stream-flow" class="clip stream-video" src="../assets/readme-loops/flow.mp4"
+                     data-start="0" data-duration="6" data-media-start="0" data-track-index="6"
+                     muted playsinline preload="auto" aria-label="Optical flow"></video>
+            </div>
+            <figcaption class="stream-label">Optical flow</figcaption>
+          </figure>
+        </div>
+      </div>
+  </div>
+  <script>
+    // Local scene time. HyperFrames owns media playback and clip visibility.
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["streams"] = tl;
+    tl.fromTo("#streams-layout", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.24, ease: "power2.out" }, 0);
+    tl.to("#root", { opacity: 1, duration: 6, ease: "none" }, 0);
+  </script>
+</body>
+</html>

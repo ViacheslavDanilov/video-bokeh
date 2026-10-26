@@ -137,7 +137,7 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 - `docs/`: documentation and the Obsidian vault root (see `docs/README.md`). `explanation/`, `how-to/`, `reference/` and `adr/` are tracked; `meetings/`, `reports/`, `specs/`, `plans/`, `templates/` and `attachments/` are local-only. `docs/STYLE.md` has the writing conventions.
 - `scripts/`: repo-level setup, analysis and review scripts (`setup_depth_anything_3.sh`, `analyze_magick_distribution.py`, `check_prose.py`). `scripts/README.md` describes each
 - `comparison/`: runs other published bokeh renderers on our sequences and scores them against ours. Their code is cloned into an ignored folder, never tracked. `comparison/README.md` has the recipe
-- `.assets/`: the README's demo video, `video-bokeh-demo.mp4`. The README plays a copy uploaded to GitHub, so this is the original
+- `.assets/demo/`: the README's demo video, `video-bokeh-demo.mp4`, and everything that makes it: the recording scripts and the HyperFrames project. The README plays a copy uploaded to GitHub. `.assets/demo/README.md` has the recipe
 - `CONTEXT.md`: the project glossary. Grilling adds a term to it once the term is settled
 - `.claude/skills/`: the agent lifecycle (`/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call). `docs/how-to/agent-lifecycle.md` shows how to drive it
 
