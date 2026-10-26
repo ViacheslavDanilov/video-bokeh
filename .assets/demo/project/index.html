@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>Video Bokeh: README video</title>
+  <link rel="stylesheet" href="assets/composition.css" />
+  <script src="assets/vendor/gsap.min.js"></script>
+</head>
+<body>
+  <main id="root" data-composition-id="main" data-duration="46.3"
+        data-width="1920" data-height="1080" data-fps="30">
+    <div id="intro-scene" class="clip" data-composition-id="intro" data-composition-src="compositions/intro.html"
+         data-start="0" data-duration="3" data-track-index="0"></div>
+    <div id="demo-scene" class="clip" data-composition-id="demo" data-composition-src="compositions/demo.html"
+         data-start="3" data-duration="34.3" data-track-index="0"></div>
+    <div id="streams-scene" class="clip" data-composition-id="streams" data-composition-src="compositions/streams.html"
+         data-start="37.3" data-duration="6" data-track-index="0"></div>
+    <div id="end-scene" class="clip" data-composition-id="end" data-composition-src="compositions/end.html"
+         data-start="43.3" data-duration="3" data-track-index="0"></div>
+  </main>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["main"] = tl;
+    // Runtime seeks each registered sub-composition; do not manually attach paused children.
+    tl.to("#root", { opacity: 1, duration: 46.3, ease: "none" }, 0);
+  </script>
+</body>
+</html>

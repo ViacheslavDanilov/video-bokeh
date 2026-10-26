@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>Video Bokeh: demo</title>
+  <link rel="stylesheet" href="../assets/composition.css" />
+  <script src="../assets/vendor/gsap.min.js"></script>
+</head>
+<body>
+  <div id="root" data-composition-id="demo" data-duration="34.3" data-width="1920" data-height="1080">
+<div class="demo-layout">
+        <p id="caption-setup" class="clip caption" data-start="0" data-duration="10.95" data-track-index="1"><span class="step">1</span>Pick a depth estimator and a seed</p>
+        <p id="caption-generate" class="clip caption" data-start="10.95" data-duration="4.64" data-track-index="1"><span class="step">2</span>Generate: one bar for every step</p>
+        <p id="caption-streams" class="clip caption" data-start="15.59" data-duration="7.96" data-track-index="1"><span class="step">3</span>Play every stream, frame-accurate side by side</p>
+        <p id="caption-reorder" class="clip caption" data-start="23.55" data-duration="10.75" data-track-index="1"><span class="step">4</span>Drag panes to reorder them</p>
+        <div id="browser-window" class="browser-window">
+          <div class="browser-bar">
+            <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span class="window-title">Video Bokeh</span>
+          </div>
+          <div class="screen">
+            <div id="camera" class="camera">
+              <video id="demo-video" class="clip demo-media" src="../assets/ui-edit.mp4"
+                     data-start="0" data-duration="34.2" data-media-start="0" data-track-index="2"
+                     muted playsinline preload="auto" aria-label="Video Bokeh demo: picking an estimator and a seed, generating, playing every stream and dragging a pane"></video>
+              <!-- Explicit three-frame hold avoids decoding past the source's end. -->
+              <img id="demo-final-frame" class="clip demo-media" src="../assets/ui-last-frame.png" alt="Final demo frame"
+                   data-start="34.2" data-duration="0.1" data-track-index="2" />
+            </div>
+            <p id="speed-badge" class="clip speed-badge" data-start="11.4" data-duration="4.15" data-track-index="3">4× speed</p>
+          </div>
+        </div>
+      </div>
+  </div>
+  <script>
+    // Local scene time. HyperFrames owns media playback and clip visibility.
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["demo"] = tl;
+
+    // Captions: one numbered step at a time.
+    const steps = [["#caption-setup", 0, 10.95], ["#caption-generate", 10.95, 15.59], ["#caption-streams", 15.59, 23.55], ["#caption-reorder", 23.55, null]];
+    for (const [id, start, end] of steps) {
+      tl.fromTo(id, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, start);
+      if (end !== null) tl.to(id, { opacity: 0, duration: 0.2, ease: "none" }, end - 0.2);
+    }
+    tl.fromTo("#browser-window", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0);
+    tl.fromTo("#speed-badge", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.25, ease: "power2.out" }, 11.4);
+    tl.to("#speed-badge", { opacity: 0, duration: 0.2, ease: "none" }, 15.35);
+
+    // Camera over the 1800 x 836 screen: show the region from (rx, ry) at scale s.
+    gsap.set("#camera", { transformOrigin: "0 0" });
+    const shot = (s, rx, ry, at, duration = 0.9) =>
+      tl.to("#camera", { scale: s, x: -s * rx, y: -s * ry, duration, ease: "power2.inOut" }, at);
+    shot(1.9, 0, 40, 0.5, 1.0);   // the estimator and the seed
+    shot(1.9, 0, 250, 9.28);       // down to Generate, with the cursor
+    shot(1.6, 478, 206, 11.45);    // the progress line
+    shot(1, 0, 0, 15.25);         // every pane
+    shot(1.45, 280, 60, 23.35);    // the pane headers, for the drag
+    shot(1, 0, 0, 29.4);          // the new order, all panes playing
+    tl.to("#root", { opacity: 1, duration: 34.3, ease: "none" }, 0);
+  </script>
+</body>
+</html>
