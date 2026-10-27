@@ -1,0 +1,31 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; }
+    #sz-sheet { position: absolute; inset: 0; background: var(--ground); }
+    #sz-line {
+      position: absolute; left: 0; top: 485px; width: 1920px; text-align: center;
+      font-size: 104px; line-height: 1.06; font-weight: 600; letter-spacing: -0.04em; white-space: nowrap;
+    }
+    .sz-w { display: inline-block; opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="sheet-zoom" data-width="1920" data-height="1080">
+    <div id="sz-sheet">
+      <h2 id="sz-line"><span class="sz-w">Zoom</span> <span class="sz-w">in,</span> <span class="sz-w">frame</span> <span class="sz-w">by</span> <span class="sz-w">frame</span></h2>
+    </div>
+  </div>
+  <script>
+    (function () {
+      // A chapter sheet: whips in from the right, its line lands word by word, it whips out to the left.
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#sz-sheet", { x: 2050, filter: "blur(10px)" }, { x: 0, duration: 0.45, ease: "power3.inOut" }, 0);
+      tl.to("#sz-sheet", { filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.25);
+      document.querySelectorAll("#sz-line .sz-w").forEach((w, i) => {
+        tl.fromTo(w, { opacity: 0, filter: "blur(8px)" },
+          { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out" }, 0.4 + i * 0.08);
+      });
+      tl.to("#sz-sheet", { x: -2050, duration: 0.45, ease: "power3.inOut" }, 2.15);
+      tl.to("#sz-sheet", { filter: "blur(10px)", duration: 0.22, ease: "power2.in" }, 2.15);
+      window.__timelines["sheet-zoom"] = tl;
+    })();
+  </script>
+</template>

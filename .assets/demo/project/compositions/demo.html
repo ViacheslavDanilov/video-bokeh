@@ -1,65 +1,56 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=1920, height=1080" />
-  <title>Video Bokeh: demo</title>
-  <link rel="stylesheet" href="../assets/composition.css" />
-  <script src="../assets/vendor/gsap.min.js"></script>
-</head>
-<body>
-  <div id="root" data-composition-id="demo" data-duration="34.3" data-width="1920" data-height="1080">
-<div class="demo-layout">
-        <p id="caption-setup" class="clip caption" data-start="0" data-duration="10.95" data-track-index="1"><span class="step">1</span>Pick a depth estimator and a seed</p>
-        <p id="caption-generate" class="clip caption" data-start="10.95" data-duration="4.64" data-track-index="1"><span class="step">2</span>Generate: one bar for every step</p>
-        <p id="caption-streams" class="clip caption" data-start="15.59" data-duration="7.96" data-track-index="1"><span class="step">3</span>Play every stream, frame-accurate side by side</p>
-        <p id="caption-reorder" class="clip caption" data-start="23.55" data-duration="10.75" data-track-index="1"><span class="step">4</span>Drag panes to reorder them</p>
-        <div id="browser-window" class="browser-window">
-          <div class="browser-bar">
-            <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
-            <span class="window-title">Video Bokeh</span>
-          </div>
-          <div class="screen">
-            <div id="camera" class="camera">
-              <video id="demo-video" class="clip demo-media" src="../assets/ui-edit.mp4"
-                     data-start="0" data-duration="34.2" data-media-start="0" data-track-index="2"
-                     muted playsinline preload="auto" aria-label="Video Bokeh demo: picking an estimator and a seed, generating, playing every stream and dragging a pane"></video>
-              <!-- Explicit three-frame hold avoids decoding past the source's end. -->
-              <img id="demo-final-frame" class="clip demo-media" src="../assets/ui-last-frame.png" alt="Final demo frame"
-                   data-start="34.2" data-duration="0.1" data-track-index="2" />
-            </div>
-            <p id="speed-badge" class="clip speed-badge" data-start="11.4" data-duration="4.15" data-track-index="3">4× speed</p>
-          </div>
-        </div>
-      </div>
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; }
+    /* The app's window: 1920 x 1080 CSS px recorded at 2x, so at scale 1 it fills the frame.
+       Pulled back, its border and shadow keep it apart from the white ground. */
+    #dm-stage {
+      position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden;
+      border-radius: 14px; background: #fafafa;
+      box-shadow: 0 0 0 1px #dedede, 0 4px 12px rgba(23, 23, 23, 0.06), 0 30px 80px rgba(23, 23, 23, 0.12);
+    }
+    #dm-ui { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: contain; }
+    #dm-speed { position: absolute; left: 1290px; top: 80px; width: 260px; height: 60px; }
+    #dm-speed-label {
+      height: 60px; display: flex; align-items: center; justify-content: center; opacity: 0;
+      border-radius: 12px; background: #ffffff; box-shadow: 0 0 0 1px var(--line), 0 10px 28px rgba(23, 23, 23, 0.12);
+      font-size: 32px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+    }
+  </style>
+  <div id="root" data-composition-id="demo" data-width="1920" data-height="1080">
+    <div id="dm-stage" data-layout-allow-overflow>
+      <video id="dm-ui" class="clip" src="assets/ui-edit.mp4" data-start="0" data-duration="51.53"
+             data-media-start="0" data-track-index="1" muted playsinline preload="auto"
+             aria-label="Video Bokeh, the demo app: picking an estimator and a seed, generating, adding panes, reordering them, zooming in, scrubbing and playing"></video>
+    </div>
+    <!-- The generation wait, from 10.79 s to 14.59 s, plays at the factor edit.py printed. -->
+    <div id="dm-speed" class="clip" data-start="11.57" data-duration="2.77" data-track-index="2">
+      <p id="dm-speed-label">6× speed</p>
+    </div>
   </div>
   <script>
-    // Local scene time. HyperFrames owns media playback and clip visibility.
-    window.__timelines = window.__timelines || {};
-    const tl = gsap.timeline({ paused: true });
-    window.__timelines["demo"] = tl;
-
-    // Captions: one numbered step at a time.
-    const steps = [["#caption-setup", 0, 10.95], ["#caption-generate", 10.95, 15.59], ["#caption-streams", 15.59, 23.55], ["#caption-reorder", 23.55, null]];
-    for (const [id, start, end] of steps) {
-      tl.fromTo(id, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, start);
-      if (end !== null) tl.to(id, { opacity: 0, duration: 0.2, ease: "none" }, end - 0.2);
-    }
-    tl.fromTo("#browser-window", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0);
-    tl.fromTo("#speed-badge", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.25, ease: "power2.out" }, 11.4);
-    tl.to("#speed-badge", { opacity: 0, duration: 0.2, ease: "none" }, 15.35);
-
-    // Camera over the 1800 x 836 screen: show the region from (rx, ry) at scale s.
-    gsap.set("#camera", { transformOrigin: "0 0" });
-    const shot = (s, rx, ry, at, duration = 0.9) =>
-      tl.to("#camera", { scale: s, x: -s * rx, y: -s * ry, duration, ease: "power2.inOut" }, at);
-    shot(1.9, 0, 40, 0.5, 1.0);   // the estimator and the seed
-    shot(1.9, 0, 250, 9.28);       // down to Generate, with the cursor
-    shot(1.6, 478, 206, 11.45);    // the progress line
-    shot(1, 0, 0, 15.25);         // every pane
-    shot(1.45, 280, 60, 23.35);    // the pane headers, for the drag
-    shot(1, 0, 0, 29.4);          // the new order, all panes playing
-    tl.to("#root", { opacity: 1, duration: 34.3, ease: "none" }, 0);
+    (function () {
+      // 2D transforms only: a 3D one would have Chrome rasterize the scaled app once and blur it.
+      gsap.config({ force3D: false });
+      const tl = gsap.timeline({ paused: true });
+      // The camera: the app point (cx, cy) at the frame's center, at scale s. Times are the
+      // recording's own (the step marks from edit.py), and no move overlaps a click.
+      const at = (s, cx, cy) => ({ scale: s, x: 960 - s * cx, y: 540 - s * cy });
+      const WIDE = at(0.94, 960, 540);
+      const shot = (view, t, duration = 1.0) =>
+        tl.to("#dm-stage", { ...view, duration, ease: "power2.inOut" }, t);
+      tl.set("#dm-stage", { transformOrigin: "0 0", ...WIDE }, 0);
+      shot(at(2.0, 480, 310), 0.75);       // the estimator's list and the seed
+      shot(at(2.0, 480, 520), 8.6);        // down to Generate, with the cursor
+      shot(at(2.4, 680, 275), 10.57, 0.9); // the progress line
+      // The new sequence's one row of panes and the transport, cut in the empty margin left of
+      // them; from the second added pane on, the two rows.
+      shot(at(1.17, 1100, 525), 14.72);
+      shot(at(1.175, 1103, 578.5), 22.8);
+      shot(WIDE, 48.88);                   // all six playing, the whole app
+      tl.fromTo("#dm-speed-label", { opacity: 0, filter: "blur(6px)" },
+        { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 11.57);
+      tl.to("#dm-speed-label", { opacity: 0, filter: "blur(6px)", duration: 0.15, ease: "power2.in" }, 14.14);
+      window.__timelines["demo"] = tl;
+    })();
   </script>
-</body>
-</html>
+</template>
