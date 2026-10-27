@@ -24,10 +24,11 @@ major scale:
 The negative prompt was "vocals, heavy drums, distortion, dramatic strings". The bed was
 then:
 
-1. trimmed to 69 s, starting 1 s in;
+1. trimmed to 74 s, starting 1 s in, and lengthened to 80 s: a copy of its seconds 25 to 40
+   crossfades onto its end over 3 s, at constant power;
 2. low-passed at 12 kHz, since the generated audio had noise above that, and cut 4 dB below
    110 Hz with a low shelf;
-3. brought to -16 LUFS with a limiter, true peak -2.8 dBTP;
+3. brought to -16 LUFS with a limiter, true peak -2.0 dBTP;
 4. encoded as MP3 at 128 kbit/s.
 
 ## Sound effects
