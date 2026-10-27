@@ -1,0 +1,79 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; }
+    #sg-sheet { position: absolute; inset: 0; background: var(--ground); }
+    #sg-heading {
+      position: absolute; left: 0; top: 280px; width: 1920px; text-align: center;
+      font-size: 64px; line-height: 1.2; font-weight: 600; letter-spacing: -0.04em; white-space: nowrap;
+    }
+    .sg-w { display: inline-block; opacity: 0; }
+    #sg-row {
+      position: absolute; left: 200px; top: 401px; display: grid;
+      grid-template-columns: repeat(4, 344px); column-gap: 48px;
+    }
+    .sg-card { width: 344px; }
+    .sg-tile {
+      position: relative; width: 344px; height: 344px; overflow: hidden; border-radius: 10px;
+      background: #ffffff; box-shadow: 0 0 0 1px var(--line);
+    }
+    .sg-video { position: absolute; left: 0; top: 0; width: 344px; height: 344px; object-fit: contain; }
+    .sg-label {
+      margin-top: 14px; font-size: 32px; line-height: 40px; text-align: center;
+      font-weight: 500; letter-spacing: -0.03em;
+    }
+  </style>
+  <div id="root" data-composition-id="strengths" data-width="1920" data-height="1080">
+    <div id="sg-sheet">
+      <h2 id="sg-heading"><span class="sg-w">One</span> <span class="sg-w">sequence.</span> <span class="sg-w">Any</span> <span class="sg-w">blur.</span></h2>
+      <div id="sg-row">
+        <figure class="sg-card">
+          <div class="sg-tile">
+            <video id="sg-focus" class="clip sg-video" src="assets/readme-loops/all_in_focus.mp4"
+                   data-start="0" data-duration="6" data-media-start="1.54" data-track-index="1"
+                   muted playsinline preload="auto" aria-label="All in focus"></video>
+          </div>
+          <figcaption class="sg-label">All in focus</figcaption>
+        </figure>
+        <figure class="sg-card">
+          <div class="sg-tile">
+            <video id="sg-k8" class="clip sg-video" src="assets/readme-loops/bokeh-8.mp4"
+                   data-start="0" data-duration="6" data-media-start="1.54" data-track-index="2"
+                   muted playsinline preload="auto" aria-label="Bokeh strength 8"></video>
+          </div>
+          <figcaption class="sg-label">Bokeh strength 8</figcaption>
+        </figure>
+        <figure class="sg-card">
+          <div class="sg-tile">
+            <video id="sg-k16" class="clip sg-video" src="assets/readme-loops/bokeh.mp4"
+                   data-start="0" data-duration="6" data-media-start="1.54" data-track-index="3"
+                   muted playsinline preload="auto" aria-label="Bokeh strength 16"></video>
+          </div>
+          <figcaption class="sg-label">Bokeh strength 16</figcaption>
+        </figure>
+        <figure class="sg-card">
+          <div class="sg-tile">
+            <video id="sg-k32" class="clip sg-video" src="assets/readme-loops/bokeh-32.mp4"
+                   data-start="0" data-duration="6" data-media-start="1.54" data-track-index="4"
+                   muted playsinline preload="auto" aria-label="Bokeh strength 32"></video>
+          </div>
+          <figcaption class="sg-label">Bokeh strength 32</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      // The same sequence rendered at three bokeh strengths, our renderer's own output, beside
+      // its all-in-focus frames, in step. It enters as the streams scene does.
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#sg-sheet", { x: 2050, filter: "blur(10px)" }, { x: 0, duration: 0.45, ease: "power3.inOut" }, 0);
+      tl.to("#sg-sheet", { filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.25);
+      document.querySelectorAll("#sg-heading .sg-w").forEach((w, i) => {
+        tl.fromTo(w, { opacity: 0, filter: "blur(8px)" },
+          { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out" }, 0.45 + i * 0.09);
+      });
+      tl.to({}, { duration: 0.01 }, 5.9);
+      window.__timelines["strengths"] = tl;
+    })();
+  </script>
+</template>

@@ -1,7 +1,10 @@
-# Media the recipe in README.md makes again: the screen recording, its edit and the stream loops.
+# Media the recipe in README.md makes again: the screen recording, its edit, the stream loops
+# and the master render. The sound is tracked: nothing makes it again.
 frames/
 streams/
 master.mp4
 project/assets/ui-edit.mp4
-project/assets/ui-last-frame.png
 project/assets/readme-loops/
+# HyperFrames' own working files: check reports, snapshots, edit history and renders.
+project/.hyperframes/
+project/renders/

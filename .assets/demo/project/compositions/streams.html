@@ -1,59 +1,95 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=1920, height=1080" />
-  <title>Video Bokeh: streams</title>
-  <link rel="stylesheet" href="../assets/composition.css" />
-  <script src="../assets/vendor/gsap.min.js"></script>
-</head>
-<body>
-  <div id="root" data-composition-id="streams" data-duration="6" data-width="1920" data-height="1080">
-<div id="streams-layout" class="streams-layout">
-        <h2 class="streams-heading">One sequence. Every stream.</h2>
-        <div class="stream-grid">
-          <figure class="stream-card">
-            <div class="stream-image">
-              <video id="stream-focus" class="clip stream-video" src="../assets/readme-loops/all_in_focus.mp4"
-                     data-start="0" data-duration="6" data-media-start="0" data-track-index="3"
-                     muted playsinline preload="auto" aria-label="All in focus"></video>
-            </div>
-            <figcaption class="stream-label">All in focus</figcaption>
-          </figure>
-          <figure class="stream-card">
-            <div class="stream-image">
-              <video id="stream-bokeh" class="clip stream-video" src="../assets/readme-loops/bokeh.mp4"
-                     data-start="0" data-duration="6" data-media-start="0" data-track-index="4"
-                     muted playsinline preload="auto" aria-label="Bokeh"></video>
-            </div>
-            <figcaption class="stream-label">Bokeh</figcaption>
-          </figure>
-          <figure class="stream-card">
-            <div class="stream-image">
-              <video id="stream-disparity" class="clip stream-video" src="../assets/readme-loops/disparity.mp4"
-                     data-start="0" data-duration="6" data-media-start="0" data-track-index="5"
-                     muted playsinline preload="auto" aria-label="Disparity"></video>
-            </div>
-            <figcaption class="stream-label">Disparity</figcaption>
-          </figure>
-          <figure class="stream-card">
-            <div class="stream-image">
-              <video id="stream-flow" class="clip stream-video" src="../assets/readme-loops/flow.mp4"
-                     data-start="0" data-duration="6" data-media-start="0" data-track-index="6"
-                     muted playsinline preload="auto" aria-label="Optical flow"></video>
-            </div>
-            <figcaption class="stream-label">Optical flow</figcaption>
-          </figure>
-        </div>
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; }
+    #st-sheet { position: absolute; inset: 0; background: var(--ground); }
+    #st-heading {
+      position: absolute; left: 0; top: 64px; width: 1920px; text-align: center;
+      font-size: 64px; line-height: 1.2; font-weight: 600; letter-spacing: -0.04em; white-space: nowrap;
+    }
+    .st-w { display: inline-block; opacity: 0; }
+    #st-grid {
+      position: absolute; left: 396px; top: 188px; display: grid;
+      grid-template-columns: repeat(3, 344px); column-gap: 48px; row-gap: 28px;
+    }
+    .st-card { width: 344px; }
+    .st-tile {
+      position: relative; width: 344px; height: 344px; overflow: hidden; border-radius: 10px;
+      background: #ffffff; box-shadow: 0 0 0 1px var(--line);
+    }
+    .st-video { position: absolute; left: 0; top: 0; width: 344px; height: 344px; object-fit: contain; }
+    .st-label {
+      margin-top: 14px; font-size: 32px; line-height: 40px; text-align: center;
+      font-weight: 500; letter-spacing: -0.03em;
+    }
+  </style>
+  <div id="root" data-composition-id="streams" data-width="1920" data-height="1080">
+    <div id="st-sheet">
+      <h2 id="st-heading"><span class="st-w">One</span> <span class="st-w">sequence.</span> <span class="st-w">Every</span> <span class="st-w">stream.</span></h2>
+      <div id="st-grid">
+        <figure class="st-card">
+          <div class="st-tile">
+            <video id="st-all-in-focus" class="clip st-video" src="assets/readme-loops/all_in_focus.mp4"
+                   data-start="0" data-duration="6.5" data-media-start="1.54" data-track-index="1"
+                   muted playsinline preload="auto" aria-label="All in focus"></video>
+          </div>
+          <figcaption class="st-label">All in focus</figcaption>
+        </figure>
+        <figure class="st-card">
+          <div class="st-tile">
+            <video id="st-bokeh" class="clip st-video" src="assets/readme-loops/bokeh.mp4"
+                   data-start="0" data-duration="6.5" data-media-start="1.54" data-track-index="2"
+                   muted playsinline preload="auto" aria-label="Bokeh"></video>
+          </div>
+          <figcaption class="st-label">Bokeh</figcaption>
+        </figure>
+        <figure class="st-card">
+          <div class="st-tile">
+            <video id="st-disparity" class="clip st-video" src="assets/readme-loops/disparity.mp4"
+                   data-start="0" data-duration="6.5" data-media-start="1.54" data-track-index="3"
+                   muted playsinline preload="auto" aria-label="Disparity"></video>
+          </div>
+          <figcaption class="st-label">Disparity</figcaption>
+        </figure>
+        <figure class="st-card">
+          <div class="st-tile">
+            <video id="st-alpha" class="clip st-video" src="assets/readme-loops/alpha.mp4"
+                   data-start="0" data-duration="6.5" data-media-start="1.54" data-track-index="4"
+                   muted playsinline preload="auto" aria-label="Alpha"></video>
+          </div>
+          <figcaption class="st-label">Alpha</figcaption>
+        </figure>
+        <figure class="st-card">
+          <div class="st-tile">
+            <video id="st-flow" class="clip st-video" src="assets/readme-loops/flow.mp4"
+                   data-start="0" data-duration="6.5" data-media-start="1.54" data-track-index="5"
+                   muted playsinline preload="auto" aria-label="Optical flow"></video>
+          </div>
+          <figcaption class="st-label">Optical flow</figcaption>
+        </figure>
+        <figure class="st-card">
+          <div class="st-tile">
+            <video id="st-occlusion" class="clip st-video" src="assets/readme-loops/occlusion.mp4"
+                   data-start="0" data-duration="6.5" data-media-start="1.54" data-track-index="6"
+                   muted playsinline preload="auto" aria-label="Occlusion"></video>
+          </div>
+          <figcaption class="st-label">Occlusion</figcaption>
+        </figure>
       </div>
+    </div>
   </div>
   <script>
-    // Local scene time. HyperFrames owns media playback and clip visibility.
-    window.__timelines = window.__timelines || {};
-    const tl = gsap.timeline({ paused: true });
-    window.__timelines["streams"] = tl;
-    tl.fromTo("#streams-layout", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.24, ease: "power2.out" }, 0);
-    tl.to("#root", { opacity: 1, duration: 6, ease: "none" }, 0);
+    (function () {
+      // The payoff: the six streams the app showed, each playing on its own, in step. The sheet
+      // whips in carrying them, as the chapter sheets do, and the heading lands word by word.
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#st-sheet", { x: 2050, filter: "blur(10px)" }, { x: 0, duration: 0.45, ease: "power3.inOut" }, 0);
+      tl.to("#st-sheet", { filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.25);
+      document.querySelectorAll("#st-heading .st-w").forEach((w, i) => {
+        tl.fromTo(w, { opacity: 0, filter: "blur(8px)" },
+          { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out" }, 0.45 + i * 0.09);
+      });
+      tl.to({}, { duration: 0.01 }, 6.4);
+      window.__timelines["streams"] = tl;
+    })();
   </script>
-</body>
-</html>
+</template>
