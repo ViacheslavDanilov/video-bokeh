@@ -2,8 +2,9 @@
 
 688 px is a stream tile (344 CSS px) at the 4K render's 2x scale. The six streams are
 colored the way their panes show them: disparity in Spectral, alpha by object, the flow
-forward, the occlusion mask white on black. Run from backend/:
-    uv run python ../.assets/demo/stream_frames.py SEQ_DIR OUT_DIR
+forward, the occlusion mask white on black. Run from backend/, naming streams to write only
+those:
+    uv run python ../.assets/demo/stream_frames.py SEQ_DIR OUT_DIR [STREAM ...]
 """
 
 import sys
@@ -21,7 +22,7 @@ from video_bokeh.preview.pack import (
 SIZE = 688
 STREAMS = ("all_in_focus", "alpha", "disparity", "bokeh", "flow", "occlusion")
 seq_dir, out_dir = Path(sys.argv[1]), Path(sys.argv[2])
-for stream in STREAMS:
+for stream in sys.argv[3:] or STREAMS:
     paths = list_stream_frames(seq_dir, stream)
     if stream == "flow":
         frames = _flow_frames(paths)

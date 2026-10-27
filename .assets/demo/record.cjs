@@ -3,32 +3,42 @@
 // and the app fills them edge to edge. The scale is the screen's (--force-device-scale-factor), not
 // Playwright's emulated one: the screencast sends emulated pages at their CSS size.
 //
-// Before the screencast starts, the page shows an earlier sequence (SETUP_SEED, from the first
-// library) with its Alpha and Optical flow panes closed. A closed pane stays closed for the next
-// sequence when the streams are the same, so the new sequence opens in three panes, All in focus,
-// Disparity and Bokeh, and "Add pane" brings back Alpha, Optical flow and Occlusion, in that order.
+// Before the screencast starts, the page is set to SIZE and to OBJECTS objects and shows an
+// earlier sequence (SETUP_SEED, from the first library, with the same number of objects) with its
+// Alpha and Optical flow panes closed. A closed pane stays closed for the next sequence when the
+// streams are the same, so the new sequence opens in three panes, All in focus, Disparity and
+// Bokeh, and "Add pane" brings back Alpha, Optical flow and Occlusion, in that order.
 //
 // On camera: the estimator picked from its list, the seed typed, Generate and its progress bar,
-// three panes added, the Bokeh pane dragged next to All in focus, a double-click that zooms every
-// pane in on the hair, the position slider dragged frame by frame, a double-click back to the whole
-// frame, Play. Headless Chrome draws no pointer, so a cursor is drawn, and it dips on each press.
+// Play and Pause on frame PAUSE_AT, three panes added, the Bokeh pane dragged next to All in focus,
+// a double-click that zooms every pane in on the hair, the position slider dragged frame by frame,
+// a double-click back to the whole frame, Play. Headless Chrome draws no pointer, so a cursor is
+// drawn, and it dips on each press.
 // Every step and every press is marked in frames.json for the edit and the composition, and a
-// frame in which a pane shows no frame yet carries a mark the edit leaves it out by.
+// frame in which a pane shows no frame yet carries a mark the edit leaves it out by. The cursor
+// holds still until every pane has shown a frame, so none of the frames left out hides a move; the
+// spans of every move are in frames.json for the edit to check it.
 //
 // Usage, from this folder: node record.cjs SEED FRAMES_DIR
 const fs = require('node:fs');
 const { createRequire } = require('node:module');
 const { chromium } = createRequire(`${__dirname}/../../frontend/package.json`)('@playwright/test');
 const W = 1920, H = 1080, SCALE = 2;
-const SEED = process.argv[2] || '512';
+const SEED = process.argv[2] || '245';
 const out = process.argv[3] || `${__dirname}/frames`;
-// The sequence on screen when the film starts: another seed, from the first library in the list.
-const SETUP_SEED = '101';
-// Where the double-click zooms in, as fractions of the All in focus pane: on frame 1 of seed 512,
-// the hair between the face and the trees behind it. Another seed needs its own point.
-const HAIR = { x: 0.1, y: 0.42 };
-// How many frames the slider is dragged through, one at a time.
-const SCRUB_FRAMES = 10;
+// The sequence's size and its count of objects, set before the film starts.
+const SIZE = 1024, OBJECTS = 2;
+// The sequence on screen when the film starts: another seed, from the first library in the list,
+// with the same two objects to two, a falcon and a taxi, and not the woman.
+const SETUP_SEED = '6';
+// The frame the film pauses on, adds the panes on and zooms in on, and how many frames the slider
+// is then dragged through, one at a time. For seed 245, chosen by measuring the zoom window: her
+// hair moves there, so Optical flow and Occlusion show it (frame 1 has neither), and she is in
+// focus in Bokeh. Another seed needs its own.
+const PAUSE_AT = 71, SCRUB_FRAMES = 4;
+// Where the double-click zooms in, as fractions of the All in focus pane: the tips of her hair
+// against the night sky around PAUSE_AT. The 4x view keeps this point where it is.
+const HAIR = { x: 0.76, y: 0.16 };
 const API = 'http://127.0.0.1:8000';
 // Where the cursor waits once there are six panes: in the margin right of them.
 const REST = { x: 1765, y: 600 };
@@ -67,8 +77,9 @@ function ready({ seed, count }) {
 // Marks every frame in which some pane has no frame to show, its "Preparing video" placeholder
 // up or its video not yet at a first frame, with a red square in the page's top left corner,
 // clear otherwise. Checked on every animation frame, so the square and the panes are painted
-// together, and edit.py leaves out the frames that carry it. A video that has shown a frame
-// and only seeks, as the slider makes it, does not count.
+// together, and edit.py leaves out the frames that carry it. A new pane's video counts as shown
+// once it has a frame and has finished the seek to the transport's time; one that has shown a
+// frame and only seeks again, as the slider makes it, does not count.
 function watchPanes() {
   const shown = new WeakSet();
   const flag = document.createElement('div');
@@ -76,10 +87,11 @@ function watchPanes() {
   document.documentElement.appendChild(flag);
   const tick = () => {
     const videos = [...document.querySelectorAll('video')];
-    for (const v of videos) if (v.readyState >= 2) shown.add(v);
+    for (const v of videos) if (v.readyState >= 2 && !v.seeking) shown.add(v);
     const empty = videos.some((v) => !shown.has(v))
       || [...document.querySelectorAll('[data-pane-view]')].some((el) => el.textContent.includes('Preparing video'));
     flag.style.background = empty ? '#ff0000' : 'transparent';
+    window.__empty = empty;
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
@@ -97,7 +109,16 @@ function watchPanes() {
   await p.waitForTimeout(500);
   await p.evaluate(installCursor);
 
-  // Off camera: the sequence the film opens on, in three panes.
+  // Off camera: the size and the count of objects the film generates, then the sequence the film
+  // opens on, in three panes. Raising the fewest objects raises the most with it, and lowering
+  // the most lowers the fewest.
+  const pick = async (trigger, option) => {
+    await p.locator(trigger).click();
+    await p.getByRole('option', { name: option, exact: true }).click();
+  };
+  await pick('#size', `${SIZE} × ${SIZE}`);
+  await pick('#objects-min', `${OBJECTS}`);
+  await pick('#objects-max', `${OBJECTS}`);
   const seedBox = p.getByRole('spinbutton', { name: 'Seed' });
   await seedBox.fill(SETUP_SEED);
   await p.getByRole('button', { name: 'Generate sequence' }).click();
@@ -109,15 +130,18 @@ function watchPanes() {
   let pos = { x: 1120, y: 940 };
   await p.mouse.click(pos.x, pos.y); // off every control, so nothing keeps the focus
   await p.waitForTimeout(1500);
+  const moves = [];
   const glide = async (x, y, ms = 700) => {
     const n = Math.max(2, Math.round(ms / 16));
     const from = { ...pos };
+    const began = Date.now() / 1000;
     for (let i = 1; i <= n; i++) {
       const t = i / n, e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
       await p.mouse.move(from.x + (x - from.x) * e, from.y + (y - from.y) * e);
       await p.waitForTimeout(16);
     }
     pos = { x, y };
+    moves.push([began, Date.now() / 1000]);
   };
   const center = async (locator) => { const r = await locator.boundingBox(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
   // Every press is timed too, for the click sounds.
@@ -187,24 +211,43 @@ function watchPanes() {
       if (Date.now() - t < 300) return;
     }
   };
-  await Promise.all([...['alpha', 'flow', 'occlusion'].map(warm), p.waitForTimeout(1500)]);
-  mark('chapter2');
-  await p.waitForTimeout(2300); // under the chapter sheet
+  const warmed = Promise.all(['alpha', 'flow', 'occlusion'].map(warm));
+  await p.waitForTimeout(1200);
 
-  // 4. Three more panes, one per click on "Add pane", which moves as the grid rearranges. The
+  // 4. Play for a moment, and pause on PAUSE_AT. The press lands about three frames after it is
+  // made, so it is made that much earlier.
+  await click(p.getByRole('button', { name: 'Play' }), { ms: 800, before: 300 });
+  mark('play1');
+  await p.waitForFunction((at) => {
+    const v = document.querySelector('video');
+    return v.currentTime / v.duration * 80 >= at;
+  }, PAUSE_AT - 1 - 3, { polling: 'raf' });
+  await press();
+  mark('paused');
+  const position = p.getByRole('slider', { name: 'Position' });
+  await p.waitForTimeout(300);
+  console.log('paused on', await position.getAttribute('aria-valuetext'));
+  await p.waitForTimeout(900);
+  mark('chapter2');
+  await Promise.all([warmed, p.waitForTimeout(2300)]); // under the chapter sheet
+  mark('warmed');
+
+  // 5. Three more panes, one per click on "Add pane", which moves as the grid rearranges. The
   // cursor waits for each new pane's first frame before it moves on.
   for (const [i, ms] of [[1, 900], [2, 600], [3, 600]]) {
     await click(p.getByRole('button', { name: 'Add pane' }), { ms, before: 300 });
     mark(`add${i}`);
     await p.waitForFunction(ready, { seed: SEED, count: 3 + i }, { timeout: 60000, polling: 20 });
-    if (i < 3) await p.waitForTimeout(650);
+    // Still until every pane has shown a frame, and a moment more for that frame to be painted.
+    await p.waitForFunction(() => window.__empty === false, null, { timeout: 60000, polling: 'raf' });
+    await p.waitForTimeout(120);
+    if (i < 3) await p.waitForTimeout(530);
   }
   mark('six');
 
-  // 5. Reorder: Bokeh dragged next to All in focus, in front of Disparity. The cursor leaves at
-  // once, by the margin right of the panes: the last pane opens over the button, and a legend's
+  // 6. Reorder: Bokeh dragged next to All in focus, in front of Disparity. The cursor leaves
+  // as soon as the last pane has shown a frame, by the margin right of the panes: the last pane opens over the button, and a legend's
   // tooltip opens as soon as the pointer is over it.
-  await p.waitForTimeout(150);
   mark('drag');
   await glide(REST.x - 10, pos.y - 60, 350);
   const grip = await center(p.getByRole('button', { name: 'Move Bokeh pane' }));
@@ -224,7 +267,7 @@ function watchPanes() {
   mark('chapter3');
   await p.waitForTimeout(2300); // under the chapter sheet
 
-  // 6. Every pane zoomed in on the hair, by a double-click on All in focus.
+  // 7. Every pane zoomed in on the hair, by a double-click on All in focus.
   const view = await p.locator('figure').first().locator('[data-pane-view]').boundingBox();
   await glide(view.x + HAIR.x * view.width, view.y + HAIR.y * view.height, 1000);
   await p.waitForTimeout(450);
@@ -232,29 +275,34 @@ function watchPanes() {
   await doubleClick();
   await p.waitForTimeout(1100);
 
-  // 7. The position slider, dragged one frame at a time.
-  const position = p.getByRole('slider', { name: 'Position' });
+  // 8. The position slider, dragged one frame at a time from the frame on screen. The track maps
+  // its width to the 79 steps between frames, so the press is made where that frame sits on it, a
+  // third of a step on, rather than at the thumb's center, which can be a frame off.
   const thumb = await center(position);
   const track = await p.locator('[data-slot="slider"]', { has: position }).locator('[data-slot="slider-track"]').boundingBox();
-  // Pressed at the thumb's left edge, the slider's position stays on frame 1: the track maps
-  // its width to the 79 steps between frames, so the press at the thumb's center would be one.
-  const grab = { x: track.x + 2, y: thumb.y };
-  await glide(grab.x, grab.y, 800);
+  const shown = Number((await position.getAttribute('aria-valuetext')).match(/Frame (\d+)/)[1]);
+  const perFrame = track.width / 79;
+  const grab = { x: track.x + (shown - 1 + 0.3) * perFrame, y: thumb.y };
+  // Down the first column, whose legend has no tooltip, then along the transport: a legend's
+  // tooltip opens as soon as the pointer crosses it.
+  const lane = view.x + 0.15 * view.width;
+  await glide(lane, grab.y, 600);
+  await glide(grab.x, grab.y, 500);
   await p.waitForTimeout(300);
   mark('scrub');
   await down();
-  const perFrame = track.width / 79;
   for (let i = 1; i <= SCRUB_FRAMES; i++) {
-    await glide(grab.x + i * perFrame, grab.y, 60);
-    await p.waitForTimeout(230);
+    await glide(grab.x + i * perFrame, grab.y, 80);
+    await p.waitForTimeout(420);
   }
   await p.mouse.up();
   mark('scrubbed');
   console.log('at', await position.getAttribute('aria-valuetext'));
   await p.waitForTimeout(500);
 
-  // 8. Back to the whole frame, then play.
-  await glide(view.x + 0.5 * view.width, view.y + 0.55 * view.height, 800);
+  // 9. Back to the whole frame, the same way, then play.
+  await glide(lane, grab.y, 450);
+  await glide(view.x + 0.5 * view.width, view.y + 0.55 * view.height, 650);
   await p.waitForTimeout(250);
   mark('unzoom');
   await doubleClick();
@@ -269,7 +317,7 @@ function watchPanes() {
   await cdp.send('Page.stopScreencast');
   const order = await p.evaluate(() => [...document.querySelectorAll('figure')].map((f) => f.querySelector('button[aria-label^="Move"]')?.getAttribute('aria-label')));
   console.log('order', JSON.stringify(order));
-  fs.writeFileSync(`${out}/frames.json`, JSON.stringify({ frames, marks, presses, sequence: id }, null, 1));
+  fs.writeFileSync(`${out}/frames.json`, JSON.stringify({ frames, marks, presses, moves, sequence: id }, null, 1));
   await ctx.close(); await b.close();
   console.log(frames.length, 'frames');
 })();
