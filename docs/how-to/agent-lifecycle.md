@@ -116,4 +116,4 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 | Decisions that are hard to reverse | `docs/adr/` | yes |
 | The review | the pull request on GitHub | n/a |
 
-`.claude/skills/shared/bokeh-conventions.md` lists every skill the three commands call and the ones deliberately left out.
+`.claude/skills/shared/bokeh-conventions.md` lists every skill the three commands call.
