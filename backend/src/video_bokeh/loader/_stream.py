@@ -180,9 +180,7 @@ class SequenceStream(IterableDataset):
         self.bokeh_strength = bokeh_strength
         self.focus_disparity = focus_disparity
         self.split = split
-        # Listed once here and carried to every worker: listing the library for every
-        # item stalled the stream on a network file system.
-        self.ids = (in_split_ids[FOREGROUNDS], in_split_ids[BACKGROUNDS])
+        self.asset_ids = (in_split_ids[FOREGROUNDS], in_split_ids[BACKGROUNDS])
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         info = get_worker_info()
@@ -214,7 +212,7 @@ class SequenceStream(IterableDataset):
             n_objects_max=self.n_objects_max,
             cfg=self.cfg,
             split=self.split,
-            ids=self.ids,
+            asset_ids=self.asset_ids,
         )
         frames = render_scene(
             scene,

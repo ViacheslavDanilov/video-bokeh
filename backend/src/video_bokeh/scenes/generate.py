@@ -195,14 +195,14 @@ def sample_sequence(
     n_objects_max: int,
     cfg: SampleConfig | None = None,
     split: str = TRAIN,
-    ids: tuple[list[str], list[str]] | None = None,
+    asset_ids: tuple[list[str], list[str]] | None = None,
 ) -> Scene:
     """The scene a seed and these settings name, from the assets of ``split``.
 
     The dataset writer, the API and the training stream all sample through here, so
     the same seed and settings give the same scene wherever it is made. Raises
     ``CollisionRetriesExhausted`` when no collision-free trajectories are found.
-    ``ids`` is the library already listed, as ``sample_scene`` takes it.
+    ``asset_ids`` is the library already listed, as ``sample_scene`` takes it.
     """
     return sample_scene(
         library_root,
@@ -212,7 +212,7 @@ def sample_sequence(
         n_objects=sample_n_objects(seed, n_objects_min, n_objects_max),
         cfg=cfg,
         split=split,
-        ids=ids,
+        asset_ids=asset_ids,
     )
 
 
@@ -473,7 +473,7 @@ def generate_dataset(
     objects: list[list[object]] = []
     skipped: list[int] = []
     device = None
-    ids = library_ids(library_root, split)
+    asset_ids = library_ids(library_root, split)
 
     for i in range(count):
         seq_seed = seed + i
@@ -486,7 +486,7 @@ def generate_dataset(
                 n_objects_min=n_objects_min,
                 n_objects_max=n_objects_max,
                 split=split,
-                ids=ids,
+                asset_ids=asset_ids,
             )
         except CollisionRetriesExhausted as exc:
             skipped.append(seq_seed)

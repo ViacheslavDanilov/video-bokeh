@@ -148,18 +148,18 @@ def sample_scene(
     cfg: SampleConfig | None = None,
     bg_band_top: float = BG_BAND_TOP,
     split: str = TRAIN,
-    ids: tuple[list[str], list[str]] | None = None,
+    asset_ids: tuple[list[str], list[str]] | None = None,
 ) -> Scene:
     """Sample objects, a background, poses, easings, and depth trajectories.
 
-    The assets are drawn from ``split``, ``train``, ``test`` or ``all``. ``ids`` is
-    ``library_ids(library_root, split)`` when the caller listed the library already;
+    The assets are drawn from ``split``, ``train``, ``test`` or ``all``. ``asset_ids``
+    is ``library_ids(library_root, split)`` when the caller listed the library already;
     without it, the library is listed here.
     """
     cfg = cfg or SampleConfig()
     rng = random.Random(f"scene:{seed}")
 
-    fg_ids, bg_ids = ids or library_ids(library_root, split)
+    fg_ids, bg_ids = asset_ids or library_ids(library_root, split)
     if not fg_ids or not bg_ids:
         raise SystemExit(
             f"library at {library_root} has no {split} foregrounds/backgrounds",

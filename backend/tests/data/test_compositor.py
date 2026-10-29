@@ -24,7 +24,7 @@ from video_bokeh.core._streams import (
     read_rgb_tiff,
 )
 from video_bokeh.library.build import DEFAULT_BG_MARGIN
-from video_bokeh.scenes._compositor import render_scene, sample_scene
+from video_bokeh.scenes._compositor import library_ids, render_scene, sample_scene
 from video_bokeh.scenes.generate import generate_dataset, main, sample_sequence
 from video_bokeh.scenes.stats import main as stats_main
 
@@ -211,6 +211,23 @@ def test_generate_dataset_lists_the_library_once(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(_library, "_ids", counted)
     generate_dataset(library, tmp_path / "synth", count=3, n_frames=2, size=32, seed=0)
     assert listed == {"foregrounds": 1, "backgrounds": 1}
+
+
+def test_a_listed_library_samples_the_scene_a_fresh_listing_does(tmp_path) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library, n_fg=3)
+    asset_ids = library_ids(library)
+    for seed in range(4):
+        listed = sample_scene(library, seed, 3, 32, 2, asset_ids=asset_ids)
+        fresh = sample_scene(library, seed, 3, 32, 2)
+        assert listed.background.asset_id == fresh.background.asset_id
+        assert [
+            (o.asset.asset_id, o.pose_start, o.pose_end, o.depth_end)
+            for o in listed.objects
+        ] == [
+            (o.asset.asset_id, o.pose_start, o.pose_end, o.depth_end)
+            for o in fresh.objects
+        ]
 
 
 def _overlapping_pair_scene(tmp_path, range_a, range_b, n_frames=2, size=32):
