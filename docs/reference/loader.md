@@ -138,26 +138,26 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
 - **The worker renders it, on the CPU.** The training loop receives finished batches and the
   GPU stays with the network. CUDA never runs in a worker.
 
-**Rendered in the workers, bokeh costs over two thirds of the throughput, and more workers
-do not win it back. Rendered on the GPU, it costs under a third, most of it for carrying the
-layers.** Measured on the lab machine, the way the next section measures:
+**Rendered in the workers, bokeh costs over three quarters of the throughput, and more
+workers do not win it back. Rendered on the GPU, it costs about two fifths, most of it for
+carrying the layers.** Measured on the lab machine, the way the next section measures:
 
 | streams | where the bokeh renders | items/s, 8 workers |
 |---|---|---|
-| the default four | no bokeh | 2.96 |
-| the default four and `bokeh` | the workers' CPU | 0.84 |
-| `rgb`, `object_alphas`, `layers`, `focus` | not rendered | 2.27 |
-| `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.07 |
+| the default four | no bokeh | 3.59 |
+| the default four and `bokeh` | the workers' CPU | 0.80 |
+| `rgb`, `object_alphas`, `layers`, `focus` | not rendered | 2.47 |
+| `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 2.19 |
 
 `python -m video_bokeh.loader.benchmark --library-root <library> --streams rgb,object_alphas,layers,focus --gpu-bokeh --device cuda`
 runs this measurement, with the flags listed in the [CLI reference](cli.md#video_bokehloaderbenchmark-sequence-stream-throughput).
 
-- **The workers cannot keep up.** With bokeh they deliver 0.84 items per second at 8 workers,
-  0.93 at 16 and 0.90 at 24, where without it they deliver 2.96, 3.44 and 3.40. Past 16
-  workers neither gains.
-- **The GPU route keeps 70 %.** The layers alone take the loader to 2.27 items per second.
-  Rendering them on the GPU takes it to 2.07.
-- **The GPU route needs GPU memory**: a batch of 4 peaked at 8.5 GiB allocated, on top of the
+- **The workers cannot keep up.** With bokeh they deliver 0.80 items per second at 8 workers,
+  0.88 at 16 and 1.00 at 24, where without it they deliver 3.59, 3.33 and 3.21. Without
+  bokeh, more than 8 workers only slow the stream down.
+- **The GPU route keeps 61 %.** The layers alone take the loader to 2.47 items per second.
+  Rendering them on the GPU takes it to 2.19.
+- **The GPU route needs GPU memory**: a batch of 4 peaked at 9.5 GiB allocated, on top of the
   network being trained.
 
 So for training, ask the workers for the layers and render each batch on the GPU:
@@ -194,21 +194,23 @@ cost shared memory too, as the next section says.
 use `--streams` to select each row and `--output` to save the numbers and run settings as JSON.
 
 Measured on the lab machine (24 cores): 512 pixels, 24 frames, 1 to 5 objects, batches of 4,
-8 workers, from the 30-asset development library. A `DataLoader` keeps two batches per worker
+8 workers, from the full library `da2-large` (8,586 foregrounds and 20,000 backgrounds) and
+its train split. A `DataLoader` keeps two batches per worker
 ready, so each run first drew twice as many batches as there are workers, then timed as many
 again, at least 15. Timed any sooner, the run measures that buffer rather than the workers.
 The figures published here before that change were up to a quarter too high.
 
 | streams | items/s | MiB per item |
 |---|---|---|
-| `rgb`, `disparity` | 3.09 | 96 |
-| the default four | 2.96 | 240 |
-| the default four and `layers` | 2.20 | 816 |
+| `rgb` | 3.97 | 72 |
+| `rgb`, `disparity` | 3.94 | 96 |
+| the default four | 3.59 | 240 |
+| the default four and `layers` | 2.49 | 816 |
 
-- **Generating the scene is most of the cost.** Dropping to two streams gains 4 %; adding the
-  layers costs 26 %, for carrying them out of the workers.
+- **Generating the scene is most of the cost.** Dropping to two streams gains 10 %, and RGB
+  alone gains 1 % more; adding the layers costs 31 %, for carrying them out of the workers.
 - **Without workers it is slow.** In the training process itself the default four came at
-  0.62 items per second, and with `bokeh` at 0.23.
+  0.57 items per second, and with `bokeh` at 0.27.
 - **Memory is what the layers really cost.** A `DataLoader` keeps `prefetch_factor` batches per
   worker in shared memory, 2 by default, so 8 workers with layers can hold 16 batches of 4,
   about 51 GiB. Fewer workers, a smaller `prefetch_factor` or fewer frames bring it down. In a
@@ -248,5 +250,6 @@ the only way out.
 - **No split across distributed ranks.** Every process with the same `seed` yields the same
   stream, and nearby seeds overlap, as above. Give each rank a seed far from the others', for
   example `seed=rank * 10**9`.
-- **Assets are read from disk for every item.** That is the first thing to cache if the
-  stream cannot keep a training loop fed.
+- **Assets are read from disk for every item.** The library is listed once, when the stream
+  is made, but each item reads its own foregrounds and background. On a network file system
+  that is the first thing to cache, or copy the library to a local disk.
