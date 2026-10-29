@@ -127,6 +127,18 @@ class RenderedFrame:
     occlusion: np.ndarray | None = None
 
 
+def library_ids(library_root: Path, split: str = TRAIN) -> tuple[list[str], list[str]]:
+    """The ids of the foregrounds and of the backgrounds in ``split``.
+
+    One listing of the library, which a caller that samples many scenes makes once and
+    passes to every ``sample_scene``: a full library is tens of thousands of folders.
+    """
+    return (
+        in_split(list_foregrounds(library_root), FOREGROUNDS, split),
+        in_split(list_backgrounds(library_root), BACKGROUNDS, split),
+    )
+
+
 def sample_scene(
     library_root: Path,
     seed: int,
@@ -136,16 +148,18 @@ def sample_scene(
     cfg: SampleConfig | None = None,
     bg_band_top: float = BG_BAND_TOP,
     split: str = TRAIN,
+    ids: tuple[list[str], list[str]] | None = None,
 ) -> Scene:
     """Sample objects, a background, poses, easings, and depth trajectories.
 
-    The assets are drawn from ``split``, ``train``, ``test`` or ``all``.
+    The assets are drawn from ``split``, ``train``, ``test`` or ``all``. ``ids`` is
+    ``library_ids(library_root, split)`` when the caller listed the library already;
+    without it, the library is listed here.
     """
     cfg = cfg or SampleConfig()
     rng = random.Random(f"scene:{seed}")
 
-    fg_ids = in_split(list_foregrounds(library_root), FOREGROUNDS, split)
-    bg_ids = in_split(list_backgrounds(library_root), BACKGROUNDS, split)
+    fg_ids, bg_ids = ids or library_ids(library_root, split)
     if not fg_ids or not bg_ids:
         raise SystemExit(
             f"library at {library_root} has no {split} foregrounds/backgrounds",

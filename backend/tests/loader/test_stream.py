@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import shutil
+from collections import Counter
 from itertools import islice
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from fixture_library import build_library
 from PIL import Image
 from torch.utils.data import DataLoader
 
+from video_bokeh.core import _library
 from video_bokeh.core._split import listed_test_foregrounds
 from video_bokeh.core._streams import (
     read_alpha_tiff,
@@ -179,6 +181,24 @@ def test_a_stream_that_can_place_nothing_fails_instead_of_spinning(
     monkeypatch.setattr(mod, "sample_sequence", never)
     with pytest.raises(RuntimeError, match="100 seeds in a row"):
         next(iter(_stream(library)))
+
+
+def test_the_library_is_listed_once_not_for_every_item(
+    library: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A full library is some 28,600 folders, and on a network file system one listing
+    takes minutes: the stream lists it when it is made, never again per item."""
+    listed: Counter[str] = Counter()
+    real = _library._ids
+
+    def counted(root: Path) -> list[str]:
+        listed[root.name] += 1
+        return real(root)
+
+    monkeypatch.setattr(_library, "_ids", counted)
+    assert len(list(islice(iter(_stream(library)), 3))) == 3
+    assert listed == {"foregrounds": 1, "backgrounds": 1}
 
 
 def test_a_path_that_is_not_a_library_is_refused_up_front(tmp_path: Path) -> None:

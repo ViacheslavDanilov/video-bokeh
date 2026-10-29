@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from video_bokeh.core import _library
 from video_bokeh.core._library import write_background, write_foreground
 from video_bokeh.core._seq_io import sequence_seed
 from video_bokeh.core._sequence_geometry import EASING_FNS
@@ -195,6 +196,21 @@ def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
         # the streams are the formats the contract names, not just the right count
         with Image.open(seq / "disparity" / "01.png") as dimg:
             assert dimg.mode == "I;16"
+
+
+def test_generate_dataset_lists_the_library_once(tmp_path, monkeypatch) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    listed: Counter[str] = Counter()
+    real = _library._ids
+
+    def counted(root):
+        listed[root.name] += 1
+        return real(root)
+
+    monkeypatch.setattr(_library, "_ids", counted)
+    generate_dataset(library, tmp_path / "synth", count=3, n_frames=2, size=32, seed=0)
+    assert listed == {"foregrounds": 1, "backgrounds": 1}
 
 
 def _overlapping_pair_scene(tmp_path, range_a, range_b, n_frames=2, size=32):
