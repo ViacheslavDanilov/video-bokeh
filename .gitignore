@@ -80,14 +80,14 @@ backend/data/**/*.partial
 .DS_Store
 Thumbs.db
 
-# Claude Code. The skills and the push-blocking hook are shared working
-# agreements -- AGENTS.md already points at .claude/settings.json -- so they are
-# tracked. Per-machine overrides and local state are not.
+# Claude Code. The skills and settings.json are shared working agreements, so they
+# are tracked. Per-machine overrides, local state and personal notes are not.
 .claude/*
 !.claude/skills/
-!.claude/hooks/
 !.claude/settings.json
 .claude/settings.local.json
+CLAUDE.md
+CLAUDE.local.md
 
 # gstack QA reports and screenshots, written by the qa skill
 .gstack/
