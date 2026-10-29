@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from video_bokeh.core import _library
 from video_bokeh.core._library import write_background, write_foreground
 from video_bokeh.core._seq_io import sequence_seed
 from video_bokeh.core._sequence_geometry import EASING_FNS
@@ -23,7 +24,7 @@ from video_bokeh.core._streams import (
     read_rgb_tiff,
 )
 from video_bokeh.library.build import DEFAULT_BG_MARGIN
-from video_bokeh.scenes._compositor import render_scene, sample_scene
+from video_bokeh.scenes._compositor import library_ids, render_scene, sample_scene
 from video_bokeh.scenes.generate import generate_dataset, main, sample_sequence
 from video_bokeh.scenes.stats import main as stats_main
 
@@ -195,6 +196,38 @@ def test_generate_dataset_writes_expected_layout(tmp_path) -> None:
         # the streams are the formats the contract names, not just the right count
         with Image.open(seq / "disparity" / "01.png") as dimg:
             assert dimg.mode == "I;16"
+
+
+def test_generate_dataset_lists_the_library_once(tmp_path, monkeypatch) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library)
+    listed: Counter[str] = Counter()
+    real = _library._ids
+
+    def counted(root):
+        listed[root.name] += 1
+        return real(root)
+
+    monkeypatch.setattr(_library, "_ids", counted)
+    generate_dataset(library, tmp_path / "synth", count=3, n_frames=2, size=32, seed=0)
+    assert listed == {"foregrounds": 1, "backgrounds": 1}
+
+
+def test_a_listed_library_samples_the_scene_a_fresh_listing_does(tmp_path) -> None:
+    library = tmp_path / "lib"
+    _tiny_library(library, n_fg=3)
+    asset_ids = library_ids(library)
+    for seed in range(4):
+        listed = sample_scene(library, seed, 3, 32, 2, asset_ids=asset_ids)
+        fresh = sample_scene(library, seed, 3, 32, 2)
+        assert listed.background.asset_id == fresh.background.asset_id
+        assert [
+            (o.asset.asset_id, o.pose_start, o.pose_end, o.depth_end)
+            for o in listed.objects
+        ] == [
+            (o.asset.asset_id, o.pose_start, o.pose_end, o.depth_end)
+            for o in fresh.objects
+        ]
 
 
 def _overlapping_pair_scene(tmp_path, range_a, range_b, n_frames=2, size=32):

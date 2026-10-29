@@ -115,8 +115,9 @@ class SequenceStream(IterableDataset):
     each epoch sees the same sequences again. Seeds are consecutive, so ``seed=1``
     repeats ``seed=0`` one item later: streams that must not overlap, one per rank or
     per epoch, need seeds further apart than either one uses, such as
-    ``rank * 10**9``. Assets are read from disk for every item. That is the first thing
-    to cache if the stream cannot keep a training loop fed.
+    ``rank * 10**9``. The library is listed once, when the stream is made; the assets
+    themselves are read from disk for every item. They are the first thing to cache if
+    the stream cannot keep a training loop fed.
     """
 
     def __init__(
@@ -146,7 +147,8 @@ class SequenceStream(IterableDataset):
                 f"{library_root} is not a library: no {' and no '.join(empty)}. "
                 "Build one with video_bokeh.library.build.",
             )
-        empty = [kind for kind in ids if not in_split(ids[kind], kind, split)]
+        in_split_ids = {kind: in_split(ids[kind], kind, split) for kind in ids}
+        empty = [kind for kind in ids if not in_split_ids[kind]]
         if empty:
             missing = " and no ".join(f"{split} {kind}" for kind in empty)
             raise ValueError(f"{library_root} has no {missing}")
@@ -178,6 +180,7 @@ class SequenceStream(IterableDataset):
         self.bokeh_strength = bokeh_strength
         self.focus_disparity = focus_disparity
         self.split = split
+        self.asset_ids = (in_split_ids[FOREGROUNDS], in_split_ids[BACKGROUNDS])
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         info = get_worker_info()
@@ -209,6 +212,7 @@ class SequenceStream(IterableDataset):
             n_objects_max=self.n_objects_max,
             cfg=self.cfg,
             split=self.split,
+            asset_ids=self.asset_ids,
         )
         frames = render_scene(
             scene,
