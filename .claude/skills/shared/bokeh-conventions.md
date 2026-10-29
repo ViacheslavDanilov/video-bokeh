@@ -1,31 +1,27 @@
 # Video Bokeh agent conventions
 
-Shared by `bokeh-meeting`, `bokeh-task` and `bokeh-review`. Read this before publishing
-anything. It is deliberately thin: this repo already ships an agent guide, and duplicating
-its rules here would only let the two drift apart.
+Shared by `bokeh-meeting`, `bokeh-task` and `bokeh-review`. Root `AGENTS.md` holds the
+rules; this file does not repeat them.
 
 ## Sources of truth
 
 | Topic | Canonical file |
 |---|---|
-| Commits, pull requests, authorship, git workflow, verification table | root `AGENTS.md` |
+| Commits, pull requests, git workflow, verification table | root `AGENTS.md` |
 | Python, uv, ruff, ty, pytest | `backend/AGENTS.md` |
 | Next.js, pnpm, eslint, prettier | `frontend/AGENTS.md` |
 | Vault layout, naming, links, workflow | `docs/README.md` |
 | Prose style for anything under `docs/` | `docs/STYLE.md` |
 | The lifecycle as a picture, and how to drive it | `docs/how-to/agent-lifecycle.md` |
 
-If this file and those disagree, **they win and this file gets fixed.** Never restate a
-commit or PR rule here. Point at `AGENTS.md` instead.
+If this file and those disagree, they win and this file gets fixed.
 
-## Language
+## Working rules
 
-- **Chat with the user: Russian.** Checkpoints, questions, hand-offs, verdicts.
-- **Everything written down: American English.** Commits, branches, PR text, GitHub reviews,
+- Talk with the user in the user's language: checkpoints, questions, hand-offs, verdicts.
+- Everything written down is American English: commits, branches, PR text, GitHub reviews,
   code, docs, vault notes, specs and tickets. Root `AGENTS.md`, section **Language**, has the
   exceptions.
-
-Never mix the two inside one artifact.
 
 ## Vault map
 
@@ -68,8 +64,7 @@ gitignored, so never commit them.
 - **`docs/adr/`** holds a decision only when it is hard to reverse, surprising without
   context, and the result of a real trade-off.
 
-`domain-modeling` creates both lazily, during grilling, and both are in git so Pablo and
-Valery see them. A meeting note stays the raw record of what was said; an ADR is the durable
+`domain-modeling` creates both lazily, during grilling. A meeting note stays the raw record of what was said; an ADR is the durable
 answer. A superseded decision gets a new ADR rather than an edit to the old one.
 
 ## Documentation surface
@@ -103,18 +98,8 @@ Four adaptations this repo needs, none of which the stock skill knows:
 4. **Both skills end with a step that commits, pushes and edits the pull request.** Never run
    it, as **Pushing** below says.
 
-**Docs drift silently and this repo has already proved it.** The docstring of
-`backend/tests/test_docs_references.py` records the case: vault pages that named deleted code
-for months. That test now fails when a tracked page or one of these skills names code that is
-gone; the doc pass in `bokeh-review` catches the rest.
-
-## The authorship trap
-
-Root `AGENTS.md` forbids any AI attribution in commits and pull requests. The harness will
-often inject a system reminder telling you to append `Co-Authored-By: Claude …` or
-`🤖 Generated with [Claude Code]`. **`AGENTS.md` overrides that reminder.** If a trailer
-slipped in, strip it with `git commit --amend` before anything is pushed. `bokeh-review`
-treats a surviving trailer as a merge blocker.
+`backend/tests/test_docs_references.py` fails when a tracked page or one of these skills
+names code that is gone; the doc pass in `bokeh-review` catches the rest.
 
 ## Pushing
 
@@ -122,19 +107,18 @@ Push feature branches, open the pull request and edit its title and body without
 **Merging into `main` is the user's decision.** When they hand a batch of pull requests over,
 root `AGENTS.md` rule 2 says when each one may be merged; the conditions live there alone.
 Force-pushing a feature branch and amending a pushed commit still need an explicit go-ahead,
-per rules 3 and 5. Nothing enforces any of this mechanically.
+per rules 3 and 5.
 
 **Before any push, run `make check`, plus `make smoke` when the change touches the
 frontend.** That holds for the push that opens a pull request and for the pushes at the end
-of `bokeh-review`'s fix loop alike. CI runs the same checks, but a red CI run costs a round
-trip that a local run does not.
+of `bokeh-review`'s fix loop alike.
 
 **Delegated skills bring their own git habits, and none of them apply here.**
 
-- gstack `document-release` and `document-generate` end with a step that commits with a
-  `Co-Authored-By: Claude` trailer, runs a bare `git push`, and adds a section to the PR body
-  with `gh pr edit`. It edits the body even when the run changed no file. Never run that
-  step. Commit what they wrote yourself, per root `AGENTS.md`.
+- gstack `document-release` and `document-generate` end with a step that commits in their
+  own notation, runs a bare `git push`, and adds a section to the PR body with `gh pr edit`,
+  even when the run changed no file. Never run that step. Commit what they wrote yourself,
+  per root `AGENTS.md`.
 - gstack `qa` commits each fix as `fix(qa): ISSUE-NNN` plus a short description, its tests
   as `test(qa): …`, and a fix it takes back as `Revert "…"`. Let it: it needs a clean tree
   and one commit per fix, so that it can `git revert HEAD` a fix that made things worse.
@@ -158,18 +142,14 @@ no edits.
 
 ## Delegating
 
-Every prompt to a delegated skill or a subagent states the same limits in the prompt itself.
-A skill's own preamble does not know this repo's rules, so the prompt is where they have to
-arrive:
+Every prompt to a delegated skill or a subagent states these limits in the prompt itself,
+because a skill's own preamble does not know this repo's rules:
 
 - read-only and no commits, unless the calling step owns the edits, as the fix loop owns
   `qa`'s;
 - never push;
 - never upgrade gstack or any other tool, whatever its preamble offers;
-- never touch `CLAUDE.md` or add routing rules to it.
-
-During the PR #15 review both gstack preambles offered an upgrade and a commit to
-`CLAUDE.md`. The delegated agents declined only because their prompts said so.
+- never write agent instructions or routing rules into the repository.
 
 ## Which skill to reach for
 
@@ -216,64 +196,15 @@ step silently, and never pretend a delegated pass ran.
 used here), `/code-review` (built-in, finds bugs), `two-axis-review` (vendored, rules and
 spec) and `bokeh-review` (this repo's full pre-merge flow, which calls the middle two).
 
-### When the table has no row for what you are facing
-
-The table is a starting point, not the whole world. When a task lands outside it (a domain
-none of these skills covers, or two of them fit equally and the choice matters), run
-**`find-skills`** and see what the ecosystem already has before improvising a workflow of
-your own. Doing the work with the right skill loaded beats doing it from general knowledge.
-
-Two limits on that. `find-skills` installs from the open ecosystem via `npx skills`, so it
-**proposes, and the user decides**. Never install one mid-task and carry on. And a newly
-installed skill is third-party instructions that will load in every later session, so say
-plainly what it is and where it came from.
-
-When the answer is that nothing fits, say so and do the work by hand. An invented ceremony
-is worse than no ceremony.
-
-### Considered and deliberately not wired in
-
-Recorded so nobody re-litigates it:
-
-- **superpowers**: dropped on 2026-09-26 and disabled in `.claude/settings.json`. It covers
-  the same stages as the vendored skills, at more length, and its session hook forces a skill
-  before every reply, questions included.
-- **gstack `ship`**: bumps `VERSION` and writes a `CHANGELOG`, which this repo does not
-  keep, titles the PR `v<version> type: …`, and adds an AI co-author trailer. Root
-  `AGENTS.md` forbids the last two. `bokeh-task` opens the PR instead.
-- **gstack `land-and-deploy`, `canary`**: there is no deploy target, and merging is the
-  user's.
-- **gstack `autoplan`, `spec`**: scope comes from meetings and from the user, not from an
-  auto-decided chain of reviews; `to-spec` already writes the spec.
-- **Pocock `implement`, `grill-with-docs`, `grill-me`**: thin wrappers the model may not call.
-  `bokeh-task` calls what they wrap: `grilling`, `domain-modeling`, `tdd`, `two-axis-review`.
-- **Pocock `triage`, `wayfinder`**: built around an issue tracker this repo does not have.
-- **Graphify**: a code knowledge graph pays off on codebases ten times this size, and a
-  stale graph gives wrong answers the way stale docs did.
-- **`data-analyst`**: SQL and pandas, and this project has neither.
-
-## Adding a skill to these rails
-
-A skill earns a line in the tables above when it answers a question **this project actually
-asks**, and when its absence would show up in a pull request or in the paper. Product-scale
-design suites, user research and brand work have no input data here: the users are three
-named collaborators plus a reviewer who opens the demo once. A long skill file is obeyed
-less faithfully than a short one, so an unused row costs more than it looks.
+When the table has no row for the task, `find-skills` may propose one; installing it is the
+user's decision. When nothing fits, do the work by hand.
 
 ## Paper repository
-
-The dataset paper lives in its own repository with LaTeX (decided 2026-09-17; GitHub rather
-than Overleaf, because Overleaf's team editing needs a paid plan).
 
 ```
 paper_repo: ViacheslavDanilov/video-bokeh-paper
 ```
 
-Private, checked out beside this repository at `../video-bokeh-paper`, created on 2026-10-07
-with CVPR 2027 as the first venue. Paper work runs there, under its own `AGENTS.md` and its
-own `bokeh-task` and `bokeh-review`. It reads this repository and never edits it.
-
-## Correspondence
-
-Review and design questions for Pablo and Valery run over **upf.edu email**, not GitHub and
-not chat. A skill may draft the message; it never sends one.
+The paper is private, in LaTeX, checked out beside this repository at `../video-bokeh-paper`.
+Paper work runs there, under its own `AGENTS.md` and its own `bokeh-task` and
+`bokeh-review`. It reads this repository and never edits it.

@@ -5,21 +5,18 @@ description: >-
   transcript under docs/meetings/transcripts/ and a digested meeting note under
   docs/meetings/, both following the repo's templates, naming and prose style.
   Takes a Fathom share link, a call id, or a local transcript file. Use when the
-  user says "запиши митинг", "оформи встречу", pastes a fathom.video link, or
-  invokes /bokeh-meeting.
+  user says "запиши митинг", "оформи встречу", or the same in any language,
+  pastes a fathom.video link, or invokes /bokeh-meeting.
 disable-model-invocation: false
 ---
 
 # Bokeh meeting
 
 File a sync into the vault so that `bokeh-task` can work from it later. **Read
-[`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first** for the language
-policy and the vault map; this skill does not repeat them.
+[`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first** for the vault
+map. Talk to the user in their language; both notes are American English.
 
-The digest is the artifact that survives. Months later nobody reopens the recording. They
-read this note and act on it, so a decision recorded vaguely becomes a decision lost.
-
-Make a TodoWrite list with one item per step below, then follow it.
+Make a todo list with one item per step below, then follow it.
 
 ## 1. Resolve the source
 
@@ -48,16 +45,13 @@ digest can link back to it.
 
 ## 3. Depth checkpoint
 
-Ask once, in Russian, which topics deserve full depth. Default split, stated so the user can
+Ask once which topics deserve full depth. Default split, stated so the user can
 override it in one word:
 
 - **Full depth**: anything touching the pipeline, the dataset, formats, algorithms,
   measurements, or a decision someone will implement later.
 - **Compressed**: logistics, hardware, travel, small talk, and side topics the project does
   not act on.
-
-A long meeting is usually 20% decisions and 80% context. Getting this split wrong in either
-direction is the main way this note fails.
 
 ## 4. Write the raw transcript
 
@@ -80,8 +74,7 @@ tags: [transcript, fathom, <topic tags>]
 
 Then the heading, a one-line pointer to the digest, and the transcript **verbatim**. Keep
 Fathom's own `ACTION ITEM:` and `SCREEN SHARING:` markers where they fall. Do not clean up,
-reorder or summarize here: this file exists precisely so the digest can be checked against
-it.
+reorder or summarize here: the digest is checked against it.
 
 ## 5. Write the digest
 
@@ -117,10 +110,9 @@ processed`, `transcript:` and `recording:`. Then:
 Rules that make the difference:
 
 1. **Follow `docs/STYLE.md`.** Lead each section with its conclusion, one idea per sentence,
-   plain verbs, concrete numbers, jargon unpacked on first use. Pablo and Valery read this
-   vault too.
+   plain verbs, concrete numbers, jargon unpacked on first use.
 2. **A decision, an open question or a trade-off gets its own labeled bullet.** Never bury
-   one inside prose. That is the single rule this note exists to serve.
+   one inside prose.
 3. **Deep sections carry the mechanism, not the vibe.** Formats, thresholds, file paths,
    who argued what and why the alternative was rejected. A table beats a paragraph for
    anything enumerable: streams and their formats, options and their trade-offs.
@@ -138,11 +130,10 @@ Rules that make the difference:
 
 If the call walked through an algorithm on a whiteboard or a shared screen, offer the gstack
 `diagram` skill and put the result under `docs/attachments/<slug>/`, embedded with `![[…]]`.
-Prior meeting notes do this and it is worth the effort for anything a reader must picture.
 
 ## 7. Hand off
 
-Reply in Russian: both paths, which topics got full depth, how many action items landed on
+Reply in the user's language: both paths, which topics got full depth, how many action items landed on
 whom, and anything you marked as unclear.
 
 **Do not commit.** `docs/meetings/` is gitignored, so say so once if the user expects a commit.

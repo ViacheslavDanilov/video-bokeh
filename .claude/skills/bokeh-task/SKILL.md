@@ -8,8 +8,9 @@ description: >-
   implement test-first, self-review in fresh context, commit in the repo notation
   and open the PR. Review, QA and the documentation pass run afterwards in
   /bokeh-review, in its own session. Routes that write no code are first-class
-  endings. Use when the user says "сделай то, что решили на митинге", names an
-  action item or a feature, or invokes /bokeh-task.
+  endings. Use when the user asks, in any language, to do what a meeting decided
+  ("сделай то, что решили на митинге"), names an action item or a feature, or
+  invokes /bokeh-task.
 disable-model-invocation: false
 ---
 
@@ -17,16 +18,14 @@ disable-model-invocation: false
 
 One entry point for work, whether it came out of a sync or out of the user's head. **Read
 [`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first**. It fixes the
-language policy, the vault map, where specs live, the skill table and the authorship trap,
-and this skill does not repeat them.
+working rules, the vault map, where specs live and the skill table, and this skill does not
+repeat them.
 
-**Checkpoints are mandatory.** Requirements here arrive as speech, transcribed imperfectly,
-or as one line in chat, and the record has already been wrong about concrete numbers. A
-question costs a minute; a wrong assumption costs a regenerated dataset.
+**Checkpoints are mandatory.** Requirements arrive as speech, transcribed imperfectly, or as
+one line in chat. A question costs a minute; a wrong assumption costs a regenerated dataset.
 
 **This session ends at the pull request.** Review, QA and the doc pass belong to
-`/bokeh-review`, run in a fresh session. The session that wrote the code knows what it meant,
-and so it is the worst-placed to see what it actually wrote.
+`/bokeh-review`, run in a fresh session.
 
 **No worktrees.** Work on a normal branch in the checkout the user has open.
 
@@ -35,8 +34,8 @@ Make a todo list with one item per step you will run, then follow it in order.
 
 ## 1. Resolve the source
 
-Accept a meeting note path or slug, a quoted action item, or a free-form ask ("добавь экспорт
-в EXR"). A task no meeting produced is normal: the user's own product decision is a
+Accept a meeting note path or slug, a quoted action item, or a free-form ask ("add an EXR
+export"). A task no meeting produced is normal: the user's own product decision is a
 legitimate source.
 
 Either way, search `docs/specs/` and `docs/plans/` for an existing design on the topic, and
@@ -70,8 +69,8 @@ If the ask is ambiguous, ask once. Never infer scope from a slug.
 | **literature** | a survey behind this repository's own design choices | a note with verified citations |
 | **out of scope** | install software, chase IT, write to a person | name it, stop, draft the message if there is one |
 
-Signals for **investigate** even when the ask sounds like a change: no reproduction, "надо
-проверить", a claim in the note that no one has checked against the code, or a request for
+Signals for **investigate** even when the ask sounds like a change: no reproduction, "needs
+checking", a claim in the note that no one has checked against the code, or a request for
 an estimate. When feature and bug both fit, take **bug**: repro-first is stricter.
 
 ## 3. Product check: optional
@@ -108,22 +107,21 @@ decisions go into that route's written output instead.
 Scale it. When the meeting note already settles every question, skip the grilling and say
 so. A one-line bug gets none.
 
-Then reply in Russian with:
+Then reply, in the user's language, with:
 
-- Источник: заметка и пункт, или «запрос в чате»
-- Маршрут и куда ляжет результат
-- Цель одним предложением, своими словами
-- Критерии приёмки чеклистом: выведенные вами, а не процитированные
-- Что вне скоупа
-- Открытые вопросы
+- Source: the note and the item, or "a request in chat"
+- The route, and where the result lands
+- The goal in one sentence, in your own words
+- Acceptance criteria as a checklist: derived by you, not quoted
+- What is out of scope
+- Open questions
 
 **Wait for an explicit yes.**
 
 ## 5. Reality check: before any code
 
-Verify the source's factual claims against the repo. The record has been wrong before: a
-formula was written as its own reciprocal, and asset counts were stated inverted. Read the
-code path, the config, the actual files.
+Verify the source's factual claims against the repo: read the code path, the config, the
+actual files.
 
 If the source and the code disagree, **stop and say so.** That finding may be the whole
 task, and implementing against a wrong premise is the most expensive mistake available here.
@@ -148,7 +146,7 @@ Reach further when the surface calls for it: `frontend-design` with `vercel:next
 Invoke `diagnosing-bugs`. Its first phase is the rule this repo already had: **no command
 that goes red on this bug, no fix.** A fix with no failing test in front of it is a guess.
 
-If you cannot build that loop, stop, report in Russian what you tried, and offer the
+If you cannot build that loop, stop, report what you tried, and offer the
 investigate route. Branch before the fix; the regression test lands with it. The PR names
 the hypothesis that turned out right, so the next person debugging learns from it.
 
@@ -272,8 +270,7 @@ the full review is `/bokeh-review`'s job.
 
 ## 10. Commit and open the PR
 
-Commit per root `AGENTS.md`: Conventional Commits, one logical change per commit, no AI
-trailer anywhere. Run a plain `git commit` and read its exit code: pre-commit reformats and
+Commit per root `AGENTS.md`: Conventional Commits, one logical change per commit. Run a plain `git commit` and read its exit code: pre-commit reformats and
 aborts, and piping the command through `tail` or `&&` hides that.
 
 `git log origin/main..HEAD --oneline`: do the commits read as one coherent change?
@@ -299,7 +296,7 @@ Measurements worth keeping go to `docs/reports/`. None of this is committed.
 
 ## 12. Hand off
 
-Reply in Russian: the route taken, the PR URL or the file written, branch and head SHA, how
+Reply in the user's language: the route taken, the PR URL or the file written, branch and head SHA, how
 many files changed, what you verified, and anything you could not. When there is a PR, end
 with the next step: **new session, `/bokeh-review <n>`.** **Do not merge**: merging is the
 user's, and a pull request they hand over is merged only under root `AGENTS.md` rule 2, after
