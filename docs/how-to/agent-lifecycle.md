@@ -53,10 +53,7 @@ flowchart TD
     PUSH --> CI["CI: pre-commit, tests, frontend build,<br/>browser smoke, Docker"]
 
     subgraph S2 ["Session 2: /bokeh-review"]
-        LENSES["two-axis-review + /code-review<br/>history, threads, docs style,<br/>document-release, check_prose"] --> HIGH{"High-risk?"}
-        HIGH -->|"yes"| CODEX["codex second opinion"]
-        HIGH -->|"no"| GATE
-        CODEX --> GATE["Notation gate"]
+        LENSES["two-axis-review, codex bugs and second opinion<br/>history, threads, docs style,<br/>document-release, check_prose"] --> GATE["Notation gate"]
         GATE --> QA["qa: browser or pipeline run"]
         QA --> LEFT{"Must-fix left?"}
         LEFT -->|"yes, up to 3 rounds"| FIX["Fix and commit"]
@@ -79,7 +76,7 @@ The hexagons are yours. Everything else runs without you. Routes that build noth
 | Small bug | `diagnosing-bugs`, `tdd`, self-check | lenses, notation gate, `qa` |
 | Ordinary feature | grilling, `to-spec`, `tdd`, self-check | lenses, notation gate, `qa` |
 | New direction | CEO review first, then as a feature | as a feature |
-| Changes the dataset contract or the API | `plan-eng-review` after the spec | `codex` second opinion |
+| Changes the dataset contract or the API | `plan-eng-review` after the spec | the review at `xhigh` effort |
 
 ## A worked example
 
@@ -99,7 +96,7 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 
 **Session 2**
 
-1. Open a new session and type `/bokeh-review 15`.
+1. Open a new session on Opus (`/model opus`) and type `/bokeh-review 15`.
 2. The agent reads the spec behind the branch. Then it opens the pull request's head in a git worktree, a temporary second checkout that it removes at the end, and reads the diff there through each review lens. Your own checkout never switches branch.
 3. It runs the page in a browser and syncs any documentation the change made stale.
 4. On your own branch it fixes what it found, at most three rounds. It runs the same checks, then pushes the fixes.
