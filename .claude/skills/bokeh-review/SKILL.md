@@ -77,21 +77,23 @@ the list before going on.
 
 The acceptance criteria come from the decision behind the PR, the first of:
 
-1. A spec or a ticket named after the branch. `<branch-slug>` is the branch name without its
+1. This PR's `BRIEF.md`, at the root of the checkout you were started in or at the path the
+   caller names: it holds the criteria the user confirmed, word for word.
+2. A spec or a ticket named after the branch. `<branch-slug>` is the branch name without its
    `type/` prefix, and it matches any of:
    - a spec, `docs/specs/<date>-<branch-slug>-design.md`;
    - one ticket, `NN-<branch-slug>.md` in any folder under `docs/plans/`, which
      `ls docs/plans/*/[0-9][0-9]-<branch-slug>.md` finds;
    - a folder of tickets, `docs/plans/<date>-<branch-slug>/`.
 
-   These are gitignored, so they exist only in the checkout you were started in, never in
-   the worktree from step 4.
-2. The newest note in `docs/meetings/` matching the topic, and its **Decisions** and
+   These and the brief are gitignored, so they exist only in the checkout you were started
+   in, never in the worktree from step 4.
+3. The newest note in `docs/meetings/` matching the topic, and its **Decisions** and
    **Action items**.
-3. The PR body's `## Why`. A PR with no task behind it is normal.
+4. The PR body's `## Why`. A PR with no task behind it is normal.
 
 Load them before deep diff work; on a comment-only or trivial pass, a one-line reminder is
-enough. A PR whose intent cannot be reconstructed from any of the three is itself a remark.
+enough. A PR whose intent cannot be reconstructed from any of the four is itself a remark.
 
 ## 4. Load the scope, in a worktree at the PR head
 
@@ -126,8 +128,8 @@ behavioral.
 
 Write it before the lenses; never publish it. Scale to depth, omit empty sections. It opens
 with the PR number and head SHA, the depth, whether it is high-risk, the baseline and the
-delta size (+N/-M lines, F files), and the source decision (spec path, meeting note, or PR
-body only). Then: intent, acceptance criteria, changed files, applicable rules, prior
+delta size (+N/-M lines, F files), and the source decision (brief, spec path, meeting note,
+or PR body only). Then: intent, acceptance criteria, changed files, applicable rules, prior
 discussion, scope checks.
 
 ## 6. Review lenses
