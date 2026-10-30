@@ -14,7 +14,8 @@ disable-model-invocation: false
 
 File a sync into the vault so that `bokeh-task` can work from it later. **Read
 [`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) first** for the vault
-map. Talk to the user in their language; both notes are American English.
+map. Talk to the user in their language; both notes follow root `AGENTS.md`, section
+**Language**.
 
 Make a todo list with one item per step below, then follow it.
 

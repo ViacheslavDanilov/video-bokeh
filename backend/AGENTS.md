@@ -47,15 +47,12 @@ backend/
 └── pyproject.toml
 ```
 
-- **`src/video_bokeh/`** = production code (FastAPI runtime and dataset pipeline).
-
 ## Conventions
 
 - **Ruff config** is in `backend/pyproject.toml` (`[tool.ruff]`). Line length 88, target `py313`. Lint selection includes pyflakes, isort, bugbear, comprehensions, pyupgrade. Don't reintroduce things ruff would remove.
 - **isort first-party package** is `video_bokeh` (configured). Local imports follow the third-party block.
 - **Type hints required on public functions.** `ty` runs in pre-commit against `src/`. Tests are excluded.
 - **`data/` is excluded from pre-commit** (see top-level `.pre-commit-config.yaml`). Don't add Python files there.
-- **No emoji in code or commit messages** unless the user explicitly asks. (README files can use them, and they already do.)
 
 ## Datasets
 

@@ -14,6 +14,10 @@ repository, such as the `grey` colormap id the API's URLs and cached files use, 
 prompts the stored predictions were made with; and vendored text, the skills
 `.claude/skills/VENDORED.md` lists, which stays as upstream wrote it.
 
+No emoji in code, comments or commit messages unless the user asks; the READMEs may use them.
+No em dash (U+2014) in anything written for the repository: use a colon, a comma or
+parentheses.
+
 ## Commit messages
 
 Conventional Commits format:
@@ -29,7 +33,7 @@ Optional body explaining why the change was needed, wrapped at ~72 columns.
 - Subject: imperative mood ("add", not "added"), lower case after the colon, no trailing period, 72 characters or fewer
 - One logical change per commit; don't bundle unrelated edits. Pull requests are squash-merged, and GitHub lists these subjects in the squash body, so they are what a reader sees when unpacking a merged pull request
 - Body explains *why*, not *what*. The diff already shows what changed
-- No emoji (see `backend/AGENTS.md`), and no trailers other than a genuine `Co-Authored-By` for a human collaborator
+- No trailers other than a genuine `Co-Authored-By` for a human collaborator
 - Examples in `git log`
 
 ## Pull requests
@@ -70,14 +74,38 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 5. **Don't amend pushed commits** without the user's go-ahead (force-push territory).
 6. Commit and pull request text follows the notation in "Commit messages" and "Pull requests" above.
 
+## Model routing
+
+Work goes to a model by its kind, the paths it touches and the review pass, never by a guess at how hard it is. The main session orchestrates: it talks to the user, writes `BRIEF.md` and `STATUS.md`, and commits. The agents are in `.claude/agents/`.
+
+| Work | Worker | Model, effort |
+|---|---|---|
+| Dialog, criteria, small edits, commits | the main session | Sonnet, high |
+| A plan for a structural change: the dataset contract, the API, build, CI, Docker, `.claude/` | `planner` | Opus, xhigh |
+| Taste: the page under `frontend/src/`, prose under `docs/`, the READMEs, the demo video | `crafter` | Sonnet, xhigh |
+| Code with a check that passes or fails: backend code and tests, scripts, `comparison/`, benchmarks | Codex, `workspace-write` | gpt-6.1-sol, xhigh |
+| Review, first or delta pass; `xhigh` when it touches a high-risk path from `bokeh-review` step 2 | `reviewer` | Opus, high |
+| Review, a trivial pass (≤ 15 delta lines, ≤ 2 files, no high-risk path) or comment-only; the fix loop; QA | general-purpose agent | Sonnet, high |
+| Review lenses #2 (bugs) and #7 (second model) | Codex, `read-only` | gpt-6.1-sol, xhigh |
+| Commands, searches, counts | `runner` | Haiku, high |
+
+- **A small edit stays in the main session.** Every delegated prompt carries the limits in `.claude/skills/shared/bokeh-conventions.md`, section **Delegating**.
+- **Codex never decides how something looks or reads, and never commits.** The orchestrator reads its diff, runs the checks and commits. If Codex is missing or refuses the model, its code goes to the orchestrator, lens #2 to `/code-review`, and lens #7 is recorded as not run.
+- **One session, one task.** Task sessions start on Sonnet; `/bokeh-review` and process or architecture talks start on Opus.
+
+```bash
+codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh -s read-only -C <worktree> -o <report.md> "<prompt>" < /dev/null
+```
+
+Use `-s workspace-write` when Codex implements. Keep the `< /dev/null`: without it, a run in the background reads stdin and waits for input that never comes.
+
+**`BRIEF.md` and `STATUS.md`** are gitignored and belong to one task. The brief holds the goal, the acceptance criteria the user confirmed word for word, a link to the spec when there is one, what is out of scope, how to verify, and the limits; it is written once, when the user confirms the criteria, and no worker edits it. The status holds what is done with commit SHAs, the next step, check results with numbers and questions for the user; it is updated after every step, by the orchestrator for a read-only worker. Pass both by absolute path to a worker in another worktree. A new session reads both and continues; another task's unfinished brief is closed first. Delete both when the task ends.
+
 ## Secrets and data
 
-- `.env` files are gitignored. Never commit them or paste their contents into chat logs.
-- Two `.env.example` templates are checked in: `backend/.env.example` for the backend process (`VIDEO_BOKEH_LIBRARY`, `VIDEO_BOKEH_DATA_ROOT`, `CORS_ORIGINS` and `VIDEO_BOKEH_RENDER_BOKEH`, all four read by `backend/src/video_bokeh/api/_settings.py`, and `VIDEO_BOKEH_LAYERED_DEVICE`, read by the layered renderer), and the root `.env.example` for `docker compose` (`VIDEO_BOKEH_DATA_ROOT`, `VIDEO_BOKEH_LIBRARY`). Nothing auto-loads the backend one: there is no dotenv in the backend, so those are exported or passed on the command line.
-- **`backend/data/` is a deliberate exception.** Most of it is gitignored, but the small development pools are tracked on purpose: `magick_dev/` (30 foregrounds), `bg-20k_dev/` (30 backgrounds) and `magick_metadata.csv`. Cloning the repo is then enough to run the pipeline: no downloads, no Kaggle credentials, no waiting. That is worth the 76 MiB, of which `magick_metadata.csv` alone is 15.4 MiB. How the pools were grown is in `docs/how-to/generate-a-dataset.md`.
-- **`magick/metadata.csv` and `magick/predictions.csv` are tracked too.** The predictions are CLIP's subject and style scores for 11,868 MAGICK images, 4.5 MiB that only a GPU run of `video_bokeh.acquire.classify` can remake, and `scripts/analyze_magick_distribution.py` reads them. `predictions.json` beside them records the OpenCLIP model that made them, as it does beside `magick_dev/predictions.csv`. The metadata, 1.2 MiB, names those images, and `classify` reads it from the same directory. `magick/` is laid out like `magick_dev/`, but its `images/` holds only a `.gitkeep`: a full MAGICK mirror's images downloaded there stay ignored.
-- **`bg-20k/images/`, `library/` and `library_dev/` are tracked empty, each with a `.gitkeep`,** so a clone has the folders the pool and library commands fill (`docs/how-to/generate-a-dataset.md`, "Full pools"). Everything inside them stays ignored: a library is built by Stage A, never tracked.
-- Everything *generated* under `backend/data/` stays ignored: `library*/`, `synth*/` and anything else a run produces. Adding a generated tree to git is still wrong; adding a source asset the dev recipes depend on is not.
+- `.env` files are gitignored. Never commit them or paste their contents into chat logs. `backend/.env.example` lists the backend's variables, which nothing loads automatically; the root `.env.example` lists those of `docker compose`, which reads a `.env` copied from it.
+- **`backend/data/` is mostly gitignored, with deliberate exceptions:** the small development pools, MAGICK's metadata and CLIP predictions, and the empty folders the pool and library commands fill. Cloning is then enough to run the pipeline. The comments in `.gitignore` say what is tracked and why.
+- Everything a run generates under `backend/data/` stays ignored. Adding a generated tree to git is wrong; adding a source asset the dev recipes depend on is not.
 
 ## Don't touch
 

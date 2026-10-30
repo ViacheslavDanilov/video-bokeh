@@ -138,8 +138,8 @@ task, and implementing against a wrong premise is the most expensive mistake ava
    `docs/plans/YYYY-MM-DD-<slug>/`; work the frontier, one ticket per session if need be.
 4. Branch, then step 7.
 
-Reach further when the surface calls for it: `frontend-design` with `vercel:nextjs` and
-`vercel:react-best-practices` for UI, `fastapi` for API work, `dataviz` for figures.
+Reach further when the surface calls for it: `frontend-design` for UI, `fastapi` for API
+work, `dataviz` for figures.
 
 ## 6b. Route: bug
 
@@ -192,11 +192,8 @@ and the command that produced it.
 
 ## 6f. Route: literature
 
-Literature for the paper, the comparison against prior datasets included, belongs to the
-paper repository: its `refs.bib` and `literature/`. That is the **paper** route, not this
-one.
-
-This route is for a survey behind this repository's own design choices.
+A survey behind this repository's own design choices; literature for the paper is the
+**paper** route.
 `academic-researcher` plus `deep-research`.
 
 **Every citation is opened and verified.** Never cite from memory, never invent a DOI, never
@@ -224,18 +221,8 @@ the same slug names the spec. **Never commit to `main`.**
 Invoke `tdd` at the seams the spec agreed: one failing test, the smallest change that passes
 it, next test. `codebase-design` when the shape of an interface is the open question.
 
-Stay surgical. Every changed line traces to the task. Do not improve adjacent code, do not
-delete pre-existing dead code. Mention it instead.
-
-Module notes:
-
-- **`backend/`**: uv-managed. Run from `backend/`; `uv run pytest`, `uv run ruff check
-  src/`, `uv run ty check src/`. Code lives under `backend/src/video_bokeh/`: `acquire`,
-  `library`, `scenes`, `core`, `preview`, `layered`, `render`, `loader`, `api`.
-- **`frontend/`**: **pnpm only**, never npm or yarn. Next.js 16 diverges from training
-  data: read `node_modules/next/dist/docs/` before writing code, as `frontend/AGENTS.md`
-  demands.
-- **`backend/data/`**: gitignored artifacts, never staged.
+Read the `AGENTS.md` of every directory you touch. Who writes each part follows root
+`AGENTS.md`, **Model routing**, with `BRIEF.md` and `STATUS.md` written first.
 
 If a folder's semantics changed, update the `AGENTS.md` in every folder you touched.
 
@@ -298,9 +285,8 @@ Measurements worth keeping go to `docs/reports/`. None of this is committed.
 
 Reply in the user's language: the route taken, the PR URL or the file written, branch and head SHA, how
 many files changed, what you verified, and anything you could not. When there is a PR, end
-with the next step: **new session, `/bokeh-review <n>`.** **Do not merge**: merging is the
-user's, and a pull request they hand over is merged only under root `AGENTS.md` rule 2, after
-its review.
+with the next step: **the `reviewer` agent, or a new session on Opus, `/bokeh-review <n>`.**
+**Do not merge**: the merge follows the review, under root `AGENTS.md` rule 2.
 
 ## Red flags: stop and ask
 

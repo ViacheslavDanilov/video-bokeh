@@ -19,9 +19,7 @@ If this file and those disagree, they win and this file gets fixed.
 ## Working rules
 
 - Talk with the user in the user's language: checkpoints, questions, hand-offs, verdicts.
-- Everything written down is American English: commits, branches, PR text, GitHub reviews,
-  code, docs, vault notes, specs and tickets. Root `AGENTS.md`, section **Language**, has the
-  exceptions.
+  Everything written down follows root `AGENTS.md`, section **Language**.
 
 ## Vault map
 
@@ -103,11 +101,8 @@ names code that is gone; the doc pass in `bokeh-review` catches the rest.
 
 ## Pushing
 
-Push feature branches, open the pull request and edit its title and body without asking.
-**Merging into `main` is the user's decision.** When they hand a batch of pull requests over,
-root `AGENTS.md` rule 2 says when each one may be merged; the conditions live there alone.
-Force-pushing a feature branch and amending a pushed commit still need an explicit go-ahead,
-per rules 3 and 5.
+Pushing, merging, force-pushing and amending follow root `AGENTS.md`, "Git workflow"
+rules 2, 3 and 5.
 
 **Before any push, run `make check`, plus `make smoke` when the change touches the
 frontend.** That holds for the push that opens a pull request and for the pushes at the end
@@ -147,9 +142,12 @@ because a skill's own preamble does not know this repo's rules:
 
 - read-only and no commits, unless the calling step owns the edits, as the fix loop owns
   `qa`'s;
-- never push;
+- never push, except the agent that runs `bokeh-review` to the end, the `reviewer` or the
+  general-purpose agent on a trivial pass, whose fix loop pushes to the pull request's own
+  branch;
 - never upgrade gstack or any other tool, whatever its preamble offers;
-- never write agent instructions or routing rules into the repository.
+- never edit root `AGENTS.md`, `.claude/agents/` or `.claude/skills/` unless that change is
+  the task; routing rules live only in root `AGENTS.md`, section **Model routing**.
 
 ## Which skill to reach for
 
@@ -169,18 +167,18 @@ changed.
 | Write code | `tdd` | vendored |
 | Decide the shape of a module's interface | `codebase-design` | vendored |
 | Check a diff against the repo rules and the spec | `two-axis-review` | vendored |
-| Find bugs in a diff | `/code-review` | built-in |
+| Find bugs in a diff | `codex exec`, read-only; `/code-review` when codex is missing or refuses the model | CLI, built-in |
 | A second opinion from a different model | `codex` | gstack |
 | Click through a UI | `qa` (own branch, fixes) / `qa-only` (report only) | gstack |
 | Prove a change did not cost runtime | `benchmark` | gstack |
 | Sync the docs to what a branch actually shipped | `document-release` | gstack |
 | Write a doc page that does not exist yet | `document-generate` | gstack |
+| Polish prose that reads stiffly | `editor`, `no-ai-slop` | global |
 | Auth, secrets or untrusted input touched | `security-review` | built-in |
 | Check UI against web standards and accessibility | `web-design-guidelines` | plugin |
-| Build a UI | `frontend-design`, `vercel:nextjs`, `vercel:react-best-practices` | plugin |
+| Build a UI | `frontend-design` | plugin |
 | Literature review, citations, scholarly writing | `academic-researcher`, `deep-research` | global |
 | Check a manuscript's argument holds | `scientific-clarity-checker` | global |
-| Polish a manuscript before submission | `manuscript-writing-review`, `no-ai-slop`, `editor` | global |
 | Verify a factual claim | `fact-checker` | global |
 | Charts and figures | `dataviz` | plugin |
 | Diagrams, and redrawing one the code outgrew | `diagram` | gstack |
@@ -194,7 +192,8 @@ step silently, and never pretend a delegated pass ran.
 
 **Do not confuse four similar names:** `review` (gstack, generic pre-landing review, not
 used here), `/code-review` (built-in, finds bugs), `two-axis-review` (vendored, rules and
-spec) and `bokeh-review` (this repo's full pre-merge flow, which calls the middle two).
+spec) and `bokeh-review` (this repo's full pre-merge flow, which calls `two-axis-review`, and
+`/code-review` only when codex is missing or refuses the model).
 
 When the table has no row for the task, `find-skills` may propose one; installing it is the
 user's decision. When nothing fits, do the work by hand.
