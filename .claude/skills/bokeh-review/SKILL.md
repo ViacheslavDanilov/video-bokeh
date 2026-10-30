@@ -315,6 +315,5 @@ user it is behind.
 
 Then reply in the user's language: the verdict (ready to merge or not), the event submitted,
 the must-fix count, every fix committed and pushed, whether the notation gate passed,
-whether QA ran and what it printed, and where you recorded the outcome. **Do not merge**,
-except a pull request the user has handed over, and then only under the conditions of root
-`AGENTS.md` rule 2.
+whether QA ran and what it printed, and where you recorded the outcome. Merge only
+under root `AGENTS.md` rule 2.

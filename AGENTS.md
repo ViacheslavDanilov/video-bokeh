@@ -85,7 +85,7 @@ Work goes to a model by what it is, which paths it touches and which review pass
 | Review, a trivial re-pass (≤ 15 delta lines, ≤ 2 files, no high-risk path) or a comment-only pass | general-purpose agent | Sonnet, high |
 | The fix loop and QA after a review | general-purpose agent | Sonnet, high |
 | Review lenses #2 (bugs) and #7 (second model), on every pass but comment-only | Codex, `read-only` | gpt-6.1-sol, xhigh |
-| Merge, once the review says ready to merge and CI is green on the current head | the user; the `/bokeh-review` session only for a pull request handed over under rule 2 of "Git workflow" | the session's own |
+| Merge | under "Git workflow" rule 2 | the session's own |
 | Check, build and test commands, searches, counts, long output | `runner`, read-only | Haiku, high |
 
 The high-risk paths are the list in `.claude/skills/bokeh-review/SKILL.md`, step 2. The user can override any row with `/model` or a word in chat.

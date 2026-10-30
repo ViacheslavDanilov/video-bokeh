@@ -103,11 +103,8 @@ names code that is gone; the doc pass in `bokeh-review` catches the rest.
 
 ## Pushing
 
-Push feature branches, open the pull request and edit its title and body without asking.
-**Merging into `main` is the user's decision.** When they hand a batch of pull requests over,
-root `AGENTS.md` rule 2 says when each one may be merged; the conditions live there alone.
-Force-pushing a feature branch and amending a pushed commit still need an explicit go-ahead,
-per rules 3 and 5.
+Pushing, merging, force-pushing and amending follow root `AGENTS.md`, "Git workflow"
+rules 2, 3 and 5.
 
 **Before any push, run `make check`, plus `make smoke` when the change touches the
 frontend.** That holds for the push that opens a pull request and for the pushes at the end

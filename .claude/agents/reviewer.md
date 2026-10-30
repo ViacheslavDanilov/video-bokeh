@@ -13,6 +13,4 @@ them from there. Never edit `BRIEF.md`.
 
 High-risk paths for this project: the list in `.claude/skills/bokeh-review/SKILL.md`, step 2.
 
-Merge only a pull request the user handed over, under rule 2 of "Git workflow" in root
-`AGENTS.md`: once your review says ready to merge and CI is green on the current head. Otherwise
-the merge is the user's.
+Merge only under root `AGENTS.md`, "Git workflow" rule 2.
