@@ -165,7 +165,7 @@ changed.
 | Write code | `tdd` | vendored |
 | Decide the shape of a module's interface | `codebase-design` | vendored |
 | Check a diff against the repo rules and the spec | `two-axis-review` | vendored |
-| Find bugs in a diff | `/code-review` | built-in |
+| Find bugs in a diff | `codex exec`, read-only; `/code-review` when codex is missing or refuses the model | CLI, built-in |
 | A second opinion from a different model | `codex` | gstack |
 | Click through a UI | `qa` (own branch, fixes) / `qa-only` (report only) | gstack |
 | Prove a change did not cost runtime | `benchmark` | gstack |
@@ -189,7 +189,8 @@ step silently, and never pretend a delegated pass ran.
 
 **Do not confuse four similar names:** `review` (gstack, generic pre-landing review, not
 used here), `/code-review` (built-in, finds bugs), `two-axis-review` (vendored, rules and
-spec) and `bokeh-review` (this repo's full pre-merge flow, which calls the middle two).
+spec) and `bokeh-review` (this repo's full pre-merge flow, which calls `two-axis-review`, and
+`/code-review` only when codex is missing or refuses the model).
 
 When the table has no row for the task, `find-skills` may propose one; installing it is the
 user's decision. When nothing fits, do the work by hand.
