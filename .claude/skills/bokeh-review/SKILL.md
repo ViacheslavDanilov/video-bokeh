@@ -150,8 +150,9 @@ Lens #6: read **Documentation surface** in the conventions file before running
 steps (see **Pushing**). Step 9 fixes the drift it reports.
 
 Lenses #2 and #7 share one run of
-`codex exec -s read-only -m gpt-6.1-sol -c model_reasoning_effort=xhigh` from the worktree,
-with the model named. The prompt names the diff command, `git diff <baseline>...HEAD`, asks for
+`codex exec -s read-only -m gpt-6.1-sol -c model_reasoning_effort=xhigh ... < /dev/null` from
+the worktree, with the model named and stdin closed, or a run in the background waits for
+input forever. The prompt names the diff command, `git diff <baseline>...HEAD`, asks for
 real defects in scope and for a second view of the approach, and names the high-risk files the
 diff touches and what to look for there; when the PR changes `.claude/skills/` or
 `.claude/agents/`, it says codex may read them. When codex is missing or refuses the model, say

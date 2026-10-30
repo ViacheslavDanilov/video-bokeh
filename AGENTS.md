@@ -94,10 +94,10 @@ Work goes to a model by its kind, the paths it touches and the review pass, neve
 - **One session, one task.** Task sessions start on Sonnet; `/bokeh-review` and process or architecture talks start on Opus.
 
 ```bash
-codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh -s read-only -C <worktree> -o <report.md> "<prompt>"
+codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh -s read-only -C <worktree> -o <report.md> "<prompt>" < /dev/null
 ```
 
-Use `-s workspace-write` when Codex implements.
+Use `-s workspace-write` when Codex implements. Keep the `< /dev/null`: without it, a run in the background reads stdin and waits for input that never comes.
 
 **`BRIEF.md` and `STATUS.md`** are gitignored and belong to one task. The brief holds the goal, the acceptance criteria the user confirmed word for word, a link to the spec when there is one, what is out of scope, how to verify, and the limits; it is written once, when the user confirms the criteria, and no worker edits it. The status holds what is done with commit SHAs, the next step, check results with numbers and questions for the user; it is updated after every step, by the orchestrator for a read-only worker. Pass both by absolute path to a worker in another worktree. A new session reads both and continues; another task's unfinished brief is closed first. Delete both when the task ends.
 
