@@ -20,7 +20,7 @@ Plain, direct prose. The vault is read by Pablo and Valery as well as Slava. Kee
 9. **No shell commands in `explanation/`.** A page with a `$` or a ```bash fence is a how-to or a reference, whatever folder it sits in. This one is greppable, so it is the rule that actually holds.
 10. **A command lives in exactly one file.** Everything else links to it. The same command in three places is three chances to rot, and when the copies disagree nobody can tell which is right.
 11. **Avoid Latin and math notation in prose** (`i.e.`, `e.g.`, `≲`, `∈`) unless it's strictly more compact and the audience expects it. Prefer "about," "for example," "in."
-12. **American English.** "Color," "center," "behavior," "gray," "-ize." Root `AGENTS.md`, section **Language**, has the exceptions.
+12. **Spelling.** Follow root `AGENTS.md`, section **Language**, exceptions included.
 13. **Relative Markdown links in tracked pages.** GitHub renders them and Obsidian follows them.
     Check target files and heading anchors. Gitignored notes may keep wikilinks. `README.md`,
     section **Links**, has the convention.

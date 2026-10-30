@@ -17,7 +17,7 @@ disable-model-invocation: false
 Review a PR the way a senior teammate would: direct, collegial, complete sentences, not a
 linter dump. **Read [`../shared/bokeh-conventions.md`](../shared/bokeh-conventions.md) and
 root `AGENTS.md` first.** Talk to the user in their language; the review and everything else
-written down is American English.
+written down follows its **Language** section.
 
 Run in a session that did not write the code, whoever opened the PR. The verdict is yours;
 delegate passes only, such as `two-axis-review` and the `codex exec` run, with the limits in
