@@ -79,7 +79,6 @@ is the point.
 - **Don't add files to `.next/`.** It's the build output, gitignored.
 - **Prettier owns formatting.** Don't hand-format; run `pnpm format`.
 - **ESLint config** is `eslint.config.mjs` (flat config, ESLint 9).
-- **No emoji in code, comments, or commit messages** unless the user explicitly asks.
 
 ## Verification before claiming done
 

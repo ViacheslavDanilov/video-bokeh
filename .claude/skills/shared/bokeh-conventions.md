@@ -19,9 +19,7 @@ If this file and those disagree, they win and this file gets fixed.
 ## Working rules
 
 - Talk with the user in the user's language: checkpoints, questions, hand-offs, verdicts.
-- Everything written down is American English: commits, branches, PR text, GitHub reviews,
-  code, docs, vault notes, specs and tickets. Root `AGENTS.md`, section **Language**, has the
-  exceptions.
+  Everything written down follows root `AGENTS.md`, section **Language**.
 
 ## Vault map
 

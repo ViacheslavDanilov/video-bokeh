@@ -14,6 +14,10 @@ repository, such as the `grey` colormap id the API's URLs and cached files use, 
 prompts the stored predictions were made with; and vendored text, the skills
 `.claude/skills/VENDORED.md` lists, which stays as upstream wrote it.
 
+No emoji in code, comments or commit messages unless the user asks; the READMEs may use them.
+No em dash (U+2014) in anything written for the repository: use a colon, a comma or
+parentheses.
+
 ## Commit messages
 
 Conventional Commits format:
@@ -29,7 +33,7 @@ Optional body explaining why the change was needed, wrapped at ~72 columns.
 - Subject: imperative mood ("add", not "added"), lower case after the colon, no trailing period, 72 characters or fewer
 - One logical change per commit; don't bundle unrelated edits. Pull requests are squash-merged, and GitHub lists these subjects in the squash body, so they are what a reader sees when unpacking a merged pull request
 - Body explains *why*, not *what*. The diff already shows what changed
-- No emoji (see `backend/AGENTS.md`), and no trailers other than a genuine `Co-Authored-By` for a human collaborator
+- No trailers other than a genuine `Co-Authored-By` for a human collaborator
 - Examples in `git log`
 
 ## Pull requests

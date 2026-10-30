@@ -224,18 +224,10 @@ the same slug names the spec. **Never commit to `main`.**
 Invoke `tdd` at the seams the spec agreed: one failing test, the smallest change that passes
 it, next test. `codebase-design` when the shape of an interface is the open question.
 
-Stay surgical. Every changed line traces to the task. Do not improve adjacent code, do not
-delete pre-existing dead code. Mention it instead.
-
-Module notes:
-
-- **`backend/`**: uv-managed. Run from `backend/`; `uv run pytest`, `uv run ruff check
-  src/`, `uv run ty check src/`. Code lives under `backend/src/video_bokeh/`: `acquire`,
-  `library`, `scenes`, `core`, `preview`, `layered`, `render`, `loader`, `api`.
-- **`frontend/`**: **pnpm only**, never npm or yarn. Next.js 16 diverges from training
-  data: read `node_modules/next/dist/docs/` before writing code, as `frontend/AGENTS.md`
-  demands.
-- **`backend/data/`**: gitignored artifacts, never staged.
+Read the `AGENTS.md` of every directory you touch. Who writes each part follows root
+`AGENTS.md`, **Model routing**: a small edit stays in this session, taste work goes to
+`crafter`, and code with a check that passes or fails goes to Codex, with `BRIEF.md` and
+`STATUS.md` written first.
 
 If a folder's semantics changed, update the `AGENTS.md` in every folder you touched.
 
