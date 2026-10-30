@@ -103,7 +103,7 @@ Use `-s workspace-write` when Codex implements. Keep the `< /dev/null`: without 
 
 ## Secrets and data
 
-- `.env` files are gitignored. Never commit them or paste their contents into chat logs. `backend/.env.example` lists the backend's variables and the root `.env.example` those of `docker compose`; nothing loads either automatically.
+- `.env` files are gitignored. Never commit them or paste their contents into chat logs. `backend/.env.example` lists the backend's variables, which nothing loads automatically; the root `.env.example` lists those of `docker compose`, which reads a `.env` copied from it.
 - **`backend/data/` is mostly gitignored, with deliberate exceptions:** the small development pools, MAGICK's metadata and CLIP predictions, and the empty folders the pool and library commands fill. Cloning is then enough to run the pipeline. The comments in `.gitignore` say what is tracked and why.
 - Everything a run generates under `backend/data/` stays ignored. Adding a generated tree to git is wrong; adding a source asset the dev recipes depend on is not.
 
