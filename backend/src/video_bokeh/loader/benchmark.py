@@ -95,6 +95,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--bokeh-strength", type=float, default=BOKEH_STRENGTH)
     parser.add_argument("--min-timed-batches", type=int, default=15)
+    parser.add_argument("--unordered", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     if args.workers < 0:
@@ -127,6 +128,7 @@ def main(argv: list[str] | None = None) -> None:
         num_workers=args.workers,
         prefetch_factor=2 if args.workers else None,
         pin_memory=device.type == "cuda",
+        in_order=not args.unordered,
     )
     batches = (
         _render_batches(loader, device, args.bokeh_strength)
