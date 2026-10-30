@@ -222,9 +222,7 @@ Invoke `tdd` at the seams the spec agreed: one failing test, the smallest change
 it, next test. `codebase-design` when the shape of an interface is the open question.
 
 Read the `AGENTS.md` of every directory you touch. Who writes each part follows root
-`AGENTS.md`, **Model routing**: a small edit stays in this session, taste work goes to
-`crafter`, and code with a check that passes or fails goes to Codex, with `BRIEF.md` and
-`STATUS.md` written first.
+`AGENTS.md`, **Model routing**, with `BRIEF.md` and `STATUS.md` written first.
 
 If a folder's semantics changed, update the `AGENTS.md` in every folder you touched.
 
