@@ -298,9 +298,9 @@ Measurements worth keeping go to `docs/reports/`. None of this is committed.
 
 Reply in the user's language: the route taken, the PR URL or the file written, branch and head SHA, how
 many files changed, what you verified, and anything you could not. When there is a PR, end
-with the next step: **new session, `/bokeh-review <n>`.** **Do not merge**: merging is the
-user's, and a pull request they hand over is merged only under root `AGENTS.md` rule 2, after
-its review.
+with the next step: **the `reviewer` agent, or a new session on Opus, `/bokeh-review <n>`.**
+**Do not merge**: merging is the user's, and a pull request they hand over is merged only
+under root `AGENTS.md` rule 2, after its review.
 
 ## Red flags: stop and ask
 

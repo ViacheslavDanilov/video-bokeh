@@ -80,14 +80,18 @@ backend/data/**/*.partial
 .DS_Store
 Thumbs.db
 
-# Claude Code. The skills and settings.json are shared working agreements, so they
-# are tracked. Per-machine overrides, local state and personal notes are not.
+# Claude Code. The skills, agents and settings.json are shared working agreements, so
+# they are tracked. Per-machine overrides, local state and personal notes are not.
 .claude/*
 !.claude/skills/
+!.claude/agents/
 !.claude/settings.json
 .claude/settings.local.json
 CLAUDE.md
 CLAUDE.local.md
+# One task's brief and status, see Model routing in AGENTS.md.
+BRIEF.md
+STATUS.md
 
 # gstack QA reports and screenshots, written by the qa skill
 .gstack/

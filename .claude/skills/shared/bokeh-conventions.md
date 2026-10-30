@@ -149,7 +149,8 @@ because a skill's own preamble does not know this repo's rules:
   `qa`'s;
 - never push;
 - never upgrade gstack or any other tool, whatever its preamble offers;
-- never write agent instructions or routing rules into the repository.
+- never edit root `AGENTS.md`, `.claude/agents/` or `.claude/skills/` unless that change is
+  the task; routing rules live only in root `AGENTS.md`, section **Model routing**.
 
 ## Which skill to reach for
 

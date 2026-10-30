@@ -70,6 +70,54 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 5. **Don't amend pushed commits** without the user's go-ahead (force-push territory).
 6. Commit and pull request text follows the notation in "Commit messages" and "Pull requests" above.
 
+## Model routing
+
+Work goes to a model by what it is, which paths it touches and which review pass it is, never by a guess at how hard it is. Two effort levels: `high` for flow work, `xhigh` where a mistake is expensive or taste matters. The main session is the orchestrator: it talks to the user, writes `BRIEF.md` and `STATUS.md`, and owns the commits. The agents live in `.claude/agents/`.
+
+| Work | Worker | Model, effort |
+|---|---|---|
+| Dialog, criteria, brief, status, small edits, commits | the main session | Sonnet, high |
+| A plan for a structural change: the dataset contract, the API, build, CI, Docker, `.claude/` | `planner`, read-only | Opus, xhigh |
+| Work that depends on taste: the page under `frontend/src/`, prose under `docs/`, the READMEs, the demo video | `crafter` | Sonnet, xhigh |
+| Code with a check that passes or fails: backend code and tests, scripts, `comparison/`, benchmarks, an exact plan | Codex, `workspace-write` | gpt-6.1-sol, xhigh |
+| Review, first pass or delta: `/bokeh-review <n>` | `reviewer` | Opus, high |
+| Review of a pass that touches a high-risk path | `reviewer`, effort `xhigh` | Opus, xhigh |
+| Review, a trivial re-pass (≤ 15 delta lines, ≤ 2 files, no high-risk path) or a comment-only pass | general-purpose agent | Sonnet, high |
+| The fix loop and QA after a review | general-purpose agent | Sonnet, high |
+| Review lenses #2 (bugs) and #7 (second model), on every pass but comment-only | Codex, `read-only` | gpt-6.1-sol, xhigh |
+| Merge, once the review says ready to merge and CI is green on the current head | the user; the `/bokeh-review` session only for a pull request handed over under rule 2 of "Git workflow" | the session's own |
+| Check, build and test commands, searches, counts, long output | `runner`, read-only | Haiku, high |
+
+The high-risk paths are the list in `.claude/skills/bokeh-review/SKILL.md`, step 2. The user can override any row with `/model` or a word in chat.
+
+- **A small edit stays in the orchestrator.** A brief is for larger work, work for another model, or work that may outlive the session.
+- **Codex never decides how something looks or reads, and never commits.** The orchestrator reads its diff, runs the checks and commits.
+- **If Codex is missing or refuses the model,** say so: its code goes to the orchestrator, lens #2 to `/code-review`, and lens #7 is recorded as not run.
+- **A review runs in a context that did not write the code:** a fresh agent or a new session. Start `/bokeh-review` by hand on Opus.
+- **Every delegated prompt repeats the limits** in `.claude/skills/shared/bokeh-conventions.md`, section **Delegating**.
+
+Codex runs from the working tree and writes its report to a file. Use `-s workspace-write` when it implements:
+
+```bash
+codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh -s read-only -C <worktree> \
+  -o <report.md> "<prompt>"
+```
+
+### Brief and status
+
+Two gitignored files at the root of the working tree carry one task across models and sessions:
+
+- `BRIEF.md`: the goal, the acceptance criteria the user confirmed word for word, a link to the spec in `docs/specs/` when there is one, what is out of scope, the files to start from, how to verify with commands and expected output, and the limits.
+- `STATUS.md`: what is done with commit SHAs, what is in progress, the single next step, check results with numbers, and questions for the user.
+
+1. The orchestrator writes both when the user confirms the criteria. `BRIEF.md` is written once and no worker edits it; a change of scope goes back to the user.
+2. `STATUS.md` is updated after every step. A read-only worker (`planner`, `runner`, read-only Codex) reports in its reply, and the orchestrator records it.
+3. A worker in another worktree, such as the review's, does not see these files. The caller passes both by absolute path.
+4. A new session on the same task reads both before anything else and continues from `STATUS.md`.
+5. When the task ends (pull request merged or closed, or no pull request), delete both.
+
+One session, one task, one working copy. If `BRIEF.md` of another unfinished task is present, finish or close that task first. Task sessions start on Sonnet at `high`. A process or architecture discussion starts on Opus and stays short, and its implementation goes to a new Sonnet session.
+
 ## Secrets and data
 
 - `.env` files are gitignored. Never commit them or paste their contents into chat logs.
