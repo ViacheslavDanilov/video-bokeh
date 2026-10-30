@@ -205,7 +205,7 @@ any sooner or shorter, the run measures that buffer rather than the workers.
 
 | streams | items/s, 512 px | items/s, 1024 px | MiB per item, 512 px |
 |---|---|---|---|
-| `rgb` | 1.92 | 0.58 | 72 |
+| `rgb` | 1.91 | 0.58 | 72 |
 | `rgb`, `disparity` | 1.91 | 0.58 | 96 |
 | the default four | 1.83 | 0.55 | 240 |
 | the default four and `layers` | 1.41 | 0.40 | 816 |
@@ -215,8 +215,9 @@ An item at 1024 pixels holds four times the bytes.
 - **Generating the scene is most of the cost.** RGB alone is 5 % faster than the default four
   at 512 pixels and 6 % at 1024; adding the layers costs 23 % and 28 %, for carrying them out
   of the workers.
-- **Four times the pixels take three to four times as long**: 3.3 times for the default four,
-  3.6 times on the GPU route, and 5.2 times with the bokeh in the workers.
+- **Four times the pixels take three to four times as long, and five times with the bokeh in
+  the workers**: 3.3 times for the default four, 3.6 times on the GPU route and 5.1 times with
+  the bokeh in the workers.
 - **More workers help until memory runs out.** At 1024 pixels the default four came at 0.20
   items per second in the training process itself, 0.18 with one worker, 0.55 with 4, 0.84
   with 8 and 0.92 with 16.
