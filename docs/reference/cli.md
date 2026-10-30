@@ -224,7 +224,8 @@ shards hold only what Stage B reads: each foreground's `rgb.png`, `alpha.png`, `
 `meta.json`, and each background's `rgb.png` and `depth.png`. A shard holds whole items, in
 WebDataset's layout: an item's files share its id, as `<id>.rgb.png`, `<id>.alpha.png`,
 `<id>.depth.png` and `<id>.json`. Each item also carries `<id>.depth_preview.jpg`, its
-disparity in color at the item's size, which the Hub's viewer shows and nothing reads. A
+disparity in color at the item's size, which the Hub's viewer shows and nothing reads. It is
+packed after the images and before the `json`, as the viewer shows the files in that order. A
 shard holds one split, which starts its name: `foregrounds/train-00000.tar`,
 `foregrounds/test-00000.tar` and so on
 ([dataset-layout](dataset-layout.md#the-train-and-test-splits)). The card declares a

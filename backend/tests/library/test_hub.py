@@ -135,12 +135,13 @@ def test_a_shard_holds_each_item_under_webdataset_names_with_its_depth_preview(
         with Image.open(preview) as image:
             assert (image.format, image.mode) == ("JPEG", "RGB")
             side = image.width
+    # The Hub's viewer shows the columns in this order: the images first, then the json.
     assert names[:5] == [
         "fg_a.rgb.png",
         "fg_a.alpha.png",
         "fg_a.depth.png",
-        "fg_a.json",
         "fg_a.depth_preview.jpg",
+        "fg_a.json",
     ]
     with Image.open(library / "foregrounds" / "fg_a" / "rgb.png") as image:
         assert side == image.width  # the preview is drawn at the item's size

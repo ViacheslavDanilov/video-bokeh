@@ -338,7 +338,11 @@ def pack(
                     tar = tarfile.open(shards_root / name, "w")
                     size = 0
                     n_split += 1
-                for f in files:
+                # The Hub's viewer shows an item's files in the order they are packed:
+                # the images, the preview among them, before the metadata.
+                images = [f for f in files if f.suffix == ".png"]
+                records = [f for f in files if f.suffix != ".png"]
+                for f in images:
                     tar.add(f, arcname=f"{asset_id}.{MEMBER[f.name]}")
                     size += f.stat().st_size
                 colored = depth_preview(library_root, kind, asset_id)
@@ -346,6 +350,9 @@ def pack(
                 member.size, member.mtime = len(colored), int(files[0].stat().st_mtime)
                 tar.addfile(member, io.BytesIO(colored))
                 size += len(colored)
+                for f in records:
+                    tar.add(f, arcname=f"{asset_id}.{MEMBER[f.name]}")
+                    size += f.stat().st_size
                 shards[-1]["items"] += 1
             if tar is not None:
                 tar.close()
