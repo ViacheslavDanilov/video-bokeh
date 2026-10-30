@@ -117,10 +117,12 @@ assets, `train` unless set. Leave it there, so the test split stays unseen until
 
 ## 5. When the workers cannot keep up
 
-**Bokeh rendered in the workers is the simple path, and the slow one.** On a 24-core machine it
-tops out near 0.9 items per second at 512 pixels and 24 frames, however many workers render it,
-so a batch of 4 takes about 4.5 s to arrive. A training step shorter than that waits for the
-loader. Then ask the workers for the layers instead of the bokeh, and render each batch on the
+**Bokeh rendered in the workers is the simple path, and the slow one.** On a 24-core machine,
+4 workers deliver about 0.5 items per second at 512 pixels and 24 frames, and 0.09 at 1024
+pixels. A batch of 4 then takes about 8 s to arrive at 512 pixels, and a training step shorter
+than that waits for the loader. More workers do not close the gap and cost memory: at 1024
+pixels 8 workers reach 0.17, a fifth of what they deliver without bokeh, and 16 ran out of
+125 GiB. Then ask the workers for the layers instead of the bokeh, and render each batch on the
 GPU with `batch_bokeh`, where `k` can change from batch to batch.
 [loader](../reference/loader.md) has the recipe and what it costs.
 
