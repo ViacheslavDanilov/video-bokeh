@@ -92,7 +92,7 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 6. It writes the spec to `docs/specs/` and confirms where the tests will sit. Then it branches and builds test-first.
 7. A fresh-context self-check compares the diff against the repo rules and the spec, and the agent fixes what it finds.
 8. It runs the checks that the **Pushing** section of `.claude/skills/shared/bokeh-conventions.md` asks for before a push. For a frontend change like this one, they include the browser smoke test. Then it pushes the branch and opens the pull request, without asking.
-9. It ends by naming the next step: a new session, `/bokeh-review` with the PR number.
+9. It ends by naming the next step: `/bokeh-review` with the PR number, run by the `reviewer` agent or in a new session.
 
 **Session 2**
 
