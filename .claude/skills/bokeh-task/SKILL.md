@@ -138,8 +138,8 @@ task, and implementing against a wrong premise is the most expensive mistake ava
    `docs/plans/YYYY-MM-DD-<slug>/`; work the frontier, one ticket per session if need be.
 4. Branch, then step 7.
 
-Reach further when the surface calls for it: `frontend-design` with `vercel:nextjs` and
-`vercel:react-best-practices` for UI, `fastapi` for API work, `dataviz` for figures.
+Reach further when the surface calls for it: `frontend-design` for UI, `fastapi` for API
+work, `dataviz` for figures.
 
 ## 6b. Route: bug
 
@@ -192,11 +192,8 @@ and the command that produced it.
 
 ## 6f. Route: literature
 
-Literature for the paper, the comparison against prior datasets included, belongs to the
-paper repository: its `refs.bib` and `literature/`. That is the **paper** route, not this
-one.
-
-This route is for a survey behind this repository's own design choices.
+A survey behind this repository's own design choices; literature for the paper is the
+**paper** route.
 `academic-researcher` plus `deep-research`.
 
 **Every citation is opened and verified.** Never cite from memory, never invent a DOI, never

@@ -173,10 +173,9 @@ changed.
 | Write a doc page that does not exist yet | `document-generate` | gstack |
 | Auth, secrets or untrusted input touched | `security-review` | built-in |
 | Check UI against web standards and accessibility | `web-design-guidelines` | plugin |
-| Build a UI | `frontend-design`, `vercel:nextjs`, `vercel:react-best-practices` | plugin |
+| Build a UI | `frontend-design` | plugin |
 | Literature review, citations, scholarly writing | `academic-researcher`, `deep-research` | global |
 | Check a manuscript's argument holds | `scientific-clarity-checker` | global |
-| Polish a manuscript before submission | `manuscript-writing-review`, `no-ai-slop`, `editor` | global |
 | Verify a factual claim | `fact-checker` | global |
 | Charts and figures | `dataviz` | plugin |
 | Diagrams, and redrawing one the code outgrew | `diagram` | gstack |
