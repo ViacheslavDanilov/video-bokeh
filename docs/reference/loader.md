@@ -150,14 +150,16 @@ a quarter to three tenths, nearly all of it for carrying the layers.** Measured 
 | `rgb`, `object_alphas`, `layers`, `focus` | the RTX 5090, with `batch_bokeh` | 1.39 | 0.39 |
 
 `python -m video_bokeh.loader.benchmark --library-root <library> --streams rgb,object_alphas,layers,focus --gpu-bokeh --device cuda`
-runs this measurement, with the flags listed in the [CLI reference](cli.md#video_bokehloaderbenchmark-sequence-stream-throughput).
+runs this measurement, with the run flags the next section lists and `--size 1024` for the
+second column. The [CLI reference](cli.md#video_bokehloaderbenchmark-sequence-stream-throughput)
+lists every flag.
 
 - **The workers cannot keep up.** At 1024 pixels, with bokeh they deliver 0.094 items per
   second at 4 workers and 0.17 at 8, where without it they deliver 0.55 and 0.84. At 16
   workers the bokeh ran the machine's 125 GiB of memory out and a worker was killed.
 - **One worker is slower than none.** A `DataLoader` worker runs PyTorch on one thread, while
-  the training process renders on every core: with bokeh, one worker delivered 0.028 items per
-  second and none 0.074.
+  the training process renders on every core: with bokeh at 1024 pixels, one worker delivered
+  0.028 items per second and none 0.074.
 - **The GPU route keeps about three quarters**: 76 % at 512 pixels and 71 % at 1024. The
   layers alone cost that much; rendering them on the GPU costs 1 % to 2 % more.
 - **The GPU route needs GPU memory**: an item peaked at 2.4 GiB allocated at 512 pixels and
