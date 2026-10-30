@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 import torch
+from torch.utils.data import DataLoader
 
 from video_bokeh.loader import benchmark as mod
 from video_bokeh.loader._stream import DEFAULT_STREAMS
@@ -136,6 +137,7 @@ def test_main_writes_measurements_and_reproduction_metadata(
             "device",
             "bokeh_strength",
             "min_timed_batches",
+            "unordered",
             "output",
         )
     } == {
@@ -152,6 +154,7 @@ def test_main_writes_measurements_and_reproduction_metadata(
         "device": "auto",
         "bokeh_strength": 16.0,
         "min_timed_batches": 1,
+        "unordered": False,
         "output": str(output),
     }
     assert record["warmup_batches"] == record["timed_batches"] == 1
@@ -177,6 +180,25 @@ def test_main_writes_measurements_and_reproduction_metadata(
             "mib_per_item",
         )
     ]
+
+
+def test_unordered_lets_the_loader_deliver_whichever_batch_is_ready(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    passed: dict[str, object] = {}
+
+    def loader(*args: object, **kwargs: object) -> DataLoader:
+        passed.update(kwargs)
+        return DataLoader(*args, **kwargs)
+
+    monkeypatch.setattr(mod, "DataLoader", loader)
+    output = tmp_path / "benchmark.json"
+    argv = ["--library-root", str(library), "--workers", "0", "--frames", "2"]
+    argv += ["--size", "16", "--objects-max", "1", "--min-timed-batches", "1"]
+    mod.main([*argv, "--unordered", "--output", str(output)])
+
+    assert passed["in_order"] is False
+    assert json.loads(output.read_text())["unordered"] is True
 
 
 def test_an_installed_copy_records_no_commit(

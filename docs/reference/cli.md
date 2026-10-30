@@ -512,6 +512,7 @@ includes warm-up and timed rendering; CPU and MPS runs leave that JSON field nul
 | `--device` | `auto`, `cuda`, `mps`, `cpu` | `auto` | bokeh device; auto chooses CUDA, then MPS, then CPU; an unavailable explicit device is refused |
 | `--bokeh-strength` | float | `16` | bokeh strength in the workers or on the device |
 | `--min-timed-batches` | int | `15` | time at least this many batches, or twice the worker count if larger, after twice the worker count of warm-up batches (one with 0 workers) |
+| `--unordered` | flag | off | pass `in_order=False` to the DataLoader, which then yields whichever worker's batch is ready first rather than waiting for the next worker in turn |
 | `--output` | path | unset | JSON path for flags, measurements, torch version, resolved device and name, CPU count, UTC date and git commit (null if unavailable) |
 
 ## Acquisition
