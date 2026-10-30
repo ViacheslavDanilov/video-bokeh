@@ -171,6 +171,7 @@ changed.
 | Prove a change did not cost runtime | `benchmark` | gstack |
 | Sync the docs to what a branch actually shipped | `document-release` | gstack |
 | Write a doc page that does not exist yet | `document-generate` | gstack |
+| Polish prose that reads stiffly | `editor`, `no-ai-slop` | global |
 | Auth, secrets or untrusted input touched | `security-review` | built-in |
 | Check UI against web standards and accessibility | `web-design-guidelines` | plugin |
 | Build a UI | `frontend-design` | plugin |
