@@ -66,7 +66,7 @@ Diff locally with `git diff <baseline>...<head>` (three dots, from the merge bas
   `backend/src/video_bokeh/preview/_colormap.py`, `frontend/src/lib/api.ts`,
   `docs/reference/api.md`;
 - the build, CI and agent configuration: `.github/workflows/`, `.pre-commit-config.yaml`,
-  `.claude/settings.json`, `backend/Dockerfile`, `frontend/Dockerfile`,
+  `.claude/settings.json`, `.claude/agents/`, `backend/Dockerfile`, `frontend/Dockerfile`,
   `.gitignore`.
 
 Python modules are named by their full path so that `backend/tests/test_docs_references.py`
@@ -137,23 +137,26 @@ Apply to this pass's scope, not the whole PR history.
 | Lens | Focus | Delegate to |
 |---|---|---|
 | **#1 Rules and spec** | `AGENTS.md` at every level covering files in scope, the code-smell baseline, and whether the diff does what the spec or decision asked, no less, no more | `two-axis-review`, fixed point = the baseline, spec = step 3's source |
-| **#2 Bugs** | real defects and regressions in scope, no nitpicks | built-in `/code-review` at a depth matching the pass |
+| **#2 Bugs** | real defects and regressions in scope, no nitpicks | `codex exec`, read-only, in the same run as #7; built-in `/code-review` only when codex is missing or refuses the model |
 | **#3 Git history** | `git blame` and `git log` on scoped hunks: removed guards, reintroduced regressions | none |
 | **#4 Prior threads** | earlier comments on scoped files; never repeat a resolved item | none |
 | **#5 Docs style** | `docs/STYLE.md` for changes under `docs/explanation`, `how-to`, `reference`; check relative Markdown links and GitHub heading anchors in tracked pages per `docs/README.md` | none |
 | **#6 Docs drift** | public surface the PR changed that no page reflects, and pages that describe code this PR deleted | `document-release` on the PR's branch, analysis steps only |
-| **#7 Second model** | the same diff through a different model's eyes | `codex exec`, read-only, **whenever the pass touches a high-risk path** |
+| **#7 Second model** | the same diff through a different model's eyes | `codex exec`, read-only, **on every pass but comment-only** |
 | **#8 Prose** | paragraphs of tracked Markdown the pass changed that read as machine-written, and any em dash | `python3 scripts/check_prose.py --base <baseline>` |
 
 Lens #6: read **Documentation surface** in the conventions file before running
 `document-release`, and run only its analysis, up to the per-file audit; never its later
 steps (see **Pushing**). Step 9 fixes the drift it reports.
 
-Lens #7: run `codex exec -s read-only -m gpt-6.1-sol` from the worktree, with the model
-named. When codex refuses it, say so, record lens #7 as not run rather than fall back to the
-default model, and leave any update to the user. The prompt names the diff command,
-`git diff <baseline>...HEAD`, the high-risk files the diff touches, and what to look for
-there; when the PR changes `.claude/skills/`, it says codex may read them.
+Lenses #2 and #7 share one run of
+`codex exec -s read-only -m gpt-6.1-sol -c model_reasoning_effort=xhigh` from the worktree,
+with the model named. The prompt names the diff command, `git diff <baseline>...HEAD`, asks for
+real defects in scope and for a second view of the approach, and names the high-risk files the
+diff touches and what to look for there; when the PR changes `.claude/skills/` or
+`.claude/agents/`, it says codex may read them. When codex is missing or refuses the model, say
+so, run `/code-review` at a depth matching the pass for #2, record #7 as not run rather than
+fall back to the default model, and leave any update to the user.
 
 Lens #8: run from the worktree on any pass that changes tracked Markdown. Without
 `TYPESAFE_API_KEY` it checks the em dash alone; record the lens as partly run. A flagged
@@ -166,7 +169,7 @@ merely renames a private helper is not.
 
 Depth mapping: comment-only → discussion only; trivial → #1–#2; delta → #1–#2 on the delta,
 #3–#6 and #8 on delta files; full → #1–#6 and #8. On any depth but comment-only, #7 runs
-whenever the pass's scope touches a path from step 2's high-risk list. Do not skip a lens
+too. Do not skip a lens
 because another found something.
 
 Invoke `security-review` when the PR touches secrets, authentication, or the parsing of
