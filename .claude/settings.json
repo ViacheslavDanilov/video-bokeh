@@ -1,8 +1,6 @@
 {
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
-    "context7@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": false,
     "vercel@claude-plugins-official": false,
     "ui-ux-pro-max@ui-ux-pro-max-skill": false
   }
