@@ -142,7 +142,8 @@ because a skill's own preamble does not know this repo's rules:
 
 - read-only and no commits, unless the calling step owns the edits, as the fix loop owns
   `qa`'s;
-- never push;
+- never push, except the `reviewer` agent, whose `bokeh-review` fix loop pushes to the
+  pull request's own branch;
 - never upgrade gstack or any other tool, whatever its preamble offers;
 - never edit root `AGENTS.md`, `.claude/agents/` or `.claude/skills/` unless that change is
   the task; routing rules live only in root `AGENTS.md`, section **Model routing**.
