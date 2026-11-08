@@ -10,7 +10,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-Where specs and tickets live in this repo is fixed in `.claude/skills/shared/bokeh-conventions.md`, section **Specs and tickets**. Read it before writing anything.
+Where specs and tickets live in this repo is fixed in `.agents/skills/shared/bokeh-conventions.md`, section **Specs and tickets**. Read it before writing anything.
 
 ## Process
 

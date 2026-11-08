@@ -7,7 +7,7 @@ description: Break a plan, spec, or the current conversation into a set of trace
 
 Break a plan, spec, or conversation into a set of **tickets**: tracer-bullet vertical slices, each declaring the tickets that **block** it.
 
-Where specs and tickets live in this repo is fixed in `.claude/skills/shared/bokeh-conventions.md`, section **Specs and tickets**. Read it before writing anything.
+Where specs and tickets live in this repo is fixed in `.agents/skills/shared/bokeh-conventions.md`, section **Specs and tickets**. Read it before writing anything.
 
 ## Process
 

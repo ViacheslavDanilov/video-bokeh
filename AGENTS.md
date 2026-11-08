@@ -12,7 +12,7 @@ messages and pull requests. Color, center, behavior, gray, normalize, labeled, j
 exceptions keep their spelling: quoted names and titles; strings that reach outside the
 repository, such as the `grey` colormap id the API's URLs and cached files use, or the CLIP
 prompts the stored predictions were made with; and vendored text, the skills
-`.claude/skills/VENDORED.md` lists, which stays as upstream wrote it.
+`.agents/skills/VENDORED.md` lists, which stays as upstream wrote it.
 
 No emoji in code, comments or commit messages unless the user asks; the READMEs may use them.
 No em dash (U+2014) in anything written for the repository: use a colon, a comma or
@@ -80,24 +80,26 @@ Work goes to a model by its kind, the paths it touches and the review pass, neve
 
 | Work | Worker | Model, effort |
 |---|---|---|
-| Dialog, criteria, small edits, commits | the main session | Sonnet, high |
-| A plan for a structural change: the dataset contract, the API, build, CI, Docker, `.claude/` | `planner` | Opus, xhigh |
+| Dialog, criteria, code with a check that passes or fails, small edits, commits | the main session | Sonnet, high |
+| A plan for a structural change: the dataset contract, the API, build, CI, Docker, `.agents/`, `.claude/` | `planner` | Opus, xhigh |
 | Taste: the page under `frontend/src/`, prose under `docs/`, the READMEs, the demo video | `crafter` | Sonnet, xhigh |
-| Code with a check that passes or fails: backend code and tests, scripts, `comparison/`, benchmarks | Codex, `workspace-write` | gpt-6.1-sol, xhigh |
 | Review, first or delta pass; `xhigh` when it touches a high-risk path from `bokeh-review` step 2 | `reviewer` | Opus, high |
 | Review, a trivial pass (≤ 15 delta lines, ≤ 2 files, no high-risk path) or comment-only; the fix loop; QA | general-purpose agent | Sonnet, high |
-| Review lenses #2 (bugs) and #7 (second model) | Codex, `read-only` | gpt-6.1-sol, xhigh |
+| Review lenses #2 (bugs) and #7 (second model), on every pass but comment-only | `agy`, read-only | `gemini-4-argon-high` |
 | Commands, searches, counts | `runner` | Haiku, high |
 
-- **A small edit stays in the main session.** Every delegated prompt carries the limits in `.claude/skills/shared/bokeh-conventions.md`, section **Delegating**.
-- **Codex never decides how something looks or reads, and never commits.** The orchestrator reads its diff, runs the checks and commits. If Codex is missing or refuses the model, its code goes to the orchestrator, lens #2 to `/code-review`, and lens #7 is recorded as not run.
+- **A small edit stays in the main session.** Every delegated prompt carries the limits in `.agents/skills/shared/bokeh-conventions.md`, section **Delegating**.
+- **`agy` (Antigravity CLI) never decides how something looks or reads, never edits files and never commits.** It runs `gemini-4-argon-high`, and only for the lenses in the table: its quota is small. `gemini-3.8-flash-*` is too weak for a review and has no row here. If `agy` is missing, fails, returns an empty `response` or reports the quota gone, say so: lens #2 goes to `/code-review`, and lens #7 is recorded as not run.
 - **One session, one task.** Task sessions start on Sonnet; `/bokeh-review` and process or architecture talks start on Opus.
 
 ```bash
-codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh -s read-only -C <worktree> -o <report.md> "<prompt>" < /dev/null
+mkdir -p <worktree>-agy
+git -C <worktree> diff <baseline>...HEAD > <worktree>-agy/pr.diff
+cd <worktree> && agy -p "<prompt>" --model gemini-4-argon-high --sandbox --add-dir <worktree>-agy \
+  --output-format json --print-timeout 1500s < /dev/null > <worktree>-agy/report.json
 ```
 
-Use `-s workspace-write` when Codex implements. Keep the `< /dev/null`: without it, a run in the background reads stdin and waits for input that never comes.
+`<worktree>-agy` is a folder beside the worktree, removed with it. Always name `--model`: the default in `agy`'s own settings is a Claude model on a separate quota this project does not use. Headless `agy` denies its own file writes and every shell command, and that is what keeps it read-only; `--sandbox` is a second layer. It gets no shell at all: under `--sandbox` in a linked worktree even `git log` fails, since the repository's `.git` lies outside its folders, and git history is lens #3's job. A denied call ends the whole run with exit code 0, an empty `response` and a stderr line that starts `jetski: no output produced`, so check the response, not the exit code. The prompt therefore hands it everything as files and says that any shell command ends the run. `agy` also loads the skills in `.agents/skills/` on its own, and they would lead it into commands, so the prompt tells it not to use them. Keep the `< /dev/null`: without it, a run in the background reads stdin and waits for input that never comes. Record the `usage` the JSON reports: how fast the quota drains is still being measured. A 450-line diff takes about 7 minutes, 140k tokens and 3 % of the weekly Argon quota.
 
 **`BRIEF.md` and `STATUS.md`** are gitignored and belong to one task. The brief holds the goal, the acceptance criteria the user confirmed word for word, a link to the spec when there is one, what is out of scope, how to verify, and the limits; it is written once, when the user confirms the criteria, and no worker edits it. The status holds what is done with commit SHAs, the next step, check results with numbers and questions for the user; it is updated after every step, by the orchestrator for a read-only worker. Pass both by absolute path to a worker in another worktree. A new session reads both and continues; another task's unfinished brief is closed first. Delete both when the task ends.
 
@@ -140,7 +142,7 @@ Run the actual check, don't assume. Type-checking and tests verify correctness o
 - `comparison/`: runs other published bokeh renderers on our sequences and scores them against ours. Their code is cloned into an ignored folder, never tracked. `comparison/README.md` has the recipe
 - `.assets/demo/`: the README's demo video, `video-bokeh-demo.mp4`, its poster, and everything that makes it: the recording scripts, the HyperFrames project and its sound, with the sound's credits. The README plays a copy uploaded to GitHub. `.assets/demo/README.md` has the recipe
 - `CONTEXT.md`: the project glossary. Grilling adds a term to it once the term is settled
-- `.claude/skills/`: the agent lifecycle (`/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call). `docs/how-to/agent-lifecycle.md` shows how to drive it
+- `.agents/skills/`: the agent lifecycle (`/bokeh-meeting`, `/bokeh-task`, `/bokeh-review`, and the skills they call), in the folder every agent tool reads; `.claude/skills` is a link to it for Claude Code. `docs/how-to/agent-lifecycle.md` shows how to drive it
 
 ## Working principles
 

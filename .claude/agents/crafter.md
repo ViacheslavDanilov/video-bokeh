@@ -12,7 +12,7 @@ Read `BRIEF.md` at the root of the working tree first, or at the path the caller
 check results with numbers, and questions for the user. Never edit `BRIEF.md`.
 
 Follow root `AGENTS.md`, the `AGENTS.md` of every directory you touch, and the delegation limits
-in `.claude/skills/shared/bokeh-conventions.md`. For the page use `DESIGN.md` and
+in `.agents/skills/shared/bokeh-conventions.md`. For the page use `DESIGN.md` and
 `frontend-design`, and check a visual change in a browser. For prose use `docs/STYLE.md`. For the
 demo video use `.assets/demo/README.md` and `hyperframes`. Stay inside the brief: every changed
 line traces to it.

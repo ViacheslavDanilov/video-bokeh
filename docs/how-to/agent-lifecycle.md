@@ -53,7 +53,7 @@ flowchart TD
     PUSH --> CI["CI: pre-commit, tests, frontend build,<br/>browser smoke, Docker"]
 
     subgraph S2 ["Session 2: /bokeh-review"]
-        LENSES["two-axis-review, codex bugs and second opinion<br/>history, threads, docs style,<br/>document-release, check_prose"] --> GATE["Notation gate"]
+        LENSES["two-axis-review, agy bugs and second opinion<br/>history, threads, docs style,<br/>document-release, check_prose"] --> GATE["Notation gate"]
         GATE --> QA["qa: browser or pipeline run"]
         QA --> LEFT{"Must-fix left?"}
         LEFT -->|"yes, up to 3 rounds"| FIX["Fix and commit"]
@@ -91,7 +91,7 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 5. The agent restates the goal and the acceptance criteria as a checklist. Read it closely: a wrong criterion here costs a rebuilt feature later. Say yes, or fix the list.
 6. It writes the spec to `docs/specs/` and confirms where the tests will sit. Then it branches and builds test-first.
 7. A fresh-context self-check compares the diff against the repo rules and the spec, and the agent fixes what it finds.
-8. It runs the checks that the **Pushing** section of `.claude/skills/shared/bokeh-conventions.md` asks for before a push. For a frontend change like this one, they include the browser smoke test. Then it pushes the branch and opens the pull request, without asking.
+8. It runs the checks that the **Pushing** section of `.agents/skills/shared/bokeh-conventions.md` asks for before a push. For a frontend change like this one, they include the browser smoke test. Then it pushes the branch and opens the pull request, without asking.
 9. It ends by naming the next step: `/bokeh-review` with the PR number, run by the `reviewer` agent or in a new session.
 
 **Session 2**
@@ -113,4 +113,4 @@ Say you want the demo to export a sequence as EXR, and no meeting asked for it.
 | Decisions that are hard to reverse | `docs/adr/` | yes |
 | The review | the pull request on GitHub | n/a |
 
-`.claude/skills/shared/bokeh-conventions.md` lists every skill the three commands call.
+`.agents/skills/shared/bokeh-conventions.md` lists every skill the three commands call.

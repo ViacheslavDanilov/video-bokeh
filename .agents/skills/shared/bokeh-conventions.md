@@ -146,14 +146,14 @@ because a skill's own preamble does not know this repo's rules:
   general-purpose agent on a trivial pass, whose fix loop pushes to the pull request's own
   branch;
 - never upgrade gstack or any other tool, whatever its preamble offers;
-- never edit root `AGENTS.md`, `.claude/agents/` or `.claude/skills/` unless that change is
+- never edit root `AGENTS.md`, `.claude/agents/` or `.agents/skills/` unless that change is
   the task; routing rules live only in root `AGENTS.md`, section **Model routing**.
 
 ## Which skill to reach for
 
 These three skills are rails and repo conventions. **The heavy lifting is delegated**: do
 not reimplement what an installed skill already does. `vendored` means a copy under
-`.claude/skills/`; `.claude/skills/VENDORED.md` says where each came from and what was
+`.agents/skills/`; `.agents/skills/VENDORED.md` says where each came from and what was
 changed.
 
 | Need | Skill | Source |
@@ -167,8 +167,7 @@ changed.
 | Write code | `tdd` | vendored |
 | Decide the shape of a module's interface | `codebase-design` | vendored |
 | Check a diff against the repo rules and the spec | `two-axis-review` | vendored |
-| Find bugs in a diff | `codex exec`, read-only; `/code-review` when codex is missing or refuses the model | CLI, built-in |
-| A second opinion from a different model | `codex` | gstack |
+| Find bugs in a diff, and a second opinion from a different model | `agy` with `gemini-4-argon-high`, read-only, as root `AGENTS.md` shows; `/code-review` for bugs when agy is missing, fails, returns nothing or is out of quota | CLI, built-in |
 | Click through a UI | `qa` (own branch, fixes) / `qa-only` (report only) | gstack |
 | Prove a change did not cost runtime | `benchmark` | gstack |
 | Sync the docs to what a branch actually shipped | `document-release` | gstack |
@@ -193,7 +192,7 @@ step silently, and never pretend a delegated pass ran.
 **Do not confuse four similar names:** `review` (gstack, generic pre-landing review, not
 used here), `/code-review` (built-in, finds bugs), `two-axis-review` (vendored, rules and
 spec) and `bokeh-review` (this repo's full pre-merge flow, which calls `two-axis-review`, and
-`/code-review` only when codex is missing or refuses the model).
+`/code-review` only when agy is missing, fails, returns nothing or is out of quota).
 
 When the table has no row for the task, `find-skills` may propose one; installing it is the
 user's decision. When nothing fits, do the work by hand.

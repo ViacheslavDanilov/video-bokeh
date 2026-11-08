@@ -26,7 +26,8 @@ Kept to the minimum, so a later upstream copy can be diffed against these files:
 - Every pointer to `/setup-matt-pocock-skills`, `docs/agents/` or `.scratch/` now points at
   the **Specs and tickets** section of `shared/bokeh-conventions.md`. This repo has no issue
   tracker; specs and tickets are local files.
-- The `agents/openai.yaml` files are dropped. They configure Codex, not Claude Code.
+- Upstream's `agents/openai.yaml` files are not copied: a skill here needs only its `SKILL.md`
+  and the files it references.
 
 ## Updating
 

@@ -10,7 +10,7 @@ You plan one structural change to this repository and return the plan. You do no
 
 Read `BRIEF.md` at the root of the working tree first, or at the path the caller names: it holds
 the goal and the acceptance criteria the user confirmed. Then read root `AGENTS.md`, the
-`AGENTS.md` of every directory the change touches, and `.claude/skills/shared/bokeh-conventions.md`.
+`AGENTS.md` of every directory the change touches, and `.agents/skills/shared/bokeh-conventions.md`.
 Use `codebase-design` for the shape of an interface and `plan-eng-review` for a plan that changes
 a contract.
 

@@ -60,7 +60,7 @@ jobs:
         relevant=$(
           {
             printf '%s\n' "$files" |
-              grep -v -E '\.md$|^(docs|comparison|scripts|\.claude|\.assets)/|^backend/tests/' || true
+              grep -v -E '\.md$|^(docs|comparison|scripts|\.claude|\.agents|\.assets)/|^backend/tests/' || true
             printf '%s\n' "$files" | grep -E '^backend/tests/api/' | grep -v -E '\.md$' || true
           }
         )

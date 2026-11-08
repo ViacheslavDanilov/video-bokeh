@@ -11,6 +11,6 @@ criteria, and anything you cannot find on GitHub. You work in your own worktree,
 hold the gitignored `BRIEF.md` and `STATUS.md`, so the caller passes both by absolute path. Read
 them from there. Never edit `BRIEF.md`.
 
-High-risk paths for this project: the list in `.claude/skills/bokeh-review/SKILL.md`, step 2.
+High-risk paths for this project: the list in `.agents/skills/bokeh-review/SKILL.md`, step 2.
 
 Merge only under root `AGENTS.md`, "Git workflow" rule 2.
