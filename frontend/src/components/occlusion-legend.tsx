@@ -26,6 +26,11 @@ export function OcclusionLegend({
   backward: boolean;
 }) {
   const neighbor = backward ? "previous" : "next";
+  // Seen from the previous frame, a surface that is not there was covered or had not yet
+  // come into the frame.
+  const why = backward
+    ? "something covered it, or it entered the frame"
+    : "something covers it, or it leaves the frame";
   return (
     <TooltipProvider>
       <Tooltip>
@@ -52,10 +57,9 @@ export function OcclusionLegend({
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64">
-          These pixels show a surface the {neighbor} frame does not: something
-          covers it, or it leaves the frame. With the overlay on they are cyan
-          over the picture in gray; with it off, the mask alone is white on
-          black.
+          These pixels show a surface the {neighbor} frame does not: {why}. With
+          the overlay on they are cyan over the picture in gray; with it off,
+          the mask alone is white on black.
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

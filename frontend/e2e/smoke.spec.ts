@@ -1306,7 +1306,7 @@ test("switches the occlusion pane to the overlay and back", async ({
   await page.keyboard.press("Tab");
   await expect(legend).toBeFocused();
   await expect(tooltip).toContainText(
-    "These pixels show a surface the next frame does not",
+    "These pixels show a surface the next frame does not: something covers it, or it leaves the frame.",
   );
   await expect(legend).toHaveAccessibleDescription(
     /These pixels show a surface the next frame does not/,
@@ -1370,7 +1370,7 @@ test("picks the occlusion direction under its pane", async ({ page }) => {
   const tooltip = page.getByRole("tooltip");
   await legend.hover();
   await expect(tooltip).toContainText(
-    "These pixels show a surface the previous frame does not",
+    "These pixels show a surface the previous frame does not: something covered it, or it entered the frame.",
   );
   await expect(tooltip).not.toContainText("the next frame");
   // Away from it, as a hand moves: the tooltip stays while the pointer heads for it.
