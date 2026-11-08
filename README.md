@@ -4,6 +4,7 @@
 
 # Video Bokeh
 
+[![Hugging Face Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Dataset-FFD21E.svg)](https://huggingface.co/datasets/vdanilov/video-bokeh)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)](https://www.typescriptlang.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
@@ -21,7 +22,7 @@ https://github.com/user-attachments/assets/7c1cfde8-7132-4761-a2e2-f40a03380f39
 
 ## Features
 
-- **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity.
+- **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity. The library and a fixed set of 300 sequences are on [Hugging Face](https://huggingface.co/datasets/vdanilov/video-bokeh).
 - **Swappable parts** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own) in Stage A, and bokeh: our layer-wise renderer inside Stage B, or your own over written sequences.
 - **Training on the fly** – A PyTorch stream that generates a new sequence for every item.
 - **Web demo** – Generate a sequence and compare its streams side by side.
