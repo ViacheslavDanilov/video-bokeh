@@ -218,8 +218,9 @@ its forward stream's other direction, under `backward`.
 
 **Every sequence of two frames or more comes with its motion streams:** the optical flow, the
 backward flow, the occlusion mask and the backward occlusion mask. Generation writes
-`flow/`, `flow_back/`, `occlusion/` and `occlusion_back/` in the same pass as the frames. A cached sequence generated before that gets the
-ones it lacks on its next request, in one pass, each whole or not at all.
+`flow/`, `flow_back/`, `occlusion/` and `occlusion_back/` in the same pass as the frames. A
+cached sequence generated before that gets the ones it lacks on its next request, in one
+pass, each whole or not at all.
 
 Writing the flow costs about 40% more time. Measured on an Apple M3 Pro, 80 frames, four
 objects, without bokeh, each pair back to back:
@@ -329,7 +330,7 @@ curl -N -X POST http://localhost:8000/sequences \
   `flow`, or `frames` and `bokeh`, or all three; one missing nothing reports no step, only
   itself. `flow` adds every motion stream the sequence lacks, in one pass. It counts the
   frames that give one of them a file. That is one fewer than the frames, or all of them
-  when backward flow is added with either of the others, because backward flow starts a
+  when a backward stream is added with a forward one, because the backward streams start a
   frame later. "Step", because
   "stage" names the pipeline's Stages A and B.
 - **`steps` comes first and names every step, in order, with the total it will count to.**
@@ -389,15 +390,15 @@ opacity. The last frame is gray with nothing drawn on it. The overlay is cached 
 file, `occlusion.overlay-cyan.mp4`. Earlier versions drew it in red, cached as
 `occlusion.overlay.mp4`, and in orange, cached as `occlusion.overlay-orange.mp4`. Both are
 left on disk and never served. The value is a yes or no, as `true`, `1` or `yes` and their
-opposites, and anything else answers 422. Every other stream drops the parameter, whatever
-its value, as it drops `?colormap=`.
+opposites, and anything else answers 422. Every stream but `occlusion` and `occlusion_back`
+drops the parameter, whatever its value, as it drops `?colormap=`.
 
 **`occlusion_back` is the same mask against the previous frame**: white where the pixel's
 surface is hidden in the previous frame. Its first frame has no previous one, so the video
 shows it black, and with `?overlay=true` gray with nothing drawn on it, and the masks start at
 the second frame. The sequence response names its URLs as the mask's `backward` and
-`overlay_backward` rather than as a stream. The overlay is cached as
-`occlusion_back.overlay-cyan.mp4`. Written with the sequence, it costs about a tenth more
+`overlay_backward` rather than as a stream. `?overlay=` reads the same yes or no as for
+`occlusion`, and the overlay is cached as `occlusion_back.overlay-cyan.mp4`. Written with the sequence, it costs about a tenth more
 render time than the other three motion streams, measured in `iter_frames` alone.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
@@ -468,7 +469,8 @@ frames as disposable and the library as the thing to keep.
 
 **Each bokeh strength asked for stores a whole sequence.** k names the sequence, so a second k
 writes every stream again, not only `bokeh/`. Measured from the `da2-large` dev library, a
-fresh sequence with its bokeh and all three motion streams, before any MP4:
+fresh sequence with its bokeh and the three motion streams it had before the backward mask,
+before any MP4:
 
 | Shape | Seeds | Bytes on disk |
 |---|---|---|
