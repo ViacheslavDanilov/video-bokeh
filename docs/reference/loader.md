@@ -55,8 +55,9 @@ would start workers of its own.
 `n_objects_min` must be at least 1 and no more than `n_objects_max`; anything else is refused
 when the stream is created. So is a `library_root` with no foregrounds or no backgrounds, or
 with none in the split asked for, which would otherwise fail inside a DataLoader worker once
-iteration starts. `cfg`, a `SampleConfig`, changes the pose and motion ranges the way it does
-for the dataset writer; leave it out for the writer's defaults.
+iteration starts. `cfg`, a `SampleConfig`, changes the pose and motion ranges of the scenes the
+stream draws; leave it out for the default ranges. The dataset writer takes no `cfg` and always
+uses the defaults, so the fixed set and a stream with `cfg` left out draw from the same ranges.
 
 **`split` picks the assets the scenes are drawn from.** It is `train` by default, the
 foregrounds and backgrounds a network may train on. `test` takes the ones the fixed set is made
