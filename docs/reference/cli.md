@@ -253,7 +253,7 @@ install, and so does `hf upload-large-folder`. The card names Depth Anything V2 
   objects cannot be placed. Run `stage` again afterwards, into an empty folder, so the staged
   card shows the new example too.
 - **`pack-sequences` adds the fixed set to a packed library.** It takes a run that
-  `scenes.generate --split test --bokeh --flow --flow-back --occlusion` wrote, and refuses
+  `scenes.generate --split test --bokeh --flow both --occlusion both` wrote, and refuses
   any other, because the card describes that one. It writes the run's sequences into tar
   shards under `sequences/`, one sample per sequence: every file of sequence `0001` is a
   member `0001.<stream>.<frame>`, such as `0001.all_in_focus.01.png`, with
@@ -349,9 +349,8 @@ and `run.json` first, then writes `manifest.csv` atomically as the run's complet
 | `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5. See [dataset-layout](dataset-layout.md) |
 | `--split` | `train`, `test` or `all` | `train` | the assets the scenes draw from: `train`, the ones training sees, `test`, the fixed set's, or `all`, as every run before the split did. See [dataset-layout](dataset-layout.md#the-train-and-test-splits) |
 | `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer. See [dataset-layout](dataset-layout.md) |
-| `--flow` | flag | off | also write `flow/`, each frame's exact forward optical flow to the next, as KITTI's 16-bit PNG. See [dataset-layout](dataset-layout.md) |
-| `--flow-back` | flag | off | also write `flow_back/`, each frame's exact backward optical flow to the previous, in the same format |
-| `--occlusion` | flag | off | also write `occlusion/`, for each frame but the last an 8-bit mask of the pixels whose surface the next frame does not show. See [dataset-layout](dataset-layout.md) |
+| `--flow` | `forward`, `backward` or `both` | none | also write each frame's exact optical flow as KITTI's 16-bit PNG: `forward` writes `flow/`, the flow to the next frame, `backward` writes `flow_back/`, the flow to the previous one, `both` writes both. See [dataset-layout](dataset-layout.md) |
+| `--occlusion` | `forward`, `backward` or `both` | none | also write an 8-bit mask of the pixels whose surface the neighbor frame does not show: `forward` writes `occlusion/`, for each frame but the last, against the next frame, `backward` writes `occlusion_back/`, for each frame but the first, against the previous one, `both` writes both. See [dataset-layout](dataset-layout.md) |
 | `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
 | `--bokeh-strength` | float | `16` | the bokeh's strength: the blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus |
 

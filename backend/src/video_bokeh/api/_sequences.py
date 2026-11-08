@@ -56,8 +56,8 @@ BOKEH = "bokeh"
 
 #: The motion streams: the optical flow, the backward flow and the occlusion mask, written
 #: with every sequence, and added to one generated before they came with it. Each is listed
-#: once it is there, as bokeh is.
-FLOW, FLOW_BACK, OCCLUSION = MOTION_STREAMS
+#: once it is there, as bokeh is. The backward mask, ``occlusion_back``, is not served yet.
+FLOW, FLOW_BACK, OCCLUSION, _OCCLUSION_BACK = MOTION_STREAMS
 
 #: Served once a sequence has them, after `VIDEO_STREAMS`, in this order.
 OPTIONAL_STREAMS = (BOKEH, FLOW, FLOW_BACK, OCCLUSION)
@@ -300,7 +300,7 @@ def ensure_sequence(
         # A single frame has no motion, so it is never missing any.
         missing_motion = [
             stream
-            for stream in MOTION_STREAMS
+            for stream in (FLOW, FLOW_BACK, OCCLUSION)
             if request.frames > 1 and not (dest / stream).is_dir()
         ]
         missing_bokeh = bokeh and not (dest / BOKEH).is_dir()

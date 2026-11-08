@@ -133,6 +133,7 @@ STREAMS = (
     "flow",
     "flow_back",
     "occlusion",
+    "occlusion_back",
 )
 #: What ``bokeh/`` holds beside its frames, and the member it is packed as.
 FOCUS = "focus.json"
@@ -197,7 +198,7 @@ data/fixed-set/
 ├── manifest.csv, objects.csv, run.json
 └── sequences/<id>/
     ├── all_in_focus/, disparity/, alpha/, bokeh/ (with focus.json)
-    └── flow/, flow_back/, occlusion/
+    └── flow/, flow_back/, occlusion/, occlusion_back/
 ```
 
 | File | Frames | Mode | Type | Values |
@@ -209,11 +210,12 @@ data/fixed-set/
 | `flow/<frame>.png` | all but the last | RGB | uint16 | the optical flow to the next frame, KITTI-encoded |
 | `flow_back/<frame>.png` | all but the first | RGB | uint16 | the optical flow to the previous frame, KITTI-encoded |
 | `occlusion/<frame>.png` | all but the last | L | uint8 | 255 where the next frame does not show the surface |
+| `occlusion_back/<frame>.png` | all but the first | L | uint8 | 255 where the previous frame does not show the surface |
 
 - **The flow is exact.** Every layer moves by a known transform, so the flow follows the
   front-most surface at each pixel. KITTI's encoding stores red `u · 64 + 2¹⁵`, green
   `v · 64 + 2¹⁵` and blue 1 where valid, so read it with a 16-bit reader such as the code's
-  `read_flow_png`. The occlusion mask belongs to the forward flow; the backward flow has none.
+  `read_flow_png`. Each flow has the occlusion mask of its own direction.
 - **`bokeh/focus.json`** names the object in focus by its alpha page, or `null`, gives each
   frame's in-focus disparity as `zf`, and records the renderer and its settings.
 - **The run's records sit beside the shards.** `manifest.csv` gives each sequence's seed,
@@ -721,7 +723,7 @@ def pack_sequences(
     if lacking := [s for s in (*STREAMS, "focus") if s not in streams]:
         raise SystemExit(
             f"{data_root} has no {', '.join(lacking)}: the card describes a fixed set "
-            "written with --bokeh --flow --flow-back --occlusion"
+            "written with --bokeh --flow both --occlusion both"
         )
     for seq_id, members in sequences[1:]:
         if [name.partition(".")[2] for name, _ in members] != layout:

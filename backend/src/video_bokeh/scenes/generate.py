@@ -10,9 +10,10 @@
         ├── alpha/<frame>.tif          multi-page uint8, one page per object
         ├── disparity/<frame>.png      uint16
         ├── layers/                    with --layers: what each frame was composited from
-        ├── flow/<frame>.png           with --flow: forward optical flow, KITTI 16-bit
-        ├── flow_back/<frame>.png      with --flow-back: backward optical flow, the same
-        └── occlusion/<frame>.png      with --occlusion: not visible next frame, 8-bit
+        ├── flow/<frame>.png           --flow forward: optical flow to the next, KITTI 16-bit
+        ├── flow_back/<frame>.png      --flow backward: optical flow to the previous, the same
+        ├── occlusion/<frame>.png      --occlusion forward: not visible next frame, 8-bit
+        └── occlusion_back/<frame>.png --occlusion backward: not visible previous frame
 
 Disparity is sampled and transformed from the library, not estimated per frame. The
 scenes draw their assets from the train split unless ``--split`` names another; the
@@ -281,18 +282,25 @@ def write_bokeh_stream(
     return str(device)
 
 
-#: The streams of motion between frames: forward flow, backward flow and the occlusion mask.
-MOTION_STREAMS = ("flow", "flow_back", "occlusion")
+#: The streams of motion between frames: the flow and the occlusion mask, each forward and
+#: backward.
+MOTION_STREAMS = ("flow", "flow_back", "occlusion", "occlusion_back")
+
+
+#: What ``--flow`` and ``--occlusion`` take, and which of the two streams each writes.
+DIRECTIONS = ("forward", "backward", "both")
+FORWARD = ("forward", "both")
+BACKWARD = ("backward", "both")
 
 
 def motion_steps(streams: Collection[str], n_frames: int) -> int:
     """How many frames write a file of at least one of ``streams``.
 
-    Forward flow and the occlusion mask have every frame but the last, backward flow every
-    frame but the first, so the two kinds together have every frame.
+    The forward streams have every frame but the last, the backward ones every frame but
+    the first, so the two kinds together have every frame.
     """
     forward = bool({"flow", "occlusion"} & set(streams))
-    backward = "flow_back" in streams
+    backward = bool({"flow_back", "occlusion_back"} & set(streams))
     if n_frames < 2 or not (forward or backward):
         return 0
     return n_frames if forward and backward else n_frames - 1
@@ -306,8 +314,8 @@ def write_motion_streams(
 ) -> None:
     """Write the motion streams named in ``streams`` of a written sequence, from its scene.
 
-    For a sequence written without them: each of ``flow/``, ``flow_back/`` and
-    ``occlusion/`` as ``write_sequence`` writes it. The frames are rendered again one at a
+    For a sequence written without them: each of ``flow/``, ``flow_back/``,
+    ``occlusion/`` and ``occlusion_back/`` as ``write_sequence`` writes it. The frames are rendered again one at a
     time, once for all of them, and each stream appears whole or not at all, through
     ``staged_stream``. One that appeared meanwhile, from another request for the same
     sequence, is kept.
@@ -331,6 +339,7 @@ def write_motion_streams(
             flow="flow" in staging,
             flow_back="flow_back" in staging,
             occlusion="occlusion" in staging,
+            occlusion_back="occlusion_back" in staging,
         )
         done = 0
         for fi, frame in enumerate(frames):
@@ -339,6 +348,7 @@ def write_motion_streams(
                 "flow": frame.flow,
                 "flow_back": frame.flow_back,
                 "occlusion": frame.occlusion,
+                "occlusion_back": frame.occlusion_back,
             }
             written = {
                 stream: field
@@ -346,7 +356,9 @@ def write_motion_streams(
                 if stream in staging and field is not None
             }
             for stream, field in written.items():
-                write = write_mask_png if stream == "occlusion" else write_flow_png
+                write = (
+                    write_mask_png if stream.startswith("occlusion") else write_flow_png
+                )
                 write(staging[stream] / f"{stem}.png", field)
             if written:
                 done += 1
@@ -377,8 +389,10 @@ def write_sequence(
     It comes last, so a ``layers/`` without it was interrupted. Frames rendered with
     ``flow`` write ``flow/``, one file per frame but the last, frames rendered with
     ``flow_back`` write ``flow_back/``, one file per frame but the first, and frames
-    rendered with ``occlusion`` write ``occlusion/``, one per frame but the last. Any
-    ``layers/``, ``flow/``, ``flow_back/``, ``occlusion/`` or ``bokeh/`` already in
+    rendered with ``occlusion`` write ``occlusion/``, one per frame but the last, and
+    frames rendered with ``occlusion_back`` write ``occlusion_back/``, one per frame but
+    the first. Any ``layers/``, ``flow/``, ``flow_back/``, ``occlusion/``,
+    ``occlusion_back/`` or ``bokeh/`` already in
     ``seq_dir`` is removed first: an earlier run's would otherwise pass for this one's.
 
     ``frames`` may be a generator, written as it yields, so that a long sequence is
@@ -403,6 +417,8 @@ def write_sequence(
     shutil.rmtree(flow_back_dir, ignore_errors=True)
     occlusion_dir = seq_dir / "occlusion"
     shutil.rmtree(occlusion_dir, ignore_errors=True)
+    occlusion_back_dir = seq_dir / "occlusion_back"
+    shutil.rmtree(occlusion_back_dir, ignore_errors=True)
     paint_orders: list[list[int]] = []
     for fi, frame in enumerate(frames):
         stem = _frame_stem(fi, n_frames)
@@ -422,6 +438,9 @@ def write_sequence(
         if frame.occlusion is not None:
             occlusion_dir.mkdir(exist_ok=True)
             write_mask_png(occlusion_dir / f"{stem}.png", frame.occlusion)
+        if frame.occlusion_back is not None:
+            occlusion_back_dir.mkdir(exist_ok=True)
+            write_mask_png(occlusion_back_dir / f"{stem}.png", frame.occlusion_back)
     if paint_orders:
         write_paint_order(layer_root / "paint_order.json", paint_orders)
 
@@ -441,6 +460,7 @@ def generate_dataset(
     flow: bool = False,
     flow_back: bool = False,
     occlusion: bool = False,
+    occlusion_back: bool = False,
     split: str = TRAIN,
 ) -> int:
     """Write ``count`` sequences and return how many were actually written.
@@ -451,8 +471,9 @@ def generate_dataset(
     With ``bokeh``, each sequence's bokeh is rendered in the same run, from the layers
     held in memory; ``layers`` decides separately whether they are written too. With
     ``flow``, each sequence's forward optical flow is written in the same pass, with
-    ``flow_back`` its backward flow, and with ``occlusion`` the mask of what the next
-    frame no longer shows.
+    ``flow_back`` its backward flow, with ``occlusion`` the mask of what the next frame
+    no longer shows, and with ``occlusion_back`` the mask of what the previous frame did
+    not show.
 
     A sequence whose trajectories cannot be made collision-free is skipped, not
     written. Sequence names stay tied to the seed, so a skip leaves a gap in the
@@ -501,6 +522,7 @@ def generate_dataset(
             flow=flow,
             flow_back=flow_back,
             occlusion=occlusion,
+            occlusion_back=occlusion_back,
         )
         write_sequence(seq_dir, _measured(frames, focus) if bokeh else frames, n_frames)
         if bokeh:
@@ -544,6 +566,7 @@ def generate_dataset(
             "flow": flow,
             "flow_back": flow_back,
             "occlusion": occlusion,
+            "occlusion_back": occlusion_back,
             "split": split,
         },
         "library_root": str(library_root.resolve()),
@@ -615,21 +638,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--flow",
-        action="store_true",
-        help="also write flow/: each frame's exact forward optical flow to the next, as "
-        "KITTI's 16-bit PNG",
-    )
-    parser.add_argument(
-        "--flow-back",
-        action="store_true",
-        help="also write flow_back/: each frame's exact backward optical flow to the "
-        "previous, in the same format",
+        choices=DIRECTIONS,
+        help="also write each frame's exact optical flow, as KITTI's 16-bit PNG: "
+        "forward writes flow/, to the next frame, backward writes flow_back/, to the "
+        "previous one, both writes both",
     )
     parser.add_argument(
         "--occlusion",
-        action="store_true",
-        help="also write occlusion/: for each frame but the last, an 8-bit mask of the "
-        "pixels whose surface the next frame does not show",
+        choices=DIRECTIONS,
+        help="also write an 8-bit mask of the pixels whose surface the neighbor frame "
+        "does not show: forward writes occlusion/, for the next frame, backward writes "
+        "occlusion_back/, for the previous one, both writes both",
     )
     return parser
 
@@ -650,9 +669,10 @@ def main(argv: list[str] | None = None) -> int:
             layers=args.layers,
             bokeh=args.bokeh,
             bokeh_strength=args.bokeh_strength,
-            flow=args.flow,
-            flow_back=args.flow_back,
-            occlusion=args.occlusion,
+            flow=args.flow in FORWARD,
+            flow_back=args.flow in BACKWARD,
+            occlusion=args.occlusion in FORWARD,
+            occlusion_back=args.occlusion in BACKWARD,
             split=args.split,
         )
     except ValueError as exc:

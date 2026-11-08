@@ -801,6 +801,7 @@ def test_scene_records_match_the_sampled_scene(
         "2",
         "--layers",
         "--flow",
+        "forward",
     ]
     assert main(argv) == 0
     with (out / "manifest.csv").open(encoding="utf-8") as f:
@@ -878,6 +879,7 @@ def test_scene_records_match_the_sampled_scene(
         "flow": True,
         "flow_back": False,
         "occlusion": False,
+        "occlusion_back": False,
         "bokeh": False,
         "bokeh_strength": 16.0,
         "split": "train",
@@ -1047,6 +1049,7 @@ def test_stats_command_has_hand_calculated_totals(tmp_path, capsys):
             "flow": {"total": 2, "per_frame": 0.5},
             "flow_back": {"total": 0, "per_frame": 0.0},
             "occlusion": {"total": 0, "per_frame": 0.0},
+            "occlusion_back": {"total": 0, "per_frame": 0.0},
             "bokeh": {"total": 32, "per_frame": 8.0},
         },
         "run": {"seed": 7},
