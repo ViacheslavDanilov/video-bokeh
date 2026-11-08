@@ -161,11 +161,10 @@ in scope, each with file, line, a failing input and the fix, and for a short sec
 the approach, and it names the high-risk files the diff touches and what to look for there;
 when the PR changes `.agents/skills/` or `.claude/agents/`, it says agy may read them.
 
-Read the report's `response`, not the exit code: an empty one means a call was denied and
-the run is lost. Note the `usage` in the review summary. When agy is missing, fails, returns
-nothing or is out of quota, say so, run `/code-review` at a depth matching the pass for #2,
-and record #7 as not run rather than fall back to another model. Do not retry a lost run on
-the same pass; the quota is small.
+Check the report and note its `usage` as root `AGENTS.md` says. When agy is missing, fails,
+returns nothing or is out of quota, say so, run `/code-review` at a depth matching the pass
+for #2, and record #7 as not run rather than fall back to another model. Do not retry a lost
+run on the same pass.
 
 Lens #8: run from the worktree on any pass that changes tracked Markdown. Without
 `TYPESAFE_API_KEY` it checks the em dash alone; record the lens as partly run. A flagged
