@@ -474,6 +474,8 @@ not apply. A still frame stands for the last frame, so the video is as long as t
 `--streams flow_back` colors the backward flow the same way, with the still frame first,
 since the first frame has no previous one. `--streams occlusion` packs the mask as stored,
 white where the pixel is hidden in the next frame, with a black frame for the last.
+`--streams occlusion_back` packs the backward mask the same way, white where the pixel is
+hidden in the previous frame, with the black frame first.
 
 The output name doesn't include the colormap, so re-running `--streams disparity` with a
 different `--colormap` overwrites the previous `disparity.mp4` rather than writing a second file.

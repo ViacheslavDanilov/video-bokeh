@@ -4,8 +4,8 @@ Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B i
 CPU work measured in seconds, and the sequence id is a hash of the request and the
 library, so the cache is the directory on disk and there is no database.
 
-A generated sequence comes with its optical flow, backward flow and occlusion mask,
-written in the same request.
+A generated sequence comes with its optical flow and occlusion mask, each forward and
+backward, written in the same request.
 
 It comes with its bokeh too, rendered in the same request by the layered renderer, when
 torch is installed and ``VIDEO_BOKEH_RENDER_BOKEH`` does not turn it off. Without torch,
@@ -51,6 +51,7 @@ from video_bokeh.api._sequences import (
     FLOW,
     FLOW_BACK,
     OCCLUSION,
+    OCCLUSION_BACK,
     OPTIONAL_STREAMS,
     VIDEO_STREAMS,
     Plan,
@@ -82,6 +83,10 @@ DEFAULT_COLORMAP = "spectral_r"
 #: Listed for the demo's stream picker, without a pane of its own, so the panes a
 #: sequence opens with stay the ones they were before the occlusion mask was served.
 _PICKER_ONLY = (OCCLUSION,)
+
+#: Each forward motion stream and its backward one, which the demo offers as the other
+#: direction of the forward stream rather than as a stream of its own.
+_BACKWARD = {FLOW: FLOW_BACK, OCCLUSION: OCCLUSION_BACK}
 
 #: The overlay's cached file is named after its look. Earlier versions cached a red
 #: overlay as `occlusion.overlay.mp4` and an orange one as `occlusion.overlay-orange.mp4`,
@@ -239,10 +244,13 @@ class StreamInfo(BaseModel):
     opens_pane: bool
     #: The stream drawn over the frames it describes, for the occlusion mask, or null.
     overlay: str | None
-    #: The same motion the other way, for the optical flow: where each pixel came from in
-    #: the previous frame rather than where it goes in the next. Null for every other
-    #: stream, and the backward flow is not listed as a stream of its own.
+    #: The same motion the other way, for the optical flow and the occlusion mask: where
+    #: each pixel came from in the previous frame, and what the previous frame does not
+    #: show, rather than where it goes and what the next one hides. Null for every other
+    #: stream, and the backward streams are not listed as streams of their own.
     backward: str | None
+    #: The backward mask drawn over the frames it describes, for the occlusion mask, or null.
+    overlay_backward: str | None
 
 
 class SequenceResponse(BaseModel):
@@ -407,14 +415,20 @@ def _sequence_response(
                     else None
                 ),
                 backward=(
-                    f"/sequences/{result.id}/{FLOW_BACK}.mp4"
-                    if stream == FLOW and FLOW_BACK in streams
+                    f"/sequences/{result.id}/{_BACKWARD[stream]}.mp4"
+                    if _BACKWARD.get(stream) in streams
+                    else None
+                ),
+                overlay_backward=(
+                    f"/sequences/{result.id}/{OCCLUSION_BACK}.mp4?overlay=true"
+                    if stream == OCCLUSION and OCCLUSION_BACK in streams
                     else None
                 ),
             )
-            # The backward flow is the flow's other direction, offered as `backward`.
+            # A backward stream is its forward one's other direction, offered as
+            # `backward`.
             for stream in streams
-            if stream != FLOW_BACK
+            if stream not in _BACKWARD.values()
         },
     )
 
@@ -470,12 +484,12 @@ def read_sequence_video(
     itself, which is also what keeps it from naming a path outside `sequences/`.
 
     `colormap` applies to `disparity` only -- it is 16-bit gray on disk and gets its
-    color here. `overlay` applies to `occlusion` only, and draws the mask over the
-    all-in-focus frames instead of on its own. Every other stream has one rendering, RGB
-    already or, for the flows, the colors optical-flow papers use, so each parameter is
-    dropped rather than forking that stream's cache into identical copies. `overlay` is
-    read as a yes or no for `occlusion` alone, so whatever another stream's URL carries
-    in it, that URL answers as it did before the parameter existed.
+    color here. `overlay` applies to `occlusion` and `occlusion_back` only, and draws the
+    mask over the all-in-focus frames instead of on its own. Every other stream has one
+    rendering, RGB already or, for the flows, the colors optical-flow papers use, so each
+    parameter is dropped rather than forking that stream's cache into identical copies.
+    `overlay` is read as a yes or no for the masks alone, so whatever another stream's URL
+    carries in it, that URL answers as it did before the parameter existed.
     """
     if stream not in (*VIDEO_STREAMS, *OPTIONAL_STREAMS):
         raise HTTPException(status_code=404, detail=f"no video for stream {stream!r}")
@@ -487,7 +501,7 @@ def read_sequence_video(
     if stream != "disparity":
         colormap = DEFAULT_COLORMAP
     over_frames = False
-    if stream == OCCLUSION:
+    if stream in (OCCLUSION, OCCLUSION_BACK):
         try:
             over_frames = _YES_OR_NO.validate_python(overlay)
         except ValidationError as exc:

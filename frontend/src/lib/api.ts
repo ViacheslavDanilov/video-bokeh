@@ -29,9 +29,13 @@ export type StreamInfo = {
   opens_pane: boolean;
   /** The stream drawn over the frames it describes, for the occlusion mask, or null. */
   overlay: string | null;
-  /** The same motion the other way, for the optical flow: where each pixel came from
-   *  rather than where it goes. Null for every other stream. */
+  /** The same motion the other way, for the optical flow and the occlusion mask: where
+   *  each pixel came from rather than where it goes, and what the previous frame does not
+   *  show rather than the next. Null for every other stream. */
   backward: string | null;
+  /** The backward stream drawn over the frames, as `overlay` is the forward one: for the
+   *  occlusion mask, or null. */
+  overlay_backward: string | null;
 };
 
 export type Sequence = {
@@ -223,6 +227,7 @@ async function readGeneration(
  * Absolute URL for a stream's video: in `colormap` when the stream takes it and it is not
  * the one the server renders anyway, drawn over the frames when `overlay` is asked for and
  * the stream has one, and the other way when `backward` is asked for and the stream has it.
+ * Both together give the backward stream drawn over the frames.
  *
  * The server caches one file per rendering, so switching is a fetch the first time and a
  * file read after that.
@@ -235,10 +240,15 @@ export function streamUrl(
     backward,
   }: { colormap?: string; overlay?: boolean; backward?: boolean } = {},
 ): string {
+  if (backward && stream.backward) {
+    const direction =
+      overlay && stream.overlay_backward
+        ? stream.overlay_backward
+        : stream.backward;
+    return new URL(direction, BASE).toString();
+  }
   if (overlay && stream.overlay)
     return new URL(stream.overlay, BASE).toString();
-  if (backward && stream.backward)
-    return new URL(stream.backward, BASE).toString();
   const url = new URL(stream.url, BASE);
   if (
     colormap &&

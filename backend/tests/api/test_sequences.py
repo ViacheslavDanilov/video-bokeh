@@ -141,7 +141,17 @@ def test_writes_the_occlusion_of_every_frame_but_the_last(
     assert masks == frames[:-1]
 
 
-@pytest.mark.parametrize("missing", ["flow_back", "occlusion"])
+def test_writes_the_backward_occlusion_of_every_frame_but_the_first(
+    library: Path,
+    tmp_path: Path,
+) -> None:
+    result = ensure_sequence(library, "libaaa", tmp_path / "sequences", BASE)
+    frames = sorted(p.name for p in (result.path / "all_in_focus").iterdir())
+    masks = sorted(p.name for p in (result.path / "occlusion_back").iterdir())
+    assert masks == frames[1:]
+
+
+@pytest.mark.parametrize("missing", ["flow_back", "occlusion", "occlusion_back"])
 def test_a_cached_sequence_gets_back_exactly_what_it_lost(
     library: Path,
     tmp_path: Path,
@@ -351,8 +361,9 @@ def test_announces_the_steps_it_reports_before_the_first(
         (("flow",), True),
         (("flow_back",), False),
         (("occlusion",), False),
+        (("occlusion_back",), False),
         (("flow_back", "occlusion"), True),
-        (("flow", "flow_back", "occlusion"), False),
+        (("flow", "flow_back", "occlusion", "occlusion_back"), False),
     ],
 )
 def test_a_cached_sequence_announces_what_it_adds(

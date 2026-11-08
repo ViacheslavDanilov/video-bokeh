@@ -1306,7 +1306,7 @@ test("switches the occlusion pane to the overlay and back", async ({
   await page.keyboard.press("Tab");
   await expect(legend).toBeFocused();
   await expect(tooltip).toContainText(
-    "These pixels show a surface the next frame does not",
+    "These pixels show a surface the next frame does not: something covers it, or it leaves the frame.",
   );
   await expect(legend).toHaveAccessibleDescription(
     /These pixels show a surface the next frame does not/,
@@ -1330,6 +1330,86 @@ test("switches the occlusion pane to the overlay and back", async ({
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4$/);
+});
+
+/**
+ * The occlusion mask has its direction picked under its pane as the optical flow's is:
+ * forward first, backward from the same dropdown, as stored or over the frames, and the
+ * caption names the neighbor frame, the next one or the previous one. The flow pane keeps
+ * its own direction.
+ */
+test("picks the occlusion direction under its pane", async ({ page }) => {
+  await openPage(page);
+  await generateSequence(page);
+  const pane = await addPaneFor(page, "Occlusion");
+  const video = pane.locator("video");
+  const direction = pane.getByRole("combobox", { name: "Direction" });
+  const toggle = pane.getByRole("button", { name: "Overlay" });
+  const caption = (text: string) => pane.getByRole("button", { name: text });
+  const choose = async (name: "Forward" | "Backward") => {
+    await direction.click();
+    await expect(page.getByRole("option")).toHaveText(["Forward", "Backward"]);
+    await page.getByRole("option", { name }).click();
+    await expect(direction).toHaveText(name);
+  };
+
+  // Forward is the default, with the caption the pane always had.
+  await expect(direction).toHaveText("Forward");
+  await expect(video).toHaveAttribute("src", /\/occlusion\.mp4$/);
+  await expect(caption("White marks what the next frame hides.")).toBeVisible();
+  // The flow's dropdown and this one: each pane has its own.
+  await expect(page.getByRole("combobox", { name: "Direction" })).toHaveCount(
+    2,
+  );
+
+  await choose("Backward");
+  await expect(video).toHaveAttribute("src", /\/occlusion_back\.mp4$/);
+  await waitForDecoded(video);
+  const legend = caption("White marks what the previous frame hides.");
+  await expect(legend).toBeVisible();
+  const tooltip = page.getByRole("tooltip");
+  await legend.hover();
+  await expect(tooltip).toContainText(
+    "These pixels show a surface the previous frame does not: something covered it, or it entered the frame.",
+  );
+  await expect(tooltip).not.toContainText("the next frame");
+  // Away from it, as a hand moves: the tooltip stays while the pointer heads for it.
+  const away = (await video.boundingBox())!;
+  await page.mouse.move(away.x + 8, away.y + 8, { steps: 10 });
+  await expect(tooltip).toHaveCount(0);
+
+  // The overlay is drawn from the backward mask, and keeps the direction when it goes.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(video).toHaveAttribute(
+    "src",
+    /\/occlusion_back\.mp4\?overlay=true$/,
+  );
+  await waitForDecoded(video);
+  await expect(
+    caption("Cyan marks what the previous frame hides."),
+  ).toBeVisible();
+  await choose("Forward");
+  await expect(video).toHaveAttribute("src", /\/occlusion\.mp4\?overlay=true$/);
+  await waitForDecoded(video);
+  await expect(caption("Cyan marks what the next frame hides.")).toBeVisible();
+  await choose("Backward");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(video).toHaveAttribute("src", /\/occlusion_back\.mp4$/);
+  await waitForDecoded(video);
+  await expect(legend).toBeVisible();
+
+  // The flow beside it is still forward.
+  const flow = page.locator("figure").filter({
+    has: page
+      .getByRole("combobox", { name: "Stream" })
+      .getByText("Optical flow"),
+  });
+  await expect(flow.getByRole("combobox", { name: "Direction" })).toHaveText(
+    "Forward",
+  );
+  await expect(flow.locator("video")).toHaveAttribute("src", /\/flow\.mp4$/);
 });
 
 /**
@@ -1418,6 +1498,15 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
       (el) => el.closest("[data-pane-view]")!.getBoundingClientRect().bottom,
     );
   const flowCaption = "Color is direction, pale is slow.";
+  // The occlusion pane has a Direction of its own, in a second row under its overlay's,
+  // so the one on the first line is the flow's.
+  const flowDirection = figures
+    .filter({
+      has: page
+        .getByRole("combobox", { name: "Stream" })
+        .getByText("Optical flow"),
+    })
+    .getByRole("combobox", { name: "Direction" });
   // The overlay is off when a sequence opens, so its caption starts with the longer
   // "White"; switching it on gives "Cyan".
   for (const occlusionCaption of [
@@ -1429,7 +1518,7 @@ test("lines up the controls under six narrow panes", async ({ page }) => {
     for (const control of [
       page.getByRole("combobox", { name: "Colormap" }),
       page.getByRole("button", { name: "Overlay" }),
-      page.getByRole("combobox", { name: "Direction" }),
+      flowDirection,
       page.getByRole("button", { name: flowCaption }),
       page.getByRole("button", { name: occlusionCaption }),
     ]) {
@@ -2689,7 +2778,9 @@ test("keeps the transport on one line wherever the work area allows", async ({
   page,
 }) => {
   test.slow();
-  await page.setViewportSize({ width: 1100, height: 860 });
+  // Tall enough for five panes of 200 px at least in two rows, which the occlusion pane's
+  // second row of controls takes 36 px more of than the others'.
+  await page.setViewportSize({ width: 1100, height: 900 });
   await openPage(page);
   await generateSequence(page);
   const bar = page.getByRole("button", { name: "Play" }).locator("xpath=..");
@@ -2709,7 +2800,7 @@ test("keeps the transport on one line wherever the work area allows", async ({
     page.getByRole("button", { name: "All streams shown" }),
   ).toBeVisible();
   await expect.poll(layout).toEqual({ lines: 1, overflow: 0 });
-  await page.setViewportSize({ width: 1024, height: 860 });
+  await page.setViewportSize({ width: 1024, height: 900 });
   await expect.poll(layout).toEqual({ lines: 2, overflow: 0 });
 
   // One pane, held to the window's height, is as large in a work area too narrow for the

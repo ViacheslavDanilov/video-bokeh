@@ -54,13 +54,13 @@ VIDEO_STREAMS = ("all_in_focus", "alpha", "disparity")
 #: whole or not at all. It is served once it is there.
 BOKEH = "bokeh"
 
-#: The motion streams: the optical flow, the backward flow and the occlusion mask, written
-#: with every sequence, and added to one generated before they came with it. Each is listed
-#: once it is there, as bokeh is. The backward mask, ``occlusion_back``, is not served yet.
-FLOW, FLOW_BACK, OCCLUSION, _OCCLUSION_BACK = MOTION_STREAMS
+#: The motion streams: the optical flow and the occlusion mask, each forward and backward,
+#: written with every sequence, and added to one generated before they came with it. Each
+#: is served once it is there, as bokeh is.
+FLOW, FLOW_BACK, OCCLUSION, OCCLUSION_BACK = MOTION_STREAMS
 
 #: Served once a sequence has them, after `VIDEO_STREAMS`, in this order.
-OPTIONAL_STREAMS = (BOKEH, FLOW, FLOW_BACK, OCCLUSION)
+OPTIONAL_STREAMS = (BOKEH, FLOW, FLOW_BACK, OCCLUSION, OCCLUSION_BACK)
 
 
 def video_streams(sequence_dir: Path) -> list[str]:
@@ -175,7 +175,9 @@ def _generate_into(
         + ([("bokeh", n)] if bokeh else []),
     )
     scene = _scene(library_root, request, progress)
-    rendered = iter_frames(scene, flow=True, flow_back=True, occlusion=True)
+    rendered = iter_frames(
+        scene, flow=True, flow_back=True, occlusion=True, occlusion_back=True
+    )
     frames = list(counted(rendered, n, partial(progress, "frames")))
     focus = [frame_focus(f.object_alphas, f.disparity) for f in frames] if bokeh else []
     write_sequence(work_dir, counted(frames, n, partial(progress, "writing")), n)
@@ -282,9 +284,9 @@ def ensure_sequence(
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
 
-    The sequence comes with its motion streams, the optical flow, the backward flow and
-    the occlusion mask, written with it, or added to a cached one that lacks any. With
-    ``bokeh``, which needs torch, it comes with its bokeh stream the same way.
+    The sequence comes with its motion streams, the optical flow and the occlusion mask,
+    each forward and backward, written with it, or added to a cached one that lacks any.
+    With ``bokeh``, which needs torch, it comes with its bokeh stream the same way.
     ``progress`` hears of each step as it goes, frame by frame, and ``plan`` of them all
     before the first; a cached sequence that lacks nothing reports none.
 
@@ -300,7 +302,7 @@ def ensure_sequence(
         # A single frame has no motion, so it is never missing any.
         missing_motion = [
             stream
-            for stream in (FLOW, FLOW_BACK, OCCLUSION)
+            for stream in MOTION_STREAMS
             if request.frames > 1 and not (dest / stream).is_dir()
         ]
         missing_bokeh = bokeh and not (dest / BOKEH).is_dir()
