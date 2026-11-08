@@ -105,10 +105,12 @@ hovering or focusing it shows how to read the direction on screen. The choice st
 sequence.
 
 **So does the occlusion mask**, white where a pixel's surface is hidden in the next frame,
-on black, as it is stored. The Overlay button under its pane draws it instead as cyan on the
-all-in-focus frames, shown in gray so the cyan stands out. A swatch and a caption beside
-the button, at most two lines, name the color on screen, and hovering over the caption or
-focusing it shows what the mask marks.
+on black, as it is stored. The Direction dropdown under its pane, the flow's as well,
+switches it to the backward mask, white where the surface is hidden in the previous frame.
+The Overlay button under its pane draws either one instead as cyan on the all-in-focus
+frames, shown in gray so the cyan stands out. A swatch and a caption beside the button, at
+most two lines, name the color on screen and the frame it compares with, and hovering over
+the caption or focusing it shows what the mask marks.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.

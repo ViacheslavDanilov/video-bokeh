@@ -56,6 +56,10 @@ const PANE_GAP_PX = 16;
 // What a pane needs besides its square: the stream picker above, a legend of up to two
 // lines below.
 const PANE_CHROME_PX = 84;
+// What a pane with both an overlay and a direction needs on top of that: the direction's
+// row, a 28 px dropdown and the 8 px gap above it. Only the row with such a pane grows, so
+// the grid counts it once.
+const PANE_EXTRA_ROW_PX = 36;
 // Kept free under the grid for the transport: its 36 px controls, its py-3 and the gap-5
 // above it.
 const TRANSPORT_PX = 88;
@@ -298,10 +302,13 @@ function lineWidth(row: HTMLElement) {
  * Either way the rows come out even: five panes in two rows are three and two, not four
  * and one. The search gets that for free, since fewer columns over the same rows are never
  * smaller and it keeps the first of equals.
+ *
+ * `extra` is the height one pane needs beyond the others, for a second row of controls.
  */
 function gridLayout(
   panes: number,
   space: Space,
+  extra: number,
 ): { columns: string; width: number | null } {
   if (panes === 0 || space.width === 0) {
     // Not measured yet: one row, as before the grid could measure.
@@ -315,7 +322,7 @@ function gridLayout(
     const rows = Math.ceil(panes / columns);
     const size = Math.min(
       (space.width - (columns - 1) * PANE_GAP_PX) / columns,
-      (space.height - (rows - 1) * PANE_GAP_PX) / rows - PANE_CHROME_PX,
+      (space.height - extra - (rows - 1) * PANE_GAP_PX) / rows - PANE_CHROME_PX,
     );
     if (size > best.size) best = { columns, size };
   }
@@ -916,7 +923,16 @@ export function Viewer({
     );
   };
 
-  const layout = gridLayout(panes.length, space);
+  const layout = gridLayout(
+    panes.length,
+    space,
+    panes.some((p) => {
+      const info = sequence.streams[streamFor(p)];
+      return info.overlay !== null && info.backward !== null;
+    })
+      ? PANE_EXTRA_ROW_PX
+      : 0,
+  );
 
   return (
     <div
@@ -1316,15 +1332,16 @@ export function Viewer({
                   >
                     Overlay
                   </Button>
-                  <OcclusionLegend overlay={overlay} />
+                  <OcclusionLegend overlay={overlay} backward={backward} />
                 </div>
               )}
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}
-              {/* The direction comes from the stream info, as the colormap does; the
-                  legend is the flow's own. Top-aligned, as the overlay's row is, so a
-                  caption wrapped onto two lines does not push the dropdown down, and
+              {/* The direction comes from the stream info, as the colormap does, so the
+                  flow and the occlusion mask both have it; the legend here is the flow's
+                  own, the mask's being in the overlay's row. Top-aligned, as that row is,
+                  so a caption wrapped onto two lines does not push the dropdown down, and
                   with narrower gaps, which leave that caption room for two lines at six
                   panes, not three. */}
               {(info.backward !== null || stream === "flow") && (
