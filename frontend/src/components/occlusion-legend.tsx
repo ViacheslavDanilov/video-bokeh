@@ -1,9 +1,12 @@
+import { Layers2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 /**
  * What the occlusion pane marks: the pixels whose surface the neighbor frame does not show,
@@ -20,23 +23,38 @@ import {
 const CYAN = "rgb(0 229 255)";
 
 /**
- * The overlay toggle's face: a small picture of what the pane shows, the mask in cyan on the
- * picture in gray when the overlay is on, and the mask as stored, white on black, when off.
+ * The overlay toggle: the two-layer icon, outlined and quiet while the overlay is off. On, the
+ * button takes the soft fill of a pressed toggle, the icon its full color, and the top layer,
+ * the mask, the cyan the backend draws it in, so the toggle is also the key to that color.
  */
-export function OverlayGlyph({ overlay }: { overlay: boolean }) {
+export function OverlayToggle({
+  overlay,
+  onToggle,
+}: {
+  overlay: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <span
-      aria-hidden
-      className="border-border grid size-4 place-items-center rounded-[3px] border"
-      // Gray is the frame the way the backend overlay draws it; black is the mask alone.
-      style={{ background: overlay ? "rgb(128 128 128)" : "rgb(0 0 0)" }}
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      aria-label="Overlay"
+      aria-pressed={overlay}
+      title="Overlay: draw the mask over the frames in gray"
+      className="text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground aria-pressed:hover:bg-foreground/10 shrink-0 duration-150"
+      onClick={onToggle}
     >
-      <span
+      <Layers2
+        aria-hidden
         data-swatch
-        className="size-2 rounded-[1px]"
-        style={{ background: overlay ? CYAN : "rgb(255 255 255)" }}
+        style={{ "--mask": CYAN } as React.CSSProperties}
+        className={cn(
+          "[&>path:first-child]:fill-transparent [&>path:first-child]:transition-[fill] [&>path:first-child]:duration-150",
+          overlay && "[&>path:first-child]:fill-(--mask)",
+        )}
       />
-    </span>
+    </Button>
   );
 }
 

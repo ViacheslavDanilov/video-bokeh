@@ -1290,11 +1290,10 @@ test("opens the occlusion pane on the overlay and switches it off and back", asy
   const toggle = pane.getByRole("button", { name: "Overlay" });
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4\?overlay=true$/);
-  // The toggle's face shows the cyan the backend draws, #00E5FF.
-  await expect(pane.locator("[data-swatch]")).toHaveCSS(
-    "background-color",
-    "rgb(0, 229, 255)",
-  );
+  // The icon's top layer, the mask, is the cyan the backend draws, #00E5FF, while the
+  // overlay is on, and unfilled while it is off.
+  const mask = toggle.locator("[data-swatch] path").first();
+  await expect(mask).toHaveCSS("fill", "rgb(0, 229, 255)");
 
   // One row: the direction, the toggle and the caption, level at the top, directly under
   // the frame, and one dropdown in the pane besides the stream's. The pane is as tall as
@@ -1362,10 +1361,7 @@ test("opens the occlusion pane on the overlay and switches it off and back", asy
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
   await expect(video).toHaveAttribute("src", /occlusion\.mp4$/);
   await waitForDecoded(video);
-  await expect(pane.locator("[data-swatch]")).toHaveCSS(
-    "background-color",
-    "rgb(255, 255, 255)",
-  );
+  await expect(mask).toHaveCSS("fill", "rgba(0, 0, 0, 0)");
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
@@ -1441,9 +1437,9 @@ test("picks the occlusion direction under its pane", async ({ page }) => {
   await expect(video).toHaveAttribute("src", /\/occlusion_back\.mp4$/);
   await waitForDecoded(video);
   await expect(legend).toBeVisible();
-  // The toggle's face shows the mask as stored, white, while the overlay is off.
-  const swatch = pane.locator("[data-swatch]");
-  await expect(swatch).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  // The icon's mask layer is unfilled while the overlay is off.
+  const mask = toggle.locator("[data-swatch] path").first();
+  await expect(mask).toHaveCSS("fill", "rgba(0, 0, 0, 0)");
   await choose("Forward");
   await expect(video).toHaveAttribute("src", /\/occlusion\.mp4$/);
   await waitForDecoded(video);
@@ -1451,7 +1447,7 @@ test("picks the occlusion direction under its pane", async ({ page }) => {
   await choose("Backward");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect(swatch).toHaveCSS("background-color", "rgb(0, 229, 255)");
+  await expect(mask).toHaveCSS("fill", "rgb(0, 229, 255)");
   await expect(video).toHaveAttribute(
     "src",
     /\/occlusion_back\.mp4\?overlay=true$/,

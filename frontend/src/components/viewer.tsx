@@ -36,7 +36,7 @@ import { colormapName, DepthLegend } from "./depth-legend";
 import { FlowLegend } from "./flow-legend";
 import { GenerationProgress } from "./generation-progress";
 import { ObjectLegend } from "./object-legend";
-import { OcclusionLegend, OverlayGlyph } from "./occlusion-legend";
+import { OcclusionLegend, OverlayToggle } from "./occlusion-legend";
 import { SpectralScale } from "./spectral-scale";
 
 // A ceiling. "Add pane" adds only a stream not on screen, but a pane switched to a stream
@@ -1338,18 +1338,10 @@ export function Viewer({
                   )}
                   {info.overlay !== null && (
                     <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        aria-label="Overlay"
-                        aria-pressed={overlay}
-                        title="Overlay: draw the mask over the frames in gray"
-                        className="aria-pressed:border-muted-foreground aria-pressed:bg-muted shrink-0"
-                        onClick={() => updatePane({ overlay: !overlay })}
-                      >
-                        <OverlayGlyph overlay={overlay} />
-                      </Button>
+                      <OverlayToggle
+                        overlay={overlay}
+                        onToggle={() => updatePane({ overlay: !overlay })}
+                      />
                       <OcclusionLegend backward={backward} />
                     </>
                   )}
