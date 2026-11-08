@@ -153,8 +153,8 @@ steps (see **Pushing**). Step 9 fixes the drift it reports.
 
 Lenses #2 and #7 share one run of `agy` on `gemini-4-argon-high`, with the command and
 flags in root `AGENTS.md`, **Model routing**. Write `git diff <baseline>...HEAD` to a file
-outside the worktree first, copy step 3's source into the same folder unless it is the PR
-body, and run `agy` from the worktree. The prompt names that file as the diff under review,
+in the folder beside the worktree that the command names, copy step 3's source into the same
+folder unless it is the PR body, and run `agy` from the worktree. The prompt names that file as the diff under review,
 the copy as the source, and the worktree as the code at the head. It says that the only
 shell commands are plain `git log`, `git show` and `git blame` on a named file, with no
 `git -C` and no `--output`, and that any other command, glob, pipe or redirect ends the run
