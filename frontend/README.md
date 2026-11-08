@@ -108,11 +108,12 @@ sequence.
 is hidden in the next frame, on the all-in-focus frames shown in gray so the cyan stands out.
 The Direction dropdown, the Overlay toggle and a caption share one row under its pane, as the
 flow's dropdown, wheel and caption do. The dropdown, the flow's as well, switches it to the
-backward mask, cyan where the surface is hidden in the previous frame. The toggle's face is
-a small picture of what the pane shows, cyan on gray with the overlay on and white on black
-with it off; pressing it switches the overlay. The caption, at most two lines, names the
-frame the mask compares with, and hovering over it or focusing it shows what the mask marks.
-A pane switched to the occlusion from another stream opens with the overlay on again.
+backward mask, cyan where the surface is hidden in the previous frame. The toggle is a layers
+icon on a soft fill, its top layer, the mask, in that cyan, while the overlay is on. Pressing
+it shows the mask as stored, white on black, and leaves the icon a plain outline. The caption,
+at most two lines, names the frame the mask compares with, and hovering over it or focusing
+it shows what the mask marks. A pane switched to the occlusion from another stream opens with
+the overlay on again.
 
 **Bokeh comes with each sequence** when the API runs with torch, which `make setup` installs:
 the API renders it in the same request with the layered renderer, and a pane opens for it.
