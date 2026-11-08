@@ -56,8 +56,8 @@ BOKEH = "bokeh"
 
 #: The motion streams: the optical flow, the backward flow and the occlusion mask, written
 #: with every sequence, and added to one generated before they came with it. Each is listed
-#: once it is there, as bokeh is.
-FLOW, FLOW_BACK, OCCLUSION, OCCLUSION_BACK = MOTION_STREAMS
+#: once it is there, as bokeh is. The backward mask, ``occlusion_back``, is not served yet.
+FLOW, FLOW_BACK, OCCLUSION, _OCCLUSION_BACK = MOTION_STREAMS
 
 #: Served once a sequence has them, after `VIDEO_STREAMS`, in this order.
 OPTIONAL_STREAMS = (BOKEH, FLOW, FLOW_BACK, OCCLUSION)

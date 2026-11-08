@@ -8,6 +8,7 @@ the frame back, on a textured scene where a wrong flow could not hide.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -21,8 +22,8 @@ from video_bokeh.core._streams import (
     read_mask_png,
     read_paint_order,
 )
-from video_bokeh.scenes._compositor import occlusion_mask
-from video_bokeh.scenes.generate import generate_dataset, main
+from video_bokeh.scenes._compositor import iter_frames, occlusion_mask
+from video_bokeh.scenes.generate import generate_dataset, main, sample_sequence
 
 FRAMES, SIZE = 6, 96
 
@@ -349,6 +350,24 @@ def test_a_landing_at_the_edge_rounds_to_the_nearest_pixel() -> None:
     assert occlusion_mask(front, front, flow).tolist() == [[False, False, True, False]]
 
 
+def test_a_surface_uncovered_since_the_previous_frame_is_marked_backward() -> None:
+    """A 1 x 6 frame. Object 0 held columns 1 and 2 in the previous frame and moved one
+    pixel right, so it holds 2 and 3 now, and the background shows again at column 1.
+    Read backward, the background pixel at column 1 lands on object 0's old column 1, so
+    it is marked; object 0's columns land on its own old columns 1 and 2, so are not.
+    The forward mask of the previous frame does not mark column 1.
+    """
+    front_prev = np.array([[-1, 0, 0, -1, -1, -1]])
+    front_now = np.array([[-1, -1, 0, 0, -1, -1]])
+    flow_back = np.zeros((1, 6, 2), dtype=np.float32)
+    flow_back[front_now == 0, 0] = -1.0
+    marked = occlusion_mask(front_now, front_prev, flow_back)
+    assert marked.tolist() == [[False, True, False, False, False, False]]
+    flow = np.zeros((1, 6, 2), dtype=np.float32)
+    flow[front_prev == 0, 0] = 1.0
+    assert not occlusion_mask(front_prev, front_now, flow)[0, 1]
+
+
 def test_a_still_scene_occludes_nothing() -> None:
     front = np.array([[-1, 0], [1, 1]])
     assert not occlusion_mask(front, front, np.zeros((2, 2, 2), np.float32)).any()
@@ -475,6 +494,51 @@ def test_a_single_frame_has_no_backward_mask(
         occlusion_back=True,
     )
     assert not (tmp_path / "out" / "sequences" / "0001" / "occlusion_back").exists()
+
+
+def _scene(library: Path):  # noqa: ANN202
+    return sample_sequence(
+        library,
+        seed=3,
+        n_frames=FRAMES,
+        size=SIZE,
+        n_objects_min=2,
+        n_objects_max=2,
+    )
+
+
+def test_a_still_scene_marks_nothing_in_either_direction(
+    textured_library: Path,
+) -> None:
+    scene = _scene(textured_library)
+    still = replace(
+        scene,
+        bg_pose_end=scene.bg_pose_start,
+        objects=[replace(o, pose_end=o.pose_start) for o in scene.objects],
+    )
+    frames = list(
+        iter_frames(
+            still, flow=True, flow_back=True, occlusion=True, occlusion_back=True
+        )
+    )
+    assert frames[1].occlusion_back is not None and frames[0].occlusion is not None
+    for frame in frames:
+        for mask in (frame.occlusion, frame.occlusion_back):
+            assert mask is None or not mask.any()
+        for field in (frame.flow, frame.flow_back):
+            assert field is None or np.abs(field).max() < 1e-3
+
+
+def test_a_backward_stream_is_computed_only_when_asked_for(
+    textured_library: Path,
+) -> None:
+    scene = _scene(textured_library)
+    forward = list(iter_frames(scene, flow=True, occlusion=True))
+    assert all(f.flow_back is None and f.occlusion_back is None for f in forward)
+    backward = list(iter_frames(scene, occlusion_back=True))
+    assert all(f.flow_back is None and f.occlusion is None for f in backward)
+    assert backward[0].occlusion_back is None
+    assert backward[1].occlusion_back is not None
 
 
 def _command(library: Path, out: Path, *flags: str) -> list[str]:

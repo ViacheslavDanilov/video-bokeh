@@ -226,7 +226,7 @@ and on the clear ones separately. `read_mask_png` in
 mask as its `occlusion` stream. Writing a sequence again removes an old `occlusion/` too.
 
 **`occlusion_back/` is the same mask against the previous frame**, written by
-`scenes.generate --occlusion backward`, independently of the other streams: for each frame but
+`scenes.generate --occlusion backward`, independently of the flow: for each frame but
 the first, an 8-bit grayscale PNG, 255 where the front-most surface at the pixel is not visible
 in the previous frame and 0 elsewhere. It is computed with the backward flow and the previous
 frame's front-most surfaces, so it is not the forward mask of the previous frame read the other
