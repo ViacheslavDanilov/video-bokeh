@@ -161,8 +161,10 @@ and that any other command, glob, pipe or redirect ends the run with nothing rep
 is the one delegated prompt that departs from step 4: the allowlist does not match `git -C`,
 and the starting checkout lies outside the folders `agy` is given. It asks for real defects
 in scope, each with file, line, a failing input and the fix, and for a short second view of
-the approach, and it names the high-risk files the diff touches and what to look for there;
-when the PR changes `.agents/skills/` or `.claude/agents/`, it says agy may read them.
+the approach, and it names the high-risk files the diff touches and what to look for there.
+It tells agy not to use the skills in `.agents/skills/`, which agy loads on its own and which
+would lead it into denied commands; when the PR changes `.agents/skills/` or
+`.claude/agents/`, it says agy may read them as files under review.
 
 Check the report and note its `usage` as root `AGENTS.md` says. When agy is missing, fails,
 returns nothing or is out of quota, say so, run `/code-review` at a depth matching the pass
