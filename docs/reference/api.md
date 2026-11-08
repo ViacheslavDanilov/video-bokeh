@@ -152,7 +152,8 @@ curl -X POST http://localhost:8000/sequences \
       "default": null,
       "opens_pane": true,
       "overlay": null,
-      "backward": null
+      "backward": null,
+      "overlay_backward": null
     },
     "alpha": {
       "url": "/sequences/499a2ad706800460/alpha.mp4",
@@ -160,7 +161,8 @@ curl -X POST http://localhost:8000/sequences \
       "default": null,
       "opens_pane": true,
       "overlay": null,
-      "backward": null
+      "backward": null,
+      "overlay_backward": null
     },
     "disparity": {
       "url": "/sequences/499a2ad706800460/disparity.mp4",
@@ -168,7 +170,8 @@ curl -X POST http://localhost:8000/sequences \
       "default": "spectral_r",
       "opens_pane": true,
       "overlay": null,
-      "backward": null
+      "backward": null,
+      "overlay_backward": null
     },
     "flow": {
       "url": "/sequences/499a2ad706800460/flow.mp4",
@@ -176,7 +179,8 @@ curl -X POST http://localhost:8000/sequences \
       "default": null,
       "opens_pane": true,
       "overlay": null,
-      "backward": "/sequences/499a2ad706800460/flow_back.mp4"
+      "backward": "/sequences/499a2ad706800460/flow_back.mp4",
+      "overlay_backward": null
     },
     "occlusion": {
       "url": "/sequences/499a2ad706800460/occlusion.mp4",
@@ -184,7 +188,8 @@ curl -X POST http://localhost:8000/sequences \
       "default": null,
       "opens_pane": false,
       "overlay": "/sequences/499a2ad706800460/occlusion.mp4?overlay=true",
-      "backward": null
+      "backward": "/sequences/499a2ad706800460/occlusion_back.mp4",
+      "overlay_backward": "/sequences/499a2ad706800460/occlusion_back.mp4?overlay=true"
     }
   }
 }
@@ -195,22 +200,25 @@ is.** `colormaps` is empty when the stream has one rendering, as every stream bu
 `disparity` has. A client that renders
 what `streams` lists needs no change when a stream is added. `bokeh`, `flow` and `occlusion`
 appear here once the sequence has them, in that order, with no colormaps, after the three
-every sequence has. The backward flow is not listed apart: it is the flow's other direction,
-under `backward`.
+every sequence has. The backward flow and the backward mask are not listed apart: each is
+its forward stream's other direction, under `backward`.
 
 - **`opens_pane` says whether the demo opens a pane for the stream on its own.** It is false
   for `occlusion`, which waits in the demo's stream picker, so a sequence opens with the panes
   it did before the mask was served.
 - **`overlay` is the stream drawn over the frames it describes**, for `occlusion`, and null
   for every other stream. See `?overlay=` below.
-- **`backward` is the same motion the other way**, for `flow`: the backward flow's video,
-  where each pixel came from in the previous frame. Null for every other stream, and for a
-  sequence without `flow_back/`. The demo picks between the two directions under the flow's
-  pane.
+- **`overlay_backward` is the backward mask drawn over the frames**, for `occlusion`, and
+  null for every other stream and for a sequence without `occlusion_back/`.
+- **`backward` is the same motion the other way**, for `flow` and `occlusion`: for the flow,
+  the backward flow's video, where each pixel came from in the previous frame; for the mask,
+  what the previous frame does not show. Null for every other stream, and for a sequence
+  without `flow_back/` or `occlusion_back/`. The demo picks between the two directions under
+  the pane, Forward by default.
 
 **Every sequence of two frames or more comes with its motion streams:** the optical flow, the
-backward flow and the occlusion mask. Generation writes `flow/`, `flow_back/` and
-`occlusion/` in the same pass as the frames. A cached sequence generated before that gets the
+backward flow, the occlusion mask and the backward occlusion mask. Generation writes
+`flow/`, `flow_back/`, `occlusion/` and `occlusion_back/` in the same pass as the frames. A cached sequence generated before that gets the
 ones it lacks on its next request, in one pass, each whole or not at all.
 
 Writing the flow costs about 40% more time. Measured on an Apple M3 Pro, 80 frames, four
@@ -345,7 +353,7 @@ when there is no library, or when two cannot be told apart.
 ## `GET /sequences/{id}/{stream}.mp4`
 
 Serves one stream as H.264. `stream` is `all_in_focus`, `alpha`, `disparity`, or `bokeh`,
-`flow`, `flow_back` and `occlusion` when the sequence has them.
+`flow`, `flow_back`, `occlusion` and `occlusion_back` when the sequence has them.
 
 **`alpha` is one color per object, not one silhouette.** The stream is a multi-page TIFF
 with one page per object, and the page index is that object's identity for the whole clip.
@@ -383,6 +391,14 @@ file, `occlusion.overlay-cyan.mp4`. Earlier versions drew it in red, cached as
 left on disk and never served. The value is a yes or no, as `true`, `1` or `yes` and their
 opposites, and anything else answers 422. Every other stream drops the parameter, whatever
 its value, as it drops `?colormap=`.
+
+**`occlusion_back` is the same mask against the previous frame**: white where the pixel's
+surface is hidden in the previous frame. Its first frame has no previous one, so the video
+shows it black, and with `?overlay=true` gray with nothing drawn on it, and the masks start at
+the second frame. The sequence response names its URLs as the mask's `backward` and
+`overlay_backward` rather than as a stream. The overlay is cached as
+`occlusion_back.overlay-cyan.mp4`. Written with the sequence, it costs about a tenth more
+render time than the other three motion streams, measured in `iter_frames` alone.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read. A stream whose frames changed after its video was encoded is encoded again: a renderer of
@@ -424,6 +440,7 @@ $VIDEO_BOKEH_DATA_ROOT/sequences/<id>/
 ├── flow/                         KITTI 16-bit PNG, every frame but the last
 ├── flow_back/                    KITTI 16-bit PNG, every frame but the first
 ├── occlusion/                    8-bit PNG, every frame but the last
+├── occlusion_back/               8-bit PNG, every frame but the first
 ├── all_in_focus.mp4              written on first request
 ├── disparity.mp4                 written on first request, Spectral
 ├── disparity.grey.mp4            written if `grey` is ever asked for
