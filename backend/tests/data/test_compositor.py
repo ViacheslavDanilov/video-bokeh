@@ -801,6 +801,7 @@ def test_scene_records_match_the_sampled_scene(
         "2",
         "--layers",
         "--flow",
+        "forward",
     ]
     assert main(argv) == 0
     with (out / "manifest.csv").open(encoding="utf-8") as f:

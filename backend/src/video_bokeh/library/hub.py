@@ -722,7 +722,7 @@ def pack_sequences(
     if lacking := [s for s in (*STREAMS, "focus") if s not in streams]:
         raise SystemExit(
             f"{data_root} has no {', '.join(lacking)}: the card describes a fixed set "
-            "written with --bokeh --flow --flow-back --occlusion"
+            "written with --bokeh --flow both --occlusion both"
         )
     for seq_id, members in sequences[1:]:
         if [name.partition(".")[2] for name, _ in members] != layout:

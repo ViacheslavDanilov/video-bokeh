@@ -96,14 +96,14 @@ class SequenceStream(IterableDataset):
     ``bokeh`` adds ``bokeh`` (T, 3, H, W), the layered renderer at ``bokeh_strength``,
     rendered in the worker on the CPU, with the focus it used. ``flow`` adds ``flow``
     (T - 1, 2, H, W), each frame's exact forward optical flow to the next, in pixels rather
-    than ``[0, 1]``: the motion of the front-most surface, as ``scenes.generate --flow``
+    than ``[0, 1]``: the motion of the front-most surface, as ``scenes.generate --flow forward``
     writes it, unquantized.
     ``flow_back`` adds ``flow_back`` (T - 1, 2, H, W), each frame but the first's exact
-    backward flow to the previous, as ``--flow-back`` writes it. ``occlusion`` adds
+    backward flow to the previous, as ``--flow backward`` writes it. ``occlusion`` adds
     ``occlusion`` (T - 1, 1, H, W), 1 where a frame's surface is not visible in the next,
-    as ``--occlusion`` writes it. ``occlusion_back`` adds ``occlusion_back``
+    as ``--occlusion forward`` writes it. ``occlusion_back`` adds ``occlusion_back``
     (T - 1, 1, H, W), 1 where a frame's surface is not visible in the previous, as
-    ``occlusion_back/`` holds it.
+    ``--occlusion backward`` writes it.
 
     Worker ``w`` of ``W`` takes seeds ``seed + w``, ``seed + w + W``, ...: workers never
     repeat each other, and one worker yields the scenes ``scenes.generate --seed``

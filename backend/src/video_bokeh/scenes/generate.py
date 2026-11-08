@@ -10,9 +10,10 @@
         ├── alpha/<frame>.tif          multi-page uint8, one page per object
         ├── disparity/<frame>.png      uint16
         ├── layers/                    with --layers: what each frame was composited from
-        ├── flow/<frame>.png           with --flow: forward optical flow, KITTI 16-bit
-        ├── flow_back/<frame>.png      with --flow-back: backward optical flow, the same
-        └── occlusion/<frame>.png      with --occlusion: not visible next frame, 8-bit
+        ├── flow/<frame>.png           --flow forward: optical flow to the next, KITTI 16-bit
+        ├── flow_back/<frame>.png      --flow backward: optical flow to the previous, the same
+        ├── occlusion/<frame>.png      --occlusion forward: not visible next frame, 8-bit
+        └── occlusion_back/<frame>.png --occlusion backward: not visible previous frame
 
 Disparity is sampled and transformed from the library, not estimated per frame. The
 scenes draw their assets from the train split unless ``--split`` names another; the
@@ -284,6 +285,12 @@ def write_bokeh_stream(
 #: The streams of motion between frames: the flow and the occlusion mask, each forward and
 #: backward.
 MOTION_STREAMS = ("flow", "flow_back", "occlusion", "occlusion_back")
+
+
+#: What ``--flow`` and ``--occlusion`` take, and which of the two streams each writes.
+DIRECTIONS = ("forward", "backward", "both")
+FORWARD = ("forward", "both")
+BACKWARD = ("backward", "both")
 
 
 def motion_steps(streams: Collection[str], n_frames: int) -> int:
@@ -631,21 +638,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--flow",
-        action="store_true",
-        help="also write flow/: each frame's exact forward optical flow to the next, as "
-        "KITTI's 16-bit PNG",
-    )
-    parser.add_argument(
-        "--flow-back",
-        action="store_true",
-        help="also write flow_back/: each frame's exact backward optical flow to the "
-        "previous, in the same format",
+        choices=DIRECTIONS,
+        help="also write each frame's exact optical flow, as KITTI's 16-bit PNG: "
+        "forward writes flow/, to the next frame, backward writes flow_back/, to the "
+        "previous one, both writes both",
     )
     parser.add_argument(
         "--occlusion",
-        action="store_true",
-        help="also write occlusion/: for each frame but the last, an 8-bit mask of the "
-        "pixels whose surface the next frame does not show",
+        choices=DIRECTIONS,
+        help="also write an 8-bit mask of the pixels whose surface the neighbor frame "
+        "does not show: forward writes occlusion/, for the next frame, backward writes "
+        "occlusion_back/, for the previous one, both writes both",
     )
     return parser
 
@@ -666,9 +669,10 @@ def main(argv: list[str] | None = None) -> int:
             layers=args.layers,
             bokeh=args.bokeh,
             bokeh_strength=args.bokeh_strength,
-            flow=args.flow,
-            flow_back=args.flow_back,
-            occlusion=args.occlusion,
+            flow=args.flow in FORWARD,
+            flow_back=args.flow in BACKWARD,
+            occlusion=args.occlusion in FORWARD,
+            occlusion_back=args.occlusion in BACKWARD,
             split=args.split,
         )
     except ValueError as exc:

@@ -477,31 +477,80 @@ def test_a_single_frame_has_no_backward_mask(
     assert not (tmp_path / "out" / "sequences" / "0001" / "occlusion_back").exists()
 
 
-def test_the_command_writes_flow(textured_library: Path, tmp_path: Path) -> None:
+def _command(library: Path, out: Path, *flags: str) -> list[str]:
+    return [
+        "--library-root",
+        str(library),
+        "--output",
+        str(out),
+        "--count",
+        "1",
+        "--frames",
+        str(FRAMES),
+        "--size",
+        str(SIZE),
+        "--n-objects-max",
+        "2",
+        *flags,
+    ]
+
+
+def _folders(seq: Path) -> set[str]:
+    motion = ("flow", "flow_back", "occlusion", "occlusion_back")
+    return {name for name in motion if (seq / name).is_dir()}
+
+
+@pytest.mark.parametrize(
+    ("flow", "occlusion", "folders"),
+    [
+        ("forward", "forward", {"flow", "occlusion"}),
+        ("backward", "backward", {"flow_back", "occlusion_back"}),
+        ("both", "both", {"flow", "flow_back", "occlusion", "occlusion_back"}),
+        ("forward", "both", {"flow", "occlusion", "occlusion_back"}),
+        ("both", "backward", {"flow", "flow_back", "occlusion_back"}),
+    ],
+)
+def test_the_command_writes_the_directions_it_is_given(
+    textured_library: Path,
+    tmp_path: Path,
+    flow: str,
+    occlusion: str,
+    folders: set[str],
+) -> None:
     out = tmp_path / "out"
-    main(
-        [
-            "--library-root",
-            str(textured_library),
-            "--output",
-            str(out),
-            "--count",
-            "1",
-            "--frames",
-            str(FRAMES),
-            "--size",
-            str(SIZE),
-            "--n-objects-max",
-            "2",
-            "--flow",
-            "--flow-back",
-            "--occlusion",
-        ],
-    )
+    flags = ("--flow", flow, "--occlusion", occlusion)
+    assert main(_command(textured_library, out, *flags)) == 0
     seq = out / "sequences" / "0001"
-    assert len(list((seq / "flow").glob("*.png"))) == FRAMES - 1
-    assert len(list((seq / "flow_back").glob("*.png"))) == FRAMES - 1
-    assert len(list((seq / "occlusion").glob("*.png"))) == FRAMES - 1
-    record = json.loads((out / "run.json").read_text())
-    flags = record["flags"]
-    assert flags["flow"] and flags["flow_back"] and flags["occlusion"]
+    assert _folders(seq) == folders
+    for name in folders:
+        assert len(list((seq / name).glob("*.png"))) == FRAMES - 1
+    flags_written = json.loads((out / "run.json").read_text())["flags"]
+    for name in ("flow", "flow_back", "occlusion", "occlusion_back"):
+        assert flags_written[name] is (name in folders)
+
+
+def test_the_command_writes_no_motion_without_the_flags(
+    textured_library: Path, tmp_path: Path
+) -> None:
+    out = tmp_path / "out"
+    assert main(_command(textured_library, out)) == 0
+    assert _folders(out / "sequences" / "0001") == set()
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ("--flow",),
+        ("--occlusion",),
+        ("--flow", "sideways"),
+        ("--occlusion", "back"),
+        ("--flow-back",),
+    ],
+)
+def test_the_command_refuses_a_missing_or_unknown_direction(
+    textured_library: Path, tmp_path: Path, flags: tuple[str, ...]
+) -> None:
+    with pytest.raises(SystemExit) as exit_:
+        main(_command(textured_library, tmp_path / "out", *flags))
+    assert exit_.value.code == 2
+    assert not (tmp_path / "out" / "sequences").exists()
