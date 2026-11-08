@@ -468,6 +468,7 @@ def fixed_set(split_library: Path, tmp_path: Path) -> Path:
         flow=True,
         flow_back=True,
         occlusion=True,
+        occlusion_back=True,
         split="test",
     )
     return out
@@ -560,7 +561,9 @@ def test_packing_a_fixed_set_refuses_what_the_card_does_not_describe(
     generate_dataset(
         split_library, partial, 1, 3, 32, seed=0, n_objects_max=1, split="test"
     )
-    with pytest.raises(SystemExit, match="has no bokeh, flow, flow_back, occlusion"):
+    with pytest.raises(
+        SystemExit, match="has no bokeh, flow, flow_back, occlusion, occlusion_back"
+    ):
         hub.pack_sequences(partial, packed)
 
 

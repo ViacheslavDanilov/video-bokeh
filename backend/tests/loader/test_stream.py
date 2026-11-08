@@ -424,6 +424,28 @@ def test_the_occlusion_stream_is_the_written_mask(
     assert set(item) == {"occlusion", "n_objects", "seed"}
 
 
+def test_the_backward_occlusion_stream_is_the_written_mask(
+    library: Path, tmp_path: Path
+) -> None:
+    generate_dataset(
+        library,
+        tmp_path / "out",
+        1,
+        FRAMES,
+        SIZE,
+        seed=1,
+        n_objects_max=2,
+        occlusion_back=True,
+    )
+    mask_dir = tmp_path / "out" / "sequences" / "0001" / "occlusion_back"
+    item = next(iter(_stream(library, seed=1, streams=("occlusion_back",))))
+    assert item["occlusion_back"].shape == (FRAMES - 1, 1, SIZE, SIZE)
+    assert item["occlusion_back"].dtype == torch.float32
+    written = np.stack([read_mask_png(p) for p in sorted(mask_dir.iterdir())])[:, None]
+    assert np.array_equal(written, item["occlusion_back"].numpy() > 0.5)
+    assert set(item) == {"occlusion_back", "n_objects", "seed"}
+
+
 def test_the_bokeh_is_the_renderer_on_the_item_s_own_layers(library: Path) -> None:
     streams = ("bokeh", "layers", "object_alphas")
     item = next(iter(_stream(library, streams=streams)))

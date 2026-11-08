@@ -293,14 +293,20 @@ def test_writing_a_sequence_again_without_flow_drops_its_old_flow(
     tmp_path: Path,
 ) -> None:
     seq = _generate(
-        textured_library, tmp_path / "out", flow=True, flow_back=True, occlusion=True
+        textured_library,
+        tmp_path / "out",
+        flow=True,
+        flow_back=True,
+        occlusion=True,
+        occlusion_back=True,
     )
     assert (seq / "flow").is_dir() and (seq / "flow_back").is_dir()
-    assert (seq / "occlusion").is_dir()
+    assert (seq / "occlusion").is_dir() and (seq / "occlusion_back").is_dir()
     _generate(textured_library, tmp_path / "out")
     assert not (seq / "flow").exists()
     assert not (seq / "flow_back").exists()
     assert not (seq / "occlusion").exists()
+    assert not (seq / "occlusion_back").exists()
 
 
 def test_occlusion_marks_a_covered_pixel_and_one_that_leaves_the_frame() -> None:
@@ -384,6 +390,91 @@ def test_occlusion_agrees_with_the_written_alphas_and_flow(
         assert (mask != expected).mean() < 0.002
         marked += int(mask.sum())
     assert 0 < marked < FRAMES * SIZE * SIZE / 2
+
+
+def test_occlusion_back_is_written_for_every_frame_but_the_first(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    seq = _generate(textured_library, tmp_path / "out", occlusion_back=True)
+    written = sorted(p.name for p in (seq / "occlusion_back").glob("*.png"))
+    assert written == _names(seq)[1:]
+    assert not (seq / "occlusion").exists() and not (seq / "flow_back").exists()
+    mask = read_mask_png(seq / "occlusion_back" / written[0])
+    assert mask.shape == (SIZE, SIZE) and mask.dtype == bool
+
+
+def test_occlusion_back_agrees_with_the_written_alphas_and_backward_flow(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    """Read back from the files, a pixel of frame t is marked exactly when the surface
+    the alpha pages put in front at its landing point in frame t - 1 differs from its
+    own, or it lands outside. The mask is the backward one: it is not the forward mask of
+    the previous frame read the other way round.
+    """
+    seq = _generate(
+        textured_library,
+        tmp_path / "out",
+        12,
+        layers=True,
+        flow=True,
+        flow_back=True,
+        occlusion=True,
+        occlusion_back=True,
+    )
+    names = _names(seq)
+    orders = read_paint_order(seq / "layers" / "paint_order.json")
+    marked = 0
+    differs = 0
+    for t in range(1, FRAMES):
+        flow_back, _ = read_flow_png(seq / "flow_back" / names[t])
+        front_now, _ = _front(seq, names[t], orders[t])
+        front_prev, _ = _front(seq, names[t - 1], orders[t - 1])
+        expected = occlusion_mask(front_now, front_prev, flow_back)
+        mask = read_mask_png(seq / "occlusion_back" / names[t])
+        assert (mask != expected).mean() < 0.002
+        marked += int(mask.sum())
+        differs += int((mask != read_mask_png(seq / "occlusion" / names[t - 1])).sum())
+    assert 0 < marked < FRAMES * SIZE * SIZE / 2
+    assert differs > 0
+
+
+def test_asking_for_the_backward_mask_leaves_the_forward_streams_as_they_were(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    before = _generate(textured_library, tmp_path / "a", 12, flow=True, occlusion=True)
+    after = _generate(
+        textured_library,
+        tmp_path / "b",
+        12,
+        flow=True,
+        flow_back=True,
+        occlusion=True,
+        occlusion_back=True,
+    )
+    for stream in ("all_in_focus", "alpha", "disparity", "flow", "occlusion"):
+        for path in sorted((before / stream).iterdir()):
+            assert path.read_bytes() == (after / stream / path.name).read_bytes()
+
+
+def test_a_single_frame_has_no_backward_mask(
+    textured_library: Path,
+    tmp_path: Path,
+) -> None:
+    generate_dataset(
+        textured_library,
+        tmp_path / "out",
+        count=1,
+        n_frames=1,
+        size=SIZE,
+        seed=3,
+        n_objects_min=2,
+        n_objects_max=2,
+        occlusion_back=True,
+    )
+    assert not (tmp_path / "out" / "sequences" / "0001" / "occlusion_back").exists()
 
 
 def test_the_command_writes_flow(textured_library: Path, tmp_path: Path) -> None:

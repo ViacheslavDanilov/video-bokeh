@@ -17,6 +17,7 @@ _STREAMS = (
     "flow",
     "flow_back",
     "occlusion",
+    "occlusion_back",
     "bokeh",
 )
 

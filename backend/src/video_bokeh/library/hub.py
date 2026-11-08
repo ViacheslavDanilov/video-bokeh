@@ -133,6 +133,7 @@ STREAMS = (
     "flow",
     "flow_back",
     "occlusion",
+    "occlusion_back",
 )
 #: What ``bokeh/`` holds beside its frames, and the member it is packed as.
 FOCUS = "focus.json"
