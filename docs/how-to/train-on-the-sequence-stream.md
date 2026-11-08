@@ -132,8 +132,7 @@ GPU with `batch_bokeh`, where `k` can change from batch to batch.
 trained as above has seen none of their objects or backgrounds. Each has 80 frames at
 1024 × 1024 and eight streams: the frames all in focus, disparity, the mattes, bokeh at
 `k = 16` with its focus, forward and backward optical flow, and forward and backward
-occlusion. It takes 79 GB, and
-about 15 minutes at 100 MB/s:
+occlusion. It takes 79 GB, and about 15 minutes at 100 MB/s:
 
 ```bash
 uv run python -m video_bokeh.library.hub fetch-sequences --repo vdanilov/video-bokeh \
@@ -157,15 +156,14 @@ from video_bokeh.core._streams import (
 )
 
 sequence = Path("data/fixed-set/sequences/0001")
-frame = "01"
+frame = "02"
 rgb = np.asarray(Image.open(sequence / "all_in_focus" / f"{frame}.png"))
 bokeh = np.asarray(Image.open(sequence / "bokeh" / f"{frame}.png"))
 disparity = read_disparity_png(sequence / "disparity" / f"{frame}.png")
 mattes = read_alpha_tiff(sequence / "alpha" / f"{frame}.tif")
 flow, valid = read_flow_png(sequence / "flow" / f"{frame}.png")
 occluded = read_mask_png(sequence / "occlusion" / f"{frame}.png")
-back = sequence / "occlusion_back" / f"{frame}.png"  # none for the first frame
-occluded_back = read_mask_png(back)
+occluded_back = read_mask_png(sequence / "occlusion_back" / f"{frame}.png")
 ```
 
 `rgb` and `bokeh` are uint8, `disparity` and each matte float32 in [0, 1], one matte per
