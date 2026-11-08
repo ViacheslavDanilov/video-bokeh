@@ -36,7 +36,7 @@ import { colormapName, DepthLegend } from "./depth-legend";
 import { FlowLegend } from "./flow-legend";
 import { GenerationProgress } from "./generation-progress";
 import { ObjectLegend } from "./object-legend";
-import { OcclusionLegend } from "./occlusion-legend";
+import { OcclusionLegend, OverlayGlyph } from "./occlusion-legend";
 import { SpectralScale } from "./spectral-scale";
 
 // A ceiling. "Add pane" adds only a stream not on screen, but a pane switched to a stream
@@ -56,10 +56,6 @@ const PANE_GAP_PX = 16;
 // What a pane needs besides its square: the stream picker above, a legend of up to two
 // lines below.
 const PANE_CHROME_PX = 84;
-// What a pane with both an overlay and a direction needs on top of that: the direction's
-// row, a 28 px dropdown and the 8 px gap above it. Only the row with such a pane grows, so
-// the grid counts it once.
-const PANE_EXTRA_ROW_PX = 36;
 // Kept free under the grid for the transport: its 36 px controls, its py-3 and the gap-5
 // above it.
 const TRANSPORT_PX = 88;
@@ -243,7 +239,8 @@ type Pane = {
   /** The colormap picked in this pane, for a stream that takes one. Unset, the server's
    *  default. */
   colormap?: string;
-  /** Whether this pane draws its stream over the frames, for a stream that can be. */
+  /** Whether this pane draws its stream over the frames, for a stream that can be. Unset,
+   *  it does: the picture with the mask in cyan on it, not the mask alone. */
   overlay?: boolean;
   /** Whether this pane shows its stream the other way, for a stream that has it. */
   backward?: boolean;
@@ -302,13 +299,10 @@ function lineWidth(row: HTMLElement) {
  * Either way the rows come out even: five panes in two rows are three and two, not four
  * and one. The search gets that for free, since fewer columns over the same rows are never
  * smaller and it keeps the first of equals.
- *
- * `extra` is the height one pane needs beyond the others, for a second row of controls.
  */
 function gridLayout(
   panes: number,
   space: Space,
-  extra: number,
 ): { columns: string; width: number | null } {
   if (panes === 0 || space.width === 0) {
     // Not measured yet: one row, as before the grid could measure.
@@ -322,7 +316,7 @@ function gridLayout(
     const rows = Math.ceil(panes / columns);
     const size = Math.min(
       (space.width - (columns - 1) * PANE_GAP_PX) / columns,
-      (space.height - extra - (rows - 1) * PANE_GAP_PX) / rows - PANE_CHROME_PX,
+      (space.height - (rows - 1) * PANE_GAP_PX) / rows - PANE_CHROME_PX,
     );
     if (size > best.size) best = { columns, size };
   }
@@ -923,16 +917,7 @@ export function Viewer({
     );
   };
 
-  const layout = gridLayout(
-    panes.length,
-    space,
-    panes.some((p) => {
-      const info = sequence.streams[streamFor(p)];
-      return info.overlay !== null && info.backward !== null;
-    })
-      ? PANE_EXTRA_ROW_PX
-      : 0,
-  );
+  const layout = gridLayout(panes.length, space);
 
   return (
     <div
@@ -1056,7 +1041,7 @@ export function Viewer({
           // The server names its default. Deriving it from the order of `colormaps` would
           // make adding one whose name sorts last change this silently.
           const colormap = pane.colormap ?? info.default ?? undefined;
-          const overlay = !!pane.overlay && info.overlay !== null;
+          const overlay = (pane.overlay ?? true) && info.overlay !== null;
           const backward = !!pane.backward && info.backward !== null;
           const src = streamUrl(info, { colormap, overlay, backward });
           const readyKey = `${pane.key} ${src}`;
@@ -1067,6 +1052,7 @@ export function Viewer({
           return (
             <figure
               key={pane.key}
+              aria-label={`${label(stream)} pane`}
               className={cn(
                 "flex min-w-0 flex-col gap-2 rounded-lg",
                 draggedKey === pane.key && "opacity-50",
@@ -1317,34 +1303,18 @@ export function Viewer({
                   <DepthLegend colormap={colormap} />
                 </div>
               )}
-              {/* The button on top, level with the other panes' controls however far a
-                  narrow pane wraps the legend beside it. */}
-              {info.overlay !== null && (
-                <div className="flex items-start gap-1.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-pressed={overlay}
-                    title="Draw the mask over the frames in gray"
-                    className="aria-pressed:bg-muted aria-pressed:text-foreground shrink-0"
-                    onClick={() => updatePane({ overlay: !overlay })}
-                  >
-                    Overlay
-                  </Button>
-                  <OcclusionLegend overlay={overlay} backward={backward} />
-                </div>
-              )}
               {stream === "alpha" && (
                 <ObjectLegend colors={sequence.object_colors} />
               )}
               {/* The direction comes from the stream info, as the colormap does, so the
-                  flow and the occlusion mask both have it; the legend here is the flow's
-                  own, the mask's being in the overlay's row. Top-aligned, as that row is,
-                  so a caption wrapped onto two lines does not push the dropdown down, and
-                  with narrower gaps, which leave that caption room for two lines at six
-                  panes, not three. */}
-              {(info.backward !== null || stream === "flow") && (
+                  flow and the occlusion mask both have it, each with its own legend beside
+                  it: the flow's wheel and caption, or the overlay's toggle and caption.
+                  Top-aligned, so a caption wrapped onto two lines does not push the
+                  dropdown down, and with narrower gaps, which leave that caption room for
+                  two lines at six panes, not three. */}
+              {(info.backward !== null ||
+                info.overlay !== null ||
+                stream === "flow") && (
                 <div className="flex items-start gap-1.5">
                   {info.backward !== null && (
                     <Select
@@ -1365,6 +1335,23 @@ export function Viewer({
                         <SelectItem value="backward">Backward</SelectItem>
                       </SelectContent>
                     </Select>
+                  )}
+                  {info.overlay !== null && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Overlay"
+                        aria-pressed={overlay}
+                        title="Overlay: draw the mask over the frames in gray"
+                        className="aria-pressed:border-muted-foreground aria-pressed:bg-muted shrink-0"
+                        onClick={() => updatePane({ overlay: !overlay })}
+                      >
+                        <OverlayGlyph overlay={overlay} />
+                      </Button>
+                      <OcclusionLegend backward={backward} />
+                    </>
                   )}
                   {stream === "flow" && <FlowLegend backward={backward} />}
                 </div>

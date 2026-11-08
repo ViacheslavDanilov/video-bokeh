@@ -10,21 +10,36 @@ import {
  * the next one for the forward mask and the previous one for the backward mask. As stored
  * they are white on black; over the frames, cyan on the picture in gray.
  *
- * Built as the flow's legend is: under the pane one short caption, which a narrow pane
- * wraps onto two lines, the swatch staying level with the other panes' controls. The full
- * reading is a tooltip on the legend, which a keyboard reaches as a button.
+ * Built as the flow's legend is: beside the pane's controls one short caption, which a
+ * narrow pane wraps onto two lines, level with the other panes' controls. The overlay's
+ * toggle carries the colors, as the flow's wheel does. The full reading is a tooltip on
+ * the caption, which a keyboard reaches as a button.
  */
 
 // Cyan, #00E5FF, as `preview/pack.py` draws the overlay.
 const CYAN = "rgb(0 229 255)";
 
-export function OcclusionLegend({
-  overlay,
-  backward,
-}: {
-  overlay: boolean;
-  backward: boolean;
-}) {
+/**
+ * The overlay toggle's face: a small picture of what the pane shows, the mask in cyan on the
+ * picture in gray when the overlay is on, and the mask as stored, white on black, when off.
+ */
+export function OverlayGlyph({ overlay }: { overlay: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className="border-border grid size-4 place-items-center rounded-[3px] border"
+      style={{ background: overlay ? "rgb(128 128 128)" : "rgb(0 0 0)" }}
+    >
+      <span
+        data-swatch
+        className="size-2 rounded-[1px]"
+        style={{ background: overlay ? CYAN : "rgb(255 255 255)" }}
+      />
+    </span>
+  );
+}
+
+export function OcclusionLegend({ backward }: { backward: boolean }) {
   const neighbor = backward ? "previous" : "next";
   // Seen from the previous frame, a surface that is not there was covered or had not yet
   // come into the frame.
@@ -37,22 +52,12 @@ export function OcclusionLegend({
         <TooltipTrigger asChild>
           <button
             type="button"
-            className="text-muted-foreground focus-visible:ring-ring/50 flex min-h-7 min-w-0 cursor-help items-start gap-1 rounded-md text-left text-xs outline-none focus-visible:ring-3"
+            className="text-muted-foreground focus-visible:ring-ring/50 flex min-h-7 min-w-0 cursor-help items-start rounded-md text-left text-xs outline-none focus-visible:ring-3"
           >
-            {/* The height of the controls beside it, with the swatch centered in it, and
-                level with their tops however many lines the caption takes. Only as wide
-                as the swatch needs, so the caption keeps the room for two lines. */}
-            <span className="flex h-7 w-4 shrink-0 items-center justify-center">
-              <span
-                aria-hidden
-                data-swatch
-                className="border-border size-2.5 rounded-[2px] border"
-                style={{ background: overlay ? CYAN : "rgb(255 255 255)" }}
-              />
-            </span>
+            {/* The height of the controls beside it, and level with their tops however
+                many lines the caption takes. */}
             <span className="line-clamp-2 self-center tracking-tight">
-              {overlay ? "Cyan" : "White"} marks what the {neighbor} frame
-              hides.
+              Hidden in the {neighbor} frame.
             </span>
           </button>
         </TooltipTrigger>
