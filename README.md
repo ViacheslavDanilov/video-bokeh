@@ -5,7 +5,6 @@
 # Video Bokeh
 
 [![Hugging Face Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Dataset-FFD21E.svg)](https://huggingface.co/datasets/vdanilov/video-bokeh)
-[![Data license: CC BY-NC 4.0](https://img.shields.io/badge/Data%20license-CC%20BY--NC%204.0-lightgrey.svg)](#license)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)](https://www.typescriptlang.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
