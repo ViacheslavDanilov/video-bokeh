@@ -155,8 +155,8 @@ Lenses #2 and #7 share one run of `agy` on `gemini-4-argon-high`, with the comma
 flags in root `AGENTS.md`, **Model routing**. Write `git diff <baseline>...HEAD` to a file
 outside the worktree first, and run `agy` from the worktree. The prompt names that file as
 the diff under review and the worktree as the code at the head, says that the only shell
-commands are plain `git log`, `git show` and `git blame` on a named file, and that any other
-command, glob, pipe or redirect ends the run with nothing reported. It asks for real defects
+commands are plain `git log`, `git show` and `git blame` on a named file, with no `--output`,
+and that any other command, glob, pipe or redirect ends the run with nothing reported. It asks for real defects
 in scope, each with file, line, a failing input and the fix, and for a short second view of
 the approach, and it names the high-risk files the diff touches and what to look for there;
 when the PR changes `.agents/skills/` or `.claude/agents/`, it says agy may read them.
