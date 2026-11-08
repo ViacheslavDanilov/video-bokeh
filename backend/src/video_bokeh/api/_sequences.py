@@ -284,9 +284,9 @@ def ensure_sequence(
 ) -> SequenceResult:
     """Return the sequence for this request, generating it if it is not on disk yet.
 
-    The sequence comes with its motion streams, the optical flow, the backward flow and
-    the occlusion mask, written with it, or added to a cached one that lacks any. With
-    ``bokeh``, which needs torch, it comes with its bokeh stream the same way.
+    The sequence comes with its motion streams, the optical flow and the occlusion mask,
+    each forward and backward, written with it, or added to a cached one that lacks any.
+    With ``bokeh``, which needs torch, it comes with its bokeh stream the same way.
     ``progress`` hears of each step as it goes, frame by frame, and ``plan`` of them all
     before the first; a cached sequence that lacks nothing reports none.
 

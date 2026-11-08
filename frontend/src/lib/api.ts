@@ -30,7 +30,8 @@ export type StreamInfo = {
   /** The stream drawn over the frames it describes, for the occlusion mask, or null. */
   overlay: string | null;
   /** The same motion the other way, for the optical flow and the occlusion mask: where
-   *  each pixel came from rather than where it goes. Null for every other stream. */
+   *  each pixel came from rather than where it goes, and what the previous frame does not
+   *  show rather than the next. Null for every other stream. */
   backward: string | null;
   /** The backward stream drawn over the frames, as `overlay` is the forward one: for the
    *  occlusion mask, or null. */

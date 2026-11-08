@@ -4,8 +4,8 @@ Decision 7 of the 2026-09-18 design. Generation is synchronous because Stage B i
 CPU work measured in seconds, and the sequence id is a hash of the request and the
 library, so the cache is the directory on disk and there is no database.
 
-A generated sequence comes with its optical flow, backward flow and occlusion mask,
-written in the same request.
+A generated sequence comes with its optical flow and occlusion mask, each forward and
+backward, written in the same request.
 
 It comes with its bokeh too, rendered in the same request by the layered renderer, when
 torch is installed and ``VIDEO_BOKEH_RENDER_BOKEH`` does not turn it off. Without torch,
@@ -485,11 +485,11 @@ def read_sequence_video(
 
     `colormap` applies to `disparity` only -- it is 16-bit gray on disk and gets its
     color here. `overlay` applies to `occlusion` and `occlusion_back` only, and draws the
-    mask over the all-in-focus frames instead of on its own. Every other stream has one rendering, RGB
-    already or, for the flows, the colors optical-flow papers use, so each parameter is
-    dropped rather than forking that stream's cache into identical copies. `overlay` is
-    read as a yes or no for the masks alone, so whatever another stream's URL carries
-    in it, that URL answers as it did before the parameter existed.
+    mask over the all-in-focus frames instead of on its own. Every other stream has one
+    rendering, RGB already or, for the flows, the colors optical-flow papers use, so each
+    parameter is dropped rather than forking that stream's cache into identical copies.
+    `overlay` is read as a yes or no for the masks alone, so whatever another stream's URL
+    carries in it, that URL answers as it did before the parameter existed.
     """
     if stream not in (*VIDEO_STREAMS, *OPTIONAL_STREAMS):
         raise HTTPException(status_code=404, detail=f"no video for stream {stream!r}")
