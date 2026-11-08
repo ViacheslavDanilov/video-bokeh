@@ -16,7 +16,8 @@ Flow is a 16-bit KITTI PNG per frame but the last, colored as optical-flow
 papers color it (`preview/_flow.py`), at one scale for the whole sequence.
 A still frame stands for the last, so the video is as long as the others.
 Backward flow (`flow_back`) is colored the same, with the still frame first,
-and the occlusion mask is white on black, with a black frame last.
+and the occlusion mask is white on black, with a black frame last. The backward mask
+(`occlusion_back`) has the black frame first.
 
 Layout:
 
@@ -158,27 +159,38 @@ _LUMA = np.array([0.2126, 0.7152, 0.0722])
 def _occlusion_frames(
     paths: list[Path],
     background: list[Path] | None,
+    backward: bool = False,
 ) -> Iterator[np.ndarray]:
-    """The occlusion stream, and a frame for the last, which has no next frame and so
-    nothing known to be hidden.
+    """The occlusion stream, and a frame for the one frame it has no mask for: the last
+    for the forward mask, which has no next frame, the first for the backward mask, which
+    has no previous one. Nothing is known to be hidden there.
 
     On its own each mask is white on black, as stored. Over ``background``, the
     all-in-focus frames, each frame is grayed and its occluded pixels drawn in a
     semi-transparent cyan.
     """
     if background is None:
-        mask = None
+        shape = None
+        for path in paths:
+            shape = read_mask_png(path).shape
+            break
+        if shape is None:
+            return
+        if backward:
+            yield np.zeros((*shape, 3), dtype=np.uint8)
         for path in paths:
             mask = read_mask_png(path)
             yield np.repeat(np.where(mask, 255, 0).astype(np.uint8)[..., None], 3, -1)
-        if mask is not None:
-            yield np.zeros((*mask.shape, 3), dtype=np.uint8)
+        if not backward:
+            yield np.zeros((*shape, 3), dtype=np.uint8)
         return
+    # The backward masks start at the second frame, so frame ``i`` has mask ``i - 1``.
+    offset = 1 if backward else 0
     for index, frame in enumerate(background):
         luma = load_frame(frame, "all_in_focus", "") @ _LUMA
         gray = np.repeat((luma * _OVERLAY_BRIGHTNESS)[..., None], 3, -1)
-        if index < len(paths):
-            mask = read_mask_png(paths[index])[..., None]
+        if 0 <= index - offset < len(paths):
+            mask = read_mask_png(paths[index - offset])[..., None]
             cyan = gray * (1 - _OVERLAY_OPACITY) + _CYAN * _OVERLAY_OPACITY
             gray = np.where(mask, cyan, gray)
         yield gray.round().astype(np.uint8)
@@ -195,7 +207,7 @@ def encode_stream(
 ) -> None:
     """Encode frames as H.264 High, mapping quality 0..10 to CRF 51..17.
 
-    ``background``, the all-in-focus frames, draws an ``occlusion`` stream over them.
+    ``background``, the all-in-focus frames, draws an occlusion stream over them.
     """
     if not 0 <= quality <= 10:
         raise ValueError("quality must be between 0 and 10")
@@ -222,8 +234,10 @@ def encode_stream(
     )
     if stream in ("flow", "flow_back"):
         images = _flow_frames(frames, backward=stream == "flow_back")
-    elif stream == "occlusion":
-        images = _occlusion_frames(frames, background)
+    elif stream in ("occlusion", "occlusion_back"):
+        images = _occlusion_frames(
+            frames, background, backward=stream == "occlusion_back"
+        )
     else:
         images = (load_frame(p, stream, colormap) for p in frames)
     with writer:

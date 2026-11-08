@@ -128,6 +128,26 @@ def _decoded(path):
         return [np.asarray(frame, dtype=np.float32) for frame in reader]
 
 
+def test_packs_the_backward_occlusion_as_long_as_the_frames(tmp_path):
+    """Four frames have three backward masks, from the second frame on, and the video
+    still plays four: nothing hidden in the first, which has no previous one.
+    """
+    seq = tmp_path / "sequences" / "0001"
+    (seq / "occlusion_back").mkdir(parents=True)
+    hidden = np.zeros((16, 16), dtype=bool)
+    hidden[:, :8] = True
+    for i in range(2, 5):
+        write_mask_png(seq / "occlusion_back" / f"{i:02d}.png", hidden)
+
+    assert main(["--data-root", str(tmp_path), "--streams", "occlusion_back"]) == 0
+
+    masks = _decoded(seq / "occlusion_back.mp4")
+    assert len(masks) == 4
+    assert masks[0].max() < 25, "the first frame has no previous one: nothing hidden"
+    assert masks[1][:, :6].min() > 230
+    assert masks[1][:, 10:].max() < 25
+
+
 def test_packs_backward_flow_and_occlusion_as_long_as_the_frames(tmp_path):
     """Four frames have three of each, backward flow from the second frame on and the
     mask up to the third, and each video still plays four: backward flow still first,
