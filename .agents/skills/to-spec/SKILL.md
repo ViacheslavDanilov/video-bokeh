@@ -5,7 +5,7 @@ description: "Turn the current conversation into a spec and publish it to the pr
 
 This skill takes the current conversation context and codebase understanding and produces a spec. Do NOT interview the user; just synthesize what you already know.
 
-Where specs and tickets live in this repo is fixed in `.claude/skills/shared/bokeh-conventions.md`, section **Specs and tickets**. Read it before writing anything.
+Where specs and tickets live in this repo is fixed in `.agents/skills/shared/bokeh-conventions.md`, section **Specs and tickets**. Read it before writing anything.
 
 ## Process
 

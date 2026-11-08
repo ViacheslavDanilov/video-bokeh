@@ -159,7 +159,7 @@ commands are plain `git log`, `git show` and `git blame` on a named file, and th
 command, glob, pipe or redirect ends the run with nothing reported. It asks for real defects
 in scope, each with file, line, a failing input and the fix, and for a short second view of
 the approach, and it names the high-risk files the diff touches and what to look for there;
-when the PR changes `.claude/skills/` or `.claude/agents/`, it says agy may read them.
+when the PR changes `.agents/skills/` or `.claude/agents/`, it says agy may read them.
 
 Read the report's `response`, not the exit code: an empty one means a call was denied and
 the run is lost. Note the `usage` in the review summary. When agy is missing, fails, returns

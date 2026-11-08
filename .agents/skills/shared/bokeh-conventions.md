@@ -146,14 +146,14 @@ because a skill's own preamble does not know this repo's rules:
   general-purpose agent on a trivial pass, whose fix loop pushes to the pull request's own
   branch;
 - never upgrade gstack or any other tool, whatever its preamble offers;
-- never edit root `AGENTS.md`, `.claude/agents/` or `.claude/skills/` unless that change is
+- never edit root `AGENTS.md`, `.claude/agents/` or `.agents/skills/` unless that change is
   the task; routing rules live only in root `AGENTS.md`, section **Model routing**.
 
 ## Which skill to reach for
 
 These three skills are rails and repo conventions. **The heavy lifting is delegated**: do
 not reimplement what an installed skill already does. `vendored` means a copy under
-`.claude/skills/`; `.claude/skills/VENDORED.md` says where each came from and what was
+`.agents/skills/`; `.agents/skills/VENDORED.md` says where each came from and what was
 changed.
 
 | Need | Skill | Source |

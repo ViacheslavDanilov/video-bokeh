@@ -33,10 +33,10 @@ _DOC_FILES = (
     "scripts/README.md",
     # The skills this repo wrote. The vendored ones are left out: their examples name code
     # from other projects, which is not ours to keep in step.
-    ".claude/skills/bokeh-meeting/SKILL.md",
-    ".claude/skills/bokeh-task/SKILL.md",
-    ".claude/skills/bokeh-review/SKILL.md",
-    ".claude/skills/shared/bokeh-conventions.md",
+    ".agents/skills/bokeh-meeting/SKILL.md",
+    ".agents/skills/bokeh-task/SKILL.md",
+    ".agents/skills/bokeh-review/SKILL.md",
+    ".agents/skills/shared/bokeh-conventions.md",
 )
 
 # Any Python module the docs name: `src/video_bokeh/foo.py`, `backend/src/...`, or a bare `foo.py`.
