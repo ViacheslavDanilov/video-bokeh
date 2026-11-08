@@ -194,7 +194,7 @@ export default function Page() {
                 <p
                   key={key}
                   role="alert"
-                  className="border-destructive bg-destructive/8 text-foreground rounded-lg border-l-2 px-4 py-3 text-sm"
+                  className="border-destructive bg-destructive/8 text-foreground rounded-lg border px-4 py-3 text-sm"
                 >
                   {message}
                 </p>
