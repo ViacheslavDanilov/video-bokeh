@@ -87,9 +87,10 @@ All tensors are float32 in `[0, 1]`, frames first, except `paint_order`, `flow` 
 | | `focus_object` | int | the object the focus follows, by page, or -1 when none does |
 | `bokeh` | `bokeh` | (T, 3, H, W) | the frames as the layered renderer blurs them |
 | | `focus_disparity`, `focus_object` | | the focus it blurred them at, as for `focus` |
-| `flow` | `flow` | (T − 1, 2, H, W) | each frame's forward optical flow to the next, `(u, v)` in pixels: the motion of the front-most surface, as `scenes.generate --flow` writes it, unquantized |
-| `flow_back` | `flow_back` | (T − 1, 2, H, W) | each frame but the first's backward optical flow to the previous, `(u, v)` in pixels, as `scenes.generate --flow-back` writes it, unquantized |
-| `occlusion` | `occlusion` | (T − 1, 1, H, W) | 1 where a frame's front-most surface is not visible in the next frame, as `scenes.generate --occlusion` writes it |
+| `flow` | `flow` | (T − 1, 2, H, W) | each frame's forward optical flow to the next, `(u, v)` in pixels: the motion of the front-most surface, as `scenes.generate --flow forward` writes it, unquantized |
+| `flow_back` | `flow_back` | (T − 1, 2, H, W) | each frame but the first's backward optical flow to the previous, `(u, v)` in pixels, as `scenes.generate --flow backward` writes it, unquantized |
+| `occlusion` | `occlusion` | (T − 1, 1, H, W) | 1 where a frame's front-most surface is not visible in the next frame, as `scenes.generate --occlusion forward` writes it |
+| `occlusion_back` | `occlusion_back` | (T − 1, 1, H, W) | 1 where a frame's front-most surface is not visible in the previous frame, as `scenes.generate --occlusion backward` writes it |
 | always | `n_objects` | int | objects actually placed |
 | always | `seed` | int | the seed this sequence came from |
 
@@ -117,7 +118,8 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
   dataset's `flow` stream in [dataset-layout](dataset-layout.md) holds the same flow, in 1/64 px
   steps. `flow_back` is the same field backward, one fewer than the frames because the first
   frame has no previous. `occlusion` marks the pixels whose surface the next frame does not
-  show, where the next frame cannot confirm `flow`.
+  show, where the next frame cannot confirm `flow`, and `occlusion_back` those the previous
+  frame does not show, which `flow_back` cannot confirm.
 
 ### Bokeh
 

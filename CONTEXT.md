@@ -70,7 +70,7 @@ _Avoid_: foreground (for the placed instance), layer, actor
 
 **Stream**:
 One per-frame output of a sequence: all-in-focus, alpha, disparity, and, when asked for,
-layers, optical flow, backward flow, the occlusion mask and bokeh.
+layers, optical flow, backward flow, the occlusion mask, the backward occlusion mask and bokeh.
 _Avoid_: channel, modality
 
 **Layer**:
@@ -109,8 +109,15 @@ For each frame but the last, the pixels whose front-most surface the next frame 
 show, because it leaves the frame or another surface is in front where it lands. A per-pixel
 test between two frames, not the Occlusion of a scene below. The optical flow still carries
 the surface's motion there, but the next frame cannot confirm it. Written on request, as a
-stream of its own.
+stream of its own. Called the forward occlusion mask where it needs telling from the
+backward one.
 _Avoid_: visibility map, occlusion map
+
+**Backward occlusion mask**:
+For each frame but the first, the pixels whose front-most surface the previous frame does not
+show. Computed with the backward flow, so it is not the forward mask of the previous frame
+read the other way round. Written on request, as a stream of its own, `occlusion_back/`.
+_Avoid_: inverse occlusion mask
 
 **Background band**:
 The bottom sliver of disparity, reserved for the background.
@@ -182,7 +189,7 @@ _Avoid_: preprocessing
 
 **Stage B**:
 Generating sequences from the library, written to disk or handed out as the sequence stream;
-it never runs the depth estimator. With bokeh, optical flow, backward flow or the occlusion
+it never runs the depth estimator. With bokeh, optical flow, backward flow or either occlusion
 mask asked for, it renders them too, in the same pass.
 _Avoid_: rendering
 

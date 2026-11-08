@@ -213,13 +213,15 @@ places every scene; six starts losing them. The measured sweep is in
 
 ### Optical flow
 
-`--flow` writes each frame's exact forward optical flow to the next into `flow/`, in the same
-pass as the frames:
+`--flow forward` writes each frame's exact optical flow to the next into `flow/`, in the same
+pass as the frames. `--flow backward` writes the flow to the previous frame into `flow_back/`,
+and `--flow both` writes both. `--occlusion` takes the same three directions and writes
+`occlusion/` and `occlusion_back/`.
 
 ```bash
 uv run python -m video_bokeh.scenes.generate \
   --library-root data/library_dev/da2-large --output data/demo_flow \
-  --count 3 --frames 80 --size 512 --seed 0 --flow
+  --count 3 --frames 80 --size 512 --seed 0 --flow forward
 ```
 
 With the old PNG compression default, level 6, it took 20 s on an Apple M3 Pro, against

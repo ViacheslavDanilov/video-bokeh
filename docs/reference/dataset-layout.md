@@ -93,9 +93,10 @@ Written by `video_bokeh.scenes.generate`. This is the layout `render.run`, the p
     ├── alpha/<frame>.tif          multi-page uint8, one page per object
     ├── disparity/<frame>.png      I;16   uint16  disparity, larger = closer
     ├── layers/                                   optional, written with --layers
-    ├── flow/<frame>.png           RGB    uint16  optional, written with --flow
-    ├── flow_back/<frame>.png      RGB    uint16  optional, written with --flow-back
-    ├── occlusion/<frame>.png      L      uint8   optional, written with --occlusion
+    ├── flow/<frame>.png           RGB    uint16  optional, written with --flow forward
+    ├── flow_back/<frame>.png      RGB    uint16  optional, written with --flow backward
+    ├── occlusion/<frame>.png      L      uint8   optional, written with --occlusion forward
+    ├── occlusion_back/<frame>.png L      uint8   optional, written with --occlusion backward
     └── bokeh/<frame>.png          RGB    uint8   optional, by --bokeh or render.run
 ```
 
@@ -178,7 +179,7 @@ to 0.44 MiB for color and 0.23 MiB for disparity.
 
 ### The flow stream: optional
 
-`flow/` holds each frame's forward optical flow to the next, written by `scenes.generate --flow`
+`flow/` holds each frame's forward optical flow to the next, written by `scenes.generate --flow forward`
 in the same pass as the frames, and by the API with every sequence of two frames or more. Every
 layer moves by a known homography per frame, so the flow is computed, not estimated.
 
@@ -202,19 +203,19 @@ layer moves by a known homography per frame, so the flow is computed, not estima
 - **It is optional.** Only `video_bokeh.preview.pack --streams flow` and the API's flow video
   read it, to color it for the eye. The loader hands out the same flow, unquantized, as its
   `flow` stream.
-- **Writing a sequence again removes its old `flow/` first**, with or without `--flow`, so an
+- **Writing a sequence again removes its old `flow/` first**, with or without `--flow forward`, so an
   earlier run's flow never passes for this one's.
 
-**`flow_back/` is the same flow backward**, written by `scenes.generate --flow-back`,
-independently of `--flow`: for each frame but the first, where the front-most surface at each
+**`flow_back/` is the same flow backward**, written by `scenes.generate --flow backward`,
+independently of `--flow forward`: for each frame but the first, where the front-most surface at each
 pixel was in the previous frame, `(u, v)` in pixels, in the same KITTI encoding. An 80-frame
 sequence has `02` … `80`, each named after the frame it starts from. Nothing in the pipeline
 reads it; the loader hands out the same field, unquantized, as its `flow_back` stream. Writing
 a sequence again removes an old `flow_back/` too.
 
 **`occlusion/` marks the pixels the next frame does not show**, written by
-`scenes.generate --occlusion`, independently of `--flow`: for each frame but the last, an 8-bit
-grayscale PNG, 255 where the front-most surface at the pixel is not visible in the next frame
+`scenes.generate --occlusion forward`, independently of the flow: for each frame but the last,
+an 8-bit grayscale PNG, 255 where the front-most surface at the pixel is not visible in the next frame
 and 0 elsewhere. A pixel is marked when it lands outside the frame under its forward flow, or
 when the front-most surface at the nearest pixel to where it lands is not the one it carries;
 the front-most surface is the one the flow uses, the last-painted object whose alpha is at
@@ -223,6 +224,16 @@ set, but the next frame cannot confirm it, so a flow method can be scored on the
 and on the clear ones separately. `read_mask_png` in
 `video_bokeh.core._streams` reads it back as a boolean array. The loader hands out the same
 mask as its `occlusion` stream. Writing a sequence again removes an old `occlusion/` too.
+
+**`occlusion_back/` is the same mask against the previous frame**, written by
+`scenes.generate --occlusion backward`, independently of the other streams: for each frame but
+the first, an 8-bit grayscale PNG, 255 where the front-most surface at the pixel is not visible
+in the previous frame and 0 elsewhere. It is computed with the backward flow and the previous
+frame's front-most surfaces, so it is not the forward mask of the previous frame read the other
+way round: a surface that appears from behind another is marked in the backward mask of the
+frame where it appears, and in no forward mask. An 80-frame sequence has `02` … `80`, each named
+after the frame it starts from. The loader hands out the same mask as its `occlusion_back`
+stream. Writing a sequence again removes an old `occlusion_back/` too.
 
 The writer uses PNG compression level 3. It preserves the same 16-bit pixels as the
 old imagecodecs default, level 6, while spending less time compressing them.

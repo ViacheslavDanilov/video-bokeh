@@ -161,14 +161,15 @@ says how the library is packed and published.
    ```bash
    uv run python -m video_bokeh.scenes.generate \
      --library-root data/library/da2-large --output data/synth \
-     --count 4 --frames 80 --size 512 --bokeh --bokeh-strength 16 --flow
+     --count 4 --frames 80 --size 512 --bokeh --bokeh-strength 16 --flow forward
    ```
 
    - `--count` sets how many sequences to attempt, `--frames` how long each is (80 by
      default), and `--size` its square side in pixels (1024 by default).
    - `--bokeh` renders each sequence's bokeh in the same run. `--bokeh-strength` (16) is the
      blur radius in pixels, at a 1024-pixel width, one unit of disparity from the focus.
-   - `--layers`, `--flow`, `--flow-back` and `--occlusion` each add a stream.
+   - `--layers`, `--flow` and `--occlusion` each add a stream. The last two take a direction,
+     `forward`, `backward` or `both`.
      [cli](docs/reference/cli.md#video_bokehscenesgenerate-stage-b) has every flag, and
      [dataset-layout](docs/reference/dataset-layout.md#stage-b-a-generated-sequence) every
      stream.
