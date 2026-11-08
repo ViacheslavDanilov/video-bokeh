@@ -175,7 +175,9 @@ changed.
 | Polish prose that reads stiffly | `editor`, `no-ai-slop` | global |
 | Auth, secrets or untrusted input touched | `security-review` | built-in |
 | Check UI against web standards and accessibility | `web-design-guidelines` | plugin |
-| Build a UI | `frontend-design` | plugin |
+| Critique or audit a page: hierarchy, layout, type, accessibility, copy | `impeccable` `critique`, `audit` | vendored |
+| Refine a page: spacing, alignment, states, layout | `impeccable` `polish`, `layout`, `clarify` | vendored |
+| Build a UI | `impeccable`, `frontend-design` | vendored, plugin |
 | Literature review, citations, scholarly writing | `academic-researcher`, `deep-research` | global |
 | Check a manuscript's argument holds | `scientific-clarity-checker` | global |
 | Verify a factual claim | `fact-checker` | global |
@@ -196,6 +198,34 @@ spec) and `bokeh-review` (this repo's full pre-merge flow, which calls `two-axis
 
 When the table has no row for the task, `find-skills` may propose one; installing it is the
 user's decision. When nothing fits, do the work by hand.
+
+## UI work
+
+`impeccable` owns how a page looks. These rules adapt how it runs here:
+
+- `PRODUCT.md` at the root says who the demo is for and what it must keep true. `DESIGN.md`
+  is the design system the code ships. Impeccable's narrow commands (`critique`, `audit`,
+  `polish`, `layout`, `clarify`, `typeset`) read both through `impeccable context`. Where
+  `DESIGN.md` and the rendered page disagree, the code wins and the file is corrected.
+  `document`, `shape` and a redesign write files or replace the look, so each is a task of its
+  own, never a step inside another. A change to `PRODUCT.md` needs the owner's approval.
+- "Finish the job" never widens a task. The criteria the user confirmed set the scope.
+- The hooks in `.claude/settings.json` run Impeccable's detector after every edit to a UI file
+  and a deeper pass when the session stops. They never block an edit, stay quiet on a clean
+  file and use no model quota. Fix what they report. A false positive is silenced with
+  `impeccable hooks ignore-value`; `ignore-file` and `ignore-rule` need the owner's go-ahead.
+  A worker without the hooks runs `.agents/skills/impeccable/scripts/impeccable detect --json
+  <changed files>` once at the end of UI work.
+- The four `impeccable-*` agents in `.claude/agents/` inherit the session's model. They keep
+  the effort upstream ships, `medium`, and `impeccable-finish-reviewer` runs at `high`: an
+  exception to the two levels in root `AGENTS.md`, **Model routing**.
+- `impeccable generate-image` bills the owner's OpenAI key, so it needs the owner's go-ahead.
+- `impeccable live` and its helper server may run without asking. The helper listens on port
+  8400. A dev server started for it uses a port other than 3000, which the owner keeps for
+  their own `make web`.
+- `impeccable critique` ends by asking the user what to fix. In a subagent it lists the
+  questions in its report and does not wait. Its snapshots under `.impeccable/critique/` are
+  ignored by git.
 
 ## Paper repository
 

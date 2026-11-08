@@ -146,6 +146,7 @@ Apply to this pass's scope, not the whole PR history.
 | **#6 Docs drift** | public surface the PR changed that no page reflects, and pages that describe code this PR deleted | `document-release` on the PR's branch, analysis steps only |
 | **#7 Second model** | the same diff through a different model's eyes | `agy`, read-only, **on every pass but comment-only** |
 | **#8 Prose** | paragraphs of tracked Markdown the pass changed that read as machine-written, and any em dash | `python3 scripts/check_prose.py --base <baseline>` |
+| **#9 UI** | how the changed page looks, moves and behaves, at desktop width and at a phone's, accessibility | `impeccable detect --json` on the changed files under `frontend/src`, then `impeccable critique` |
 
 Lens #6: read **Documentation surface** in the conventions file before running
 `document-release`, and run only its analysis, up to the per-file audit; never its later
@@ -170,6 +171,13 @@ returns nothing or is out of quota, say so, run `/code-review` at a depth matchi
 for #2, and record #7 as not run rather than fall back to another model. Do not retry a lost
 run on the same pass.
 
+Lens #9: run on any pass that changes a file under `frontend/src`. `detect` needs no model
+quota and runs first, on the changed files. `critique` runs against the dev server on a port
+other than the owner's, and in a subagent nobody answers its closing question, so the report
+lists the questions instead. Its findings are judgment calls, never must-fixes, unless one is
+a broken control, a contrast failure or a keyboard trap. `DESIGN.md` is the system it checks
+against; where the code and `DESIGN.md` disagree, the code wins.
+
 Lens #8: run from the worktree on any pass that changes tracked Markdown. Without
 `TYPESAFE_API_KEY` it checks the em dash alone; record the lens as partly run. A flagged
 paragraph is a **must-fix** when it carries an em dash, and otherwise a candidate to judge:
@@ -180,7 +188,7 @@ consume, and ships no documentation change and no named debt, is a **must-fix**.
 merely renames a private helper is not.
 
 Depth mapping: comment-only → discussion only; trivial → #1–#2; delta → #1–#2 on the delta,
-#3–#6 and #8 on delta files; full → #1–#6 and #8. On any depth but comment-only, #7 runs
+#3–#6, #8 and #9 on delta files; full → #1–#6, #8 and #9. On any depth but comment-only, #7 runs
 too. Do not skip a lens
 because another found something.
 
