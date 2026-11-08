@@ -139,7 +139,7 @@ Apply to this pass's scope, not the whole PR history.
 | Lens | Focus | Delegate to |
 |---|---|---|
 | **#1 Rules and spec** | `AGENTS.md` at every level covering files in scope, the code-smell baseline, and whether the diff does what the spec or decision asked, no less, no more | `two-axis-review`, fixed point = the baseline, spec = step 3's source |
-| **#2 Bugs** | real defects and regressions in scope, no nitpicks | `agy`, read-only, in the same run as #7; built-in `/code-review` only when agy is missing, fails or is out of quota |
+| **#2 Bugs** | real defects and regressions in scope, no nitpicks | `agy`, read-only, in the same run as #7; built-in `/code-review` only when agy is missing, fails, returns nothing or is out of quota |
 | **#3 Git history** | `git blame` and `git log` on scoped hunks: removed guards, reintroduced regressions | none |
 | **#4 Prior threads** | earlier comments on scoped files; never repeat a resolved item | none |
 | **#5 Docs style** | `docs/STYLE.md` for changes under `docs/explanation`, `how-to`, `reference`; check relative Markdown links and GitHub heading anchors in tracked pages per `docs/README.md` | none |
