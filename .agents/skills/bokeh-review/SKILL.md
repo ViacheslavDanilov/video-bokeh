@@ -171,12 +171,13 @@ returns nothing or is out of quota, say so, run `/code-review` at a depth matchi
 for #2, and record #7 as not run rather than fall back to another model. Do not retry a lost
 run on the same pass.
 
-Lens #9: run on any pass that changes a file under `frontend/src`. `detect` needs no model
-quota and runs first, on the changed files. `critique` runs against the dev server on a port
-other than the owner's, and in a subagent nobody answers its closing question, so the report
-lists the questions instead. Its findings are judgment calls, never must-fixes, unless one is
-a broken control, a contrast failure or a keyboard trap. `DESIGN.md` is the system it checks
-against; where the code and `DESIGN.md` disagree, the code wins.
+Lens #9: run on any pass that changes a file under `frontend/src`, following **UI work** in
+the conventions file. `detect` needs no model quota and runs first, on the changed files.
+`critique` runs against the dev server on a port other than the owner's, and in a subagent
+nobody answers its closing question, so the report lists the questions instead. Its findings
+are judgment calls, never must-fixes, unless one is a broken control, a contrast failure or a
+keyboard trap. `DESIGN.md` is the system it checks against; where the code and `DESIGN.md`
+disagree, the code wins.
 
 Lens #8: run from the worktree on any pass that changes tracked Markdown. Without
 `TYPESAFE_API_KEY` it checks the em dash alone; record the lens as partly run. A flagged

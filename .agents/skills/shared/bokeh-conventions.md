@@ -216,9 +216,10 @@ user's decision. When nothing fits, do the work by hand.
   `impeccable hooks ignore-value`; `ignore-file` and `ignore-rule` need the owner's go-ahead.
   A worker without the hooks runs `.agents/skills/impeccable/scripts/impeccable detect --json
   <changed files>` once at the end of UI work.
-- The four `impeccable-*` agents in `.claude/agents/` inherit the session's model. They keep
-  the effort upstream ships, `medium`, and `impeccable-finish-reviewer` runs at `high`: an
-  exception to the two levels in root `AGENTS.md`, **Model routing**.
+- The four `impeccable-*` agents in `.claude/agents/` run only when Impeccable starts them:
+  `impeccable-manual-edit-applier` in `impeccable live`, the other three when a new surface or
+  a redesign is built, which is a task of its own. Root `AGENTS.md`, **Model routing**, says
+  what effort they run at.
 - `impeccable generate-image` bills the owner's OpenAI key, so it needs the owner's go-ahead.
 - `impeccable live` and its helper server may run without asking. The helper listens on port
   8400. A dev server started for it uses a port other than 3000, which the owner keeps for
