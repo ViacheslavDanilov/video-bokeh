@@ -46,7 +46,7 @@ $sequences_config---
 
 Synthetic video for training and evaluating depth-aware bokeh. Every frame is composited
 from known layers, so its disparity, the soft matte of each object, its bokeh, its forward
-and backward optical flow and its occlusion match it by construction.
+and backward optical flow and its two occlusion masks match it by construction.
 
 - **The library**, under `library/`: $foregrounds cut-out foregrounds and $backgrounds
   background photos, each with a disparity map. It holds no sequences. The code's generator

@@ -130,8 +130,9 @@ GPU with `batch_bokeh`, where `k` can change from batch to batch.
 
 **The fixed set is 300 sequences that Stage B wrote once from the test split,** so a network
 trained as above has seen none of their objects or backgrounds. Each has 80 frames at
-1024 × 1024 and seven streams: the frames all in focus, disparity, the mattes, bokeh at
-`k = 16` with its focus, forward and backward optical flow, and occlusion. It takes 79 GB, and
+1024 × 1024 and eight streams: the frames all in focus, disparity, the mattes, bokeh at
+`k = 16` with its focus, forward and backward optical flow, and forward and backward
+occlusion. It takes 79 GB, and
 about 15 minutes at 100 MB/s:
 
 ```bash
@@ -163,13 +164,17 @@ disparity = read_disparity_png(sequence / "disparity" / f"{frame}.png")
 mattes = read_alpha_tiff(sequence / "alpha" / f"{frame}.tif")
 flow, valid = read_flow_png(sequence / "flow" / f"{frame}.png")
 occluded = read_mask_png(sequence / "occlusion" / f"{frame}.png")
+back = sequence / "occlusion_back" / f"{frame}.png"  # none for the first frame
+occluded_back = read_mask_png(back)
 ```
 
 `rgb` and `bokeh` are uint8, `disparity` and each matte float32 in [0, 1], one matte per
 object. `flow` holds the motion to the next frame in pixels, and `valid` is false only where a
 vector was too long for the file's encoding. `occluded` marks the pixels the next frame does
-not show. The last frame has no flow and no occlusion, and the first has no backward flow, in
-`flow_back/`. `bokeh/focus.json` gives each frame's in-focus disparity as `zf`.
+not show, and `occluded_back` those the previous frame does not show. The last frame has no
+flow and no occlusion, and the first has no backward flow, in `flow_back/`, and no backward
+occlusion, in `occlusion_back/`. `bokeh/focus.json` gives each frame's in-focus disparity as
+`zf`.
 [dataset-layout](../reference/dataset-layout.md) describes every stream.
 
 **Keep the test split for the end.** To pick or tune a model, validate on sequences the
