@@ -88,6 +88,9 @@ Work goes to a model by its kind, the paths it touches and the review pass, neve
 | Review lenses #2 (bugs) and #7 (second model), on every pass but comment-only | `agy`, read-only | `gemini-4-argon-high` |
 | Commands, searches, counts | `runner` | Haiku, high |
 
+- **The four `impeccable-*` agents** in `.claude/agents/` keep the effort upstream ships and are
+  an exception to the two levels above; **UI work** in `.agents/skills/shared/bokeh-conventions.md`
+  says when they run.
 - **A small edit stays in the main session.** Every delegated prompt carries the limits in `.agents/skills/shared/bokeh-conventions.md`, section **Delegating**.
 - **`agy` (Antigravity CLI) never decides how something looks or reads, never edits files and never commits.** It runs `gemini-4-argon-high`, and only for the lenses in the table: its quota is small. `gemini-3.8-flash-*` is too weak for a review and has no row here. If `agy` is missing, fails, returns an empty `response` or reports the quota gone, say so: lens #2 goes to `/code-review`, and lens #7 is recorded as not run.
 - **One session, one task.** Task sessions start on Sonnet; `/bokeh-review` and process or architecture talks start on Opus.

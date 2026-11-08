@@ -209,7 +209,7 @@ export function Controls({
             }
           />
         </div>
-        <p className="text-muted-foreground text-xs leading-relaxed">
+        <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
           The seed picks a count in this range. Past five, the objects get
           harder to place without overlap and some seeds are refused.
         </p>

@@ -138,8 +138,8 @@ task, and implementing against a wrong premise is the most expensive mistake ava
    `docs/plans/YYYY-MM-DD-<slug>/`; work the frontier, one ticket per session if need be.
 4. Branch, then step 7.
 
-Reach further when the surface calls for it: `frontend-design` for UI, `fastapi` for API
-work, `dataviz` for figures.
+Reach further when the surface calls for it: `impeccable` for UI (see **UI work** in the
+conventions file), `fastapi` for API work, `dataviz` for figures.
 
 ## 6b. Route: bug
 

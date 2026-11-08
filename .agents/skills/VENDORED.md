@@ -29,12 +29,40 @@ Kept to the minimum, so a later upstream copy can be diffed against these files:
 - Upstream's `agents/openai.yaml` files are not copied: a skill here needs only its `SKILL.md`
   and the files it references.
 
+## Impeccable
+
+`impeccable/` is a copy of [pbakaus/impeccable](https://github.com/pbakaus/impeccable)
+`.claude/skills/impeccable/` at `3930843` (2026-10-30), skill 4.8.0, the Claude Code build. It
+is taken from the author's site repository, which vendors the same copy, rather than with
+`npx impeccable install`, so both repositories hold identical files.
+
+- Its four agents, `impeccable-*`, are copied unchanged to `.claude/agents/`.
+- Its three hooks (`SessionStart`, `PostToolUse` on `Edit|Write`, `Stop`) are in
+  `.claude/settings.json` as upstream's own settings have them. The hooks skip themselves when
+  the folder is missing.
+- `.impeccable/config.json` turns on the hook's quiet mode. The `.gitignore` block between the
+  `impeccable-ignore` markers is upstream's, and the root `.gitattributes` checks
+  `impeccable.cmd` out with CRLF line endings, as upstream's does.
+- The launcher in `impeccable/scripts/` downloads its engine once into `~/.impeccable/bin/` and
+  checks it against `engine-checksums.txt`.
+- `.pre-commit-config.yaml` excludes the folder and `.impeccable/`, so the hooks do not
+  reformat upstream files and the copy stays diffable.
+- Upstream `LICENSE` and `NOTICE.md` are in the folder, as Apache 2.0 requires.
+- Nothing else is changed. `bokeh-task`, `bokeh-review` and `crafter` reach it through **UI
+  work** in `shared/bokeh-conventions.md`.
+
+To update it, copy `.claude/skills/impeccable/` from upstream's repository root over the
+folder and refresh the `.gitignore` block from its README.
+
 ## Updating
 
 Clone upstream, copy the eight folders over these, then re-apply the edits above. `git diff`
 shows exactly what upstream changed.
 
 ## License
+
+The eight skills above are under the MIT License. `impeccable/` is under the Apache License
+2.0, whose text is in `impeccable/LICENSE`.
 
 MIT License
 
