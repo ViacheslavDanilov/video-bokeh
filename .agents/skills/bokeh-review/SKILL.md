@@ -154,18 +154,16 @@ steps (see **Pushing**). Step 9 fixes the drift it reports.
 Lenses #2 and #7 share one run of `agy` on `gemini-4-argon-high`, with the command and
 flags in root `AGENTS.md`, **Model routing**. Write `git diff <baseline>...HEAD` to a file
 in the folder beside the worktree that the command names, copy step 3's source into the same
-folder unless it is the PR body, and run `agy` from the worktree. The prompt names that file as the diff under review,
-the copy as the source, and the worktree as the code at the head. It says that the only
-shell commands are plain `git log`, `git show` and `git blame` on a named file, with no
-`git -C` and no `--output`, and that any other command, glob, pipe or redirect ends the run
-with nothing reported. The `agy` prompt is the one delegated prompt that departs from step 4:
-the allowlist does not match `git -C`, and the starting checkout lies outside the folders
-`agy` is given. It asks for real defects
-in scope, each with file, line, a failing input and the fix, and for a short second view of
-the approach, and it names the high-risk files the diff touches and what to look for there.
-It tells agy not to use the skills in `.agents/skills/`, which agy loads on its own and which
-would lead it into denied commands; when the PR changes `.agents/skills/` or
-`.claude/agents/`, it says agy may read them as files under review.
+folder unless it is the PR body, and run `agy` from the worktree. The prompt names that file
+as the diff under review, the copy as the source, and the worktree as the code at the head.
+It says that `agy` has no shell, so any command ends the run with nothing reported. The `agy`
+prompt is the one delegated prompt that departs from step 4: it runs no `git -C`, and the
+starting checkout lies outside the folders `agy` is given. It asks for real defects in scope,
+each with file, line, a failing input and the fix, and for a short second view of the
+approach, and it names the high-risk files the diff touches and what to look for there. It
+tells agy not to use the skills in `.agents/skills/`, which agy loads on its own and which
+would lead it into commands; when the PR changes `.agents/skills/` or `.claude/agents/`, it
+says agy may read them as files under review.
 
 Check the report and note its `usage` as root `AGENTS.md` says. When agy is missing, fails,
 returns nothing or is out of quota, say so, run `/code-review` at a depth matching the pass
@@ -322,7 +320,7 @@ in. Skip for a routine approve. Nothing here is committed.
 ## 14. Hand off
 
 Remove the worktree from step 4: `git worktree remove "$WT"`, run from the checkout you were
-started in. If it refuses because of uncommitted changes, report them rather than force the
+started in, and the `agy` folder beside it, `"$WT"-agy`. If it refuses because of uncommitted changes, report them rather than force the
 removal. If that checkout has the PR's branch open with a clean tree and the fix loop pushed
 anything, bring it up to date with `git merge --ff-only origin/<branch>`; otherwise tell the
 user it is behind.
