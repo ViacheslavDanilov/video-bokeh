@@ -264,7 +264,8 @@ install, and so does `hf upload-large-folder`. The card names Depth Anything V2 
   card is written again with a `sequences` subset and a section on the fixed set.
   `layers/` stays out.
 - **`fetch-sequences` downloads the fixed set** into the layout `scenes.generate` writes,
-  one shard at a time, and marks each in `.fetched/` as `fetch` does. The run's records
+  one shard at a time, and marks each in `.fetched/` with the size that the index gives it,
+  so a shard packed again under the same name is fetched again. The run's records
   come last, `manifest.csv` after the others, and only once every shard is in, so a
   `manifest.csv` marks a whole fixed set as it marks a finished run.
 - **`stage` uploads a library in parts.** It hard-links every `--every`-th shard of each kind,
