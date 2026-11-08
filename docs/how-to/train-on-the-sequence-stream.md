@@ -169,7 +169,7 @@ occluded = read_mask_png(sequence / "occlusion" / f"{frame}.png")
 object. `flow` holds the motion to the next frame in pixels, and `valid` is false only where a
 vector was too long for the file's encoding. `occluded` marks the pixels the next frame does
 not show. The last frame has no flow and no occlusion, and the first has no backward flow, in
-`flow_back/`, and no backward mask, in `occlusion_back/`. `bokeh/focus.json` gives each frame's in-focus disparity as `zf`.
+`flow_back/`. `bokeh/focus.json` gives each frame's in-focus disparity as `zf`.
 [dataset-layout](../reference/dataset-layout.md) describes every stream.
 
 **Keep the test split for the end.** To pick or tune a model, validate on sequences the
