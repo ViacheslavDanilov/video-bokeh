@@ -53,7 +53,7 @@ flowchart TD
     PUSH --> CI["CI: pre-commit, tests, frontend build,<br/>browser smoke, Docker"]
 
     subgraph S2 ["Session 2: /bokeh-review"]
-        LENSES["two-axis-review, agy bugs and second opinion<br/>history, threads, docs style,<br/>document-release, check_prose"] --> GATE["Notation gate"]
+        LENSES["two-axis-review, agy bugs and second opinion<br/>history, threads, docs style,<br/>document-release, check_prose,<br/>impeccable on a changed page"] --> GATE["Notation gate"]
         GATE --> QA["qa: browser or pipeline run"]
         QA --> LEFT{"Must-fix left?"}
         LEFT -->|"yes, up to 3 rounds"| FIX["Fix and commit"]

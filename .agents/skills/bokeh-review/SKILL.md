@@ -3,10 +3,10 @@ name: bokeh-review
 description: >-
   Pre-merge review of any pull request, in its own session: delta triage, context
   from the spec or meeting note behind the PR, review lenses (repo rules and spec,
-  bugs, history, prior threads, docs style, docs drift, a second model, and prose
-  that reads as machine-written), a notation gate over commits
-  and the PR body, a QA pass, and a bounded fix loop on the user's own branch.
-  Publishes one submitted GitHub review. Works whether or not a task or meeting
+  bugs, history, prior threads, docs style, docs drift, a second model, prose that
+  reads as machine-written, and the UI of a changed page), a notation gate over
+  commits and the PR body, a QA pass, and a bounded fix loop on the user's own
+  branch. Publishes one submitted GitHub review. Works whether or not a task or meeting
   came before the PR. Use when the user says "review PR #N", "проверь пулреквест",
   "ревью 6", or the same in any language, or invokes /bokeh-review.
 disable-model-invocation: false
