@@ -93,7 +93,7 @@ Work goes to a model by its kind, the paths it touches and the review pass, neve
 - **One session, one task.** Task sessions start on Sonnet; `/bokeh-review` and process or architecture talks start on Opus.
 
 ```bash
-git diff <baseline>...HEAD > <dir>/pr.diff
+git -C <worktree> diff <baseline>...HEAD > <dir>/pr.diff
 cd <worktree> && agy -p "<prompt>" --model gemini-4-argon-high --sandbox --add-dir <dir> \
   --settings '{"permissions":{"allow":["command(git log)","command(git show)","command(git blame)"]}}' \
   --output-format json --print-timeout 1500s < /dev/null > <report.json>
