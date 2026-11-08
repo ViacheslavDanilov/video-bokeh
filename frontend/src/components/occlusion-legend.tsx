@@ -28,6 +28,7 @@ export function OverlayGlyph({ overlay }: { overlay: boolean }) {
     <span
       aria-hidden
       className="border-border grid size-4 place-items-center rounded-[3px] border"
+      // Gray is the frame the way the backend overlay draws it; black is the mask alone.
       style={{ background: overlay ? "rgb(128 128 128)" : "rgb(0 0 0)" }}
     >
       <span

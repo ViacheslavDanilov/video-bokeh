@@ -14,6 +14,5 @@ check results with numbers, and questions for the user. Never edit `BRIEF.md`.
 Follow root `AGENTS.md`, the `AGENTS.md` of every directory you touch, and the delegation limits
 in `.agents/skills/shared/bokeh-conventions.md`. For the page use `impeccable` with
 `PRODUCT.md` and `DESIGN.md`, following **UI work** in that file, and check a visual change in a
-browser. For prose use `docs/STYLE.md`. For the
-demo video use `.assets/demo/README.md` and `hyperframes`. Stay inside the brief: every changed
-line traces to it.
+browser. For prose use `docs/STYLE.md`. For the demo video use `.assets/demo/README.md` and
+`hyperframes`. Stay inside the brief: every changed line traces to it.
