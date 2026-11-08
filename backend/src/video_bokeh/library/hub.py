@@ -617,9 +617,14 @@ def _downloader(repo: str, revision: str | None) -> Callable[[str, str], Path]:
     return download
 
 
-def _mark(fetched: Path, name: str) -> Path:
-    """The file that marks the repository's file ``name`` as unpacked."""
-    return fetched / f"{name.replace('/', '-')}.done"
+def _mark(fetched: Path, name: str, size: int | None = None) -> Path:
+    """The file that marks the repository's file ``name`` as unpacked.
+
+    Given the file's ``size`` in bytes, the mark names it too, so that a file packed again
+    under the same name, and so with another size, is fetched again.
+    """
+    stem = name.replace("/", "-")
+    return fetched / (f"{stem}.done" if size is None else f"{stem}.{size}.done")
 
 
 def fetch(repo: str, library_root: Path, revision: str | None = None) -> list[str]:
@@ -820,7 +825,9 @@ def fetch_sequences(repo: str, output: Path, revision: str | None = None) -> lis
     """Download the fixed set of ``repo`` into ``output``, as ``scenes.generate`` wrote it.
 
     The shards are fetched and unpacked one at a time, as ``fetch`` does, and marked in
-    ``output/.fetched``. The run's records come last, ``manifest.csv`` after the others,
+    ``output/.fetched`` with the size that the index gives them, so a shard that the
+    repository holds in another size, packed again, is fetched again and unpacked over the
+    old one. The run's records come last, ``manifest.csv`` after the others,
     and only once every shard is in, so a ``manifest.csv`` marks a whole fixed set as it
     marks a finished run. Return the shards that the index lists and the repository does
     not hold yet.
@@ -835,7 +842,7 @@ def fetch_sequences(repo: str, output: Path, revision: str | None = None) -> lis
         index = json.loads(download(SEQUENCE_INDEX, folder).read_text(encoding="utf-8"))
         for shard in index["shards"]:
             name = f"{SEQUENCES}/{shard['file']}"
-            done = _mark(fetched, name)
+            done = _mark(fetched, name, shard["bytes"])
             if done.exists():
                 continue
             try:

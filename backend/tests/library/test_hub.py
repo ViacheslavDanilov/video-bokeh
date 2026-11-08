@@ -494,6 +494,42 @@ def test_fetching_a_packed_fixed_set_gives_back_what_the_writer_wrote(
     assert not list(fetched.glob("tmp*"))
 
 
+def test_fetching_a_fixed_set_again_takes_a_shard_that_was_packed_again(
+    split_library: Path,
+    fixed_set: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    packed = tmp_path / "packed"
+    hub.pack(split_library, packed, preview=False)
+    hub.pack_sequences(fixed_set, packed)
+    downloaded = _hub(monkeypatch, packed)
+    fetched = tmp_path / "fetched"
+    assert hub.fetch_sequences("someone/some-library", fetched) == []
+    shards = sorted(packed.joinpath("sequences").glob("*.tar"))
+    assert len(shards) >= 1
+
+    downloaded.clear()
+    assert hub.fetch_sequences("someone/some-library", fetched) == []
+    assert not [name for name in downloaded if name.endswith(".tar")]
+
+    # The shard keeps its name and holds more: zero blocks end a tar file at any length.
+    with shards[0].open("ab") as shard:
+        shard.write(bytes(512))
+    index_path = packed / "sequences" / "index.json"
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    for entry in index["shards"]:
+        if entry["file"] == shards[0].name:
+            entry["bytes"] = shards[0].stat().st_size
+    index_path.write_text(json.dumps(index), encoding="utf-8")
+
+    downloaded.clear()
+    assert hub.fetch_sequences("someone/some-library", fetched) == []
+    assert [name for name in downloaded if name.endswith(".tar")] == [
+        f"sequences/{shards[0].name}"
+    ]
+
+
 def test_a_sequence_is_one_sample_named_as_webdataset_names_one(
     split_library: Path, fixed_set: Path, tmp_path: Path
 ) -> None:
@@ -667,7 +703,8 @@ def test_a_fetched_shard_is_marked_by_its_path_in_the_repository(
         "library-foregrounds-test-00000.tar.done",
         "library-foregrounds-train-00000.tar.done",
     ]
+    size = (packed / "sequences" / "test-00000.tar").stat().st_size
     assert [p.name for p in (run / ".fetched").iterdir()] == [
-        "sequences-test-00000.tar.done"
+        f"sequences-test-00000.tar.{size}.done"
     ]
     assert list_backgrounds(library) == ["testval__h_c", "train__h_a", "train__h_b"]
