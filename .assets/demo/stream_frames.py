@@ -2,7 +2,7 @@
 
 688 px is a stream tile (344 CSS px) at the 4K render's 2x scale. The six streams are
 colored the way their panes show them: disparity in Spectral, alpha by object, the flow
-forward, the occlusion mask white on black. Run from backend/, naming streams to write only
+forward, the occlusion mask in cyan over the gray frames, the pane's default. Run from backend/, naming streams to write only
 those:
     uv run python ../.assets/demo/stream_frames.py SEQ_DIR OUT_DIR [STREAM ...]
 """
@@ -27,7 +27,7 @@ for stream in sys.argv[3:] or STREAMS:
     if stream == "flow":
         frames = _flow_frames(paths)
     elif stream == "occlusion":
-        frames = _occlusion_frames(paths, None)
+        frames = _occlusion_frames(paths, list_stream_frames(seq_dir, "all_in_focus"))
     else:
         frames = (load_frame(p, stream, "spectral_r") for p in paths)
     (out_dir / stream).mkdir(parents=True, exist_ok=True)
