@@ -26,7 +26,7 @@ and the master are not tracked; the steps below remake them.
 |---|---|---|
 | 0 to 5.5 s | `compositions/intro.html` | The poster, then the first chapter's line on the same sheet |
 | 4.8 to 57.6 s | `compositions/demo.html` | The recording, with a camera and the speed label |
-| 26.2 s, 42.0 s | `compositions/sheet-add.html`, `sheet-zoom.html` | Chapter sheets that whip across the recording |
+| 26.1 s, 41.9 s | `compositions/sheet-add.html`, `sheet-zoom.html` | Chapter sheets that whip across the recording |
 | 57.1 to 63.1 s | `compositions/strengths.html` | The sequence at three bokeh strengths, looping beside All in focus |
 | 62.5 to 69.0 s | `compositions/streams.html` | The six streams, looping: All in focus, Bokeh, Disparity, Alpha, Optical flow, Occlusion |
 | 68.4 to 74.0 s | `compositions/end.html` | Logo, the GitHub and Hugging Face addresses |
@@ -102,7 +102,7 @@ it generates must not be cached, or there is no progress bar to film: find its f
    to 2, and shows seed 6 from the first library, `da2-base`: a falcon and a taxi over the
    same lake, without the woman. It closes that sequence's Alpha and Optical flow panes,
    so the new sequence opens in three panes. On camera it picks `da2-large`, types the
-   seed and generates. It plays the new sequence and pauses on frame 71 (`PAUSE_AT`), adds
+   seed and generates. It plays the new sequence and pauses on frame 71 (`PAUSE_AT`, give or take one), adds
    three panes there, drags Bokeh next to All in focus, zooms in on her hair, drags the
    position slider four frames, zooms back out and plays. It marks every step and every
    press in `frames/frames.json`. While any pane has no frame to show yet, a red square
@@ -137,8 +137,9 @@ it generates must not be cached, or there is no progress bar to film: find its f
    | `#whoosh-1` to `#whoosh-8` | each whip: the intro's exit at 5.0 s, each chapter sheet's start and its exit 2.15 s later, the starts of `#strengths`, `#streams` and `#end`; plus 0.096 s for `whoosh-a`, 0.065 s for `whoosh-b` |
 
    The recording keeps playing after `play`, and the app wraps from frame 80, which has
-   no flow or occlusion, to frame 1, so its Optical flow and Occlusion panes go white and
-   black 0.18 s after the press. The film must not show that. The strengths sheet starts
+   no flow or occlusion, to frame 1, so its Optical flow pane goes white and its Occlusion
+   pane shows the bare gray frame, with no mask, 0.18 s after the press. The film must not
+   show that. The strengths sheet starts
    0.2 s before `play`, so that three frames before the wrap its left edge, 0.28 s in, is
    already past the Optical flow pane, and the wrap lies under the sheet. If the wrap moves,
    find its first frame in `project/assets/ui-edit.mp4`, where the Optical flow pane goes

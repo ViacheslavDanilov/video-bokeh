@@ -103,7 +103,7 @@ six panes at once.
   pane has shown a frame, so no frame left out hides a move of it: it would seem to jump.
   `edit.py` counts the moves that fall inside a span left out, and the count is 0.
 - **Where to pause.** On frame 1 her hair has not moved yet: Optical flow is white and
-  Occlusion black, which reads as broken. So the film plays the new sequence and pauses
+  Occlusion shows a bare gray frame, which reads as broken. So the film plays the new sequence and pauses
   on frame 71, adds the panes there and zooms in there. The frame was picked by measuring
   the sequence inside the zoom window: on frames 70 to 74 the flow there is 10.6 to 17.6 px
   a frame, against 0 on frame 1, Occlusion covers 7 to 9% of it, and she keeps 88 to 99% of
@@ -124,7 +124,7 @@ six panes at once.
   71, where the recording paused, one wrap hidden under each scene's entering sheet.
 - **Where the take ends.** After the last Play the app runs to frame 80, which has no flow
   or occlusion, and wraps to frame 1, so its Optical flow pane goes white and its Occlusion
-  pane black. That is 0.18 s after the press, and the film does not show it: the strengths
+  pane shows a bare gray frame. That is 0.18 s after the press, and the film does not show it: the strengths
   sheet whips in over the take 0.2 s before the press is made, and has passed the Optical
   flow pane three frames before the wrap. The take's last beat is Play, without a pull
   back to the whole app.
