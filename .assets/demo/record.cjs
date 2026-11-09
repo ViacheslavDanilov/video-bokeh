@@ -204,10 +204,12 @@ function watchPanes() {
   await p.waitForFunction(ready, { seed: SEED, count: 3 }, { timeout: 300000, polling: 50 });
   mark('panes');
   const id = (await p.evaluate(() => document.querySelector('video').currentSrc)).split('/sequences/')[1].split('/')[0];
+  // The occlusion pane opens with its overlay on, a video of its own: warmed under its own URL.
   const warm = async (stream) => {
+    const url = stream === 'occlusion' ? `${stream}.mp4?overlay=true` : `${stream}.mp4`;
     for (;;) {
       const t = Date.now();
-      await fetch(`${API}/sequences/${id}/${stream}.mp4`).then((r) => r.arrayBuffer());
+      await fetch(`${API}/sequences/${id}/${url}`).then((r) => r.arrayBuffer());
       if (Date.now() - t < 300) return;
     }
   };
