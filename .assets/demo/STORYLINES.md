@@ -32,9 +32,9 @@ fine detail. The sequence is generated on camera, so the progress bar is real.
 - **Look:** the app's own: Inter, near-black ink, no accent color. The film's ground is
   white, one step lighter than the app's #fafafa, and pulled back the app sits on it with
   a 1 px border and a soft shadow. Pushed in, the app fills the frame.
-- **Sound:** a light, steady bed of plucked guitar and marimba at 100 BPM, a soft click on
-  every press of the mouse, a whoosh on every sheet, the music fading out under the end
-  card.
+- **Sound:** a light, steady bed of fingerpicked nylon guitar, a soft string pad and
+  brushed percussion at 100 BPM, a soft click on every press of the mouse, a whoosh on
+  every sheet, the music fading out under the end card.
 
 **Why this one:** it keeps the intro and end card the owner likes and every beat of the
 previous video, and adds the three new ones (panes added, zoom, scrub) without a caption

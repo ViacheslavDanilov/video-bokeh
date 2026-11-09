@@ -15,17 +15,16 @@ The terms say Google does not claim ownership of generated content, and that Goo
 generate the same or similar content for others. Use stays subject to those terms and to
 Google's Generative AI Prohibited Use Policy.
 
-The bed was generated from this prompt, at 100 BPM, brightness 0.65, density 0.45, in a
+The bed was generated from this prompt, at 100 BPM, brightness 0.6, density 0.4, in a
 major scale:
 
-> Light acoustic electronic bed, plucked guitar and marimba motif, soft synth pads, subtle
-> kick and shaker, curious and focused, clean modern production, instrumental
+> Light acoustic bed, fingerpicked nylon guitar, soft string pad and brushed percussion,
+> warm and optimistic, understated, instrumental
 
-The negative prompt was "vocals, heavy drums, distortion, dramatic strings". The bed was
-then:
+The negative prompt was "vocals, heavy drums, distortion, dramatic strings", at weight
+-0.6. The bed was then:
 
-1. trimmed to 74 s, starting 1 s in, and lengthened to 80 s: a copy of its seconds 25 to 40
-   crossfades onto its end over 3 s, at constant power;
+1. trimmed to 80 s, starting 1 s in;
 2. low-passed at 12 kHz, since the generated audio had noise above that, and cut 4 dB below
    110 Hz with a low shelf;
 3. brought to -16 LUFS with a limiter, true peak -2.0 dBTP;
