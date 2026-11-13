@@ -8,7 +8,7 @@ related: [dataset-layout, cli, pipeline-explainer]
 # Generate a dataset
 
 Two stages. Stage A estimates depth once per image and is slow; Stage B composites sequences
-from the assets it makes and is fast. Run Stage A once, then Stage B as often as you like.
+from the assets Stage A makes and is fast. Run Stage A once, then Stage B as often as you like.
 
 Every command here runs from `backend/`. Output lands in `backend/data/`, which is
 gitignored.
