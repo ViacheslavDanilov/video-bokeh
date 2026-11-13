@@ -61,8 +61,8 @@ Run the depth estimator once per image, clean the result, and save it.
 
 ### 1. Composite on a neutral background
 
-A foreground is a cut-out with transparency. The depth model needs a full image, so the
-object is pasted onto a backdrop first. That backdrop is deliberately not blank: it is
+A foreground has transparency. The depth model needs a full image, so the foreground is
+pasted onto a backdrop first. That backdrop is deliberately not blank: it is
 low-frequency noise around mid-gray, clipped to a narrow band, because a flat background gives
 the model nothing to separate the object from. The composite is saved as `depth_input.png`, so
 a bad depth map later can be traced to the model or to the compositing rather than guessed at.
@@ -105,7 +105,7 @@ saved directly.
 ## Stage B: generate sequences
 
 Pick a background and some objects, one to five by default, give each a motion path and a
-depth trajectory, check nothing collides, render every frame.
+depth trajectory, check nothing collides, composite every frame.
 
 ### The disparity axis
 
@@ -170,7 +170,7 @@ Every frame is checked for pairs that overlap in alpha **and** in disparity inte
 set is discarded and resampled, up to 50 times, after which the sequence is skipped rather
 than written. The manifest records the rejection count.
 
-### Rendering a frame
+### Compositing a frame
 
 1. Warp the background's color and depth by its homography.
 2. Sort objects by the center of their disparity interval **for this frame**, far to near.

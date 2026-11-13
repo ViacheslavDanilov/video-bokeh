@@ -22,7 +22,7 @@ Built once per asset pool by `video_bokeh.library.build`. Depth is estimated her
 ```
 <library-root>/
 ├── foregrounds/<id>/
-│   ├── rgb.png        RGBA  uint8   (1024, 1024, 4)   the cut-out object
+│   ├── rgb.png        RGBA  uint8   (1024, 1024, 4)   the cut-out foreground
 │   ├── alpha.png      L     uint8   (1024, 1024)      its matte, 0–255
 │   ├── depth.png      I;16  uint16  (1024, 1024)      propagated disparity
 │   ├── depth_raw.png  I;16  uint16  (1024, 1024)      estimator output, diagnostic, optional
@@ -48,8 +48,8 @@ raw-depth statistics such as `core_frac`, the fraction of the image the trusted 
 Stage B reads its `estimator` for the run record. The other fields let a bad disparity map
 be diagnosed without re-running Stage A.
 
-`depth_input.png` is the image the estimator was actually given: the cut-out composited onto
-the neutral texture, because a depth model cannot read a transparent cut-out. Statistics alone
+`depth_input.png` is the image the estimator was actually given: the foreground composited onto
+the neutral texture, because a depth model cannot read transparency. Statistics alone
 cannot tell a model failure from a compositing failure. With this you can look. It costs
 about 38 % of a foreground's footprint, which is nothing against the dataset the library
 produces.

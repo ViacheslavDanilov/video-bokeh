@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the precomputed asset library (Stage A).
 
-For every foreground: composite the cut-out onto a neutral textured background,
+For every foreground: composite it onto a neutral textured background,
 run the depth estimator once, propagate the in-object disparity to a full-frame
 map (Valery's edge refinement), and store rgb/alpha/depth. For every background:
 run the estimator on the whole image and store rgb/depth.
