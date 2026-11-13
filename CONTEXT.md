@@ -7,27 +7,33 @@ that shows them.
 ## Assets and the library
 
 **Asset pool**:
-A source collection of images before Stage A: MAGICK foregrounds, BG-20K backgrounds, and
-their small development subsets.
+A source collection of images before Stage A, which turns each into an asset: MAGICK
+foregrounds, BG-20K backgrounds, and their small development subsets.
 _Avoid_: dataset, source data
 
+**Asset**:
+An RGBD-A asset: a still image together with its alpha and the disparity map Stage A gave it,
+the unit Stage A writes. A foreground is RGB-A plus disparity, a background RGB plus disparity
+with an alpha of one everywhere. Before Stage A, it is only an image in an asset pool.
+_Avoid_: artifact, library item
+
 **Foreground**:
-A cut-out image in the library, with its matte and disparity map: the reusable template
-that objects are made from.
-_Avoid_: object (for the library item), cut-out, sprite
+An asset cut out around one object, with its matte and its disparity map refined at the
+matte's edge: the reusable template that objects are made from.
+_Avoid_: object (for the asset), cut-out, sprite
 
 **Background**:
-A full-frame image in the library, larger than a frame so that it can pan.
+An asset that fills the frame, larger than a frame so that it can pan.
 _Avoid_: backdrop, plate
 
 **Matte**:
-A foreground's soft alpha channel, stored with it in the library.
+A foreground's soft alpha channel, the A of its RGBD-A, stored with it in the asset library.
 _Avoid_: mask, alpha mask
 
-**Library**:
-Every asset with its disparity map, computed once by Stage A and read by every sequence.
-A library is built by exactly one depth estimator, so comparing depth estimators means
-comparing libraries.
+**Asset library**:
+Every asset, built once by Stage A and read by every sequence; "the library" for short, and
+`library` is its role word in code. An asset library is built by exactly one depth estimator,
+so comparing depth estimators means comparing asset libraries.
 _Avoid_: artifact library, asset store, cache
 
 **Split**:
@@ -37,7 +43,7 @@ and the test foregrounds are a tracked list.
 _Avoid_: partition, fold, held-out set
 
 **Depth estimator**:
-Any model behind Stage A's interface that turns an asset into one disparity map: Depth
+Any model behind Stage A's interface that turns an image into one disparity map: Depth
 Anything V2 by default, Depth Pro, or one of the user's own. With depth motion, one of the
 only two terms in this project where the word "depth" survives.
 _Avoid_: depth model
@@ -184,14 +190,20 @@ The dataset's table with one row per written sequence.
 _Avoid_: using it for stream info
 
 **Stage A**:
-Building the library; the only stage that runs the depth estimator.
+Building the asset library; the only stage that runs the depth estimator.
 _Avoid_: preprocessing
 
 **Stage B**:
-Generating sequences from the library, written to disk or handed out as the sequence stream;
-it never runs the depth estimator. With bokeh, optical flow, backward flow or either occlusion
-mask asked for, it renders them too, in the same pass.
+Generating sequences from the asset library by layer-wise video composition, written to disk or
+handed out as the sequence stream; it never runs the depth estimator. With bokeh, optical flow,
+backward flow or either occlusion mask asked for, it renders them too, in the same pass.
 _Avoid_: rendering
+
+**Layer-wise video composition**:
+What Stage B does to make a sequence: it composes one layer per object over a background
+layer from the assets, so that disparity, optical flow and bokeh follow the same mattes as
+color.
+_Avoid_: rendering, layered rendering (the bokeh renderer's scheme)
 
 **Sequence stream**:
 Sequences Stage B generates in memory for a training loop and never writes. It is the
