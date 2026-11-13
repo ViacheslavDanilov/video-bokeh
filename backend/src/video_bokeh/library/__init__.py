@@ -1,1 +1,1 @@
-"""Stage A: estimate depth once per asset and write the artifact library."""
+"""Stage A: estimate depth once per image and write the asset library."""

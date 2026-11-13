@@ -22,8 +22,9 @@ training data where the distance of every pixel is known exactly. Real video doe
 with that, so we build synthetic video instead: cut-out objects composited onto backgrounds,
 each with a depth we assigned and therefore know.
 
-Two stages, split by cost. Stage A computes depth once per asset. Stage B turns those assets
-into as many videos as you want, and its bokeh renderer blurs each video by its depth.
+Two stages, split by cost. Stage A computes depth once per image, making it an asset. Stage B
+turns those assets into as many videos as you want, and its bokeh renderer blurs each video
+by its depth.
 
 ```mermaid
 flowchart LR
@@ -56,7 +57,7 @@ flowchart LR
 
 ## Stage A: build the library
 
-Run the depth estimator once per asset, clean the result, and save it.
+Run the depth estimator once per image, clean the result, and save it.
 
 ### 1. Composite on a neutral background
 

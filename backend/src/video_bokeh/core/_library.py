@@ -1,4 +1,4 @@
-"""On-disk layout and I/O for the precomputed artifact library.
+"""On-disk layout and I/O for the precomputed asset library.
 
     <library>/
     ├── foregrounds/<id>/{rgb.png (RGBA), alpha.png (L), depth.png (uint16),

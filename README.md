@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/59893889-b8fd-4919-960e-3d1b32731c8a
 
 ## How It Works
 
-Stage A estimates depth once per asset and stores it as a library. Stage B samples objects, a background and depth trajectories from that library and writes sequences. Bokeh is rendered in the same pass, by our layered renderer, or again afterwards over written sequences that hold their layers. The web demo generates sequences on request. [docs/explanation/pipeline-explainer.md](docs/explanation/pipeline-explainer.md) walks through all of it.
+Stage A estimates depth once per image and stores the results as the asset library. Stage B samples objects, a background and depth trajectories from that library and writes sequences. Bokeh is rendered in the same pass, by our layered renderer, or again afterwards over written sequences that hold their layers. The web demo generates sequences on request. [docs/explanation/pipeline-explainer.md](docs/explanation/pipeline-explainer.md) walks through all of it.
 
 ## Tech Stack
 

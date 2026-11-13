@@ -21,7 +21,7 @@ gitignored. To produce a dataset in the first place, see
 
 ## Before you start
 
-You need the artifact library at `backend/data/library_dev/da2-large/`, holding
+You need the asset library at `backend/data/library_dev/da2-large/`, holding
 `foregrounds/` and `backgrounds/`. `make libraries` leaves it there, and Stage A in
 [generate-a-dataset](generate-a-dataset.md) builds it alone. Built from the tracked dev
 pools, it holds 17 foregrounds and 30 backgrounds, and 30 and 30 with the class filter off;

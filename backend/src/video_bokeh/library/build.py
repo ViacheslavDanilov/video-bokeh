@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the precomputed artifact library (Stage A).
+"""Build the precomputed asset library (Stage A).
 
 For every foreground: composite the cut-out onto a neutral textured background,
 run the depth estimator once, propagate the in-object disparity to a full-frame

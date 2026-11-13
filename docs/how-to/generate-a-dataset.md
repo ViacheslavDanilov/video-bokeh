@@ -7,8 +7,8 @@ related: [dataset-layout, cli, pipeline-explainer]
 
 # Generate a dataset
 
-Two stages. Stage A estimates depth once per asset and is slow; Stage B composites sequences
-from those assets and is fast. Run Stage A once, then Stage B as often as you like.
+Two stages. Stage A estimates depth once per image and is slow; Stage B composites sequences
+from the assets it makes and is fast. Run Stage A once, then Stage B as often as you like.
 
 Every command here runs from `backend/`. Output lands in `backend/data/`, which is
 gitignored.
@@ -156,7 +156,7 @@ Run the matching build command in [Library names](#library-names).
 **`--size` need not match Stage B.** Stage B maps each asset onto the frame whatever its
 size. A library smaller than the frame is only upscaled, and looks softer for it.
 
-**The CLIP filter drops assets.** Stage A keeps only foregrounds whose predicted subject and
+**The CLIP filter drops foregrounds.** Stage A keeps only foregrounds whose predicted subject and
 style are among `--subjects` and `--styles`, and whose subject score is at least
 `--subject-thr`, so the dev pool's 30 foregrounds yield 17 in the library. Pass
 `--subjects "" --styles "" --subject-thr 0` to turn it off; any one of them alone leaves the

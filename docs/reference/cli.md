@@ -20,7 +20,7 @@ uv run python -m video_bokeh.<role>.<module> [flags]
 
 ## `video_bokeh.library.build`: Stage A
 
-Estimates depth once per asset and writes the artifact library.
+Estimates depth once per image and writes the asset library.
 
 | flag | type | default | meaning |
 |---|---|---|---|
