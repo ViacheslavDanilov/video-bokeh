@@ -7,8 +7,8 @@ that shows them.
 ## Assets and the library
 
 **Asset pool**:
-A source collection of images before Stage A, which turns each into an asset: MAGICK
-foregrounds, BG-20K backgrounds, and their small development subsets.
+A source collection of images before Stage A, which turns the ones it keeps into assets:
+MAGICK foregrounds, BG-20K backgrounds, and their small development subsets.
 _Avoid_: dataset, source data
 
 **Asset**:
