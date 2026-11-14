@@ -129,7 +129,7 @@ disk instead.
 $fixed_set
 ## Read the files without the code
 
-A library item is plain PNG, read with Pillow and NumPy:
+An asset is plain PNG, read with Pillow and NumPy:
 
 ```python
 import numpy as np
@@ -154,14 +154,14 @@ item = next(iter(foregrounds))
 $sequences_datasets
 ## Library files
 
-The files of an item, as `fetch` writes them under `data/library/da2-large/`:
+The files of an asset, as `fetch` writes them under `data/library/da2-large/`:
 
 | File | Mode | Type | Values |
 |---|---|---|---|
-| `foregrounds/<id>/rgb.png` | RGBA | uint8 | the cut-out, with its matte as alpha |
+| `foregrounds/<id>/rgb.png` | RGBA | uint8 | the foreground, with its matte as alpha |
 | `foregrounds/<id>/alpha.png` | L | uint8 | the matte, 0 transparent to 255 opaque |
 | `foregrounds/<id>/depth.png` | I;16 | uint16 | disparity over the whole square, 0 far to 65535 near |
-| `foregrounds/<id>/meta.json` | JSON | | how the item was made |
+| `foregrounds/<id>/meta.json` | JSON | | how the asset was made |
 | `backgrounds/<id>/rgb.png` | RGB | uint8 | the photo |
 | `backgrounds/<id>/depth.png` | I;16 | uint16 | disparity, 0 far to 65535 near |
 
@@ -191,7 +191,7 @@ $layout
 - **A shard is a plain tar in WebDataset's layout, of whole items of one split.** An item's
   files share its id, as `<id>.rgb.png`, `<id>.alpha.png`, `<id>.depth.png` and `<id>.json`.
   The images are PNG already, so the tar is not compressed again.
-- **Each library item also holds `<id>.depth_preview.jpg`,** its disparity in color, for the
+- **Each asset also holds `<id>.depth_preview.jpg`,** its disparity in color, for the
   Hub's viewer. `fetch` leaves it out.
 - **`library/index.json` lists each kind's shards** with their split, item count and bytes.
   `fetch` reads it first.
@@ -208,7 +208,7 @@ $layout
    $bg_side × $bg_side. That leaves a quarter of a $fg_side-pixel frame to spare on every
    side, so the generator can pan and zoom without leaving the photo.
 3. **Disparity.** Depth Anything V2 Large (`depth-anything/Depth-Anything-V2-Large-hf`) ran
-   once on every image. The model cannot read transparency, so each cut-out was first pasted
+   once on every image. The model cannot read transparency, so each foreground was first pasted
    onto a fixed texture of soft noise around mid-gray.
 4. **Foreground cleanup.** The matte, from alpha 0.04 up, was eroded by 5 pixels. Pixels in it
    below the 2nd percentile of disparity were dropped, because they are holes the model left,
