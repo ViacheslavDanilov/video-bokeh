@@ -263,7 +263,7 @@ def test_reports_each_step_as_it_goes(library: Path, tmp_path: Path) -> None:
     frames = [done for step, done, _ in events if step == "frames"]
     assert frames == list(range(BASE.frames + 1))
     assert _last(events, "writing") == ("writing", BASE.frames, BASE.frames)
-    # In that order: every frame rendered before the first is written.
+    # In that order: every frame composed before the first is written.
     assert steps.index("writing") > len(steps) - 1 - steps[::-1].index("frames")
 
 
