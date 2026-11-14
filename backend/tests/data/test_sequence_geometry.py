@@ -80,7 +80,7 @@ def test_resize_shortest_side_and_center_crop_is_square() -> None:
 
 
 def test_every_easing_is_bounded_and_monotone() -> None:
-    # Goal 3. The unrestricted depth model interpolates mind/maxd with these
+    # Goal 3. An unrestricted trajectory interpolates mind/maxd with these
     # easings and checks its axis bounds only at the two endpoints. That is
     # valid only while no easing leaves [0, 1] or backtracks. An added
     # easeOutBack / easeOutElastic must fail here rather than silently produce
