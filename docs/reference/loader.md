@@ -109,7 +109,7 @@ stream = SequenceStream(Path("data/library_dev/da2-large"), n_frames=24, size=51
 - **Ask only for what the loop uses.** Each stream is stacked in the worker and copied to the
   training process, so a stream the loop discards still costs time.
 - **An unknown name, or none at all, is refused** when the stream is created.
-- **`layers` is what a layer-wise bokeh renderer needs**, together with `object_alphas`: object
+- **`layers` is what a layered bokeh renderer needs**, together with `object_alphas`: object
   `k`'s alpha is `object_alphas[:, k]`. Compositing the object layers over the background in
   `paint_order` gives back `rgb`. The layers hold `4 · (1 + n_objects_max) / 3` times as many
   floats as `rgb`, eight times at the default of five, so ask for them only when the loop uses

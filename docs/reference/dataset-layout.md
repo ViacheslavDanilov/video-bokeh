@@ -49,7 +49,7 @@ Stage B reads its `estimator` for the run record. The other fields let a bad dis
 be diagnosed without re-running Stage A.
 
 `depth_input.png` is the image the estimator was actually given: the foreground composited onto
-the neutral texture, because a depth model cannot read transparency. Statistics alone
+the neutral texture, because a depth estimator cannot read transparency. Statistics alone
 cannot tell a model failure from a compositing failure. With this you can look. It costs
 about 38 % of a foreground's footprint, which is nothing against the dataset the library
 produces.
@@ -147,7 +147,7 @@ layers/
 ```
 
 - **Every layer is whole.** The background includes what the objects cover, and each object
-  includes what a nearer object covers. A layer-wise renderer can blur each one without
+  includes what a nearer object covers. A layered renderer can blur each one without
   inpainting anything first.
 - **`paint_order.json` is written last.** A `layers/` without it was interrupted and is not
   complete. Writing a sequence again removes its old `layers/` first, with or without

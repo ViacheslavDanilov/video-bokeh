@@ -9,7 +9,7 @@ backend/src/video_bokeh/
 ├── api/            # HTTP surface
 ├── acquire/        # Source pools
 ├── core/           # Geometry, streams, and shared contracts
-├── layered/        # Layer-wise bokeh
+├── layered/        # Layered bokeh
 ├── library/        # Stage A
 │   └── depth/      # Depth estimators
 ├── loader/         # On-the-fly training data
@@ -50,7 +50,7 @@ uv run python -m video_bokeh.library.build \
   --output data/library_dev/da2-small --size 512 --model da2-small
 ```
 
-**11 s**, on MPS, once the depth model is cached; the first run also pulls it from Hugging
+**11 s**, on MPS, once the depth estimator is cached; the first run also pulls it from Hugging
 Face. `da2-small` is the fast model and is what makes this a smoke test, while `da2-large` is the
 default elsewhere and is slower and better. The CLIP filter keeps 17 of the 30 foregrounds.
 

@@ -634,7 +634,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--layers",
         action="store_true",
         help="also write layers/: the background and each object per frame, before "
-        "compositing, for a layer-wise bokeh renderer",
+        "compositing, for a layered bokeh renderer",
     )
     parser.add_argument(
         "--flow",

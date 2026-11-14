@@ -1,4 +1,4 @@
-"""The layer-wise bokeh renderer, as ``render.run`` runs it over written sequences.
+"""The layered bokeh renderer, as ``render.run`` runs it over written sequences.
 
 Reads each sequence's layers, its alpha masks and its disparity, and writes its bokeh
 losslessly at the sequence's own size. It never reads the library, so a sequence written
@@ -35,7 +35,7 @@ from video_bokeh.layered import (
 
 
 class Layered:
-    """The layer-wise renderer, with ``strength`` the blur radius in pixels, at a
+    """The layered renderer, with ``strength`` the blur radius in pixels, at a
     1024-pixel width, one unit of disparity from the focus.
 
     With no ``focus_disparity``, the focus follows one object, drawn by area unless

@@ -1,4 +1,4 @@
-"""Shared base for depth models served through Hugging Face transformers."""
+"""Shared base for depth estimators served through Hugging Face transformers."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def _ensure_transformers_loaded() -> None:
 
 
 class TransformersDepthEstimator:
-    """A transformers depth model whose raw ``predicted_depth`` is already disparity.
+    """A transformers depth estimator whose raw ``predicted_depth`` is already disparity.
 
     A subclass names its checkpoint. The subclass, or the module defining it, says why the
     model's raw output is near-larger-than-far, because that is the one thing the contract

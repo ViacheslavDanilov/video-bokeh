@@ -50,7 +50,7 @@ flowchart LR
   [0001-on-disk-formats-join-the-stages](../adr/0001-on-disk-formats-join-the-stages.md) records
   why.
 - **Stage A is the expensive stage.** It runs a neural depth estimator, and Stage B never does.
-  The bokeh comes from our layer-wise renderer, which runs on any machine, in Stage B's pass
+  The bokeh comes from our layered renderer, which runs on any machine, in Stage B's pass
   or again over written sequences.
 
 ---
@@ -61,7 +61,7 @@ Run the depth estimator once per image, clean the result, and save it.
 
 ### 1. Composite on a neutral background
 
-A foreground has transparency. The depth model needs a full image, so the foreground is
+A foreground has transparency. The depth estimator needs a full image, so the foreground is
 pasted onto a backdrop first. That backdrop is deliberately not blank: it is
 low-frequency noise around mid-gray, clipped to a narrow band, because a flat background gives
 the model nothing to separate the object from. The composite is saved as `depth_input.png`, so
@@ -189,7 +189,7 @@ can be partly transparent at the same pixel.
 
 **The layers themselves can be written too.** With `--layers`, Stage B also writes what each
 frame was composited from: the whole background, each whole object with its own disparity, and
-the paint order. A layer-wise bokeh renderer needs exactly this, because the composite no longer
+the paint order. A layered bokeh renderer needs exactly this, because the composite no longer
 holds what a blurred object in front would let through.
 [0002-layers-are-stored-not-regenerated](../adr/0002-layers-are-stored-not-regenerated.md)
 records why they are stored rather than regenerated, and [layered-bokeh](layered-bokeh.md)
@@ -204,7 +204,7 @@ have recorded: the `bokeh` stream, one frame for every `all_in_focus` frame. It 
 of Stage B. It only reads the layers, which Stage B writes with `--layers` or hands out from
 the sequence stream, and it never reads the library.
 
-The layer-wise renderer is the one the dataset's bokeh comes from. It blurs each layer of a
+The layered renderer is the one the dataset's bokeh comes from. It blurs each layer of a
 frame on its own and stacks them again, so a blurred object in front thins out at its edges and
 shows what is behind it. It runs in our own process, on a CPU or a GPU. By default the focus
 follows one object per sequence, drawn with odds in proportion to its area, so one object is
@@ -229,7 +229,7 @@ records why.
 
 ## How the stages connect
 
-Stage B never calls the depth model. It reads the library's precomputed maps and warps them
+Stage B never calls the depth estimator. It reads the library's precomputed maps and warps them
 with the same homography as the color. Three things follow:
 
 - **Depth stays aligned with the object** as it pans, rotates and scales, because both go

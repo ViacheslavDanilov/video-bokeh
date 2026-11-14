@@ -1,4 +1,4 @@
-"""Layer-wise bokeh: blur each layer by its distance from the focus, then composite.
+"""Layered bokeh: blur each layer by its distance from the focus, then composite.
 
 Each layer is blurred on its own, so a pixel spreads its circle of confusion only within
 its own layer. The background never bleeds into an object, and a blurred object in front
