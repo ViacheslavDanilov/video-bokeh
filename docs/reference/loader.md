@@ -229,7 +229,7 @@ An item at 1024 pixels holds four times the bytes.
 - **With small batches, let the loader take them out of order.** A `DataLoader` hands batches
   over in worker order, so a slow scene holds back those other workers have finished. At 512
   pixels and 8 workers, batches of 1 came at 2.55 items per second in order and 3.08 with
-  `in_order=False`, as fast as batches of 4 in order. The workers render the same seeds; only
+  `in_order=False`, as fast as batches of 4 in order. The workers generate the same seeds; only
   the order they arrive in is no longer fixed.
 - **Memory is what the layers really cost.** A `DataLoader` keeps `prefetch_factor` batches per
   worker in shared memory, 2 by default, so 4 workers with layers at 1024 pixels can hold 8
