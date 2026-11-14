@@ -6,7 +6,7 @@ GOAL:    a visitor to the repository finishes the film knowing the demo generate
          strand of hair.
 OUTPUT:  HyperFrames, 1920 x 1080 at 30 fps, rendered at 2x (3840 x 2160) and delivered
          at 1920 x 1080; H.264 High, yuv420p, AAC.
-TIME:    73.97 s at 30 fps, 2219 frames. Music bed at 100 BPM.
+TIME:    74.73 s at 30 fps, 2242 frames. Music bed at 100 BPM.
 SUBJECT: the paper's night scene: seed 245 from the demo's da2-large library, two objects,
          80 frames at 1024 x 1024. The woman with white hair, in focus; a lantern nearer the
          camera, blurred; a lake with fireworks behind them.
@@ -34,23 +34,23 @@ SHOTS (film seconds):
   2.40-5.45   poster lines rise out; "Pick an estimator and a seed" lands; the sheet whips
               out onto the app at 0.94: a falcon and a taxi in three panes, two objects in
               the header and in the sidebar.
-  5.55-26.10  sidebar at 2.0x: estimator list, da2-large, seed typed; down to Generate;
+  5.55-26.18  sidebar at 2.0x: estimator list, da2-large, seed typed; down to Generate;
               onto the progress line at 2.4x, the speed label once the camera settles;
               the woman and the lantern in one row of three panes at 1.17x; Play, Pause on
               frame 71, give or take one.
-  26.10-28.70 sheet "Every stream, side by side".
-  28.70-41.91 the row at 1.17x: Add pane twice; then both rows and the transport at
+  26.18-28.78 sheet "Every stream, side by side".
+  28.78-42.55 the row at 1.17x: Add pane twice; then both rows and the transport at
               1.175x: the third Add pane, Bokeh dragged in front of Disparity.
-  41.91-44.51 sheet "Zoom in, frame by frame".
-  44.51-57.05 same framing: double-click on the tips of her hair (4x in all six panes),
+  42.55-45.15 sheet "Zoom in, frame by frame".
+  45.15-57.81 same framing: double-click on the tips of her hair (4x in all six panes),
               slider dragged four frames, double-click back, Play; the next sheet whips in within
               0.2 s of the press, before the app wraps to frame 1, where Optical flow goes white and Occlusion loses its mask.
-  57.05-62.45 sheet "One sequence. Any blur.": All in focus and bokeh strengths 8, 16 and
+  57.81-63.21 sheet "One sequence. Any blur.": All in focus and bokeh strengths 8, 16 and
               32 in one row of four loops, labeled.
-  62.45-68.35 sheet "One sequence. Every stream.": six loops in a 3 x 2 grid, labeled. Both
+  63.21-69.11 sheet "One sequence. Every stream.": six loops in a 3 x 2 grid, labeled. Both
               loop scenes play frames 30 to 79 and start on frame 71.
-  68.35-73.95 end card: logo and title, "Code" and "Dataset" links; music fades out from
-              70.75 s, silence from 73.55 s.
+  69.11-74.71 end card: logo and title, "Code" and "Dataset" links; music fades out from
+              71.51 s, silence from 74.31 s.
 SOUND:   bed at -16 LUFS, true peak -2.0 dBTP, low-passed at 12 kHz; a soft click one frame
          after each press; a whoosh peaking one frame after each sheet's fastest frame,
          two takes alternating.

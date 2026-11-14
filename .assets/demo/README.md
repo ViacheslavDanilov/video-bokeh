@@ -1,6 +1,6 @@
 # README demo video
 
-`video-bokeh-demo.mp4` is the video the repository's README plays: 74.0 s, 1920 × 1080,
+`video-bokeh-demo.mp4` is the video the repository's README plays: 74.7 s, 1920 × 1080,
 30 fps, with sound, encoded from a 3840 × 2160 master. `poster.png` is its first frame, a
 finished title card, because GitHub shows a video's first frame until it plays. The README
 links a copy uploaded to GitHub, so a new version needs a new upload too.
@@ -25,11 +25,11 @@ and the master are not tracked; the steps below remake them.
 | Time | Scene | Content |
 |---|---|---|
 | 0 to 5.5 s | `compositions/intro.html` | The poster, then the first chapter's line on the same sheet |
-| 4.8 to 57.6 s | `compositions/demo.html` | The recording, with a camera and the speed label |
-| 26.1 s, 41.9 s | `compositions/sheet-add.html`, `sheet-zoom.html` | Chapter sheets that whip across the recording |
-| 57.1 to 63.1 s | `compositions/strengths.html` | The sequence at three bokeh strengths, looping beside All in focus |
-| 62.5 to 69.0 s | `compositions/streams.html` | The six streams, looping: All in focus, Bokeh, Disparity, Alpha, Optical flow, Occlusion |
-| 68.4 to 74.0 s | `compositions/end.html` | Logo, the GitHub and Hugging Face addresses |
+| 4.8 to 58.3 s | `compositions/demo.html` | The recording, with a camera and the speed label |
+| 26.2 s, 42.6 s | `compositions/sheet-add.html`, `sheet-zoom.html` | Chapter sheets that whip across the recording |
+| 57.8 to 63.8 s | `compositions/strengths.html` | The sequence at three bokeh strengths, looping beside All in focus |
+| 63.2 to 69.7 s | `compositions/streams.html` | The six streams, looping: All in focus, Bokeh, Disparity, Alpha, Optical flow, Occlusion |
+| 69.1 to 74.7 s | `compositions/end.html` | Logo, the GitHub and Hugging Face addresses |
 
 The sheets sit over the recording while it waits, so the recording runs as one take under
 them. `project/assets/` also keeps the shared style (`composition.css`), the logo, Inter
@@ -203,13 +203,13 @@ it generates must not be cached, or there is no progress bar to film: find its f
 
    ```bash
    ffmpeg -y -i master.mp4 -vf 'scale=1920:1080:flags=lanczos' -c:v libx264 -preset veryslow \
-     -crf 13 -profile:v high -level:v 4.1 -pix_fmt yuv420p -force_key_frames 69.99 \
+     -crf 13 -profile:v high -level:v 4.1 -pix_fmt yuv420p -force_key_frames 70.75 \
      -c:a aac -b:a 192k -movflags +faststart video-bokeh-demo.mp4
    ```
 
    The 4K master, scaled down with Lanczos, keeps the UI text sharper than a render at
-   1080p would. CRF 13 makes a file of about 30 MB. `-force_key_frames 69.99` puts a
-   keyframe just after the end card has settled, 1.6 s after `#end` starts, so none falls
+   1080p would. CRF 13 makes a file of about 30 MB. `-force_key_frames 70.75` puts a
+   keyframe just after the end card has settled, 1.64 s after `#end` starts, so none falls
    inside its hold, where it would show as a jump in quality.
 
 8. Poster. From `project/`:

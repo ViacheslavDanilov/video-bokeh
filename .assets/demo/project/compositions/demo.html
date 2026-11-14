@@ -18,12 +18,12 @@
   </style>
   <div id="root" data-composition-id="demo" data-width="1920" data-height="1080">
     <div id="dm-stage" data-layout-allow-overflow>
-      <video id="dm-ui" class="clip" src="assets/ui-edit.mp4" data-start="0" data-duration="52.75"
+      <video id="dm-ui" class="clip" src="assets/ui-edit.mp4" data-start="0" data-duration="53.51"
              data-media-start="0" data-track-index="1" muted playsinline preload="auto"
              aria-label="Video Bokeh, the demo app: picking an estimator and a seed, generating, adding panes, reordering them, zooming in, scrubbing and playing"></video>
     </div>
-    <!-- The generation wait, from 10.69 s to 14.30 s, plays at the factor edit.py printed. -->
-    <div id="dm-speed" class="clip" data-start="11.47" data-duration="2.54" data-track-index="2">
+    <!-- The generation wait, from 10.65 s to 14.33 s, plays at the factor edit.py printed. -->
+    <div id="dm-speed" class="clip" data-start="11.43" data-duration="2.61" data-track-index="2">
       <p id="dm-speed-label">20× speed</p>
     </div>
   </div>
@@ -40,15 +40,15 @@
         tl.to("#dm-stage", { ...view, duration, ease: "power2.inOut" }, t);
       tl.set("#dm-stage", { transformOrigin: "0 0", ...WIDE }, 0);
       shot(at(2.0, 480, 310), 0.75);       // the estimator's list and the seed
-      shot(at(2.0, 480, 520), 8.48);       // down to Generate, with the cursor
-      shot(at(2.4, 680, 275), 10.47, 0.9); // the progress line
+      shot(at(2.0, 480, 520), 8.52);       // down to Generate, with the cursor
+      shot(at(2.4, 680, 275), 10.43, 0.9); // the progress line
       // The new sequence's one row of panes and the transport, cut in the empty margin left of
       // them; from the second added pane on, the two rows.
-      shot(at(1.17, 1100, 525), 14.43);
-      shot(at(1.175, 1103, 578.5), 27.51);
+      shot(at(1.17, 1100, 525), 14.46);
+      shot(at(1.175, 1103, 578.5), 27.60);
       tl.fromTo("#dm-speed-label", { opacity: 0, filter: "blur(6px)" },
-        { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 11.47);
-      tl.to("#dm-speed-label", { opacity: 0, filter: "blur(6px)", duration: 0.15, ease: "power2.in" }, 13.85);
+        { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 11.43);
+      tl.to("#dm-speed-label", { opacity: 0, filter: "blur(6px)", duration: 0.15, ease: "power2.in" }, 13.88);
       window.__timelines["demo"] = tl;
     })();
   </script>
