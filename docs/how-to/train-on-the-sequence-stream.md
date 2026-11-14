@@ -12,9 +12,9 @@ writes nothing to disk. This page downloads the published library, trains a smal
 it and evaluates on the fixed set. [loader](../reference/loader.md) describes every stream and
 option.
 
-The project works in two stages. Stage A built the library once: cut-out objects and
+The project works in two stages. Stage A built the library once: cut-out foregrounds and
 background photos, each with a disparity map. Stage B composes sequences from it on the fly,
-moving the objects over a background, and the sequence stream runs Stage B inside a PyTorch
+moving objects over a background, and the sequence stream runs Stage B inside a PyTorch
 `DataLoader`.
 
 ## 1. Install
@@ -32,7 +32,7 @@ uv sync --no-dev --extra loader
 
 **The library is on Hugging Face as
 [vdanilov/video-bokeh](https://huggingface.co/datasets/vdanilov/video-bokeh).** It holds 8,586
-cut-out objects and 20,000 background photos in 115 GB of tar shards. Every `depth.png` holds
+cut-out foregrounds and 20,000 background photos in 115 GB of tar shards. Every `depth.png` holds
 disparity, larger values nearer. `fetch` downloads the shards one at a time and unpacks each
 into the folder layout Stage B reads, so the disk needs the library plus room for one 2 GB
 shard:

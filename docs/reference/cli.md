@@ -20,7 +20,7 @@ uv run python -m video_bokeh.<role>.<module> [flags]
 
 ## `video_bokeh.library.build`: Stage A
 
-Estimates depth once per asset and writes the artifact library.
+Estimates depth once per image and writes the asset library.
 
 | flag | type | default | meaning |
 |---|---|---|---|
@@ -90,7 +90,7 @@ Run it from the repository root. It puts the venv at `backend/envs/depth-anythin
 which git ignores. It leaves out `xformers`, which inference does not need, and `pycolmap`,
 whose own OpenMP runtime clashes with torch's. To use a venv somewhere else, set
 `VIDEO_BOKEH_DA3_PYTHON` to its interpreter. Without either, a `--model da3-*` stops before any
-asset is processed and names the script.
+image is processed and names the script.
 
 `VIDEO_BOKEH_RUNNER=docker` runs the worker in the `video-bokeh-da3` image instead, which
 `make images` builds with the same packages; nothing else changes. On the RTX 5090 a

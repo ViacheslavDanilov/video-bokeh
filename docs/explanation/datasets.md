@@ -31,13 +31,13 @@ stays local. Acquisition recipes are in [generate-a-dataset](../how-to/generate-
 
 ### Filtering for Stage A
 
-Stage A selects assets using the stored CLIP subject and style scores.
+Stage A selects foregrounds using the stored CLIP subject and style scores.
 The default filter keeps the subjects person, animal, plant, food, and object, in the styles
 photo and render. It keeps 17 of the 30 development foregrounds.
 The flags and thresholds are in [cli](../reference/cli.md).
 
 `scripts/analyze_magick_distribution.py` reads the full-set predictions and plots how many
-assets survive each threshold. Its plots and `summary.json` go to
+foregrounds survive each threshold. Its plots and `summary.json` go to
 `docs/attachments/2026-05-20-magick-distribution/` and stay local.
 
 ### Alpha in our pipeline
@@ -62,7 +62,7 @@ The tracked development pool contains 30 backgrounds.
 
 ## Generated sequences
 
-Stage A builds the artifact library from these pools.
+Stage A builds the asset library from these pools.
 Stage B samples scenes and writes sequences. The layered renderer produces bokeh in Stage B's
 pass, or can render it again afterward over saved layers.
 

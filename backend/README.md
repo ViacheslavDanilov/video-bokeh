@@ -38,7 +38,7 @@ only the last row wants.
 
 A fresh clone can run the pipeline without a download: the two source
 pools `data/magick_dev` (30 foregrounds) and `data/bg-20k_dev` (30 backgrounds) are tracked on
-purpose. The artifact library is not: it is generated, and `.gitignore` keeps
+purpose. The asset library is not: it is generated, and `.gitignore` keeps
 `backend/data/library*/` out, so build it once with Stage A, then run Stage B as often as you
 like. Both numbers below were measured on an Apple M3 Pro.
 

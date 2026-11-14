@@ -1,4 +1,4 @@
-"""On-disk layout and I/O for the precomputed artifact library.
+"""On-disk layout and I/O for the precomputed asset library.
 
     <library>/
     ├── foregrounds/<id>/{rgb.png (RGBA), alpha.png (L), depth.png (uint16),
@@ -16,9 +16,9 @@ the relative structure matters and 16 bits preserves it without visible banding.
 ``depth_raw.png`` is the estimator's output before propagation, scaled to its own
 minimum and maximum and quantized to 16 bits, saved only as a diagnostic
 (raw-vs-propagated comparison).
-``depth_input.png`` is the image the estimator actually saw: the cut-out
-composited onto the neutral texture, since the model cannot read a transparent
-cut-out. It is what separates a model failure from a compositing failure, which
+``depth_input.png`` is the image the estimator actually saw: the foreground
+composited onto the neutral texture, since the model cannot read transparency.
+It is what separates a model failure from a compositing failure, which
 ``meta.json``'s statistics cannot do on their own.
 
 Both diagnostics are optional and remain on disk for inspection. Loading a

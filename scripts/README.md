@@ -1,7 +1,7 @@
 # Scripts
 
-These scripts set up model environments, check the prose of a change, and analyze the source
-data.
+These scripts set up model environments, check the prose of a change, and analyze the MAGICK
+asset pool.
 Run commands from the repository root.
 
 ## Set up Depth Anything 3
