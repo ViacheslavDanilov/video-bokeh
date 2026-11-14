@@ -8,12 +8,12 @@
   <script src="assets/vendor/gsap.min.js"></script>
 </head>
 <body>
-  <div id="root" data-composition-id="main" data-start="0" data-duration="73.95"
+  <div id="root" data-composition-id="main" data-start="0" data-duration="74.71"
        data-width="1920" data-height="1080" data-fps="30">
     <div id="ground"></div>
     <!-- The recording, one take from the first click to Play. Its times are the step marks edit.py prints. -->
     <div id="demo" data-composition-id="demo" data-composition-src="compositions/demo.html"
-         data-start="4.8" data-duration="52.75" data-track-index="1" data-track-kind="graphics"
+         data-start="4.8" data-duration="53.51" data-track-index="1" data-track-kind="graphics"
          data-width="1920" data-height="1080" style="z-index: 1"></div>
     <!-- Frame 0 is the poster; the sheet leaves with the first chapter's line on it. -->
     <div id="intro" data-composition-id="intro" data-composition-src="compositions/intro.html"
@@ -21,48 +21,48 @@
          data-width="1920" data-height="1080" style="z-index: 5"></div>
     <!-- Chapter sheets, over the recording while it waits. -->
     <div id="sheet-add" data-composition-id="sheet-add" data-composition-src="compositions/sheet-add.html"
-         data-start="26.10" data-duration="2.6" data-track-index="3" data-track-kind="graphics"
+         data-start="26.18" data-duration="2.6" data-track-index="3" data-track-kind="graphics"
          data-width="1920" data-height="1080" style="z-index: 5"></div>
     <div id="sheet-zoom" data-composition-id="sheet-zoom" data-composition-src="compositions/sheet-zoom.html"
-         data-start="41.91" data-duration="2.6" data-track-index="3" data-track-kind="graphics"
+         data-start="42.55" data-duration="2.6" data-track-index="3" data-track-kind="graphics"
          data-width="1920" data-height="1080" style="z-index: 5"></div>
     <div id="strengths" data-composition-id="strengths" data-composition-src="compositions/strengths.html"
-         data-start="57.05" data-duration="6" data-track-index="4" data-track-kind="graphics"
+         data-start="57.81" data-duration="6" data-track-index="4" data-track-kind="graphics"
          data-width="1920" data-height="1080" style="z-index: 6"></div>
     <div id="streams" data-composition-id="streams" data-composition-src="compositions/streams.html"
-         data-start="62.45" data-duration="6.5" data-track-index="5" data-track-kind="graphics"
+         data-start="63.21" data-duration="6.5" data-track-index="5" data-track-kind="graphics"
          data-width="1920" data-height="1080" style="z-index: 7"></div>
     <div id="end" data-composition-id="end" data-composition-src="compositions/end.html"
-         data-start="68.35" data-duration="5.6" data-track-index="6" data-track-kind="graphics"
+         data-start="69.11" data-duration="5.6" data-track-index="6" data-track-kind="graphics"
          data-width="1920" data-height="1080" style="z-index: 8"></div>
     <!-- Sound. The bed fades out under the end card. A click lands a frame after each press of the
          mouse (the presses edit.py prints); a whoosh peaks a frame after each sheet's fastest frame. -->
-    <audio id="music" class="clip" src="assets/audio/music.mp3" data-start="0" data-duration="73.55"
+    <audio id="music" class="clip" src="assets/audio/music.mp3" data-start="0" data-duration="74.31"
            data-track-index="10" data-volume="1" data-fade-in="0.05" data-fade-out="2.8"></audio>
-    <audio id="click-1" class="clip" src="assets/audio/click.mp3" data-start="7.48" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-2" class="clip" src="assets/audio/click.mp3" data-start="9.80" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-3" class="clip" src="assets/audio/click.mp3" data-start="12.05" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-4" class="clip" src="assets/audio/click.mp3" data-start="15.03" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-5" class="clip" src="assets/audio/click.mp3" data-start="21.83" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-6" class="clip" src="assets/audio/click.mp3" data-start="24.74" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-7" class="clip" src="assets/audio/click.mp3" data-start="29.71" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-8" class="clip" src="assets/audio/click.mp3" data-start="32.04" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-9" class="clip" src="assets/audio/click.mp3" data-start="34.12" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-10" class="clip" src="assets/audio/click.mp3" data-start="37.06" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-11" class="clip" src="assets/audio/click.mp3" data-start="46.07" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-12" class="clip" src="assets/audio/click.mp3" data-start="46.24" data-duration="0.36" data-track-index="13" data-volume="0.9"></audio>
-    <audio id="click-13" class="clip" src="assets/audio/click.mp3" data-start="49.45" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-14" class="clip" src="assets/audio/click.mp3" data-start="54.67" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
-    <audio id="click-15" class="clip" src="assets/audio/click.mp3" data-start="54.84" data-duration="0.36" data-track-index="13" data-volume="0.9"></audio>
-    <audio id="click-16" class="clip" src="assets/audio/click.mp3" data-start="57.07" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-1" class="clip" src="assets/audio/click.mp3" data-start="7.51" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-2" class="clip" src="assets/audio/click.mp3" data-start="9.83" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-3" class="clip" src="assets/audio/click.mp3" data-start="12.08" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-4" class="clip" src="assets/audio/click.mp3" data-start="15.00" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-5" class="clip" src="assets/audio/click.mp3" data-start="21.91" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-6" class="clip" src="assets/audio/click.mp3" data-start="24.83" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-7" class="clip" src="assets/audio/click.mp3" data-start="29.83" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-8" class="clip" src="assets/audio/click.mp3" data-start="32.13" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-9" class="clip" src="assets/audio/click.mp3" data-start="34.27" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-10" class="clip" src="assets/audio/click.mp3" data-start="37.50" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-11" class="clip" src="assets/audio/click.mp3" data-start="46.93" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-12" class="clip" src="assets/audio/click.mp3" data-start="47.09" data-duration="0.36" data-track-index="13" data-volume="0.9"></audio>
+    <audio id="click-13" class="clip" src="assets/audio/click.mp3" data-start="50.23" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-14" class="clip" src="assets/audio/click.mp3" data-start="55.30" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
+    <audio id="click-15" class="clip" src="assets/audio/click.mp3" data-start="55.48" data-duration="0.36" data-track-index="13" data-volume="0.9"></audio>
+    <audio id="click-16" class="clip" src="assets/audio/click.mp3" data-start="57.84" data-duration="0.36" data-track-index="11" data-volume="0.9"></audio>
     <audio id="whoosh-1" class="clip" src="assets/audio/whoosh-a.mp3" data-start="5.096" data-duration="0.57" data-track-index="12" data-volume="0.25"></audio>
-    <audio id="whoosh-2" class="clip" src="assets/audio/whoosh-b.mp3" data-start="26.165" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
-    <audio id="whoosh-3" class="clip" src="assets/audio/whoosh-a.mp3" data-start="28.346" data-duration="0.57" data-track-index="12" data-volume="0.25"></audio>
-    <audio id="whoosh-4" class="clip" src="assets/audio/whoosh-b.mp3" data-start="41.975" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
-    <audio id="whoosh-5" class="clip" src="assets/audio/whoosh-a.mp3" data-start="44.156" data-duration="0.57" data-track-index="12" data-volume="0.25"></audio>
-    <audio id="whoosh-6" class="clip" src="assets/audio/whoosh-b.mp3" data-start="57.115" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
-    <audio id="whoosh-7" class="clip" src="assets/audio/whoosh-a.mp3" data-start="62.546" data-duration="0.57" data-track-index="12" data-volume="0.25"></audio>
-    <audio id="whoosh-8" class="clip" src="assets/audio/whoosh-b.mp3" data-start="68.415" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
+    <audio id="whoosh-2" class="clip" src="assets/audio/whoosh-b.mp3" data-start="26.245" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
+    <audio id="whoosh-3" class="clip" src="assets/audio/whoosh-a.mp3" data-start="28.426" data-duration="0.57" data-track-index="12" data-volume="0.25"></audio>
+    <audio id="whoosh-4" class="clip" src="assets/audio/whoosh-b.mp3" data-start="42.615" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
+    <audio id="whoosh-5" class="clip" src="assets/audio/whoosh-a.mp3" data-start="44.796" data-duration="0.57" data-track-index="12" data-volume="0.25"></audio>
+    <audio id="whoosh-6" class="clip" src="assets/audio/whoosh-b.mp3" data-start="57.875" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
+    <audio id="whoosh-7" class="clip" src="assets/audio/whoosh-a.mp3" data-start="63.306" data-duration="0.57" data-track-index="12" data-volume="0.25"></audio>
+    <audio id="whoosh-8" class="clip" src="assets/audio/whoosh-b.mp3" data-start="69.175" data-duration="0.68" data-track-index="12" data-volume="0.25"></audio>
   </div>
   <script>
     window.__timelines = window.__timelines || {};
