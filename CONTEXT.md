@@ -181,7 +181,7 @@ _Avoid_: asset pool, library
 
 **Fixed set**:
 The dataset we release: the sequences Stage B writes once from the test split of the released
-library, over a recorded range of seeds and settings, with the bokeh Stage B renders for them.
+library, over a recorded range of seeds and settings, with the bokeh rendered for them in Stage B's pass.
 A network trained on the train split is evaluated on it.
 _Avoid_: benchmark, offline dataset
 
@@ -195,8 +195,9 @@ _Avoid_: preprocessing
 
 **Stage B**:
 Generating sequences from the asset library by layer-wise video composition, written to disk or
-handed out as the sequence stream; it never runs the depth estimator. With bokeh, optical flow,
-backward flow or either occlusion mask asked for, it renders them too, in the same pass.
+handed out as the sequence stream; it never runs the depth estimator. With optical flow,
+backward flow or either occlusion mask asked for, it computes them too, and with bokeh asked
+for, its bokeh renderer draws it, in the same pass.
 _Avoid_: rendering
 
 **Layer-wise video composition**:
