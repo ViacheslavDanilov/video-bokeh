@@ -314,11 +314,11 @@ def write_motion_streams(
 ) -> None:
     """Write the motion streams named in ``streams`` of a written sequence, from its scene.
 
-    For a sequence written without them: each of ``flow/``, ``flow_back/``,
-    ``occlusion/`` and ``occlusion_back/`` as ``write_sequence`` writes it. The frames are rendered again one at a
-    time, once for all of them, and each stream appears whole or not at all, through
-    ``staged_stream``. One that appeared meanwhile, from another request for the same
-    sequence, is kept.
+    For a sequence written without them: each of ``flow/``, ``flow_back/``, ``occlusion/``
+    and ``occlusion_back/`` as ``write_sequence`` writes it. The frames are composed again
+    one at a time, once for all of them, and each stream appears whole or not at all,
+    through ``staged_stream``. One that appeared meanwhile, from another request for the
+    same sequence, is kept.
 
     A single frame moves nowhere and writes nothing, as ``write_sequence`` writes none of
     them for it. ``report`` hears of each frame as its files are written, out of

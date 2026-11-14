@@ -56,7 +56,7 @@ and backward optical flow and its two occlusion masks match it by construction.
 
 The code works in two stages. Stage A built the library once, from MAGICK and BG-20k images
 and Depth Anything V2 Large. Stage B, the generator, moves the foregrounds over a background
-at disparities it draws for each object and renders every stream of every frame.
+at disparities it draws for each object and composes every stream of every frame.
 $preview$status
 ## At a glance
 

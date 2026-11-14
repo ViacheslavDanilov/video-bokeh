@@ -1,6 +1,6 @@
 """A sequence's bokeh, frame by frame, from its layers wherever they come from.
 
-The dataset writer and the API render frames with their layers in memory; ``render.run``
+The dataset writer and the API compose frames with their layers in memory; ``render.run``
 reads them back from ``layers/``. Both hand this module the same per-frame layers, and it
 renders them a few frames at a time, so a long sequence never holds its layers whole.
 """
@@ -41,10 +41,10 @@ class LayeredFrame:
 
 
 def layered_frame(frame: RenderedFrame) -> LayeredFrame:
-    """A frame Stage B rendered with its layers, as the renderer takes it."""
+    """A frame Stage B composed with its layers, as the renderer takes it."""
     layers = frame.layers
     if layers is None:
-        raise ValueError("the frame was rendered without its layers")
+        raise ValueError("the frame was composed without its layers")
     return LayeredFrame(
         background=layers.background_rgb.transpose(2, 0, 1) / 255.0,
         background_disparity=layers.background_disparity[None],

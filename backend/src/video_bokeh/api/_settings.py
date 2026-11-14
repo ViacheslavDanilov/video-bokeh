@@ -40,7 +40,7 @@ DEFAULT_DATA_ROOT = "data"
 DEFAULT_CORS_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 
 # A library is a directory holding these two. Both must exist: a library with no
-# backgrounds cannot produce a sequence, and finding out at render time gives a 500
+# backgrounds cannot produce a sequence, and finding out at generation time gives a 500
 # where a named configuration error belongs.
 _REQUIRED_SUBDIRS = ("foregrounds", "backgrounds")
 
