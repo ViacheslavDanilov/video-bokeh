@@ -166,7 +166,7 @@ The files of an asset, as `fetch` writes them under `data/library/da2-large/`:
 | `backgrounds/<id>/depth.png` | I;16 | uint16 | disparity, 0 far to 65535 near |
 
 - **Each disparity map is scaled to its own range,** its smallest value to 0 and its largest
-  to 65535. Values cannot be compared across items, and no map holds metric depth. The
+  to 65535. Values cannot be compared across assets, and no map holds metric depth. The
   generator stretches each map into the band of disparity it draws for the object, so only
   the shape inside a map matters.
 - **A foreground's disparity covers the whole square.** Inside the trusted core (step 4 of
