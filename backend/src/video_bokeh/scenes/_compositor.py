@@ -1,4 +1,4 @@
-"""Stage B: sample a scene from the library and render aligned RGB/alpha/depth.
+"""Stage B: sample a scene from the library and compose aligned RGB/alpha/depth.
 
 Depth is never re-estimated here: each object's precomputed full-frame disparity
 is warped by the same homography as its RGBA and remapped into the disparity

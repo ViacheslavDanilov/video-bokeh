@@ -1,4 +1,4 @@
-"""Scene geometry shared by sequence rendering and depth fusion.
+"""Scene geometry shared by sequence composition and depth fusion.
 
 This private module is the single source of truth for pose math, easing
 functions, homography construction, foreground/background warping, asset

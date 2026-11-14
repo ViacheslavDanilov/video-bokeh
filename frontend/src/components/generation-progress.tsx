@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // Presentation only: a step a later API adds still shows, under its own name.
 const STEP_NAMES: Record<string, string> = {
   sampling: "Choosing trajectories",
-  frames: "Rendering frames",
+  frames: "Composing frames",
   writing: "Writing frames",
   flow: "Adding optical flow",
   bokeh: "Rendering bokeh",

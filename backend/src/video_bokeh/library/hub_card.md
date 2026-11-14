@@ -135,10 +135,10 @@ An asset is plain PNG, read with Pillow and NumPy:
 import numpy as np
 from PIL import Image
 
-item = "data/library/da2-large/foregrounds/<id>"  # a folder `fetch` wrote
-rgba = np.asarray(Image.open(f"{item}/rgb.png"))  # (H, W, 4) uint8
-matte = np.asarray(Image.open(f"{item}/alpha.png")) / 255.0  # (H, W) in [0, 1]
-disparity = np.asarray(Image.open(f"{item}/depth.png")) / 65535.0  # (H, W) in [0, 1]
+asset = "data/library/da2-large/foregrounds/<id>"  # a folder `fetch` wrote
+rgba = np.asarray(Image.open(f"{asset}/rgb.png"))  # (H, W, 4) uint8
+matte = np.asarray(Image.open(f"{asset}/alpha.png")) / 255.0  # (H, W) in [0, 1]
+disparity = np.asarray(Image.open(f"{asset}/depth.png")) / 65535.0  # (H, W) in [0, 1]
 ```
 
 The `datasets` library streams the shards from the Hub with no download, one sample per

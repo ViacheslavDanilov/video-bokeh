@@ -384,13 +384,13 @@ def write_sequence(
     """Write one sequence's three streams into ``seq_dir``, and its layers and flow if it
     has them.
 
-    Frames rendered with ``layers`` also write ``layers/``: the background and each
+    Frames composed with ``layers`` also write ``layers/``: the background and each
     object per frame, then ``paint_order.json``, the objects far to near in each frame.
-    It comes last, so a ``layers/`` without it was interrupted. Frames rendered with
-    ``flow`` write ``flow/``, one file per frame but the last, frames rendered with
+    It comes last, so a ``layers/`` without it was interrupted. Frames composed with
+    ``flow`` write ``flow/``, one file per frame but the last, frames composed with
     ``flow_back`` write ``flow_back/``, one file per frame but the first, and frames
-    rendered with ``occlusion`` write ``occlusion/``, one per frame but the last, and
-    frames rendered with ``occlusion_back`` write ``occlusion_back/``, one per frame but
+    composed with ``occlusion`` write ``occlusion/``, one per frame but the last, and
+    frames composed with ``occlusion_back`` write ``occlusion_back/``, one per frame but
     the first. Any ``layers/``, ``flow/``, ``flow_back/``, ``occlusion/``,
     ``occlusion_back/`` or ``bokeh/`` already in
     ``seq_dir`` is removed first: an earlier run's would otherwise pass for this one's.

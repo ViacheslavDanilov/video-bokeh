@@ -49,7 +49,7 @@ without rebuilding.
   ([cli.md](../docs/reference/cli.md#video_bokehscenesgenerate-stage-b)), and
   `bokeh_strength` for the training stream ([loader.md](../docs/reference/loader.md#bokeh)).
 - **Generate**: one call, with one bar for the whole of it. The API names its steps first:
-  choosing the trajectories, rendering the frames, writing them, and rendering the bokeh. The
+  choosing the trajectories, composing the frames, writing them, and rendering the bokeh. The
   bar fills by their counts, beside the step under way, and stays full where it filled for
   half a second before the sequence is shown. On an Apple M3 Pro at the page's defaults, 80
   frames at 512 px with two to four objects, it took 6.1 to 7.3 seconds, and 12.0 to 15.4 with
