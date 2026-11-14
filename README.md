@@ -16,7 +16,7 @@ Depth-aware synthetic bokeh pipeline for video, with a FastAPI backend and Next.
 
 ## Demo
 
-https://github.com/user-attachments/assets/59893889-b8fd-4919-960e-3d1b32731c8a
+https://github.com/user-attachments/assets/fb40b59c-5443-4031-8233-ef18633911cd
 
 ## Features
 
