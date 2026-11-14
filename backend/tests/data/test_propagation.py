@@ -41,7 +41,7 @@ def test_threshold_is_fraction_of_alpha_max() -> None:
 
 def test_trusted_core_drops_low_outliers() -> None:
     disp = np.full((20, 20), 0.8, dtype=np.float32)
-    disp[10, 10] = 0.0  # a depth-model hole inside the object
+    disp[10, 10] = 0.0  # a hole the depth estimator left inside the object
     alpha = np.ones((20, 20), dtype=np.float32)
     core = trusted_core(alpha, disp, nb_pixels_remove=2, threshold=0.5, low_pct=2.0)
     assert not core[10, 10]  # the hole is excluded from the trusted core

@@ -1,4 +1,4 @@
-"""Layer-wise bokeh: each layer blurred by its distance from the focus, then composited.
+"""Layered bokeh: each layer blurred by its distance from the focus, then composited.
 
 A package of its own rather than part of ``render``, which renders over written sequences,
 because the training loader renders with it too: it needs torch and nothing of ``render``'s.

@@ -1,4 +1,4 @@
-"""The layer-wise renderer blurs each layer by its distance from the focus, then composites.
+"""The layered renderer blurs each layer by its distance from the focus, then composites.
 
 Every test builds its layers by hand, small enough to reason about pixel by pixel: a flat
 background, a square object, a single bright pixel.

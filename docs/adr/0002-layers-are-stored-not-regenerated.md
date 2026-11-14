@@ -1,10 +1,10 @@
 # The layers are stored, not regenerated
 
-A layer-wise bokeh renderer needs what each frame was composited from: the whole background
+A layered bokeh renderer needs what each frame was composited from: the whole background
 and each whole object, with its own disparity. Stage B writes these as an optional `layers/`
 stream beside the sequence's other streams, when `scenes.generate --layers` asks for it.
 Stage C reads them from there. It does not run Stage B again to get them. Decided on
-2026-10-10, for the layer-wise renderer agreed after the 2026-10-08 sync.
+2026-10-10, for the layered renderer agreed after the 2026-10-08 sync.
 
 ## Considered options
 

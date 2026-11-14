@@ -5,9 +5,9 @@ tags: [topic, bokeh, bokeh-renderer, layers]
 related: [pipeline-explainer, dataset-layout, loader]
 ---
 
-# How the layer-wise bokeh renderer works
+# How the layered bokeh renderer works
 
-Our layer-wise renderer blurs each layer of a frame on its own, by how far it is from the
+Our layered renderer blurs each layer of a frame on its own, by how far it is from the
 focus, and then stacks the blurred layers back together. It is a classical algorithm in
 PyTorch, and it runs on a CPU, an NVIDIA card or a Mac's GPU.
 

@@ -25,7 +25,7 @@ def trusted_core(
     Start from ``alpha >= threshold``, erode ``nb_pixels_remove`` border pixels,
     keep only finite values, and (when ``low_pct > 0``) drop pixels below the
     ``low_pct`` percentile of the eroded-core disparity -- these look like
-    depth-model holes and would otherwise propagate outward.
+    holes the depth estimator left and would otherwise propagate outward.
     """
     a = np.asarray(alpha, dtype=np.float32)
     disp = np.asarray(disparity, dtype=np.float32)

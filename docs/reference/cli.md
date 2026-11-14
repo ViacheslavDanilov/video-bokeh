@@ -349,7 +349,7 @@ and `run.json` first, then writes `manifest.csv` atomically as the run's complet
 | `--n-objects-min` | int | `1` | fewest objects in a scene |
 | `--n-objects-max` | int | `5` | most objects in a scene. No format ceiling; the depth axis binds around 5. See [dataset-layout](dataset-layout.md) |
 | `--split` | `train`, `test` or `all` | `train` | the assets the scenes draw from: `train`, the ones training sees, `test`, the fixed set's, or `all`, as every run before the split did. See [dataset-layout](dataset-layout.md#the-train-and-test-splits) |
-| `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layer-wise bokeh renderer. See [dataset-layout](dataset-layout.md) |
+| `--layers` | flag | off | also write `layers/`, what each frame was composited from, for a layered bokeh renderer. See [dataset-layout](dataset-layout.md) |
 | `--flow` | `forward`, `backward` or `both` | none | also write each frame's exact optical flow as KITTI's 16-bit PNG: `forward` writes `flow/`, the flow to the next frame, `backward` writes `flow_back/`, the flow to the previous one, `both` writes both. See [dataset-layout](dataset-layout.md) |
 | `--occlusion` | `forward`, `backward` or `both` | none | also write an 8-bit mask of the pixels whose surface the neighbor frame does not show: `forward` writes `occlusion/`, for each frame but the last, against the next frame, `backward` writes `occlusion_back/`, for each frame but the first, against the previous one, `both` writes both. See [dataset-layout](dataset-layout.md) |
 | `--bokeh` | flag | off | also render each sequence's `bokeh/` in the same run, with the layered renderer, from the layers in memory; needs torch |
@@ -409,7 +409,7 @@ The focus follows one object by default, drawn by the area it holds alone, keyed
 scene's seed, so `render.run` draws the object `scenes.generate --bokeh` would have. `--focus-object` names the object instead, followed by the same rule. `bokeh/focus.json` records
 the object, each frame's in-focus disparity, the renderer and its strength.
 
-**`layered` is the layer-wise renderer** that [layered-bokeh](../explanation/layered-bokeh.md)
+**`layered` is the layered renderer** that [layered-bokeh](../explanation/layered-bokeh.md)
 explains. It reads `layers/`, `alpha/` and `disparity/` and writes `bokeh/` losslessly. It
 refuses the whole batch, before rendering any, when a sequence has no complete `layers/`. It
 runs on the CPU unless `VIDEO_BOKEH_LAYERED_DEVICE` is `cuda` or `mps`, and falls back to the

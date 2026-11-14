@@ -261,7 +261,7 @@ def write_preview(
         draw,
         MARGIN,
         "Foregrounds",
-        f"{len(all_fg):,} cut-out objects, each with a matte and disparity",
+        f"{len(all_fg):,} foregrounds, each with a matte and disparity",
     )
     for k, asset_id in enumerate(fg_ids):
         left = MARGIN + (k % 2) * (_FG_CARD + CARD_GAP)

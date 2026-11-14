@@ -21,7 +21,7 @@ https://github.com/user-attachments/assets/59893889-b8fd-4919-960e-3d1b32731c8a
 ## Features
 
 - **Synthetic training data with known depth** – Objects composited onto backgrounds at disparities we assign, written as video sequences with one matte per object and 16-bit disparity. The library and a fixed set of 300 sequences are on [Hugging Face](https://huggingface.co/datasets/vdanilov/video-bokeh).
-- **Swappable parts** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own) in Stage A, and bokeh: our layer-wise renderer inside Stage B, or your own over written sequences.
+- **Swappable parts** – Depth (Depth Anything V2, Depth Pro, Depth Anything 3 or your own) in Stage A, and bokeh: our layered renderer inside Stage B, or your own over written sequences.
 - **Training on the fly** – A PyTorch stream that generates a new sequence for every item.
 - **Web demo** – Generate a sequence and compare its streams side by side.
 

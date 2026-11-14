@@ -1,7 +1,7 @@
 # Video Bokeh
 
 Synthetic training data for depth-aware video bokeh: cut-out objects composited onto
-backgrounds at disparities we assign and therefore know, rendered as sequences, plus a demo
+backgrounds at disparities we assign and therefore know, composed into sequences, plus a demo
 that shows them.
 
 ## Assets and the library
@@ -56,13 +56,13 @@ _Avoid_: core mask, valid region
 ## Sequences
 
 **Scene**:
-The sampled setup a sequence is rendered from: its background, its objects with their
+The sampled setup a sequence is composed from: its background, its objects with their
 trajectories, the frame count and the size: everything the seed and the run's settings decide
 before a frame is drawn.
 _Avoid_: layout, plan
 
 **Sequence**:
-One generated clip: a scene rendered frame by frame into streams, fully determined by its
+One generated clip: a scene composed frame by frame into streams, fully determined by its
 seed, the library and the run's settings.
 _Avoid_: clip, video
 

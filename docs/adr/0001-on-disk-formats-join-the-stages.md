@@ -20,8 +20,8 @@ the layout drawn on the call and the architecture discussed after it.
   need a running service to draw a batch. It imports Stage B in the training process instead,
   and the stages meet only in files, which any of them can write or read on any machine.
 - **The containers drawn on the call: depth estimation together with sequence generation, and
-  any-to-bokeh apart.** That joins Stage A, which needs torch and a depth model, to generating
-  sequences, which needs neither. The API image has no torch and no depth model.
+  any-to-bokeh apart.** That joins Stage A, which needs torch and a depth estimator, to generating
+  sequences, which needs neither. The API image has no torch and no depth estimator.
 - **One image per model.** Every model added would be an image to build and keep, where models
   can share one environment: Depth Anything V2 and Depth Pro both run in ours. A flag picks the
   model inside an environment instead, as the depth registry does.
