@@ -325,7 +325,7 @@ curl -N -X POST http://localhost:8000/sequences \
 
 - **The steps come in order, each counted from 0 to its total:** `sampling` (choosing
   collision-free trajectories, one step that retries can make the longest), `frames`
-  (rendering them, the motion streams included), `writing`, and `bokeh` when the API renders
+  (composing them, the motion streams included), `writing`, and `bokeh` when the API renders
   it. A cached sequence missing any motion stream or its bokeh reports `sampling` once, then
   `flow`, or `frames` and `bokeh`, or all three; one missing nothing reports no step, only
   itself. `flow` adds every motion stream the sequence lacks, in one pass. It counts the
