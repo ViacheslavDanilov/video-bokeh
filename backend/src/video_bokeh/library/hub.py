@@ -244,7 +244,7 @@ def _glance(index: dict[str, dict[str, Any]], sequences: dict[str, Any] | None) 
     fg, bg = index[FOREGROUNDS], index[BACKGROUNDS]
     rows = [
         ["", "Foregrounds", "Backgrounds"],
-        ["Items", f"{fg['items']:,}", f"{bg['items']:,}"],
+        ["Count", f"{fg['items']:,}", f"{bg['items']:,}"],
         ["Size", f"{fg['side']} × {fg['side']}", f"{bg['side']} × {bg['side']}"],
         [
             "Files",

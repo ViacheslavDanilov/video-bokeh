@@ -260,7 +260,7 @@ def test_the_card_follows_the_hub_metadata_and_counts_what_it_holds(
     # Every number is filled in from the index, and no placeholder is left.
     assert "$" not in card
     assert "| | Foregrounds | Backgrounds |\n" in card
-    assert "| Items | 3 | 2 |" in card
+    assert "| Count | 3 | 2 |" in card
     assert "| Size | 64 × 64 | 192 × 192 |" in card
     assert "| Shards | 3 | 2 |" in card
     assert "## Fixed set" not in card
@@ -574,7 +574,7 @@ def test_the_card_describes_the_fixed_set_when_there_is_one(
         "evaluation" in prose
     )
     assert "| | Foregrounds | Backgrounds | Fixed set |" in card
-    assert "| Items | 3 | 3 | 2 sequences |" in card
+    assert "| Count | 3 | 3 | 2 sequences |" in card
     assert "Each has 3 frames at 32 × 32 and 1 object" in prose
     assert "rendered at `k = 16`" in prose
     assert "Read the fixed set with `fetch-sequences`, not `datasets`." in prose
