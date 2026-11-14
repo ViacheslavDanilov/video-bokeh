@@ -74,6 +74,58 @@ The problem this solves, in one or two sentences. Not a restatement of What.
 5. **Don't amend pushed commits** without the user's go-ahead (force-push territory).
 6. Commit and pull request text follows the notation in "Commit messages" and "Pull requests" above.
 
+## Task cleanup
+
+A task ends when its pull request is merged or closed, or when it had no pull request. Then remove
+what the task generated and git does not track on purpose.
+
+**Inside the pull request.** Remove the code, text, prompts and files that this change made
+obsolete, so the review sees the removal. Remove only what this change made unused, and mention
+unrelated dead code instead of deleting it. Never treat research data, provenance, source files or
+anything needed to reproduce a result as obsolete. Do not commit scratch output, debug files, logs
+or generated artifacts that the repository does not track by rule.
+
+**After the merge, local state only.** Do it after the last review and merge, not before: review
+material is needed while the owner is still deciding. Work from the main checkout, not from inside
+a worktree you are about to remove.
+
+1. Switch the main checkout to the updated default branch: `git switch <default>` then
+   `git pull --ff-only`. Run `git fetch --prune`.
+2. Stop the dev servers and background jobs this task started, with the process group, after you
+   confirm the PID is yours. Do this before removing the folders they run in.
+3. Remove the worktrees this task created: `git worktree remove <path>`. If it refuses because
+   of untracked files, look at them and delete the ones that are scratch. Do not use `--force`
+   on something you have not looked at.
+4. Delete the local branches this task created: `git branch -d <branch>`. A squash merge leaves a
+   branch unmerged in git's eyes, so `-d` can refuse. Then check that the pull request is merged
+   and that the local tip equals its head:
+   `gh pr view <n> --json state,headRefOid`, `git rev-parse <branch>`. Only when both match, use
+   `git branch -D <branch>`. A local commit past that head is unpushed work: keep the branch and
+   tell the owner.
+5. Delete the temporary files this task wrote: the session scratchpad, `/tmp`, stray files in the
+   home or project folder, and `BRIEF.md` and `STATUS.md` when they are untracked. Drop stash
+   entries this task made. Look at a path before you delete it, and use exact paths.
+6. Check that `git status --short`, `git worktree list` and `git branch` show nothing from the
+   task, then tell the owner what you removed, what you kept and why.
+
+**A pull request closed without a merge, or no pull request.** Closing is not permission to
+discard work. Remove the scratch files and processes, and ask the owner before you delete a branch
+or a worktree that holds commits.
+
+**Limits.** Touch only what this task created: another session's worktree, branch, scratchpad,
+port, stash or uncommitted change stays. When you are not sure something is yours, list it for
+the owner and do not delete it. Keep whatever a repository rule says to keep.
+
+**Also clean here.** Only what this task generated. `backend/data/` stays under "Don't touch": the
+pools, the libraries and the CLIP predictions are never disposable.
+
+- `backend/data/sequences/<id>/` folders the task generated and nothing else needs, and
+  `backend/data/measurements/*.log` and `backend/data/a2b_vs_ours/` output the task wrote. Keep a
+  sequence the demo or a result in a pull request names (see `.assets/demo/README.md`)
+- `.gstack/`, `.playwright-mcp/` and `frontend/test-results/`: QA reports, browser scratch and test
+  output, all ignored by git
+- `<worktree>-agy` beside a worktree, which `git worktree remove` leaves in place
+
 ## Model routing
 
 Work goes to a model by its kind, the paths it touches and the review pass, never by a guess at how hard it is. The main session orchestrates: it talks to the user, writes `BRIEF.md` and `STATUS.md`, and commits. The agents are in `.claude/agents/`.
@@ -102,9 +154,9 @@ cd <worktree> && agy -p "<prompt>" --model gemini-4-argon-high --sandbox --add-d
   --output-format json --print-timeout 1500s < /dev/null > <worktree>-agy/report.json
 ```
 
-`<worktree>-agy` is a folder beside the worktree, removed with it. Always name `--model`: the default in `agy`'s own settings is a Claude model on a separate quota this project does not use. Headless `agy` denies its own file writes and every shell command, and that is what keeps it read-only; `--sandbox` is a second layer. It gets no shell at all: under `--sandbox` in a linked worktree even `git log` fails, since the repository's `.git` lies outside its folders, and git history is lens #3's job. A denied call ends the whole run with exit code 0, an empty `response` and a stderr line that starts `jetski: no output produced`, so check the response, not the exit code. The prompt therefore hands it everything as files and says that any shell command ends the run. `agy` also loads the skills in `.agents/skills/` on its own, and they would lead it into commands, so the prompt tells it not to use them. Keep the `< /dev/null`: without it, a run in the background reads stdin and waits for input that never comes. Record the `usage` the JSON reports: how fast the quota drains is still being measured. A 450-line diff takes about 7 minutes, 140k tokens and 3 % of the weekly Argon quota.
+`<worktree>-agy` is a folder beside the worktree. `git worktree remove` leaves it, so delete it with the worktree (see Task cleanup). Always name `--model`: the default in `agy`'s own settings is a Claude model on a separate quota this project does not use. Headless `agy` denies its own file writes and every shell command, and that is what keeps it read-only; `--sandbox` is a second layer. It gets no shell at all: under `--sandbox` in a linked worktree even `git log` fails, since the repository's `.git` lies outside its folders, and git history is lens #3's job. A denied call ends the whole run with exit code 0, an empty `response` and a stderr line that starts `jetski: no output produced`, so check the response, not the exit code. The prompt therefore hands it everything as files and says that any shell command ends the run. `agy` also loads the skills in `.agents/skills/` on its own, and they would lead it into commands, so the prompt tells it not to use them. Keep the `< /dev/null`: without it, a run in the background reads stdin and waits for input that never comes. Record the `usage` the JSON reports: how fast the quota drains is still being measured. A 450-line diff takes about 7 minutes, 140k tokens and 3 % of the weekly Argon quota.
 
-**`BRIEF.md` and `STATUS.md`** are gitignored and belong to one task. The brief holds the goal, the acceptance criteria the user confirmed word for word, a link to the spec when there is one, what is out of scope, how to verify, and the limits; it is written once, when the user confirms the criteria, and no worker edits it. The status holds what is done with commit SHAs, the next step, check results with numbers and questions for the user; it is updated after every step, by the orchestrator for a read-only worker. Pass both by absolute path to a worker in another worktree. A new session reads both and continues; another task's unfinished brief is closed first. Delete both when the task ends.
+**`BRIEF.md` and `STATUS.md`** are gitignored and belong to one task. The brief holds the goal, the acceptance criteria the user confirmed word for word, a link to the spec when there is one, what is out of scope, how to verify, and the limits; it is written once, when the user confirms the criteria, and no worker edits it. The status holds what is done with commit SHAs, the next step, check results with numbers and questions for the user; it is updated after every step, by the orchestrator for a read-only worker. Pass both by absolute path to a worker in another worktree. A new session reads both and continues; another task's unfinished brief is closed first. Task cleanup deletes both.
 
 ## Secrets and data
 
