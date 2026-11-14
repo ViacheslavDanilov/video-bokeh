@@ -1,4 +1,4 @@
-"""The on-the-fly loader renders sequences in memory, through Stage B, forever."""
+"""The on-the-fly loader composes sequences in memory, through Stage B, forever."""
 
 from __future__ import annotations
 

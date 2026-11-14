@@ -66,7 +66,7 @@ class CollisionRetriesExhausted(RuntimeError):
 @dataclass
 class ObjectTrack:
     asset: ForegroundAsset
-    # Kept although the renderer never reads it: it records which slot seeded frame 1,
+    # Kept although the composition never reads it: it records which slot seeded frame 1,
     # which is what lets a test assert the object actually leaves it.
     slot: tuple[float, float]
     pose_start: Pose
@@ -275,7 +275,7 @@ def render_scene(
     occlusion: bool = False,
     occlusion_back: bool = False,
 ) -> list[RenderedFrame]:
-    """Render every frame: warp the precomputed triplet, band depth, composite.
+    """Compose every frame: warp the precomputed triplet, band depth, composite.
 
     With ``layers``, each frame also keeps what it was composited from. Off by default:
     the layers hold several more copies of the frame, which a caller that composites

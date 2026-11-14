@@ -398,8 +398,9 @@ surface is hidden in the previous frame. Its first frame has no previous one, so
 shows it black, and with `?overlay=true` gray with nothing drawn on it, and the masks start at
 the second frame. The sequence response names its URLs as the mask's `backward` and
 `overlay_backward` rather than as a stream. `?overlay=` reads the same yes or no as for
-`occlusion`, and the overlay is cached as `occlusion_back.overlay-cyan.mp4`. Written with the sequence, it costs about a tenth more
-render time than the other three motion streams, measured in `iter_frames` alone.
+`occlusion`, and the overlay is cached as `occlusion_back.overlay-cyan.mp4`. Written with the
+sequence, it costs about a tenth more composition time than the other three motion streams,
+measured in `iter_frames` alone.
 
 Encoded on the first request at 24 fps and kept next to the frames, so the second request is a
 file read. A stream whose frames changed after its video was encoded is encoded again: a renderer of
