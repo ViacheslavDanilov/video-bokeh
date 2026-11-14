@@ -396,7 +396,7 @@ test("shows the steps of a generation, then what is on screen", async ({
 
   const progress = page.getByRole("status", { name: "Generation progress" });
   // As shown: the line keeps every step's name in it, hidden, to hold its width.
-  await expect(progress).toContainText("Rendering frames", {
+  await expect(progress).toContainText("Composing frames", {
     useInnerText: true,
   });
   await expect(progress).toBeHidden({ timeout: 60_000 });
